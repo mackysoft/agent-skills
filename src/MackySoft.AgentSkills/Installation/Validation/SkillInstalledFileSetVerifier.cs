@@ -24,7 +24,7 @@ public sealed class SkillInstalledFileSetVerifier
 
         foreach (var expectedRelativePath in expectedRelativePaths.Order(StringComparer.Ordinal))
         {
-            var expectedPathResult = SkillPackagePathBoundary.ResolvePackageFilePath(skillDirectory, expectedRelativePath);
+            var expectedPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, expectedRelativePath);
             if (!expectedPathResult.IsSuccess)
             {
                 return SkillOperationResult<bool>.FailureResult(expectedPathResult.Failure!.Code, expectedPathResult.Failure.Message);
@@ -38,13 +38,19 @@ public sealed class SkillInstalledFileSetVerifier
 
         foreach (var filePath in Directory.EnumerateFiles(skillDirectory, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
         {
+            var relativePath = Path.GetRelativePath(skillDirectory, filePath).Replace(Path.DirectorySeparatorChar, '/');
+            var regularFileResult = SkillPackageRegularFileResolver.VerifyRegularFile(filePath, relativePath);
+            if (!regularFileResult.IsSuccess)
+            {
+                return SkillOperationResult<bool>.FailureResult(regularFileResult.Failure!.Code, regularFileResult.Failure.Message);
+            }
+
             var filePathResult = SkillPackagePathBoundary.ResolveUnderRoot(skillDirectory, filePath);
             if (!filePathResult.IsSuccess)
             {
                 return SkillOperationResult<bool>.FailureResult(filePathResult.Failure!.Code, filePathResult.Failure.Message);
             }
 
-            var relativePath = Path.GetRelativePath(skillDirectory, filePathResult.Value!).Replace(Path.DirectorySeparatorChar, '/');
             if (!expectedRelativePaths.Contains(relativePath))
             {
                 return SkillOperationResult<bool>.Success(false);

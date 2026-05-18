@@ -54,4 +54,42 @@ public sealed class SkillMaterializedPackageDiffBuilderTests
                 Assert.Null(file.AfterContent);
             });
     }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task BuildAsync_RejectsExistingFileSymlink ()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "diff-builder-file-symlink");
+        var skillDirectory = scope.CreateDirectory("sample-skill");
+        var targetPath = scope.WriteFile(Path.Combine("sample-skill", "actual.md"), "# Actual\n");
+        var symlinkPath = Path.Combine(skillDirectory, "SKILL.md");
+        try
+        {
+            File.CreateSymbolicLink(symlinkPath, targetPath);
+        }
+        catch (IOException)
+        {
+            return;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return;
+        }
+
+        var package = new SkillMaterializedPackage(
+            "sample-skill",
+            OpenAiSkillHostAdapter.HostKey,
+            [SkillPackageFile.Create("SKILL.md", "# After\n")]);
+        var builder = new SkillMaterializedPackageDiffBuilder();
+
+        var result = await builder.BuildAsync(skillDirectory, package, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+    }
 }

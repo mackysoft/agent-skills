@@ -32,7 +32,7 @@ public sealed class SkillInstalledManifestReader
         ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var manifestPathResult = SkillPackagePathBoundary.ResolvePackageFilePath(skillDirectory, "agent-skill.json");
+        var manifestPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, "agent-skill.json");
         if (!manifestPathResult.IsSuccess)
         {
             return SkillOperationResult<SkillInstalledManifest>.FailureResult(

@@ -116,6 +116,15 @@ public sealed class SkillMaterializedPackageDiffBuilder
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
+                var relativePath = Path.GetRelativePath(resolvedSkillDirectory, filePath).Replace(Path.DirectorySeparatorChar, '/');
+                var regularFileResult = SkillPackageRegularFileResolver.VerifyRegularFile(filePath, relativePath);
+                if (!regularFileResult.IsSuccess)
+                {
+                    return SkillOperationResult<Dictionary<string, string>>.FailureResult(
+                        regularFileResult.Failure!.Code,
+                        regularFileResult.Failure.Message);
+                }
+
                 var resolvedPathResult = SkillPackagePathBoundary.ResolveUnderRoot(resolvedSkillDirectory, filePath);
                 if (!resolvedPathResult.IsSuccess)
                 {
@@ -124,7 +133,6 @@ public sealed class SkillMaterializedPackageDiffBuilder
                         resolvedPathResult.Failure.Message);
                 }
 
-                var relativePath = Path.GetRelativePath(resolvedSkillDirectory, resolvedPathResult.Value!).Replace(Path.DirectorySeparatorChar, '/');
                 files[relativePath] = SkillTextNormalizer.NormalizeToLf(
                     await File.ReadAllTextAsync(resolvedPathResult.Value!, cancellationToken).ConfigureAwait(false));
             }

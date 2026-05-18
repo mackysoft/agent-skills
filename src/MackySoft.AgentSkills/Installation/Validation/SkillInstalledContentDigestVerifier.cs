@@ -48,7 +48,7 @@ public sealed class SkillInstalledContentDigestVerifier
             .Where(static file => file.RelativePath.StartsWith("references/", StringComparison.Ordinal))
             .OrderBy(static file => file.RelativePath, StringComparer.Ordinal))
         {
-            var referencePathResult = SkillPackagePathBoundary.ResolvePackageFilePath(skillDirectory, reference.RelativePath);
+            var referencePathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, reference.RelativePath);
             if (!referencePathResult.IsSuccess)
             {
                 return SkillOperationResult<bool>.FailureResult(referencePathResult.Failure!.Code, referencePathResult.Failure.Message);
@@ -71,7 +71,7 @@ public sealed class SkillInstalledContentDigestVerifier
         string skillDirectory,
         CancellationToken cancellationToken)
     {
-        var skillPathResult = SkillPackagePathBoundary.ResolvePackageFilePath(skillDirectory, "SKILL.md");
+        var skillPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, "SKILL.md");
         if (!skillPathResult.IsSuccess)
         {
             return SkillOperationResult<InstalledSkillBody>.FailureResult(skillPathResult.Failure!.Code, skillPathResult.Failure.Message);

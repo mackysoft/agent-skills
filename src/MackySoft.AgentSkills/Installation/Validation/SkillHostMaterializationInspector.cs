@@ -55,7 +55,7 @@ public sealed class SkillHostMaterializationInspector
             return SkillOperationResult<bool>.FailureResult(SkillFailureCodes.ManifestInvalid, $"Manifest does not contain host artifact '{hostKey}'.");
         }
 
-        var skillPathResult = SkillPackagePathBoundary.ResolvePackageFilePath(skillDirectory, "SKILL.md");
+        var skillPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, "SKILL.md");
         if (!skillPathResult.IsSuccess)
         {
             return SkillOperationResult<bool>.FailureResult(skillPathResult.Failure!.Code, skillPathResult.Failure.Message);
@@ -99,7 +99,7 @@ public sealed class SkillHostMaterializationInspector
                 $"Manifest host artifact '{hostKey}' must contain metadata artifact fields.");
         }
 
-        var metadataPathResult = SkillPackagePathBoundary.ResolvePackageFilePath(skillDirectory, metadataArtifactPath);
+        var metadataPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, metadataArtifactPath);
         if (!metadataPathResult.IsSuccess)
         {
             return SkillOperationResult<bool>.FailureResult(metadataPathResult.Failure!.Code, metadataPathResult.Failure.Message);

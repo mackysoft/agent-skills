@@ -464,6 +464,44 @@ public sealed class SkillInstallServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task InstallAsync_RejectsManifestSymlinkWithinTarget ()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "install-manifest-symlink-local");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var service = SkillTestData.CreateInstallService();
+        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var install = await service.InstallAsync(packages, request, CancellationToken.None);
+        Assert.True(install.IsSuccess, install.Failure?.Message);
+        var skillDirectory = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName);
+        var manifestPath = Path.Combine(skillDirectory, "agent-skill.json");
+        var targetPath = Path.Combine(skillDirectory, "agent-skill.actual.json");
+        File.Move(manifestPath, targetPath);
+        try
+        {
+            File.CreateSymbolicLink(manifestPath, targetPath);
+        }
+        catch (IOException)
+        {
+            return;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return;
+        }
+
+        var result = await service.InstallAsync(packages, request, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task InstallAsync_ReturnsUnsupportedHostFailure_WhenHostIsUnknown ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "install-unsupported-host");
