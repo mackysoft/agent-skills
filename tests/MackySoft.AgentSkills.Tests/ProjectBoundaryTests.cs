@@ -47,6 +47,45 @@ public sealed class ProjectBoundaryTests
 
     [Theory]
     [Trait("Size", "Small")]
+    [MemberData(nameof(BoundaryRootDirectoryCases))]
+    public void BoundaryRootDirectory_ContainsOnlyExpectedSubdirectories (
+        string relativeDirectory,
+        string[] expectedDirectoryNames)
+    {
+        var sourceRoot = GetSourceRoot();
+        var directoryPath = CombineSourcePath(sourceRoot, relativeDirectory);
+
+        var directSourceFiles = Directory.EnumerateFiles(directoryPath, "*.cs", SearchOption.TopDirectoryOnly)
+            .Select(filePath => Path.GetRelativePath(sourceRoot, filePath).Replace(Path.DirectorySeparatorChar, '/'))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        var actualDirectoryNames = Directory.EnumerateDirectories(directoryPath)
+            .Select(Path.GetFileName)
+            .Where(static directoryName => !string.IsNullOrWhiteSpace(directoryName))
+            .Select(static directoryName => directoryName!)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Empty(directSourceFiles);
+        Assert.Equal(expectedDirectoryNames.Order(StringComparer.Ordinal), actualDirectoryNames);
+    }
+
+    [Theory]
+    [Trait("Size", "Small")]
+    [MemberData(nameof(BoundarySubdirectoryForbiddenNamespaceCases))]
+    public void BoundarySubdirectory_DoesNotReferenceForbiddenNamespace (
+        string relativeDirectory,
+        string forbiddenNamespace)
+    {
+        var sourceRoot = GetSourceRoot();
+        var directoryPath = CombineSourcePath(sourceRoot, relativeDirectory);
+
+        AssertDirectoryDoesNotContainAny(sourceRoot, directoryPath, [forbiddenNamespace]);
+    }
+
+    [Theory]
+    [Trait("Size", "Small")]
     [MemberData(nameof(NonHostConcreteHostArtifactCases))]
     public void NonHostDirectory_DoesNotReferenceConcreteHostArtifacts (
         string directoryName,
@@ -188,6 +227,114 @@ public sealed class ProjectBoundaryTests
         return data;
     }
 
+    public static TheoryData<string, string[]> BoundaryRootDirectoryCases ()
+    {
+        var data = new TheoryData<string, string[]>
+        {
+            {
+                "Installation",
+                [
+                    "Contracts",
+                    "Diffing",
+                    "Inventory",
+                    "Requests",
+                    "Results",
+                    "Services",
+                    "State",
+                    "Targeting",
+                    "Transactions",
+                    "Validation",
+                ]
+            },
+            {
+                "Packaging",
+                [
+                    "Canonical",
+                    "FileSystem",
+                ]
+            },
+        };
+
+        return data;
+    }
+
+    public static TheoryData<string, string> BoundarySubdirectoryForbiddenNamespaceCases ()
+    {
+        var data = new TheoryData<string, string>();
+
+        AddForbiddenNamespaceCases(
+            data,
+            "Packaging/FileSystem",
+            [
+                "MackySoft.AgentSkills.Distribution",
+                "MackySoft.AgentSkills.Doctor",
+                "MackySoft.AgentSkills.Generation",
+                "MackySoft.AgentSkills.Hosts",
+                "MackySoft.AgentSkills.Installation",
+                "MackySoft.AgentSkills.Materialization",
+                "MackySoft.AgentSkills.Sources",
+            ]);
+
+        AddForbiddenNamespaceCases(
+            data,
+            "Packaging/Canonical",
+            [
+                "MackySoft.AgentSkills.Distribution",
+                "MackySoft.AgentSkills.Doctor",
+                "MackySoft.AgentSkills.Generation",
+                "MackySoft.AgentSkills.Installation",
+                "MackySoft.AgentSkills.Materialization",
+                "MackySoft.AgentSkills.Sources",
+            ]);
+
+        AddForbiddenNamespaceCases(
+            data,
+            "Installation/Contracts",
+            GetInstallationSubnamespaceReferencesExcept("Contracts"));
+
+        AddForbiddenNamespaceCases(
+            data,
+            "Installation/Diffing",
+            GetInstallationSubnamespaceReferencesExcept("Diffing", "Results"));
+
+        AddForbiddenNamespaceCases(
+            data,
+            "Installation/Inventory",
+            GetInstallationSubnamespaceReferencesExcept("Inventory", "Targeting", "Validation"));
+
+        AddForbiddenNamespaceCases(
+            data,
+            "Installation/Requests",
+            GetInstallationSubnamespaceReferencesExcept("Requests", "Targeting"));
+
+        AddForbiddenNamespaceCases(
+            data,
+            "Installation/Results",
+            GetInstallationSubnamespaceReferencesExcept("Results", "Targeting"));
+
+        AddForbiddenNamespaceCases(
+            data,
+            "Installation/State",
+            GetInstallationSubnamespaceReferencesExcept("State", "Validation"));
+
+        AddForbiddenNamespaceCases(
+            data,
+            "Installation/Targeting",
+            GetInstallationSubnamespaceReferencesExcept("Targeting"));
+
+        AddForbiddenNamespaceCases(
+            data,
+            "Installation/Transactions",
+            GetInstallationSubnamespaceReferencesExcept("Transactions", "Contracts"));
+
+        AddForbiddenNamespaceCases(
+            data,
+            "Installation/Validation",
+            GetInstallationSubnamespaceReferencesExcept("Validation"));
+
+        return data;
+    }
+
     private static string[] GetHostAgnosticSourceDirectoryNames ()
     {
         var excludedDirectoryNames = new HashSet<string>(StringComparer.Ordinal)
@@ -259,6 +406,48 @@ public sealed class ProjectBoundaryTests
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)
             .ToArray();
+    }
+
+    private static string CombineSourcePath (string sourceRoot, string relativeDirectory)
+    {
+        return Path.Combine([sourceRoot, .. relativeDirectory.Split('/')]);
+    }
+
+    private static void AddForbiddenNamespaceCases (
+        TheoryData<string, string> data,
+        string relativeDirectory,
+        IReadOnlyList<string> forbiddenNamespaces)
+    {
+        foreach (var forbiddenNamespace in forbiddenNamespaces)
+        {
+            data.Add(relativeDirectory, forbiddenNamespace);
+        }
+    }
+
+    private static string[] GetInstallationSubnamespaceReferencesExcept (params string[] allowedSubnamespaceNames)
+    {
+        var allowedSubnamespaces = new HashSet<string>(allowedSubnamespaceNames, StringComparer.Ordinal);
+        return GetInstallationBoundarySubdirectoryNames()
+            .Where(directoryName => !allowedSubnamespaces.Contains(directoryName))
+            .Select(static directoryName => $"MackySoft.AgentSkills.Installation.{directoryName}")
+            .ToArray();
+    }
+
+    private static string[] GetInstallationBoundarySubdirectoryNames ()
+    {
+        return
+        [
+            "Contracts",
+            "Diffing",
+            "Inventory",
+            "Requests",
+            "Results",
+            "Services",
+            "State",
+            "Targeting",
+            "Transactions",
+            "Validation",
+        ];
     }
 
     private static void AssertDirectoryDoesNotContainAny (

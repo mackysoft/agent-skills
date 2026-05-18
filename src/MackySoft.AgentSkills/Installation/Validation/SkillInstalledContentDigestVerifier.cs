@@ -1,5 +1,6 @@
 using MackySoft.AgentSkills.Digests;
-using MackySoft.AgentSkills.Packaging;
+using MackySoft.AgentSkills.Packaging.Canonical;
+using MackySoft.AgentSkills.Packaging.FileSystem;
 using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Installation.Validation;

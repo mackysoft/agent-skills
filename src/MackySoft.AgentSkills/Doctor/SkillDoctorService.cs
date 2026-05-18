@@ -1,7 +1,8 @@
 using MackySoft.AgentSkills.Doctor.Diagnostics;
 using MackySoft.AgentSkills.Hosts.Registration;
-using MackySoft.AgentSkills.Installation;
-using MackySoft.AgentSkills.Packaging;
+using MackySoft.AgentSkills.Installation.State;
+using MackySoft.AgentSkills.Packaging.Canonical;
+using MackySoft.AgentSkills.Packaging.FileSystem;
 using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Doctor;

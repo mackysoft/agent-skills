@@ -2,6 +2,7 @@ using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Generation;
 using MackySoft.AgentSkills.Hosts.Defaults;
 using MackySoft.AgentSkills.Manifests;
+using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Sources;
 
 namespace MackySoft.AgentSkills.Builder;

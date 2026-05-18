@@ -1,5 +1,5 @@
 using MackySoft.AgentSkills.Hosts.Registration;
-using MackySoft.AgentSkills.Packaging;
+using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Materialization;
