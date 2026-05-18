@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "skillName": "agent-skills-plan-apply",
+  "displayName": "Agent Skills Plan Apply",
+  "description": "Use when building, validating, planning, and applying a Agent Skills JSON request for Unity changes. Enforces read -> describe -> build request -> validate -> plan -> call -> verify.",
+  "references": [
+    "request-workflow.md"
+  ]
+}

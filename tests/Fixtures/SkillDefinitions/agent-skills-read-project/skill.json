@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "skillName": "agent-skills-read-project",
+  "displayName": "Agent Skills Read Project",
+  "description": "Use when inspecting a Unity project with Agent Skills before choosing selectors, operation metadata, schemas, or readIndex freshness. Guides read-first discovery without hard-coding operation contracts.",
+  "references": [
+    "project-reading-workflow.md"
+  ]
+}

@@ -1,0 +1,7 @@
+interface:
+  display_name: "Agent Skills Plan Apply"
+  short_description: "Use when building, validating, planning, and applying a Agent Skills JSON request for Unity changes. Enforces read -> describe -> build request -> validate -> plan -> call -> verify."
+  default_prompt: "Use $agent-skills-plan-apply to follow the Agent Skills Plan Apply workflow."
+
+policy:
+  allow_implicit_invocation: true

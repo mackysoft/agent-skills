@@ -1,0 +1,7 @@
+interface:
+  display_name: "Agent Skills Verify Changes"
+  short_description: "Use when verifying Agent Skills-driven Unity changes with agent-skills verify profiles, claim packets, follow-up reads, agent-skills test, logs, artifacts, and opResults evidence after validation, plan, or call execution."
+  default_prompt: "Use $agent-skills-verify-changes to follow the Agent Skills Verify Changes workflow."
+
+policy:
+  allow_implicit_invocation: true
