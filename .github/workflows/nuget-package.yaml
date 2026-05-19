@@ -98,6 +98,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
       - name: Download packages
         uses: actions/download-artifact@v7
         with:
@@ -141,12 +146,15 @@ jobs:
             curl --fail --silent --head "$1" >/dev/null 2>&1
           }
 
+          library_package_url="$(package_url "MackySoft.AgentSkills" "${PACKAGE_VERSION}")"
+          cli_package_url="$(package_url "MackySoft.AgentSkills.Cli" "${PACKAGE_VERSION}")"
+
           library_exists=false
           cli_exists=false
-          if package_exists "$(package_url "MackySoft.AgentSkills" "${PACKAGE_VERSION}")"; then
+          if package_exists "${library_package_url}"; then
             library_exists=true
           fi
-          if package_exists "$(package_url "MackySoft.AgentSkills.Cli" "${PACKAGE_VERSION}")"; then
+          if package_exists "${cli_package_url}"; then
             cli_exists=true
           fi
 
@@ -167,6 +175,8 @@ jobs:
           echo "libraryExists=${library_exists}" >> "${GITHUB_OUTPUT}"
           echo "cliExists=${cli_exists}" >> "${GITHUB_OUTPUT}"
           echo "tagExists=${tag_exists}" >> "${GITHUB_OUTPUT}"
+          echo "libraryPackageUrl=${library_package_url}" >> "${GITHUB_OUTPUT}"
+          echo "cliPackageUrl=${cli_package_url}" >> "${GITHUB_OUTPUT}"
 
       - name: Validate NuGet trusted publishing user
         if: ${{ steps.state.outputs.libraryExists != 'true' || steps.state.outputs.cliExists != 'true' }}
@@ -204,27 +214,20 @@ jobs:
           --source https://api.nuget.org/v3/index.json
 
       - name: Wait for published packages
+        env:
+          LIBRARY_PACKAGE_URL: ${{ steps.state.outputs.libraryPackageUrl }}
+          CLI_PACKAGE_URL: ${{ steps.state.outputs.cliPackageUrl }}
         run: |
           set -euo pipefail
 
-          package_url() {
-            local package_id="$1"
-            local version="$2"
-            local lower_package_id
-            local lower_version
-            lower_package_id="$(printf '%s' "${package_id}" | tr '[:upper:]' '[:lower:]')"
-            lower_version="$(printf '%s' "${version}" | tr '[:upper:]' '[:lower:]')"
-            printf 'https://api.nuget.org/v3-flatcontainer/%s/%s/%s.%s.nupkg' \
-              "${lower_package_id}" \
-              "${lower_version}" \
-              "${lower_package_id}" \
-              "${lower_version}"
-          }
-
           wait_for_package() {
             local package_id="$1"
-            local url
-            url="$(package_url "${package_id}" "${PACKAGE_VERSION}")"
+            local url="$2"
+            if [[ -z "${url}" ]]; then
+              echo "Package URL output is missing: ${package_id}" >&2
+              exit 2
+            fi
+
             for attempt in {1..30}; do
               if curl --fail --silent --show-error --head "${url}" >/dev/null; then
                 return 0
@@ -236,8 +239,8 @@ jobs:
             exit 1
           }
 
-          wait_for_package "MackySoft.AgentSkills"
-          wait_for_package "MackySoft.AgentSkills.Cli"
+          wait_for_package "MackySoft.AgentSkills" "${LIBRARY_PACKAGE_URL}"
+          wait_for_package "MackySoft.AgentSkills.Cli" "${CLI_PACKAGE_URL}"
 
       - name: Create release tag
         if: ${{ steps.state.outputs.tagExists != 'true' }}

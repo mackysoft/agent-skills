@@ -104,6 +104,9 @@ public sealed class PackageMetadataTests
         Assert.Contains("NuGet publish must be dispatched from the default branch", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("DISPATCH_VERSION", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("--skip-duplicate", workflow, StringComparison.Ordinal);
+        Assert.Contains("libraryPackageUrl=${library_package_url}", workflow, StringComparison.Ordinal);
+        Assert.Equal(2, workflow.Split("uses: actions/setup-dotnet@v5", StringSplitOptions.None).Length - 1);
+        Assert.Equal(1, workflow.Split("package_url()", StringSplitOptions.None).Length - 1);
 
         var waitIndex = workflow.IndexOf("- name: Wait for published packages", StringComparison.Ordinal);
         var tagIndex = workflow.IndexOf("- name: Create release tag", StringComparison.Ordinal);
