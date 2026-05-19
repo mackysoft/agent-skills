@@ -9,7 +9,7 @@ Agent Skills provides reusable .NET services and a CLI tool for product-owned ag
 | `MackySoft.AgentSkills` | Runtime library for reading generated packages, materializing them for supported hosts, and running install/export/doctor workflows. |
 | `MackySoft.AgentSkills.Cli` | .NET tool that generates canonical packages from `skills/definitions` into `skills/generated`. |
 
-Both packages are versioned together. The initial NuGet version is `0.1.0`.
+Both packages are versioned together. The NuGet version is read from `Directory.Build.props`, and version changes must be reviewed as normal pull requests before publishing.
 
 ## Product Layout
 
@@ -80,3 +80,13 @@ Supported host keys:
 - `openai`
 - `claude`
 - `copilot`
+
+## Release
+
+Publishing is performed by the `nuget-package` GitHub Actions workflow. The workflow reads the package version from `Directory.Build.props`; it does not accept a manual version override. To publish a new version:
+
+1. Update `<Version>` in `Directory.Build.props`.
+2. Open and merge a pull request for that version change.
+3. Run the `nuget-package` workflow from the default branch.
+
+The workflow publishes both `MackySoft.AgentSkills` and `MackySoft.AgentSkills.Cli` for the same version. It creates the release tag only after both NuGet packages are available on nuget.org.
