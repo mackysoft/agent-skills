@@ -1,12 +1,12 @@
 using ConsoleAppFramework;
-using MackySoft.AgentSkills.Builder.Hosting.Cli.Common.Startup;
-using MackySoft.AgentSkills.Builder.Hosting.Composition.Common;
+using MackySoft.AgentSkills.Cli.Hosting.Cli.Common.Startup;
+using MackySoft.AgentSkills.Cli.Hosting.Composition.Common;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace MackySoft.AgentSkills.Builder.Hosting.Cli.Common.Execution;
+namespace MackySoft.AgentSkills.Cli.Hosting.Cli.Common.Execution;
 
-/// <summary> Runs the public builder CLI command pipeline. </summary>
-internal sealed class BuilderExecutionRunner
+/// <summary> Runs the public agent-skills CLI command pipeline. </summary>
+internal sealed class CliExecutionRunner
 {
     /// <summary> Executes one public CLI invocation. </summary>
     /// <param name="args"> The command-line arguments passed to the process.</param>
@@ -41,7 +41,7 @@ internal sealed class BuilderExecutionRunner
     private static ServiceProvider CreateServiceProvider ()
     {
         var services = new ServiceCollection();
-        services.AddAgentSkillsBuilderServices();
+        services.AddAgentSkillsCliServices();
         return services.BuildServiceProvider();
     }
 }

@@ -1,10 +1,10 @@
-using MackySoft.AgentSkills.Builder.Hosting.Cli.Common.Execution;
+using MackySoft.AgentSkills.Cli.Hosting.Cli.Common.Execution;
 
-namespace MackySoft.AgentSkills.Builder;
+namespace MackySoft.AgentSkills.Cli;
 
 internal static class Program
 {
-    /// <summary> Delegates execution to the builder CLI runner. </summary>
+    /// <summary> Delegates execution to the agent-skills CLI runner. </summary>
     /// <param name="args"> The command-line arguments passed to the process. </param>
     /// <returns> The process exit code determined by the selected runner. </returns>
     /// <exception cref="ArgumentNullException"> Thrown when <paramref name="args" /> is <see langword="null" />. </exception>
@@ -12,7 +12,7 @@ internal static class Program
     {
         ArgumentNullException.ThrowIfNull(args);
 
-        var cliRunner = new BuilderExecutionRunner();
+        var cliRunner = new CliExecutionRunner();
         return await cliRunner.RunAsync(args).ConfigureAwait(false);
     }
 }

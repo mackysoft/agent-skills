@@ -1,4 +1,4 @@
-namespace MackySoft.AgentSkills.Builder.Hosting.Cli.Common.Contracts;
+namespace MackySoft.AgentSkills.Cli.Hosting.Cli.Common.Contracts;
 
 /// <summary> Defines CLI command-name constants. </summary>
 internal static class AgentSkillsCommandNames

@@ -1,12 +1,12 @@
 using ConsoleAppFramework;
-using MackySoft.AgentSkills.Builder.Hosting.Cli.Build;
+using MackySoft.AgentSkills.Cli.Hosting.Cli.Build;
 
-namespace MackySoft.AgentSkills.Builder.Hosting.Cli.Common.Startup;
+namespace MackySoft.AgentSkills.Cli.Hosting.Cli.Common.Startup;
 
-/// <summary> Provides the single catalog for public builder CLI registration. </summary>
+/// <summary> Provides the single catalog for public agent-skills CLI registration. </summary>
 internal static class AgentSkillsCommandCatalog
 {
-    /// <summary> Registers all supported builder commands with the application builder. </summary>
+    /// <summary> Registers all supported CLI commands with the application builder. </summary>
     /// <param name="app"> The application builder used to register commands.</param>
     /// <returns> The same <paramref name="app" /> instance for call chaining.</returns>
     /// <exception cref="ArgumentNullException"> Thrown when <paramref name="app" /> is <see langword="null" />. </exception>

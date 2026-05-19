@@ -98,7 +98,7 @@ fi
 
 mkdir -p "$package_dir"
 rm -f "$package_dir"/MackySoft.AgentSkills."$package_version".nupkg
-rm -f "$package_dir"/MackySoft.AgentSkills.Builder."$package_version".nupkg
+rm -f "$package_dir"/MackySoft.AgentSkills.Cli."$package_version".nupkg
 
 cd "$DOTNET_REPO_ROOT"
 dotnet restore AgentSkills.slnx
@@ -108,7 +108,7 @@ dotnet pack src/MackySoft.AgentSkills/MackySoft.AgentSkills.csproj \
   -p:Version="$package_version" \
   -p:PackageVersion="$package_version" \
   --output "$package_dir"
-dotnet pack src/MackySoft.AgentSkills.Builder/MackySoft.AgentSkills.Builder.csproj \
+dotnet pack src/MackySoft.AgentSkills.Cli/MackySoft.AgentSkills.Cli.csproj \
   --configuration "$configuration" \
   --no-restore \
   -p:Version="$package_version" \
@@ -116,14 +116,14 @@ dotnet pack src/MackySoft.AgentSkills.Builder/MackySoft.AgentSkills.Builder.cspr
   --output "$package_dir"
 
 library_package="$package_dir/MackySoft.AgentSkills.$package_version.nupkg"
-builder_package="$package_dir/MackySoft.AgentSkills.Builder.$package_version.nupkg"
+cli_package="$package_dir/MackySoft.AgentSkills.Cli.$package_version.nupkg"
 if [ ! -f "$library_package" ]; then
   echo "library package was not created: $library_package" >&2
   exit 1
 fi
 
-if [ ! -f "$builder_package" ]; then
-  echo "builder package was not created: $builder_package" >&2
+if [ ! -f "$cli_package" ]; then
+  echo "CLI package was not created: $cli_package" >&2
   exit 1
 fi
 
@@ -142,7 +142,7 @@ mkdir -p "$tool_dir"
 (
   cd "$tool_dir"
   dotnet new tool-manifest >/dev/null
-  dotnet tool install MackySoft.AgentSkills.Builder \
+  dotnet tool install MackySoft.AgentSkills.Cli \
     --version "$package_version" \
     --add-source "$package_dir" >/dev/null
 

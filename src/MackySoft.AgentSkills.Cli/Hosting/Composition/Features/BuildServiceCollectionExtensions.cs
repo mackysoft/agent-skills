@@ -6,7 +6,7 @@ using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Sources;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace MackySoft.AgentSkills.Builder.Hosting.Composition.Features;
+namespace MackySoft.AgentSkills.Cli.Hosting.Composition.Features;
 
 /// <summary> Provides DI registration for canonical package build commands. </summary>
 internal static class BuildServiceCollectionExtensions

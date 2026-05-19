@@ -17,13 +17,13 @@ public sealed class PackageMetadataTests
                 ["Description"] = "Reusable .NET services for building, materializing, installing, exporting, and diagnosing agent skill packages.",
                 ["PackageTags"] = "agent;skills;cli;automation",
             },
-            ["src/MackySoft.AgentSkills.Builder/MackySoft.AgentSkills.Builder.csproj"] = new(StringComparer.Ordinal)
+            ["src/MackySoft.AgentSkills.Cli/MackySoft.AgentSkills.Cli.csproj"] = new(StringComparer.Ordinal)
             {
                 ["IsPackable"] = "true",
                 ["PackAsTool"] = "true",
                 ["ToolCommandName"] = "agent-skills",
-                ["PackageId"] = "MackySoft.AgentSkills.Builder",
-                ["Description"] = ".NET tool for generating canonical agent skill packages from product-owned skill definitions.",
+                ["PackageId"] = "MackySoft.AgentSkills.Cli",
+                ["Description"] = ".NET CLI tool for generating canonical agent skill packages from product-owned skill definitions.",
                 ["PackageTags"] = "agent;skills;cli;tool;generator",
             },
         };

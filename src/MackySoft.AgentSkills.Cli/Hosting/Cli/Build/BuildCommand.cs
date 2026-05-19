@@ -1,9 +1,9 @@
 using ConsoleAppFramework;
-using MackySoft.AgentSkills.Builder.Hosting.Cli.Common.Contracts;
+using MackySoft.AgentSkills.Cli.Hosting.Cli.Common.Contracts;
 using MackySoft.AgentSkills.Generation;
 using MackySoft.AgentSkills.Packaging.Canonical;
 
-namespace MackySoft.AgentSkills.Builder.Hosting.Cli.Build;
+namespace MackySoft.AgentSkills.Cli.Hosting.Cli.Build;
 
 /// <summary> Provides the public build command for canonical SKILL package generation. </summary>
 internal sealed class BuildCommand

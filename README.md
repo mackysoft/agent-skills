@@ -1,13 +1,13 @@
 # Agent Skills
 
-Agent Skills provides reusable .NET services and a build tool for product-owned agent skill packages. Product repositories keep their SKILL definitions and generated package outputs, while this repository owns the canonical package format, host materialization rules, install/update/uninstall/export operations, and doctor diagnostics.
+Agent Skills provides reusable .NET services and a CLI tool for product-owned agent skill packages. Product repositories keep their SKILL definitions and generated package outputs, while this repository owns the canonical package format, host materialization rules, install/update/uninstall/export operations, and doctor diagnostics.
 
 ## Packages
 
 | Package | Purpose |
 | --- | --- |
 | `MackySoft.AgentSkills` | Runtime library for reading generated packages, materializing them for supported hosts, and running install/export/doctor workflows. |
-| `MackySoft.AgentSkills.Builder` | .NET tool that generates canonical packages from `skills/definitions` into `skills/generated`. |
+| `MackySoft.AgentSkills.Cli` | .NET tool that generates canonical packages from `skills/definitions` into `skills/generated`. |
 
 Both packages are versioned together. The initial NuGet version is `0.1.0`.
 
@@ -35,13 +35,13 @@ skills/
 
 `skills/definitions` is the source of truth. `skills/generated` is deterministic build output; do not edit it manually.
 
-## Builder Tool
+## CLI Tool
 
-Install the builder through a .NET tool manifest in each product repository.
+Install the CLI through a .NET tool manifest in each product repository.
 
 ```bash
 dotnet new tool-manifest
-dotnet tool install MackySoft.AgentSkills.Builder --version 0.1.0
+dotnet tool install MackySoft.AgentSkills.Cli --version 0.1.0
 ```
 
 Generate canonical packages.
@@ -57,7 +57,7 @@ Build options:
 - `--definitionsRoot`: directory that contains one subdirectory per source SKILL definition.
 - `--generatedRoot`: canonical generated package root, normally `skills/generated`.
 
-The builder validates definition metadata, computes deterministic digests, writes `agent-skill.json`, and emits host artifact metadata for every supported host.
+The CLI validates definition metadata, computes deterministic digests, writes `agent-skill.json`, and emits host artifact metadata for every supported host.
 
 ## Runtime Library
 

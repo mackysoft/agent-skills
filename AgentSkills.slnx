@@ -1,7 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/MackySoft.AgentSkills/MackySoft.AgentSkills.csproj" />
-    <Project Path="src/MackySoft.AgentSkills.Builder/MackySoft.AgentSkills.Builder.csproj" />
+    <Project Path="src/MackySoft.AgentSkills.Cli/MackySoft.AgentSkills.Cli.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/MackySoft.AgentSkills.Tests/MackySoft.AgentSkills.Tests.csproj" />
