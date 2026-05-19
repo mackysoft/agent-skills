@@ -262,5 +262,5 @@ jobs:
           --repository "${REPOSITORY}"
           --tag-name "${RELEASE_TAG}"
           --package-glob "artifacts/packages/*.nupkg"
-          --title "Agent Skills ${PACKAGE_VERSION}"
-          --notes "Agent Skills runtime library and CLI tool packages for ${RELEASE_TAG}."
+          --title "${RELEASE_TAG}"
+          --notes ""

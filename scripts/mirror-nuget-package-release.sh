@@ -14,6 +14,7 @@ tag_name=""
 package_glob=""
 release_title=""
 release_notes=""
+release_notes_set=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -40,6 +41,7 @@ while [[ $# -gt 0 ]]; do
     --notes)
       [[ $# -ge 2 ]] || { usage; exit 2; }
       release_notes="$2"
+      release_notes_set=true
       shift 2
       ;;
     -h|--help)
@@ -53,7 +55,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ -z "${repository}" || -z "${tag_name}" || -z "${package_glob}" || -z "${release_title}" || -z "${release_notes}" ]]; then
+if [[ -z "${repository}" || -z "${tag_name}" || -z "${package_glob}" || -z "${release_title}" || "${release_notes_set}" != true ]]; then
   usage
   exit 2
 fi

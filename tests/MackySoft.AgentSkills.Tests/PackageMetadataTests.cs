@@ -105,6 +105,9 @@ public sealed class PackageMetadataTests
         Assert.DoesNotContain("DISPATCH_VERSION", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("--skip-duplicate", workflow, StringComparison.Ordinal);
         Assert.Contains("libraryPackageUrl=${library_package_url}", workflow, StringComparison.Ordinal);
+        Assert.Contains("--title \"${RELEASE_TAG}\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("--notes \"\"", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("Agent Skills ${PACKAGE_VERSION}", workflow, StringComparison.Ordinal);
         Assert.Equal(2, workflow.Split("uses: actions/setup-dotnet@v5", StringSplitOptions.None).Length - 1);
         Assert.Equal(1, workflow.Split("package_url()", StringSplitOptions.None).Length - 1);
 
@@ -113,6 +116,18 @@ public sealed class PackageMetadataTests
         Assert.NotEqual(-1, waitIndex);
         Assert.NotEqual(-1, tagIndex);
         Assert.True(waitIndex < tagIndex);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void Release_mirror_script_accepts_explicit_empty_notes ()
+    {
+        var script = File.ReadAllText(ToRepositoryPath("scripts/mirror-nuget-package-release.sh"));
+
+        Assert.Contains("release_notes_set=false", script, StringComparison.Ordinal);
+        Assert.Contains("release_notes_set=true", script, StringComparison.Ordinal);
+        Assert.Contains("\"${release_notes_set}\" != true", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("|| -z \"${release_notes}\"", script, StringComparison.Ordinal);
     }
 
     private static string ToRepositoryPath (string relativePath)
