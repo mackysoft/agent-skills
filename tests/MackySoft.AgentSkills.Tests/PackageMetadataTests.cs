@@ -42,12 +42,15 @@ public sealed class PackageMetadataTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public void Central_package_metadata_targets_initial_nuget_version ()
+    public void Central_package_metadata_declares_repository_package_version ()
     {
         var document = XDocument.Load(ToRepositoryPath("Directory.Build.props"));
+        var version = document.Descendants("Version").SingleOrDefault()?.Value;
+        Assert.NotNull(version);
+        Assert.Matches(@"^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$", version);
+
         var expectedProperties = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["Version"] = "0.1.0",
             ["PackageVersion"] = "$(Version)",
             ["Authors"] = "Hiroya Aramaki",
             ["Company"] = "MackySoft",
@@ -88,6 +91,25 @@ public sealed class PackageMetadataTests
             item.Include == "$(MSBuildThisFileDirectory)README.md"
             && item.Pack == "true"
             && item.PackagePath == string.Empty);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void Nuget_publish_workflow_uses_repository_version_and_tags_after_package_availability ()
+    {
+        var workflow = File.ReadAllText(ToRepositoryPath(".github/workflows/nuget-package.yaml"));
+
+        Assert.Contains("workflow_dispatch:", workflow, StringComparison.Ordinal);
+        Assert.Contains("package_version=\"${package_versions[0]}\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("NuGet publish must be dispatched from the default branch", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("DISPATCH_VERSION", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("--skip-duplicate", workflow, StringComparison.Ordinal);
+
+        var waitIndex = workflow.IndexOf("- name: Wait for published packages", StringComparison.Ordinal);
+        var tagIndex = workflow.IndexOf("- name: Create release tag", StringComparison.Ordinal);
+        Assert.NotEqual(-1, waitIndex);
+        Assert.NotEqual(-1, tagIndex);
+        Assert.True(waitIndex < tagIndex);
     }
 
     private static string ToRepositoryPath (string relativePath)
