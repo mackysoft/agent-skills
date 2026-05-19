@@ -5,26 +5,20 @@ on:
   push:
     branches:
       - master
-    tags:
-      # GitHub tag filters are glob patterns, not regular expressions.
-      # This limits release runs to no-v SemVer-shaped tags; the Resolve
-      # package version step below enforces the exact SemVer contract.
-      - '[0-9]*.[0-9]*.[0-9]*'
   workflow_dispatch:
-    inputs:
-      packageVersion:
-        description: "SemVer package version without a leading v, for example 0.1.0"
-        required: true
-        type: string
 
-permissions:
-  contents: write
-  id-token: write
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   package:
     name: package
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      packageVersion: ${{ steps.version.outputs.packageVersion }}
 
     defaults:
       run:
@@ -47,18 +41,15 @@ jobs:
 
       - name: Resolve package version
         id: version
-        env:
-          DISPATCH_VERSION: ${{ inputs.packageVersion }}
         run: |
           set -euo pipefail
 
-          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            package_version="${GITHUB_REF_NAME}"
-          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            package_version="${DISPATCH_VERSION}"
-          else
-            package_version="$(sed -nE 's:.*<Version>([^<]+)</Version>.*:\1:p' Directory.Build.props | head -n 1)"
+          mapfile -t package_versions < <(sed -nE 's:.*<Version>([^<]+)</Version>.*:\1:p' Directory.Build.props)
+          if [[ "${#package_versions[@]}" -ne 1 ]]; then
+            echo "Directory.Build.props must contain exactly one Version property." >&2
+            exit 2
           fi
+          package_version="${package_versions[0]}"
 
           if [[ ! "${package_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
             echo "package version must be SemVer without a leading v: ${package_version}" >&2
@@ -85,53 +76,183 @@ jobs:
           path: artifacts/packages
           if-no-files-found: error
 
-      - name: Create release tag
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+  publish:
+    name: publish
+    needs: package
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      PACKAGE_VERSION: ${{ needs.package.outputs.packageVersion }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Download packages
+        uses: actions/download-artifact@v7
+        with:
+          name: nuget-packages
+          path: artifacts/packages
+
+      - name: Validate publish ref
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
 
-          tag_name="${PACKAGE_VERSION}"
-          if git ls-remote --exit-code --tags origin "refs/tags/${tag_name}" >/dev/null 2>&1; then
-            echo "Tag already exists: ${tag_name}" >&2
-            exit 1
+          if [[ "${GITHUB_REF_TYPE}" != "branch" || "${GITHUB_REF_NAME}" != "${DEFAULT_BRANCH}" ]]; then
+            echo "NuGet publish must be dispatched from the default branch (${DEFAULT_BRANCH})." >&2
+            exit 2
           fi
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag "${tag_name}" "${GITHUB_SHA}"
-          git push origin "refs/tags/${tag_name}"
+          test -f "artifacts/packages/MackySoft.AgentSkills.${PACKAGE_VERSION}.nupkg"
+          test -f "artifacts/packages/MackySoft.AgentSkills.Cli.${PACKAGE_VERSION}.nupkg"
+
+      - name: Inspect publication state
+        id: state
+        run: |
+          set -euo pipefail
+
+          package_url() {
+            local package_id="$1"
+            local version="$2"
+            local lower_package_id
+            local lower_version
+            lower_package_id="$(printf '%s' "${package_id}" | tr '[:upper:]' '[:lower:]')"
+            lower_version="$(printf '%s' "${version}" | tr '[:upper:]' '[:lower:]')"
+            printf 'https://api.nuget.org/v3-flatcontainer/%s/%s/%s.%s.nupkg' \
+              "${lower_package_id}" \
+              "${lower_version}" \
+              "${lower_package_id}" \
+              "${lower_version}"
+          }
+
+          package_exists() {
+            curl --fail --silent --head "$1" >/dev/null 2>&1
+          }
+
+          library_exists=false
+          cli_exists=false
+          if package_exists "$(package_url "MackySoft.AgentSkills" "${PACKAGE_VERSION}")"; then
+            library_exists=true
+          fi
+          if package_exists "$(package_url "MackySoft.AgentSkills.Cli" "${PACKAGE_VERSION}")"; then
+            cli_exists=true
+          fi
+
+          tag_ref="$(git ls-remote --tags origin "refs/tags/${PACKAGE_VERSION}" | awk '{print $1}' || true)"
+          tag_exists=false
+          if [[ -n "${tag_ref}" ]]; then
+            tag_exists=true
+            if [[ "${tag_ref}" != "${GITHUB_SHA}" ]]; then
+              echo "Release tag ${PACKAGE_VERSION} already exists at ${tag_ref}, not current commit ${GITHUB_SHA}." >&2
+              exit 1
+            fi
+            if [[ "${library_exists}" != "true" || "${cli_exists}" != "true" ]]; then
+              echo "Release tag ${PACKAGE_VERSION} exists but one or more NuGet packages are missing. Refusing to publish into an inconsistent release state." >&2
+              exit 1
+            fi
+          fi
+
+          echo "libraryExists=${library_exists}" >> "${GITHUB_OUTPUT}"
+          echo "cliExists=${cli_exists}" >> "${GITHUB_OUTPUT}"
+          echo "tagExists=${tag_exists}" >> "${GITHUB_OUTPUT}"
+
+      - name: Validate NuGet trusted publishing user
+        if: ${{ steps.state.outputs.libraryExists != 'true' || steps.state.outputs.cliExists != 'true' }}
+        env:
+          NUGET_USER: ${{ vars.NUGET_USER }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${NUGET_USER}" ]]; then
+            echo "Repository variable NUGET_USER must be set to the nuget.org profile name." >&2
+            exit 2
+          fi
 
       - name: NuGet login
-        if: ${{ github.ref_type == 'tag' || github.event_name == 'workflow_dispatch' }}
+        if: ${{ steps.state.outputs.libraryExists != 'true' || steps.state.outputs.cliExists != 'true' }}
         uses: NuGet/login@v1
         id: login
         with:
           user: ${{ vars.NUGET_USER }}
 
       - name: Publish library to nuget.org
-        if: ${{ github.ref_type == 'tag' || github.event_name == 'workflow_dispatch' }}
+        if: ${{ steps.state.outputs.libraryExists != 'true' }}
         run: >-
           dotnet nuget push
           artifacts/packages/MackySoft.AgentSkills.${PACKAGE_VERSION}.nupkg
           --api-key "${{ steps.login.outputs.NUGET_API_KEY }}"
           --source https://api.nuget.org/v3/index.json
-          --skip-duplicate
 
       - name: Publish CLI to nuget.org
-        if: ${{ github.ref_type == 'tag' || github.event_name == 'workflow_dispatch' }}
+        if: ${{ steps.state.outputs.cliExists != 'true' }}
         run: >-
           dotnet nuget push
           artifacts/packages/MackySoft.AgentSkills.Cli.${PACKAGE_VERSION}.nupkg
           --api-key "${{ steps.login.outputs.NUGET_API_KEY }}"
           --source https://api.nuget.org/v3/index.json
-          --skip-duplicate
+
+      - name: Wait for published packages
+        run: |
+          set -euo pipefail
+
+          package_url() {
+            local package_id="$1"
+            local version="$2"
+            local lower_package_id
+            local lower_version
+            lower_package_id="$(printf '%s' "${package_id}" | tr '[:upper:]' '[:lower:]')"
+            lower_version="$(printf '%s' "${version}" | tr '[:upper:]' '[:lower:]')"
+            printf 'https://api.nuget.org/v3-flatcontainer/%s/%s/%s.%s.nupkg' \
+              "${lower_package_id}" \
+              "${lower_version}" \
+              "${lower_package_id}" \
+              "${lower_version}"
+          }
+
+          wait_for_package() {
+            local package_id="$1"
+            local url
+            url="$(package_url "${package_id}" "${PACKAGE_VERSION}")"
+            for attempt in {1..30}; do
+              if curl --fail --silent --show-error --head "${url}" >/dev/null; then
+                return 0
+              fi
+              echo "Waiting for ${package_id} ${PACKAGE_VERSION} to become available on nuget.org (${attempt}/30)."
+              sleep 10
+            done
+            echo "Package did not become available on nuget.org: ${package_id} ${PACKAGE_VERSION}" >&2
+            exit 1
+          }
+
+          wait_for_package "MackySoft.AgentSkills"
+          wait_for_package "MackySoft.AgentSkills.Cli"
+
+      - name: Create release tag
+        if: ${{ steps.state.outputs.tagExists != 'true' }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "${PACKAGE_VERSION}" "${GITHUB_SHA}"
+          git push origin "refs/tags/${PACKAGE_VERSION}"
 
       - name: Mirror packages to GitHub Release
-        if: ${{ github.ref_type == 'tag' || github.event_name == 'workflow_dispatch' }}
         env:
           GH_TOKEN: ${{ github.token }}
-          PACKAGE_VERSION: ${{ steps.version.outputs.packageVersion }}
-          RELEASE_TAG: ${{ steps.version.outputs.packageVersion }}
+          RELEASE_TAG: ${{ needs.package.outputs.packageVersion }}
           REPOSITORY: ${{ github.repository }}
         run: >-
           ./scripts/mirror-nuget-package-release.sh
