@@ -15,6 +15,7 @@ obj/
 *.DotSettings.user
 
 # Test and run artifacts
+artifacts/
 TestResults/
 *.trx
 *.log

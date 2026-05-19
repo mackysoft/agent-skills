@@ -1,0 +1,142 @@
+name: nuget-package
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+    tags:
+      # GitHub tag filters are glob patterns, not regular expressions.
+      # This limits release runs to no-v SemVer-shaped tags; the Resolve
+      # package version step below enforces the exact SemVer contract.
+      - '[0-9]*.[0-9]*.[0-9]*'
+  workflow_dispatch:
+    inputs:
+      packageVersion:
+        description: "SemVer package version without a leading v, for example 0.1.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  package:
+    name: package
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('AgentSkills.slnx', '**/*.csproj') }}
+
+      - name: Resolve package version
+        id: version
+        env:
+          DISPATCH_VERSION: ${{ inputs.packageVersion }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            package_version="${GITHUB_REF_NAME}"
+          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            package_version="${DISPATCH_VERSION}"
+          else
+            package_version="$(sed -nE 's:.*<Version>([^<]+)</Version>.*:\1:p' Directory.Build.props | head -n 1)"
+          fi
+
+          if [[ ! "${package_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+            echo "package version must be SemVer without a leading v: ${package_version}" >&2
+            exit 2
+          fi
+
+          echo "packageVersion=${package_version}" >> "${GITHUB_OUTPUT}"
+          echo "PACKAGE_VERSION=${package_version}" >> "${GITHUB_ENV}"
+
+      - name: Verify
+        run: bash scripts/verify.sh --configuration Release
+
+      - name: Pack and smoke test
+        run: >-
+          bash scripts/verify-packages.sh
+          --configuration Release
+          --version "${PACKAGE_VERSION}"
+          --output artifacts/packages
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: nuget-packages
+          path: artifacts/packages
+          if-no-files-found: error
+
+      - name: Create release tag
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          set -euo pipefail
+
+          tag_name="${PACKAGE_VERSION}"
+          if git ls-remote --exit-code --tags origin "refs/tags/${tag_name}" >/dev/null 2>&1; then
+            echo "Tag already exists: ${tag_name}" >&2
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "${tag_name}" "${GITHUB_SHA}"
+          git push origin "refs/tags/${tag_name}"
+
+      - name: NuGet login
+        if: ${{ github.ref_type == 'tag' || github.event_name == 'workflow_dispatch' }}
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      - name: Publish library to nuget.org
+        if: ${{ github.ref_type == 'tag' || github.event_name == 'workflow_dispatch' }}
+        run: >-
+          dotnet nuget push
+          artifacts/packages/MackySoft.AgentSkills.${PACKAGE_VERSION}.nupkg
+          --api-key "${{ steps.login.outputs.NUGET_API_KEY }}"
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
+
+      - name: Publish builder to nuget.org
+        if: ${{ github.ref_type == 'tag' || github.event_name == 'workflow_dispatch' }}
+        run: >-
+          dotnet nuget push
+          artifacts/packages/MackySoft.AgentSkills.Builder.${PACKAGE_VERSION}.nupkg
+          --api-key "${{ steps.login.outputs.NUGET_API_KEY }}"
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
+
+      - name: Mirror packages to GitHub Release
+        if: ${{ github.ref_type == 'tag' || github.event_name == 'workflow_dispatch' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACKAGE_VERSION: ${{ steps.version.outputs.packageVersion }}
+          RELEASE_TAG: ${{ steps.version.outputs.packageVersion }}
+          REPOSITORY: ${{ github.repository }}
+        run: >-
+          ./scripts/mirror-nuget-package-release.sh
+          --repository "${REPOSITORY}"
+          --tag-name "${RELEASE_TAG}"
+          --package-glob "artifacts/packages/*.nupkg"
+          --title "Agent Skills ${PACKAGE_VERSION}"
+          --notes "Agent Skills runtime library and builder tool packages for ${RELEASE_TAG}."

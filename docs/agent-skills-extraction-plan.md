@@ -16,7 +16,7 @@ AgentSkills.slnx
 ```
 
 - `MackySoft.AgentSkills` は manifest、digest、source definition reader、canonical package reader/writer、host adapter、materialization、install/update/uninstall/export/doctor を持つ。
-- `MackySoft.AgentSkills.Builder` は `agent-skills build --definitions-root <path> --output <path>` を提供し、各プロダクトの `skills/definitions` から `skills/generated` を生成する。
+- `MackySoft.AgentSkills.Builder` は `agent-skills build --definitionsRoot <path> --generatedRoot <path>` を提供し、各プロダクトの `skills/definitions` から `skills/generated` を生成する。
 - uCLI 固有名を排除し、namespace は `MackySoft.AgentSkills.*`、canonical manifest 名は `agent-skill.json` にする。
 - 初期段階では NuGet 配布を前提にしない。uCLI からは `ProjectReference` で参照する。
 

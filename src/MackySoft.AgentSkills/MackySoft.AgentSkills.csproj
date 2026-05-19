@@ -7,7 +7,10 @@
     <LangVersion>13.0</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <IsPackable>false</IsPackable>
+    <IsPackable>true</IsPackable>
+    <PackageId>MackySoft.AgentSkills</PackageId>
+    <Description>Reusable .NET services for building, materializing, installing, exporting, and diagnosing agent skill packages.</Description>
+    <PackageTags>agent;skills;cli;automation</PackageTags>
   </PropertyGroup>
 
 </Project>
