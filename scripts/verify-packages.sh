@@ -108,7 +108,7 @@ dotnet pack src/MackySoft.AgentSkills/MackySoft.AgentSkills.csproj \
   -p:Version="$package_version" \
   -p:PackageVersion="$package_version" \
   --output "$package_dir"
-dotnet pack tools/MackySoft.AgentSkills.Builder/MackySoft.AgentSkills.Builder.csproj \
+dotnet pack src/MackySoft.AgentSkills.Builder/MackySoft.AgentSkills.Builder.csproj \
   --configuration "$configuration" \
   --no-restore \
   -p:Version="$package_version" \

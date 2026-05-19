@@ -9,8 +9,8 @@ uCLI 内の `src/Ucli.Skills` と `tools/Ucli.SkillGenerator` から、SKILL 生
 
 ```text
 src/MackySoft.AgentSkills/
+src/MackySoft.AgentSkills.Builder/
 tests/MackySoft.AgentSkills.Tests/
-tools/MackySoft.AgentSkills.Builder/
 scripts/
 AgentSkills.slnx
 ```

@@ -17,7 +17,7 @@ public sealed class PackageMetadataTests
                 ["Description"] = "Reusable .NET services for building, materializing, installing, exporting, and diagnosing agent skill packages.",
                 ["PackageTags"] = "agent;skills;cli;automation",
             },
-            ["tools/MackySoft.AgentSkills.Builder/MackySoft.AgentSkills.Builder.csproj"] = new(StringComparer.Ordinal)
+            ["src/MackySoft.AgentSkills.Builder/MackySoft.AgentSkills.Builder.csproj"] = new(StringComparer.Ordinal)
             {
                 ["IsPackable"] = "true",
                 ["PackAsTool"] = "true",

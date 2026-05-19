@@ -1,12 +1,10 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/MackySoft.AgentSkills/MackySoft.AgentSkills.csproj" />
+    <Project Path="src/MackySoft.AgentSkills.Builder/MackySoft.AgentSkills.Builder.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/MackySoft.AgentSkills.Tests/MackySoft.AgentSkills.Tests.csproj" />
     <Project Path="tests/Tests.Helper/Tests.Helper.csproj" />
-  </Folder>
-  <Folder Name="/tools/">
-    <Project Path="tools/MackySoft.AgentSkills.Builder/MackySoft.AgentSkills.Builder.csproj" />
   </Folder>
 </Solution>
