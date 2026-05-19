@@ -7,7 +7,7 @@
 
 ## プロジェクト構成
 - 共通ライブラリ: `src/MackySoft.AgentSkills/`
-- Builder: `tools/MackySoft.AgentSkills.Builder/`
+- CLI: `src/MackySoft.AgentSkills.Cli/`
 - テスト: `tests/MackySoft.AgentSkills.Tests/`
 
 ## コーディング規約
