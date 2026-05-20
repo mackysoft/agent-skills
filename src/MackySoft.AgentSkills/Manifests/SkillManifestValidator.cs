@@ -11,15 +11,6 @@ public sealed class SkillManifestValidator
 
     /// <summary> Initializes a new instance of the <see cref="SkillManifestValidator" /> class. </summary>
     /// <param name="hostAdapters"> The supported host adapter set. </param>
-    public SkillManifestValidator (SkillHostAdapterSet hostAdapters)
-        : this(
-            hostAdapters,
-            new SkillManifestDigestCalculator(new SkillManifestJsonSerializer()))
-    {
-    }
-
-    /// <summary> Initializes a new instance of the <see cref="SkillManifestValidator" /> class. </summary>
-    /// <param name="hostAdapters"> The supported host adapter set. </param>
     /// <param name="manifestDigestCalculator"> The canonical manifest digest calculator. </param>
     public SkillManifestValidator (
         SkillHostAdapterSet hostAdapters,

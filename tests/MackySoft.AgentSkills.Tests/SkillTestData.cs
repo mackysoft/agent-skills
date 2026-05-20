@@ -90,16 +90,20 @@ internal static class SkillTestData
     {
         var hostAdapters = CreateDefaultHostAdapterSet();
         var manifestSerializer = new SkillManifestJsonSerializer();
+        var manifestDigestCalculator = new SkillManifestDigestCalculator(manifestSerializer);
         return new CanonicalSkillPackageReader(
             hostAdapters,
             new SkillDigestCalculator(),
             manifestSerializer,
-            new SkillManifestValidator(hostAdapters));
+            new SkillManifestValidator(hostAdapters, manifestDigestCalculator));
     }
 
     internal static SkillManifestValidator CreateManifestValidator ()
     {
-        return new SkillManifestValidator(CreateDefaultHostAdapterSet());
+        var manifestSerializer = new SkillManifestJsonSerializer();
+        return new SkillManifestValidator(
+            CreateDefaultHostAdapterSet(),
+            new SkillManifestDigestCalculator(manifestSerializer));
     }
 
     internal static SkillMaterializationService CreateMaterializationService ()
@@ -316,9 +320,10 @@ internal static class SkillTestData
 
     internal static SkillInstalledManifestReader CreateInstalledManifestReader (SkillHostAdapterSet hostAdapters)
     {
+        var manifestSerializer = new SkillManifestJsonSerializer();
         return new SkillInstalledManifestReader(
-            new SkillManifestJsonSerializer(),
-            new SkillManifestValidator(hostAdapters));
+            manifestSerializer,
+            new SkillManifestValidator(hostAdapters, new SkillManifestDigestCalculator(manifestSerializer)));
     }
 
     internal static void TamperManifestDigest (string manifestPath)

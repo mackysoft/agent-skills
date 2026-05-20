@@ -26,28 +26,6 @@ public sealed class SkillInstalledPackageIntegrityVerifier
     /// <param name="installedManifestReader"> The installed manifest reader. </param>
     /// <param name="hostAdapters"> The supported host adapter set. </param>
     /// <param name="manifestSerializer"> The manifest serializer. </param>
-    /// <param name="hostInspector"> The host materialization inspector. </param>
-    /// <param name="digestCalculator"> The digest calculator. </param>
-    public SkillInstalledPackageIntegrityVerifier (
-        SkillInstalledManifestReader installedManifestReader,
-        SkillHostAdapterSet hostAdapters,
-        SkillManifestJsonSerializer manifestSerializer,
-        SkillHostMaterializationInspector hostInspector,
-        SkillDigestCalculator digestCalculator)
-        : this(
-            installedManifestReader,
-            hostAdapters,
-            manifestSerializer,
-            new SkillManifestDigestCalculator(manifestSerializer),
-            hostInspector,
-            digestCalculator)
-    {
-    }
-
-    /// <summary> Initializes a new instance of the <see cref="SkillInstalledPackageIntegrityVerifier" /> class. </summary>
-    /// <param name="installedManifestReader"> The installed manifest reader. </param>
-    /// <param name="hostAdapters"> The supported host adapter set. </param>
-    /// <param name="manifestSerializer"> The manifest serializer. </param>
     /// <param name="manifestDigestCalculator"> The canonical manifest digest calculator. </param>
     /// <param name="hostInspector"> The host materialization inspector. </param>
     /// <param name="digestCalculator"> The digest calculator. </param>

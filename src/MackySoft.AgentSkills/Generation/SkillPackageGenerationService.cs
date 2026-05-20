@@ -22,25 +22,6 @@ public sealed class SkillPackageGenerationService
     /// <param name="hostAdapters"> The supported host adapter set. </param>
     /// <param name="digestCalculator"> The digest calculator. </param>
     /// <param name="manifestSerializer"> The manifest serializer. </param>
-    public SkillPackageGenerationService (
-        SkillSourceDefinitionReader sourceReader,
-        SkillHostAdapterSet hostAdapters,
-        SkillDigestCalculator digestCalculator,
-        SkillManifestJsonSerializer manifestSerializer)
-        : this(
-            sourceReader,
-            hostAdapters,
-            digestCalculator,
-            manifestSerializer,
-            new SkillManifestDigestCalculator(manifestSerializer))
-    {
-    }
-
-    /// <summary> Initializes a new instance of the <see cref="SkillPackageGenerationService" /> class. </summary>
-    /// <param name="sourceReader"> The source definition reader. </param>
-    /// <param name="hostAdapters"> The supported host adapter set. </param>
-    /// <param name="digestCalculator"> The digest calculator. </param>
-    /// <param name="manifestSerializer"> The manifest serializer. </param>
     /// <param name="manifestDigestCalculator"> The manifest digest calculator. </param>
     public SkillPackageGenerationService (
         SkillSourceDefinitionReader sourceReader,
