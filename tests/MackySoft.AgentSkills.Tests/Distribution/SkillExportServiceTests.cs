@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO.Compression;
 using System.Text;
 using MackySoft.AgentSkills.Distribution;
@@ -136,6 +137,37 @@ public sealed class SkillExportServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task ExportAsync_ZipFormat_UsesOrdinalEntryOrderingForCultureSensitivePaths ()
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
+            using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "export-zip-ordinal-culture");
+            var package = SkillTestData.CreateOrdinalSensitivePackage();
+            var service = SkillTestData.CreateExportService();
+
+            foreach (var adapter in GetSupportedAdapters())
+            {
+                var zipPath = scope.GetPath($"{adapter.Descriptor.HostKey}.zip");
+
+                var result = await service.ExportAsync([package], adapter.Descriptor.HostKey, zipPath, SkillExportFormat.Zip, CancellationToken.None);
+
+                Assert.True(result.IsSuccess, result.Failure?.Message);
+                var entryNames = GetZipEntryNames(zipPath);
+                var ordinalNames = entryNames.Order(StringComparer.Ordinal).ToArray();
+                Assert.Equal(ordinalNames, entryNames);
+                Assert.NotEqual(ordinalNames, entryNames.Order(StringComparer.CurrentCulture).ToArray());
+            }
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task ExportAsync_DirectoryFormat_WritesDeterministicFileSetMatchingZipFormat ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "export-directory-zip-equivalence");
@@ -240,7 +272,7 @@ public sealed class SkillExportServiceTests
         var files = new Dictionary<string, string>(StringComparer.Ordinal);
 
         using var archive = ZipFile.OpenRead(zipPath);
-        var entryNames = archive.Entries.Select(static entry => entry.FullName).ToArray();
+        var entryNames = GetZipEntryNames(archive);
         Assert.Equal(entryNames.Order(StringComparer.Ordinal).ToArray(), entryNames);
         Assert.DoesNotContain(entryNames, static entryName => entryName.EndsWith("/", StringComparison.Ordinal));
 
@@ -262,6 +294,17 @@ public sealed class SkillExportServiceTests
         }
 
         return files;
+    }
+
+    private static string[] GetZipEntryNames (string zipPath)
+    {
+        using var archive = ZipFile.OpenRead(zipPath);
+        return GetZipEntryNames(archive);
+    }
+
+    private static string[] GetZipEntryNames (ZipArchive archive)
+    {
+        return archive.Entries.Select(static entry => entry.FullName).ToArray();
     }
 
     private static bool HasUtf8Preamble (byte[] bytes)

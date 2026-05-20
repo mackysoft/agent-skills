@@ -1,3 +1,4 @@
+using System.Globalization;
 using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Validation;
 using MackySoft.AgentSkills.Packaging.Canonical;
@@ -54,8 +55,37 @@ public sealed class SkillMaterializationServiceTests
                 var result = service.Materialize(package, adapter.Descriptor.HostKey);
 
                 Assert.True(result.IsSuccess, result.Failure?.Message);
-                AssertFileMapEqual(canonicalContent, GetMaterializedHostIndependentContent(package, result.Value!.Files));
+                AssertFileMapEqual(canonicalContent, GetMaterializedHostIndependentContent(package, adapter, result.Value!.Files));
             }
+        }
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void Materialize_UsesOrdinalOrdering_ForCultureSensitivePaths ()
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
+            var package = SkillTestData.CreateOrdinalSensitivePackage();
+            var service = SkillTestData.CreateMaterializationService();
+
+            foreach (var adapter in GetSupportedAdapters())
+            {
+                var result = service.Materialize(package, adapter.Descriptor.HostKey);
+
+                Assert.True(result.IsSuccess, result.Failure?.Message);
+                var materializedPaths = result.Value!.Files.Select(static file => file.RelativePath).ToArray();
+                var ordinalPaths = materializedPaths.Order(StringComparer.Ordinal).ToArray();
+
+                Assert.Equal(ordinalPaths, materializedPaths);
+                Assert.NotEqual(ordinalPaths, materializedPaths.Order(StringComparer.CurrentCulture).ToArray());
+            }
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
         }
     }
 
@@ -136,18 +166,19 @@ public sealed class SkillMaterializationServiceTests
 
     private static IReadOnlyDictionary<string, string> GetMaterializedHostIndependentContent (
         CanonicalSkillPackage package,
+        ISkillHostAdapter adapter,
         IReadOnlyList<SkillPackageFile> materializedFiles)
     {
         var hostArtifactPaths = GetHostArtifactPaths(package);
         var content = new Dictionary<string, string>(StringComparer.Ordinal);
+        var expectedFrontmatter = adapter.BuildArtifacts(CreateHostMetadata(package)).Frontmatter;
 
         foreach (var file in materializedFiles.Where(file => !hostArtifactPaths.Contains(file.RelativePath)))
         {
             if (string.Equals(file.RelativePath, "SKILL.md", StringComparison.Ordinal))
             {
                 Assert.True(SkillHostMaterializationInspector.TryExtractFrontmatter(file.Content, out var frontmatter));
-                Assert.False(string.IsNullOrWhiteSpace(frontmatter));
-                Assert.Contains("---\n", frontmatter, StringComparison.Ordinal);
+                Assert.Equal(expectedFrontmatter, frontmatter);
                 content.Add(file.RelativePath, GetBodyWithoutFrontmatter(file.Content, frontmatter));
                 continue;
             }

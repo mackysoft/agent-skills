@@ -214,6 +214,66 @@ internal static class SkillTestData
         };
     }
 
+    internal static CanonicalSkillPackage CreateOrdinalSensitivePackage ()
+    {
+        const string SkillName = "ordinal-culture-contract";
+        const string DisplayName = "Ordinal Culture Contract";
+        const string Description = "Use this skill to verify ordinal package ordering.";
+
+        var bodyFile = SkillPackageFile.Create("SKILL.md", "# Ordinal Culture Contract\n");
+        var referenceFiles = new[]
+        {
+            SkillPackageFile.Create("references/a.md", "lowercase reference\n"),
+            SkillPackageFile.Create("references/B.md", "uppercase reference\n"),
+        };
+        var digestCalculator = new SkillDigestCalculator();
+        var contentDigest = digestCalculator.ComputeDigest(
+            new[] { new SkillDigestInputFile(bodyFile.RelativePath, bodyFile.Content) }
+                .Concat(referenceFiles.Select(static file => new SkillDigestInputFile(file.RelativePath, file.Content))));
+        var metadata = new SkillHostMetadata(SkillName, DisplayName, Description);
+        var hostArtifacts = new List<SkillHostArtifactManifest>();
+        var hostArtifactFiles = new List<SkillPackageFile>();
+
+        foreach (var adapter in CreateDefaultHostAdapterSet().Adapters)
+        {
+            var artifacts = adapter.BuildArtifacts(metadata);
+            var frontmatterDigest = digestCalculator.ComputeSingleFileDigest("SKILL.md.frontmatter", artifacts.Frontmatter);
+            if (adapter.MetadataArtifactPath is null)
+            {
+                hostArtifacts.Add(new SkillHostArtifactManifest(
+                    adapter.Descriptor.HostKey,
+                    null,
+                    null,
+                    frontmatterDigest));
+                continue;
+            }
+
+            Assert.NotNull(artifacts.MetadataContent);
+            hostArtifacts.Add(new SkillHostArtifactManifest(
+                adapter.Descriptor.HostKey,
+                adapter.MetadataArtifactPath,
+                digestCalculator.ComputeSingleFileDigest(adapter.MetadataArtifactPath, artifacts.MetadataContent),
+                frontmatterDigest));
+            hostArtifactFiles.Add(SkillPackageFile.Create(adapter.MetadataArtifactPath, artifacts.MetadataContent));
+        }
+
+        var manifest = new SkillManifest(
+            SkillManifest.CurrentSchemaVersion,
+            SkillName,
+            DisplayName,
+            Description,
+            contentDigest,
+            hostArtifacts);
+        var manifestFile = SkillPackageFile.Create("agent-skill.json", new SkillManifestJsonSerializer().Serialize(manifest));
+        var files = new[] { bodyFile, manifestFile }
+            .Concat(referenceFiles)
+            .Concat(hostArtifactFiles)
+            .OrderBy(static file => file.RelativePath, StringComparer.Ordinal)
+            .ToArray();
+
+        return new CanonicalSkillPackage(manifest, files);
+    }
+
     internal static CanonicalSkillPackage CreatePackageWithUpdatedOpenAiMetadata (CanonicalSkillPackage package)
     {
         var manifest = package.Manifest with
