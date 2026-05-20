@@ -148,25 +148,35 @@ public sealed class SkillUninstallService
         {
             case SkillInstalledTargetStateKind.Missing:
                 return SkillOperationResult<SkillUninstallActionPlan>.Success(new SkillUninstallActionPlan(
-                    new SkillUninstallAction(identity, SkillUninstallActionKind.NoOp),
+                    new SkillUninstallAction(identity, SkillUninstallActionKind.NoOp, TargetState: SkillActionTargetStateProjection.Create(state)),
                     skillDirectory,
                     package,
                     ShouldDelete: false));
             case SkillInstalledTargetStateKind.Current:
             case SkillInstalledTargetStateKind.CleanOutdated:
                 return SkillOperationResult<SkillUninstallActionPlan>.Success(new SkillUninstallActionPlan(
-                    new SkillUninstallAction(identity, SkillUninstallActionKind.Deleted),
+                    new SkillUninstallAction(identity, SkillUninstallActionKind.Deleted, TargetState: SkillActionTargetStateProjection.Create(state)),
                     skillDirectory,
                     package,
                     ShouldDelete: true));
             case SkillInstalledTargetStateKind.Unmanaged:
                 return SkillOperationResult<SkillUninstallActionPlan>.Success(new SkillUninstallActionPlan(
-                    new SkillUninstallAction(identity, SkillUninstallActionKind.SkippedUnmanaged),
+                    new SkillUninstallAction(identity, SkillUninstallActionKind.SkippedUnmanaged, TargetState: SkillActionTargetStateProjection.Create(state)),
                     skillDirectory,
                     package,
                     ShouldDelete: false));
             case SkillInstalledTargetStateKind.LocalModified:
-                return CreateLocalModificationActionPlan(package, skillDirectory, identity, input);
+            case SkillInstalledTargetStateKind.ManifestDrift:
+            case SkillInstalledTargetStateKind.CommonContentDrift:
+            case SkillInstalledTargetStateKind.FrontmatterDrift:
+            case SkillInstalledTargetStateKind.HostArtifactDrift:
+            case SkillInstalledTargetStateKind.FileSetDrift:
+                return CreateLocalModificationActionPlan(package, skillDirectory, identity, state, input);
+            case SkillInstalledTargetStateKind.NameCollision:
+            case SkillInstalledTargetStateKind.HostConflict:
+                return SkillOperationResult<SkillUninstallActionPlan>.FailureResult(
+                    ResolveStateFailureCode(state),
+                    state.Failure?.Message ?? $"Target skill directory cannot be deleted: {skillDirectory}");
             default:
                 throw new ArgumentOutOfRangeException(nameof(state), state.Kind, "Unsupported target state.");
         }
@@ -176,12 +186,13 @@ public sealed class SkillUninstallService
         CanonicalSkillPackage package,
         string skillDirectory,
         SkillInstallIdentity identity,
+        SkillInstalledTargetState state,
         SkillUninstallInput input)
     {
         if (input.Force)
         {
             return SkillOperationResult<SkillUninstallActionPlan>.Success(new SkillUninstallActionPlan(
-                new SkillUninstallAction(identity, SkillUninstallActionKind.Deleted),
+                new SkillUninstallAction(identity, SkillUninstallActionKind.Deleted, TargetState: SkillActionTargetStateProjection.Create(state)),
                 skillDirectory,
                 package,
                 ShouldDelete: true));
@@ -193,14 +204,15 @@ public sealed class SkillUninstallService
                 new SkillUninstallAction(
                     identity,
                     SkillUninstallActionKind.BlockedLocalModification,
-                    SkillBlockedReason.LocalModificationRequiresForce),
+                    SkillBlockedReason.LocalModificationRequiresForce,
+                    SkillActionTargetStateProjection.Create(state)),
                 skillDirectory,
                 package,
                 ShouldDelete: false));
         }
 
         return SkillOperationResult<SkillUninstallActionPlan>.FailureResult(
-            SkillFailureCodes.InstallTargetDigestMismatch,
+            ResolveStateFailureCode(state),
             $"Target skill directory contains local modifications. Use --force to delete: {skillDirectory}");
     }
 
@@ -217,10 +229,10 @@ public sealed class SkillUninstallService
             return SkillOperationResult<bool>.FailureResult(stateResult.Failure!.Code, stateResult.Failure.Message);
         }
 
-        var state = stateResult.Value!.Kind;
+        var state = stateResult.Value!;
         var isValid = force
-            ? state is SkillInstalledTargetStateKind.Current or SkillInstalledTargetStateKind.CleanOutdated or SkillInstalledTargetStateKind.LocalModified
-            : state is SkillInstalledTargetStateKind.Current or SkillInstalledTargetStateKind.CleanOutdated;
+            ? state.Kind is SkillInstalledTargetStateKind.Current or SkillInstalledTargetStateKind.CleanOutdated || IsLocalModificationState(state.Kind)
+            : state.Kind is SkillInstalledTargetStateKind.Current or SkillInstalledTargetStateKind.CleanOutdated;
         if (isValid)
         {
             return SkillOperationResult<bool>.Success(true);
@@ -231,11 +243,26 @@ public sealed class SkillUninstallService
             $"Target skill directory changed after planning; refusing to delete: {skillDirectory}");
     }
 
-    private static SkillFailureCode ResolveChangedTargetFailureCode (SkillInstalledTargetStateKind state)
+    private static SkillFailureCode ResolveChangedTargetFailureCode (SkillInstalledTargetState state)
     {
-        return state == SkillInstalledTargetStateKind.Unmanaged
+        return state.Kind == SkillInstalledTargetStateKind.Unmanaged
             ? SkillFailureCodes.InstallTargetUnmanaged
-            : SkillFailureCodes.InstallTargetDigestMismatch;
+            : ResolveStateFailureCode(state);
+    }
+
+    private static bool IsLocalModificationState (SkillInstalledTargetStateKind state)
+    {
+        return state is SkillInstalledTargetStateKind.LocalModified
+            or SkillInstalledTargetStateKind.ManifestDrift
+            or SkillInstalledTargetStateKind.CommonContentDrift
+            or SkillInstalledTargetStateKind.FrontmatterDrift
+            or SkillInstalledTargetStateKind.HostArtifactDrift
+            or SkillInstalledTargetStateKind.FileSetDrift;
+    }
+
+    private static SkillFailureCode ResolveStateFailureCode (SkillInstalledTargetState state)
+    {
+        return state.Failure?.Code ?? SkillFailureCodes.InstallTargetDigestMismatch;
     }
 
     private sealed record SkillUninstallActionPlan (

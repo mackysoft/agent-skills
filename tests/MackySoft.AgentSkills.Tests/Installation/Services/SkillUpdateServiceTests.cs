@@ -3,6 +3,7 @@ using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Installation.Contracts;
 using MackySoft.AgentSkills.Installation.Requests;
 using MackySoft.AgentSkills.Installation.Results;
+using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Materialization;
 using MackySoft.AgentSkills.Shared;
@@ -120,7 +121,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput(packages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
     }
 
     [Fact]
@@ -144,7 +145,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput(packages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetManifestDigestMismatch, result.Failure!.Code);
     }
 
     [Fact]
@@ -164,7 +165,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput(packages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetManifestDigestMismatch, result.Failure!.Code);
     }
 
     [Fact]
@@ -189,7 +190,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput(updatedPackages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetManifestDigestMismatch, result.Failure!.Code);
     }
 
     [Fact]
@@ -255,6 +256,8 @@ public sealed class SkillUpdateServiceTests
         var action = result.Value!.Actions.Single(action => action.Identity.SkillName == packages[0].Manifest.SkillName);
         Assert.Equal(SkillUpdateActionKind.BlockedLocalModification, action.ActionKind);
         Assert.Equal(SkillBlockedReason.LocalModificationRequiresForce, action.BlockedReason);
+        Assert.Equal(nameof(SkillInstalledTargetStateKind.CommonContentDrift), action.TargetState!.Kind);
+        Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, action.TargetState.Code);
         Assert.NotEmpty(action.Diffs!);
         Assert.Equal(modifiedSkill, File.ReadAllText(skillPath));
     }
@@ -370,7 +373,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput([updatedPackage, secondPackage], request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
         var skillText = File.ReadAllText(skillPath);
         Assert.Contains("Injected after planning.", skillText, StringComparison.Ordinal);
         Assert.DoesNotContain("Fixture update.", skillText, StringComparison.Ordinal);
@@ -397,7 +400,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput([firstUpdatedPackage, secondUpdatedPackage], request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
         Assert.DoesNotContain("Fixture update.", File.ReadAllText(firstSkillPath), StringComparison.Ordinal);
         Assert.Contains("Injected after planning.", File.ReadAllText(secondSkillPath), StringComparison.Ordinal);
     }
@@ -420,7 +423,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput(updatedPackages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, result.Failure!.Code);
         Assert.True(Directory.Exists(localDirectory));
     }
 

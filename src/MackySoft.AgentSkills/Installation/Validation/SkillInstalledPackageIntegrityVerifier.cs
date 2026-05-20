@@ -74,11 +74,11 @@ public sealed class SkillInstalledPackageIntegrityVerifier
             return SkillOperationResult<SkillManifest>.FailureResult(manifestIntegrityResult.Failure!.Code, manifestIntegrityResult.Failure.Message);
         }
 
-        if (!manifestIntegrityResult.Value)
+        if (!manifestIntegrityResult.Value!.Matches)
         {
             return SkillOperationResult<SkillManifest>.FailureResult(
-                SkillFailureCodes.InstallTargetDigestMismatch,
-                $"Installed SKILL manifest does not match its generated host artifact metadata: {manifest.SkillName}");
+                manifestIntegrityResult.Value.FailureCode,
+                manifestIntegrityResult.Value.Message);
         }
 
         var differentHostResult = await hostInspector.MatchesDifferentHostAsync(skillDirectory, manifest, host, cancellationToken).ConfigureAwait(false);
@@ -94,17 +94,12 @@ public sealed class SkillInstalledPackageIntegrityVerifier
                 $"Installed skill directory is materialized for another host: {skillDirectory}");
         }
 
-        var hostMatchResult = await hostInspector.MatchesHostAsync(skillDirectory, manifest, host, cancellationToken).ConfigureAwait(false);
-        if (!hostMatchResult.IsSuccess)
-        {
-            return SkillOperationResult<SkillManifest>.FailureResult(hostMatchResult.Failure!.Code, hostMatchResult.Failure.Message);
-        }
-
-        if (!hostMatchResult.Value)
+        var hostArtifactResult = await VerifyRequestedHostArtifactAsync(skillDirectory, manifest, host, cancellationToken).ConfigureAwait(false);
+        if (!hostArtifactResult.IsSuccess)
         {
             return SkillOperationResult<SkillManifest>.FailureResult(
-                SkillFailureCodes.InstallTargetDigestMismatch,
-                $"Installed skill directory does not match requested host materialization: {skillDirectory}");
+                hostArtifactResult.Failure!.Code,
+                hostArtifactResult.Failure.Message);
         }
 
         var entriesResult = SkillInstalledFileSetVerifier.ReadInstalledEntries(skillDirectory, cancellationToken);
@@ -114,44 +109,56 @@ public sealed class SkillInstalledPackageIntegrityVerifier
         }
 
         var installedEntries = entriesResult.Value!;
-        var digestResult = await VerifyInstalledContentDigestAsync(skillDirectory, manifest, installedEntries, cancellationToken).ConfigureAwait(false);
-        if (!digestResult.IsSuccess)
-        {
-            return SkillOperationResult<SkillManifest>.FailureResult(digestResult.Failure!.Code, digestResult.Failure.Message);
-        }
-
-        if (!digestResult.Value)
-        {
-            return SkillOperationResult<SkillManifest>.FailureResult(
-                SkillFailureCodes.InstallTargetDigestMismatch,
-                $"Installed SKILL files do not match installed contentDigest: {manifest.SkillName}");
-        }
-
         var fileSetResult = VerifyInstalledFileSet(skillDirectory, manifest, host, installedEntries, cancellationToken);
         if (!fileSetResult.IsSuccess)
         {
             return SkillOperationResult<SkillManifest>.FailureResult(fileSetResult.Failure!.Code, fileSetResult.Failure.Message);
         }
 
-        return fileSetResult.Value!.HasFileSetDrift
+        if (fileSetResult.Value!.HasFileSetDrift)
+        {
+            return SkillOperationResult<SkillManifest>.FailureResult(
+                SkillFailureCodes.InstallTargetFileSetMismatch,
+                $"Installed SKILL file set contains unmanaged files: {manifest.SkillName}");
+        }
+
+        var frontmatterResult = await VerifyRequestedHostFrontmatterAsync(skillDirectory, manifest, host, cancellationToken).ConfigureAwait(false);
+        if (!frontmatterResult.IsSuccess)
+        {
+            return SkillOperationResult<SkillManifest>.FailureResult(
+                frontmatterResult.Failure!.Code,
+                frontmatterResult.Failure.Message);
+        }
+
+        var digestResult = await VerifyInstalledContentDigestAsync(skillDirectory, manifest, installedEntries, cancellationToken).ConfigureAwait(false);
+        if (!digestResult.IsSuccess)
+        {
+            return SkillOperationResult<SkillManifest>.FailureResult(digestResult.Failure!.Code, digestResult.Failure.Message);
+        }
+
+        return !digestResult.Value
             ? SkillOperationResult<SkillManifest>.FailureResult(
-                SkillFailureCodes.InstallTargetDigestMismatch,
-                $"Installed SKILL file set contains unmanaged files: {manifest.SkillName}")
+                SkillFailureCodes.InstallTargetContentDigestMismatch,
+                $"Installed SKILL files do not match installed contentDigest: {manifest.SkillName}")
             : SkillOperationResult<SkillManifest>.Success(manifest);
     }
 
-    private SkillOperationResult<bool> VerifyInstalledManifestIntegrity (SkillInstalledManifest installedManifest)
+    private SkillOperationResult<IntegrityCheckResult> VerifyInstalledManifestIntegrity (SkillInstalledManifest installedManifest)
     {
         if (!string.Equals(installedManifest.ManifestText, manifestSerializer.Serialize(installedManifest.Manifest), StringComparison.Ordinal))
         {
-            return SkillOperationResult<bool>.Success(false);
+            return SkillOperationResult<IntegrityCheckResult>.Success(IntegrityCheckResult.Mismatch(
+                SkillFailureCodes.InstallTargetManifestDigestMismatch,
+                $"Installed SKILL manifest text is not canonical: {installedManifest.Manifest.SkillName}"));
         }
 
         var manifest = installedManifest.Manifest;
         var manifestDigest = manifestDigestCalculator.ComputeManifestDigest(manifest);
         if (!string.Equals(manifestDigest, manifest.ManifestDigest, StringComparison.Ordinal))
         {
-            return SkillOperationResult<bool>.Success(false);
+            return SkillOperationResult<IntegrityCheckResult>.Success(IntegrityCheckResult.Mismatch(
+                SkillFailureCodes.InstallTargetManifestDigestMismatch,
+                $"Installed SKILL manifestDigest does not match manifest content: {manifest.SkillName}"));
         }
 
         var metadata = new SkillHostMetadata(manifest.SkillName, manifest.DisplayName, manifest.Description);
@@ -160,7 +167,7 @@ public sealed class SkillInstalledPackageIntegrityVerifier
         {
             if (!artifactByHost.TryGetValue(adapter.Descriptor.HostKey, out var artifact))
             {
-                return SkillOperationResult<bool>.FailureResult(
+                return SkillOperationResult<IntegrityCheckResult>.FailureResult(
                     SkillFailureCodes.ManifestInvalid,
                     $"Manifest host artifact '{adapter.Descriptor.HostKey}' is missing.");
             }
@@ -170,14 +177,16 @@ public sealed class SkillInstalledPackageIntegrityVerifier
             var frontmatterDigest = digestCalculator.ComputeSingleFileDigest("SKILL.md.frontmatter", artifacts.Frontmatter);
             if (!string.Equals(artifact.MaterializedFrontmatterDigest, frontmatterDigest, StringComparison.Ordinal))
             {
-                return SkillOperationResult<bool>.Success(false);
+                return SkillOperationResult<IntegrityCheckResult>.Success(IntegrityCheckResult.Mismatch(
+                    SkillFailureCodes.InstallTargetManifestDigestMismatch,
+                    $"Installed SKILL manifest frontmatter metadata does not match adapter output: {manifest.SkillName}/{artifact.Host}"));
             }
 
             if (metadataArtifactPath is null)
             {
                 if (artifact.Path is not null || artifact.Digest is not null)
                 {
-                    return SkillOperationResult<bool>.FailureResult(
+                    return SkillOperationResult<IntegrityCheckResult>.FailureResult(
                         SkillFailureCodes.ManifestInvalid,
                         $"Manifest host artifact '{artifact.Host}' must not contain metadata artifact fields.");
                 }
@@ -187,7 +196,7 @@ public sealed class SkillInstalledPackageIntegrityVerifier
 
             if (artifacts.MetadataContent is null)
             {
-                return SkillOperationResult<bool>.FailureResult(
+                return SkillOperationResult<IntegrityCheckResult>.FailureResult(
                     SkillFailureCodes.ManifestInvalid,
                     $"Host adapter '{adapter.Descriptor.HostKey}' did not generate metadata content.");
             }
@@ -196,11 +205,132 @@ public sealed class SkillInstalledPackageIntegrityVerifier
             if (!string.Equals(artifact.Path, metadataArtifactPath, StringComparison.Ordinal)
                 || !string.Equals(artifact.Digest, metadataDigest, StringComparison.Ordinal))
             {
-                return SkillOperationResult<bool>.Success(false);
+                return SkillOperationResult<IntegrityCheckResult>.Success(IntegrityCheckResult.Mismatch(
+                    SkillFailureCodes.InstallTargetManifestDigestMismatch,
+                    $"Installed SKILL manifest host artifact metadata does not match adapter output: {manifest.SkillName}/{artifact.Host}"));
             }
         }
 
+        return SkillOperationResult<IntegrityCheckResult>.Success(IntegrityCheckResult.Match);
+    }
+
+    private async ValueTask<SkillOperationResult<bool>> VerifyRequestedHostArtifactAsync (
+        string skillDirectory,
+        SkillManifest manifest,
+        string host,
+        CancellationToken cancellationToken)
+    {
+        var hostArtifact = manifest.HostArtifacts.SingleOrDefault(artifact => string.Equals(artifact.Host, host, StringComparison.Ordinal));
+        if (hostArtifact is null)
+        {
+            return SkillOperationResult<bool>.FailureResult(
+                SkillFailureCodes.ManifestInvalid,
+                $"Manifest does not contain host artifact '{host}'.");
+        }
+
+        var hostArtifactResult = await MatchesHostArtifactAsync(skillDirectory, hostArtifact, cancellationToken).ConfigureAwait(false);
+        if (!hostArtifactResult.IsSuccess)
+        {
+            return SkillOperationResult<bool>.FailureResult(hostArtifactResult.Failure!.Code, hostArtifactResult.Failure.Message);
+        }
+
+        return hostArtifactResult.Value
+            ? SkillOperationResult<bool>.Success(true)
+            : SkillOperationResult<bool>.FailureResult(
+                SkillFailureCodes.InstallTargetHostArtifactDigestMismatch,
+                $"Installed SKILL host artifact digest does not match manifest: {manifest.SkillName}");
+    }
+
+    private async ValueTask<SkillOperationResult<bool>> VerifyRequestedHostFrontmatterAsync (
+        string skillDirectory,
+        SkillManifest manifest,
+        string host,
+        CancellationToken cancellationToken)
+    {
+        var hostArtifact = manifest.HostArtifacts.SingleOrDefault(artifact => string.Equals(artifact.Host, host, StringComparison.Ordinal));
+        if (hostArtifact is null)
+        {
+            return SkillOperationResult<bool>.FailureResult(
+                SkillFailureCodes.ManifestInvalid,
+                $"Manifest does not contain host artifact '{host}'.");
+        }
+
+        var frontmatterResult = await ReadInstalledFrontmatterAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
+        if (!frontmatterResult.IsSuccess)
+        {
+            return SkillOperationResult<bool>.FailureResult(frontmatterResult.Failure!.Code, frontmatterResult.Failure.Message);
+        }
+
+        if (frontmatterResult.Value!.Length == 0)
+        {
+            return SkillOperationResult<bool>.FailureResult(
+                SkillFailureCodes.InstallTargetFrontmatterDigestMismatch,
+                $"Installed SKILL frontmatter is missing or invalid: {manifest.SkillName}");
+        }
+
+        var frontmatterDigest = digestCalculator.ComputeSingleFileDigest("SKILL.md.frontmatter", frontmatterResult.Value);
+        if (!string.Equals(frontmatterDigest, hostArtifact.MaterializedFrontmatterDigest, StringComparison.Ordinal))
+        {
+            return SkillOperationResult<bool>.FailureResult(
+                SkillFailureCodes.InstallTargetFrontmatterDigestMismatch,
+                $"Installed SKILL frontmatter digest does not match manifest: {manifest.SkillName}");
+        }
+
         return SkillOperationResult<bool>.Success(true);
+    }
+
+    private static async ValueTask<SkillOperationResult<string>> ReadInstalledFrontmatterAsync (
+        string skillDirectory,
+        CancellationToken cancellationToken)
+    {
+        var skillPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, SkillBodyPath);
+        if (!skillPathResult.IsSuccess)
+        {
+            return SkillOperationResult<string>.FailureResult(skillPathResult.Failure!.Code, skillPathResult.Failure.Message);
+        }
+
+        if (!File.Exists(skillPathResult.Value!))
+        {
+            return SkillOperationResult<string>.Success(string.Empty);
+        }
+
+        var skillText = SkillTextNormalizer.NormalizeToLf(await File.ReadAllTextAsync(skillPathResult.Value!, cancellationToken).ConfigureAwait(false));
+        return SkillHostMaterializationInspector.TryExtractFrontmatter(skillText, out var frontmatter)
+            ? SkillOperationResult<string>.Success(frontmatter)
+            : SkillOperationResult<string>.Success(string.Empty);
+    }
+
+    private async ValueTask<SkillOperationResult<bool>> MatchesHostArtifactAsync (
+        string skillDirectory,
+        SkillHostArtifactManifest hostArtifact,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(hostArtifact.Path))
+        {
+            return SkillOperationResult<bool>.Success(true);
+        }
+
+        if (string.IsNullOrWhiteSpace(hostArtifact.Digest))
+        {
+            return SkillOperationResult<bool>.FailureResult(
+                SkillFailureCodes.ManifestInvalid,
+                $"Manifest host artifact '{hostArtifact.Host}' is missing a digest.");
+        }
+
+        var artifactPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, hostArtifact.Path);
+        if (!artifactPathResult.IsSuccess)
+        {
+            return SkillOperationResult<bool>.FailureResult(artifactPathResult.Failure!.Code, artifactPathResult.Failure.Message);
+        }
+
+        if (!File.Exists(artifactPathResult.Value!))
+        {
+            return SkillOperationResult<bool>.Success(false);
+        }
+
+        var content = SkillTextNormalizer.NormalizeToLf(await File.ReadAllTextAsync(artifactPathResult.Value!, cancellationToken).ConfigureAwait(false));
+        var digest = digestCalculator.ComputeSingleFileDigest(hostArtifact.Path, content);
+        return SkillOperationResult<bool>.Success(string.Equals(digest, hostArtifact.Digest, StringComparison.Ordinal));
     }
 
     private async ValueTask<SkillOperationResult<bool>> VerifyInstalledContentDigestAsync (
@@ -325,6 +455,24 @@ public sealed class SkillInstalledPackageIntegrityVerifier
             [ReferencesPrefix],
             installedEntries,
             cancellationToken);
+    }
+
+    private sealed record IntegrityCheckResult (
+        bool Matches,
+        SkillFailureCode FailureCode,
+        string Message)
+    {
+        public static IntegrityCheckResult Match { get; } = new(
+            true,
+            SkillFailureCodes.InstallTargetLocalModification,
+            "Installed SKILL package integrity matched.");
+
+        public static IntegrityCheckResult Mismatch (
+            SkillFailureCode failureCode,
+            string message)
+        {
+            return new IntegrityCheckResult(false, failureCode, message);
+        }
     }
 
     private readonly record struct InstalledSkillBody (

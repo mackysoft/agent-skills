@@ -1,4 +1,3 @@
-using MackySoft.AgentSkills.Doctor.Diagnostics;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Packaging.Canonical;
@@ -12,20 +11,29 @@ public sealed class SkillDoctorService
 {
     private readonly SkillHostAdapterSet hostAdapters;
     private readonly SkillInstalledTargetStateAnalyzer targetStateAnalyzer;
-    private readonly SkillInstalledPackageDriftAnalyzer driftAnalyzer;
 
     /// <summary> Initializes a new instance of the <see cref="SkillDoctorService" /> class. </summary>
     /// <param name="hostAdapters"> The supported host adapter set. </param>
     /// <param name="targetStateAnalyzer"> The installed target state analyzer. </param>
-    /// <param name="driftAnalyzer"> The local drift analyzer. </param>
     public SkillDoctorService (
         SkillHostAdapterSet hostAdapters,
-        SkillInstalledTargetStateAnalyzer targetStateAnalyzer,
-        SkillInstalledPackageDriftAnalyzer driftAnalyzer)
+        SkillInstalledTargetStateAnalyzer targetStateAnalyzer)
     {
         this.hostAdapters = hostAdapters ?? throw new ArgumentNullException(nameof(hostAdapters));
         this.targetStateAnalyzer = targetStateAnalyzer ?? throw new ArgumentNullException(nameof(targetStateAnalyzer));
-        this.driftAnalyzer = driftAnalyzer ?? throw new ArgumentNullException(nameof(driftAnalyzer));
+    }
+
+    /// <summary> Initializes a new instance of the <see cref="SkillDoctorService" /> class. </summary>
+    /// <param name="hostAdapters"> The supported host adapter set. </param>
+    /// <param name="targetStateAnalyzer"> The installed target state analyzer. </param>
+    /// <param name="driftAnalyzer"> The legacy local drift analyzer dependency. </param>
+    public SkillDoctorService (
+        SkillHostAdapterSet hostAdapters,
+        SkillInstalledTargetStateAnalyzer targetStateAnalyzer,
+        Diagnostics.SkillInstalledPackageDriftAnalyzer driftAnalyzer)
+        : this(hostAdapters, targetStateAnalyzer)
+    {
+        ArgumentNullException.ThrowIfNull(driftAnalyzer);
     }
 
     /// <summary> Diagnoses one host target root against canonical packages. </summary>
@@ -128,16 +136,19 @@ public sealed class SkillDoctorService
                     package.Manifest.SkillName));
                 return;
             case SkillInstalledTargetStateKind.LocalModified:
-                var driftResult = await driftAnalyzer.AnalyzeAsync(package, skillDirectory, host, cancellationToken).ConfigureAwait(false);
-                if (!driftResult.IsSuccess)
-                {
-                    diagnostics.Add(SkillDoctorDiagnostic.Error(driftResult.Failure!.Code, driftResult.Failure.Message, package.Manifest.SkillName));
-                    return;
-                }
-
+            case SkillInstalledTargetStateKind.ManifestDrift:
+            case SkillInstalledTargetStateKind.CommonContentDrift:
+            case SkillInstalledTargetStateKind.FrontmatterDrift:
+            case SkillInstalledTargetStateKind.HostArtifactDrift:
+            case SkillInstalledTargetStateKind.FileSetDrift:
+            case SkillInstalledTargetStateKind.NameCollision:
+            case SkillInstalledTargetStateKind.HostConflict:
+                var failure = stateResult.Value.Failure ?? SkillFailure.Create(
+                    SkillFailureCodes.InstallTargetLocalModification,
+                    "Installed SKILL package contains local modifications.");
                 diagnostics.Add(SkillDoctorDiagnostic.Error(
-                    driftResult.Value!.Code,
-                    driftResult.Value.Message,
+                    failure.Code,
+                    failure.Message,
                     package.Manifest.SkillName));
                 return;
             default:

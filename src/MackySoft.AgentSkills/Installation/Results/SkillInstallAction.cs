@@ -6,8 +6,10 @@ namespace MackySoft.AgentSkills.Installation.Results;
 /// <param name="ActionKind"> The action kind. </param>
 /// <param name="BlockedReason"> The blocked reason category, when the action is blocked. </param>
 /// <param name="Diffs"> The optional structured diffs. </param>
+/// <param name="TargetState"> The analyzed target state that produced this action, when available. </param>
 public sealed record SkillInstallAction (
     SkillInstallIdentity Identity,
     SkillInstallActionKind ActionKind,
     SkillBlockedReason? BlockedReason = null,
-    IReadOnlyList<SkillActionDiff>? Diffs = null);
+    IReadOnlyList<SkillActionDiff>? Diffs = null,
+    SkillActionTargetState? TargetState = null);

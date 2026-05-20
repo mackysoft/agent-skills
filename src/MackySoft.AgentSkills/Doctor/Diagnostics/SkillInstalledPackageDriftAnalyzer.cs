@@ -1,9 +1,5 @@
-using MackySoft.AgentSkills.Digests;
-using MackySoft.AgentSkills.Installation.Validation;
-using MackySoft.AgentSkills.Manifests;
-using MackySoft.AgentSkills.Materialization;
+using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Packaging.Canonical;
-using MackySoft.AgentSkills.Packaging.FileSystem;
 using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Doctor.Diagnostics;
@@ -11,30 +7,13 @@ namespace MackySoft.AgentSkills.Doctor.Diagnostics;
 /// <summary> Classifies local drift in one installed SKILL package for doctor diagnostics. </summary>
 public sealed class SkillInstalledPackageDriftAnalyzer
 {
-    private const string SkillBodyPath = "SKILL.md";
-    private const string ManifestPath = "agent-skill.json";
-    private const string ReferencesPrefix = "references/";
-
-    private readonly SkillInstalledManifestReader installedManifestReader;
-    private readonly SkillMaterializationService materializationService;
-    private readonly SkillInstalledFileSetVerifier fileSetVerifier;
-    private readonly SkillDigestCalculator digestCalculator;
+    private readonly SkillInstalledTargetStateAnalyzer targetStateAnalyzer;
 
     /// <summary> Initializes a new instance of the <see cref="SkillInstalledPackageDriftAnalyzer" /> class. </summary>
-    /// <param name="installedManifestReader"> The installed manifest reader. </param>
-    /// <param name="materializationService"> The materialization service. </param>
-    /// <param name="fileSetVerifier"> The installed materialized file-set verifier. </param>
-    /// <param name="digestCalculator"> The digest calculator. </param>
-    public SkillInstalledPackageDriftAnalyzer (
-        SkillInstalledManifestReader installedManifestReader,
-        SkillMaterializationService materializationService,
-        SkillInstalledFileSetVerifier fileSetVerifier,
-        SkillDigestCalculator digestCalculator)
+    /// <param name="targetStateAnalyzer"> The shared installed target state analyzer. </param>
+    public SkillInstalledPackageDriftAnalyzer (SkillInstalledTargetStateAnalyzer targetStateAnalyzer)
     {
-        this.installedManifestReader = installedManifestReader ?? throw new ArgumentNullException(nameof(installedManifestReader));
-        this.materializationService = materializationService ?? throw new ArgumentNullException(nameof(materializationService));
-        this.fileSetVerifier = fileSetVerifier ?? throw new ArgumentNullException(nameof(fileSetVerifier));
-        this.digestCalculator = digestCalculator ?? throw new ArgumentNullException(nameof(digestCalculator));
+        this.targetStateAnalyzer = targetStateAnalyzer ?? throw new ArgumentNullException(nameof(targetStateAnalyzer));
     }
 
     /// <summary> Classifies local drift for one installed skill directory. </summary>
@@ -54,225 +33,34 @@ public sealed class SkillInstalledPackageDriftAnalyzer
         ArgumentException.ThrowIfNullOrWhiteSpace(host);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var manifestResult = await installedManifestReader.ReadRequiredAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
-        if (!manifestResult.IsSuccess)
-        {
-            return SkillOperationResult<SkillInstalledPackageDrift>.FailureResult(manifestResult.Failure!.Code, manifestResult.Failure.Message);
-        }
-
-        var installedManifest = manifestResult.Value!.Manifest;
-        var hostArtifact = installedManifest.HostArtifacts.SingleOrDefault(artifact => string.Equals(artifact.Host, host, StringComparison.Ordinal));
-        if (hostArtifact is null)
+        var stateResult = await targetStateAnalyzer.AnalyzeAsync(package, skillDirectory, host, cancellationToken).ConfigureAwait(false);
+        if (!stateResult.IsSuccess)
         {
             return SkillOperationResult<SkillInstalledPackageDrift>.FailureResult(
-                SkillFailureCodes.ManifestInvalid,
-                $"Manifest does not contain host artifact '{host}'.");
+                stateResult.Failure!.Code,
+                stateResult.Failure.Message);
         }
 
-        var frontmatterResult = await ReadInstalledFrontmatterAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
-        if (!frontmatterResult.IsSuccess)
-        {
-            return SkillOperationResult<SkillInstalledPackageDrift>.FailureResult(frontmatterResult.Failure!.Code, frontmatterResult.Failure.Message);
-        }
-
-        if (frontmatterResult.Value!.Length == 0)
-        {
-            return Drift(
-                SkillFailureCodes.InstallTargetFrontmatterDigestMismatch,
-                $"Installed SKILL frontmatter is missing or invalid: {installedManifest.SkillName}");
-        }
-
-        var frontmatterDigest = digestCalculator.ComputeSingleFileDigest("SKILL.md.frontmatter", frontmatterResult.Value);
-        if (!string.Equals(frontmatterDigest, hostArtifact.MaterializedFrontmatterDigest, StringComparison.Ordinal))
-        {
-            return Drift(
-                SkillFailureCodes.InstallTargetFrontmatterDigestMismatch,
-                $"Installed SKILL frontmatter digest does not match manifest: {installedManifest.SkillName}");
-        }
-
-        var hostArtifactResult = await MatchesHostArtifactAsync(skillDirectory, hostArtifact, cancellationToken).ConfigureAwait(false);
-        if (!hostArtifactResult.IsSuccess)
-        {
-            return SkillOperationResult<SkillInstalledPackageDrift>.FailureResult(hostArtifactResult.Failure!.Code, hostArtifactResult.Failure.Message);
-        }
-
-        if (!hostArtifactResult.Value)
-        {
-            return Drift(
-                SkillFailureCodes.InstallTargetHostArtifactDigestMismatch,
-                $"Installed SKILL host artifact digest does not match manifest: {installedManifest.SkillName}");
-        }
-
-        var materializedResult = materializationService.Materialize(package, host);
-        if (!materializedResult.IsSuccess)
-        {
-            return SkillOperationResult<SkillInstalledPackageDrift>.FailureResult(materializedResult.Failure!.Code, materializedResult.Failure.Message);
-        }
-
-        var fileSetResult = await fileSetVerifier.VerifyAsync(skillDirectory, materializedResult.Value!.Files, cancellationToken).ConfigureAwait(false);
-        if (!fileSetResult.IsSuccess)
-        {
-            return SkillOperationResult<SkillInstalledPackageDrift>.FailureResult(fileSetResult.Failure!.Code, fileSetResult.Failure.Message);
-        }
-
-        if (fileSetResult.Value!.HasFileSetDrift)
-        {
-            return Drift(
-                SkillFailureCodes.InstallTargetFileSetMismatch,
-                $"Installed SKILL directory set does not match materialized package: {installedManifest.SkillName}");
-        }
-
-        var contentDigestResult = await ComputeInstalledContentDigestAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
-        if (!contentDigestResult.IsSuccess)
-        {
-            return SkillOperationResult<SkillInstalledPackageDrift>.FailureResult(contentDigestResult.Failure!.Code, contentDigestResult.Failure.Message);
-        }
-
-        if (!string.Equals(contentDigestResult.Value, installedManifest.ContentDigest, StringComparison.Ordinal))
-        {
-            return Drift(
-                SkillFailureCodes.InstallTargetContentDigestMismatch,
-                $"Installed SKILL contentDigest does not match manifest: {installedManifest.SkillName}");
-        }
-
-        return Drift(
-            SkillFailureCodes.InstallTargetDigestMismatch,
-            $"Installed SKILL package differs from canonical package: {installedManifest.SkillName}");
+        var state = stateResult.Value!;
+        var failure = state.Failure ?? CreateFailure(state.Kind, package.Manifest.SkillName);
+        return SkillOperationResult<SkillInstalledPackageDrift>.Success(new SkillInstalledPackageDrift(failure.Code, failure.Message));
     }
 
-    private async ValueTask<SkillOperationResult<string>> ReadInstalledFrontmatterAsync (
-        string skillDirectory,
-        CancellationToken cancellationToken)
+    private static SkillFailure CreateFailure (
+        SkillInstalledTargetStateKind kind,
+        string skillName)
     {
-        var skillPathResult = SkillPackagePathBoundary.ResolvePackageFilePath(skillDirectory, SkillBodyPath);
-        if (!skillPathResult.IsSuccess)
+        return kind switch
         {
-            return SkillOperationResult<string>.FailureResult(skillPathResult.Failure!.Code, skillPathResult.Failure.Message);
-        }
-
-        if (!File.Exists(skillPathResult.Value!))
-        {
-            return SkillOperationResult<string>.Success(string.Empty);
-        }
-
-        var skillText = SkillTextNormalizer.NormalizeToLf(await File.ReadAllTextAsync(skillPathResult.Value!, cancellationToken).ConfigureAwait(false));
-        return SkillHostMaterializationInspector.TryExtractFrontmatter(skillText, out var frontmatter)
-            ? SkillOperationResult<string>.Success(frontmatter)
-            : SkillOperationResult<string>.Success(string.Empty);
-    }
-
-    private async ValueTask<SkillOperationResult<bool>> MatchesHostArtifactAsync (
-        string skillDirectory,
-        SkillHostArtifactManifest hostArtifact,
-        CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(hostArtifact.Path))
-        {
-            return SkillOperationResult<bool>.Success(true);
-        }
-
-        if (string.IsNullOrWhiteSpace(hostArtifact.Digest))
-        {
-            return SkillOperationResult<bool>.FailureResult(
-                SkillFailureCodes.ManifestInvalid,
-                $"Manifest host artifact '{hostArtifact.Host}' is missing a digest.");
-        }
-
-        var artifactPathResult = SkillPackagePathBoundary.ResolvePackageFilePath(skillDirectory, hostArtifact.Path);
-        if (!artifactPathResult.IsSuccess)
-        {
-            return SkillOperationResult<bool>.FailureResult(artifactPathResult.Failure!.Code, artifactPathResult.Failure.Message);
-        }
-
-        if (!File.Exists(artifactPathResult.Value!))
-        {
-            return SkillOperationResult<bool>.Success(false);
-        }
-
-        var content = SkillTextNormalizer.NormalizeToLf(await File.ReadAllTextAsync(artifactPathResult.Value!, cancellationToken).ConfigureAwait(false));
-        var digest = digestCalculator.ComputeSingleFileDigest(hostArtifact.Path, content);
-        return SkillOperationResult<bool>.Success(string.Equals(digest, hostArtifact.Digest, StringComparison.Ordinal));
-    }
-
-    private async ValueTask<SkillOperationResult<string>> ComputeInstalledContentDigestAsync (
-        string skillDirectory,
-        CancellationToken cancellationToken)
-    {
-        var skillBodyResult = await ReadInstalledSkillBodyAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
-        if (!skillBodyResult.IsSuccess)
-        {
-            return SkillOperationResult<string>.FailureResult(skillBodyResult.Failure!.Code, skillBodyResult.Failure.Message);
-        }
-
-        if (skillBodyResult.Value!.Length == 0)
-        {
-            return SkillOperationResult<string>.Success(string.Empty);
-        }
-
-        var digestInputs = new List<SkillDigestInputFile>
-        {
-            new(SkillBodyPath, skillBodyResult.Value),
+            SkillInstalledTargetStateKind.Current => SkillFailure.Create(
+                SkillFailureCodes.InstallTargetDigestMismatch,
+                $"Installed SKILL package is current: {skillName}"),
+            SkillInstalledTargetStateKind.Missing => SkillFailure.Create(
+                SkillFailureCodes.InstallTargetUnmanaged,
+                $"Installed SKILL package is missing: {skillName}"),
+            _ => SkillFailure.Create(
+                SkillFailureCodes.InstallTargetLocalModification,
+                $"Installed SKILL package contains local modifications: {skillName}"),
         };
-
-        foreach (var referencePath in Directory.EnumerateFiles(skillDirectory, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var resolvedPathResult = SkillPackagePathBoundary.ResolveUnderRoot(skillDirectory, referencePath);
-            if (!resolvedPathResult.IsSuccess)
-            {
-                return SkillOperationResult<string>.FailureResult(resolvedPathResult.Failure!.Code, resolvedPathResult.Failure.Message);
-            }
-
-            var relativePath = Path.GetRelativePath(skillDirectory, resolvedPathResult.Value!).Replace(Path.DirectorySeparatorChar, '/');
-            if (!relativePath.StartsWith(ReferencesPrefix, StringComparison.Ordinal)
-                || string.Equals(relativePath, ManifestPath, StringComparison.Ordinal)
-                || string.Equals(relativePath, SkillBodyPath, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            var content = SkillTextNormalizer.NormalizeToLf(await File.ReadAllTextAsync(resolvedPathResult.Value!, cancellationToken).ConfigureAwait(false));
-            digestInputs.Add(new SkillDigestInputFile(relativePath, content));
-        }
-
-        return SkillOperationResult<string>.Success(digestCalculator.ComputeDigest(digestInputs));
-    }
-
-    private static async ValueTask<SkillOperationResult<string>> ReadInstalledSkillBodyAsync (
-        string skillDirectory,
-        CancellationToken cancellationToken)
-    {
-        var skillPathResult = SkillPackagePathBoundary.ResolvePackageFilePath(skillDirectory, SkillBodyPath);
-        if (!skillPathResult.IsSuccess)
-        {
-            return SkillOperationResult<string>.FailureResult(skillPathResult.Failure!.Code, skillPathResult.Failure.Message);
-        }
-
-        if (!File.Exists(skillPathResult.Value!))
-        {
-            return SkillOperationResult<string>.Success(string.Empty);
-        }
-
-        var skillText = SkillTextNormalizer.NormalizeToLf(await File.ReadAllTextAsync(skillPathResult.Value!, cancellationToken).ConfigureAwait(false));
-        if (!SkillHostMaterializationInspector.TryExtractFrontmatter(skillText, out var frontmatter))
-        {
-            return SkillOperationResult<string>.Success(string.Empty);
-        }
-
-        var body = skillText[frontmatter.Length..];
-        if (body.StartsWith('\n'))
-        {
-            body = body[1..];
-        }
-
-        return SkillOperationResult<string>.Success(body);
-    }
-
-    private static SkillOperationResult<SkillInstalledPackageDrift> Drift (
-        SkillFailureCode code,
-        string message)
-    {
-        return SkillOperationResult<SkillInstalledPackageDrift>.Success(new SkillInstalledPackageDrift(code, message));
     }
 }

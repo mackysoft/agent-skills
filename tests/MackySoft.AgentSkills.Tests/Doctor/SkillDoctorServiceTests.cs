@@ -65,7 +65,7 @@ public sealed class SkillDoctorServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task DiagnoseAsync_ReportsDigestMismatch_WhenInstalledSkillBodyChanged ()
+    public async Task DiagnoseAsync_ReportsCommonContentDrift_WhenInstalledSkillBodyChanged ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "doctor-body-drift");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
@@ -86,7 +86,7 @@ public sealed class SkillDoctorServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task DiagnoseAsync_ReportsDigestMismatch_WhenInstalledSkillBodyIsMissing ()
+    public async Task DiagnoseAsync_ReportsFileSetMismatch_WhenInstalledSkillBodyIsMissing ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "doctor-body-missing");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
@@ -102,12 +102,12 @@ public sealed class SkillDoctorServiceTests
         var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, installResult.Value.TargetRoot, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
-        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetFrontmatterDigestMismatch);
+        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetFileSetMismatch);
     }
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task DiagnoseAsync_ReportsInvalidManifest_WhenInstalledManifestArtifactDigestChanged ()
+    public async Task DiagnoseAsync_ReportsManifestDrift_WhenInstalledManifestArtifactDigestChanged ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "doctor-manifest-drift");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
@@ -128,12 +128,12 @@ public sealed class SkillDoctorServiceTests
         var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, installResult.Value.TargetRoot, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
-        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetHostArtifactDigestMismatch);
+        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetManifestDigestMismatch);
     }
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task DiagnoseAsync_ReportsDigestMismatch_WhenInstalledManifestDigestChanged ()
+    public async Task DiagnoseAsync_ReportsManifestDrift_WhenInstalledManifestDigestChanged ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "doctor-manifest-digest-drift");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
@@ -150,12 +150,12 @@ public sealed class SkillDoctorServiceTests
         var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, installResult.Value.TargetRoot, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
-        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetDigestMismatch);
+        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetManifestDigestMismatch);
     }
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task DiagnoseAsync_ReportsDigestMismatch_WhenInstalledReferenceIsMissing ()
+    public async Task DiagnoseAsync_ReportsFileSetMismatch_WhenInstalledReferenceIsMissing ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "doctor-reference-missing");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
@@ -212,6 +212,27 @@ public sealed class SkillDoctorServiceTests
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
         File.AppendAllText(Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName, "agents", "openai.yaml"), "\n# Drifted metadata.\n");
+        var doctor = SkillTestData.CreateDoctorService();
+
+        var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, installResult.Value.TargetRoot, CancellationToken.None);
+
+        Assert.False(result.IsHealthy);
+        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetHostArtifactDigestMismatch);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task DiagnoseAsync_ReportsHostArtifactMismatch_WhenOpenAiMetadataIsMissing ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "doctor-openai-metadata-missing");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var installService = SkillTestData.CreateInstallService();
+        var installResult = await installService.InstallAsync(
+            packages,
+            new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+            CancellationToken.None);
+        Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
+        File.Delete(Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName, "agents", "openai.yaml"));
         var doctor = SkillTestData.CreateDoctorService();
 
         var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, installResult.Value.TargetRoot, CancellationToken.None);

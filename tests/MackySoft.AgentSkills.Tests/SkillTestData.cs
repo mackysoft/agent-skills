@@ -1,7 +1,6 @@
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Doctor;
-using MackySoft.AgentSkills.Doctor.Diagnostics;
 using MackySoft.AgentSkills.Generation;
 using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Defaults;
@@ -174,12 +173,13 @@ internal static class SkillTestData
         var hostAdapters = CreateDefaultHostAdapterSet();
         return new SkillDoctorService(
             hostAdapters,
-            new SkillInstalledTargetStateAnalyzer(CreateInstalledPackageValidator(hostAdapters), CreateInstalledPackageIntegrityVerifier(hostAdapters)),
-            new SkillInstalledPackageDriftAnalyzer(
-                CreateInstalledManifestReader(hostAdapters),
-                new SkillMaterializationService(hostAdapters),
-                new SkillInstalledFileSetVerifier(),
-                new SkillDigestCalculator()));
+            CreateTargetStateAnalyzer(hostAdapters));
+    }
+
+    internal static SkillInstalledTargetStateAnalyzer CreateTargetStateAnalyzer (SkillHostAdapterSet? hostAdapters = null)
+    {
+        hostAdapters ??= CreateDefaultHostAdapterSet();
+        return new SkillInstalledTargetStateAnalyzer(CreateInstalledPackageValidator(hostAdapters), CreateInstalledPackageIntegrityVerifier(hostAdapters));
     }
 
     internal static IReadOnlyList<CanonicalSkillPackage> ReplacePackage (

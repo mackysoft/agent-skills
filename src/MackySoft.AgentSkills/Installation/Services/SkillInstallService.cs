@@ -189,12 +189,13 @@ public sealed class SkillInstallService
                         skillDirectory,
                         identity,
                         SkillInstallActionKind.Created,
+                        state,
                         input,
                         cancellationToken)
                     .ConfigureAwait(false);
             case SkillInstalledTargetStateKind.Current:
                 return SkillOperationResult<SkillInstallActionPlan>.Success(new SkillInstallActionPlan(
-                    new SkillInstallAction(identity, SkillInstallActionKind.NoOp),
+                    new SkillInstallAction(identity, SkillInstallActionKind.NoOp, TargetState: SkillActionTargetStateProjection.Create(state)),
                     skillDirectory,
                     package,
                     null));
@@ -207,9 +208,15 @@ public sealed class SkillInstallService
                         input,
                         SkillInstallActionKind.BlockedManagedOverwrite,
                         SkillBlockedReason.ManagedOverwriteRequiresForce,
+                        state,
                         cancellationToken)
                     .ConfigureAwait(false);
             case SkillInstalledTargetStateKind.LocalModified:
+            case SkillInstalledTargetStateKind.ManifestDrift:
+            case SkillInstalledTargetStateKind.CommonContentDrift:
+            case SkillInstalledTargetStateKind.FrontmatterDrift:
+            case SkillInstalledTargetStateKind.HostArtifactDrift:
+            case SkillInstalledTargetStateKind.FileSetDrift:
                 return await CreateManagedMismatchActionPlanAsync(
                         package,
                         host,
@@ -218,6 +225,7 @@ public sealed class SkillInstallService
                         input,
                         SkillInstallActionKind.BlockedLocalModification,
                         SkillBlockedReason.LocalModificationRequiresForce,
+                        state,
                         cancellationToken)
                     .ConfigureAwait(false);
             case SkillInstalledTargetStateKind.Unmanaged:
@@ -235,9 +243,15 @@ public sealed class SkillInstallService
                         identity,
                         SkillInstallActionKind.BlockedUnmanaged,
                         SkillBlockedReason.UnmanagedTarget,
-                        printDiff: false,
+                        false,
+                        state,
                         cancellationToken)
                     .ConfigureAwait(false);
+            case SkillInstalledTargetStateKind.NameCollision:
+            case SkillInstalledTargetStateKind.HostConflict:
+                return SkillOperationResult<SkillInstallActionPlan>.FailureResult(
+                    ResolveStateFailureCode(state),
+                    state.Failure?.Message ?? $"Target skill directory cannot be overwritten: {skillDirectory}");
             default:
                 throw new ArgumentOutOfRangeException(nameof(state), state.Kind, "Unsupported target state.");
         }
@@ -251,6 +265,7 @@ public sealed class SkillInstallService
         SkillInstallInput input,
         SkillInstallActionKind blockedActionKind,
         SkillBlockedReason blockedReason,
+        SkillInstalledTargetState state,
         CancellationToken cancellationToken)
     {
         if (input.Force)
@@ -261,6 +276,7 @@ public sealed class SkillInstallService
                     skillDirectory,
                     identity,
                     SkillInstallActionKind.Updated,
+                    state,
                     input,
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -276,12 +292,13 @@ public sealed class SkillInstallService
                     blockedActionKind,
                     blockedReason,
                     input.PrintDiff,
+                    state,
                     cancellationToken)
                 .ConfigureAwait(false);
         }
 
         return SkillOperationResult<SkillInstallActionPlan>.FailureResult(
-            SkillFailureCodes.InstallTargetDigestMismatch,
+            ResolveStateFailureCode(state),
             $"Target skill directory differs from the canonical package. Use --force to overwrite: {skillDirectory}");
     }
 
@@ -291,6 +308,7 @@ public sealed class SkillInstallService
         string skillDirectory,
         SkillInstallIdentity identity,
         SkillInstallActionKind actionKind,
+        SkillInstalledTargetState state,
         SkillInstallInput input,
         CancellationToken cancellationToken)
     {
@@ -305,7 +323,8 @@ public sealed class SkillInstallService
                 new SkillInstallAction(
                     identity,
                     actionKind,
-                    Diffs: packagePlan.Diffs),
+                    Diffs: packagePlan.Diffs,
+                    TargetState: SkillActionTargetStateProjection.Create(state)),
             skillDirectory,
             package,
             packagePlan.MaterializedPackage));
@@ -319,12 +338,13 @@ public sealed class SkillInstallService
         SkillInstallActionKind actionKind,
         SkillBlockedReason blockedReason,
         bool printDiff,
+        SkillInstalledTargetState state,
         CancellationToken cancellationToken)
     {
         var packagePlanResult = await CreateMaterializedPackagePlanAsync(package, host, skillDirectory, printDiff, cancellationToken).ConfigureAwait(false);
         return packagePlanResult.IsSuccess
             ? SkillOperationResult<SkillInstallActionPlan>.Success(new SkillInstallActionPlan(
-                new SkillInstallAction(identity, actionKind, blockedReason, packagePlanResult.Value!.Diffs),
+                new SkillInstallAction(identity, actionKind, blockedReason, packagePlanResult.Value!.Diffs, SkillActionTargetStateProjection.Create(state)),
                 skillDirectory,
                 package,
                 null))
@@ -345,11 +365,11 @@ public sealed class SkillInstallService
             return SkillOperationResult<bool>.FailureResult(stateResult.Failure!.Code, stateResult.Failure.Message);
         }
 
-        var state = stateResult.Value!.Kind;
+        var state = stateResult.Value!;
         var isValid = actionKind switch
         {
-            SkillInstallActionKind.Created => state == SkillInstalledTargetStateKind.Missing,
-            SkillInstallActionKind.Updated => force && (state == SkillInstalledTargetStateKind.CleanOutdated || state == SkillInstalledTargetStateKind.LocalModified),
+            SkillInstallActionKind.Created => state.Kind == SkillInstalledTargetStateKind.Missing,
+            SkillInstallActionKind.Updated => force && (state.Kind == SkillInstalledTargetStateKind.CleanOutdated || IsLocalModificationState(state.Kind)),
             _ => true,
         };
         if (isValid)
@@ -372,11 +392,26 @@ public sealed class SkillInstallService
         };
     }
 
-    private static SkillFailureCode ResolveChangedTargetFailureCode (SkillInstalledTargetStateKind state)
+    private static SkillFailureCode ResolveChangedTargetFailureCode (SkillInstalledTargetState state)
     {
-        return state == SkillInstalledTargetStateKind.Unmanaged
+        return state.Kind == SkillInstalledTargetStateKind.Unmanaged
             ? SkillFailureCodes.InstallTargetUnmanaged
-            : SkillFailureCodes.InstallTargetDigestMismatch;
+            : ResolveStateFailureCode(state);
+    }
+
+    private static bool IsLocalModificationState (SkillInstalledTargetStateKind state)
+    {
+        return state is SkillInstalledTargetStateKind.LocalModified
+            or SkillInstalledTargetStateKind.ManifestDrift
+            or SkillInstalledTargetStateKind.CommonContentDrift
+            or SkillInstalledTargetStateKind.FrontmatterDrift
+            or SkillInstalledTargetStateKind.HostArtifactDrift
+            or SkillInstalledTargetStateKind.FileSetDrift;
+    }
+
+    private static SkillFailureCode ResolveStateFailureCode (SkillInstalledTargetState state)
+    {
+        return state.Failure?.Code ?? SkillFailureCodes.InstallTargetDigestMismatch;
     }
 
     private async ValueTask<SkillOperationResult<SkillMaterializedPackagePlan>> CreateMaterializedPackagePlanAsync (

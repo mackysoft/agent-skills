@@ -103,7 +103,7 @@ public sealed class SkillInstallationScannerTests
         var result = await scanner.ScanAsync(packages, targetRoot, OpenAiSkillHostAdapter.HostKey, cancellationToken: CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetNameCollision, result.Failure!.Code);
     }
 
     [Fact]
@@ -144,7 +144,7 @@ public sealed class SkillInstallationScannerTests
         var scanResult = await scanner.ScanAsync(packages, installResult.Value.TargetRoot, OpenAiSkillHostAdapter.HostKey, cancellationToken: CancellationToken.None);
 
         Assert.False(scanResult.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, scanResult.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, scanResult.Failure!.Code);
     }
 
     [Fact]
@@ -165,7 +165,7 @@ public sealed class SkillInstallationScannerTests
         var scanResult = await scanner.ScanAsync(packages, installResult.Value.TargetRoot, OpenAiSkillHostAdapter.HostKey, cancellationToken: CancellationToken.None);
 
         Assert.False(scanResult.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, scanResult.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, scanResult.Failure!.Code);
     }
 
     [Fact]
