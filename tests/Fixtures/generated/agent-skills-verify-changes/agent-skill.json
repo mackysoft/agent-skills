@@ -4,6 +4,7 @@
   "displayName": "Agent Skills Verify Changes",
   "description": "Use when verifying Agent Skills-driven Unity changes with agent-skills verify profiles, claim packets, follow-up reads, agent-skills test, logs, artifacts, and opResults evidence after validation, plan, or call execution.",
   "contentDigest": "sha256:0349fe42c103d17bbee00788db576c2f8e6a5ff5e4a45e80c41ae6432c12d9f8",
+  "manifestDigest": "sha256:d4eab159290892f23b75ffacffe6a9b4734b8d65e78c284da3a63c723429f0c5",
   "hostArtifacts": [
     {
       "host": "claude",

@@ -23,6 +23,7 @@ internal static class BuildServiceCollectionExtensions
         services.AddSingleton<SkillSourceDefinitionReader>();
         services.AddSingleton<SkillDigestCalculator>();
         services.AddSingleton<SkillManifestJsonSerializer>();
+        services.AddSingleton<SkillManifestDigestCalculator>();
         services.AddSingleton<SkillPackageGenerationService>();
         services.AddSingleton<CanonicalSkillPackageWriter>();
 

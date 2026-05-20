@@ -77,27 +77,33 @@ internal static class SkillTestData
 
     internal static SkillPackageGenerationService CreatePackageGenerationService ()
     {
+        var manifestSerializer = new SkillManifestJsonSerializer();
         return new SkillPackageGenerationService(
             new SkillSourceDefinitionReader(),
             CreateDefaultHostAdapterSet(),
             new SkillDigestCalculator(),
-            new SkillManifestJsonSerializer());
+            manifestSerializer,
+            new SkillManifestDigestCalculator(manifestSerializer));
     }
 
     internal static CanonicalSkillPackageReader CreatePackageReader ()
     {
         var hostAdapters = CreateDefaultHostAdapterSet();
         var manifestSerializer = new SkillManifestJsonSerializer();
+        var manifestDigestCalculator = new SkillManifestDigestCalculator(manifestSerializer);
         return new CanonicalSkillPackageReader(
             hostAdapters,
             new SkillDigestCalculator(),
             manifestSerializer,
-            new SkillManifestValidator(hostAdapters));
+            new SkillManifestValidator(hostAdapters, manifestDigestCalculator));
     }
 
     internal static SkillManifestValidator CreateManifestValidator ()
     {
-        return new SkillManifestValidator(CreateDefaultHostAdapterSet());
+        var manifestSerializer = new SkillManifestJsonSerializer();
+        return new SkillManifestValidator(
+            CreateDefaultHostAdapterSet(),
+            new SkillManifestDigestCalculator(manifestSerializer));
     }
 
     internal static SkillMaterializationService CreateMaterializationService ()
@@ -200,6 +206,7 @@ internal static class SkillTestData
         {
             ContentDigest = contentDigest,
         };
+        manifest = WithComputedManifestDigest(manifest);
         var manifestText = new SkillManifestJsonSerializer().Serialize(manifest);
         files = files
             .Select(file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal)
@@ -252,6 +259,7 @@ internal static class SkillTestData
         {
             HostArtifacts = hostArtifacts.ToArray(),
         };
+        manifest = WithComputedManifestDigest(manifest);
         var manifestText = new SkillManifestJsonSerializer().Serialize(manifest);
         var files = package.Files
             .Select(file =>
@@ -300,19 +308,39 @@ internal static class SkillTestData
 
     internal static SkillInstalledPackageIntegrityVerifier CreateInstalledPackageIntegrityVerifier (SkillHostAdapterSet hostAdapters)
     {
+        var manifestSerializer = new SkillManifestJsonSerializer();
         return new SkillInstalledPackageIntegrityVerifier(
             CreateInstalledManifestReader(hostAdapters),
             hostAdapters,
-            new SkillManifestJsonSerializer(),
+            manifestSerializer,
+            new SkillManifestDigestCalculator(manifestSerializer),
             new SkillHostMaterializationInspector(hostAdapters, new SkillDigestCalculator()),
             new SkillDigestCalculator());
     }
 
     internal static SkillInstalledManifestReader CreateInstalledManifestReader (SkillHostAdapterSet hostAdapters)
     {
+        var manifestSerializer = new SkillManifestJsonSerializer();
         return new SkillInstalledManifestReader(
-            new SkillManifestJsonSerializer(),
-            new SkillManifestValidator(hostAdapters));
+            manifestSerializer,
+            new SkillManifestValidator(hostAdapters, new SkillManifestDigestCalculator(manifestSerializer)));
+    }
+
+    internal static void TamperManifestDigest (string manifestPath)
+    {
+        var manifestText = File.ReadAllText(manifestPath);
+        var manifest = new SkillManifestJsonSerializer().Deserialize(manifestText);
+        var replacementDigest = string.Equals(manifest.ManifestDigest, "sha256:" + new string('f', 64), StringComparison.Ordinal)
+            ? "sha256:" + new string('0', 64)
+            : "sha256:" + new string('f', 64);
+        File.WriteAllText(manifestPath, manifestText.Replace(manifest.ManifestDigest, replacementDigest, StringComparison.Ordinal));
+    }
+
+    internal static SkillManifest WithComputedManifestDigest (SkillManifest manifest)
+    {
+        var serializer = new SkillManifestJsonSerializer();
+        return new SkillManifestDigestCalculator(serializer)
+            .WithComputedManifestDigest(manifest);
     }
 
     private sealed class CallbackPackageFileList : IReadOnlyList<SkillPackageFile>
