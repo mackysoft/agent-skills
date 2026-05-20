@@ -53,6 +53,7 @@ public sealed class SkillUninstallServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.True(result.Value!.DryRun);
         Assert.All(result.Value.Actions, static action => Assert.Equal(SkillUninstallActionKind.Deleted, action.ActionKind));
+        Assert.All(result.Value.Actions, static action => Assert.Equal(nameof(SkillInstalledTargetStateKind.Current), action.TargetState!.Kind));
         foreach (var package in packages)
         {
             Assert.True(Directory.Exists(Path.Combine(result.Value.TargetRoot, package.Manifest.SkillName)), package.Manifest.SkillName);
@@ -114,6 +115,26 @@ public sealed class SkillUninstallServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal(SkillUninstallActionKind.SkippedUnmanaged, result.Value!.Actions.Single().ActionKind);
         Assert.True(File.Exists(unmanagedPath));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task UninstallAsync_RejectsNameCollision ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "uninstall-name-collision");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var service = SkillTestData.CreateUninstallService();
+        var targetRoot = scope.CreateDirectory(".agents/skills");
+        SkillTestData.WriteNameCollisionManifest(targetRoot, packages[0]);
+
+        var result = await service.UninstallAsync(
+            new SkillUninstallInput(
+                [packages[0]],
+                new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath)),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InstallTargetNameCollision, result.Failure!.Code);
     }
 
     [Fact]

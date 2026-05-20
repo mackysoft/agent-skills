@@ -107,6 +107,26 @@ public sealed class SkillUpdateServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task UpdateAsync_RejectsNameCollision ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "update-name-collision");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var service = SkillTestData.CreateUpdateService();
+        var targetRoot = scope.CreateDirectory(".agents/skills");
+        SkillTestData.WriteNameCollisionManifest(targetRoot, packages[0]);
+
+        var result = await service.UpdateAsync(
+            new SkillUpdateInput(
+                packages,
+                new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath)),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InstallTargetNameCollision, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task UpdateAsync_RejectsLocalModification ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "update-local-modification");
@@ -122,6 +142,45 @@ public sealed class SkillUpdateServiceTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task UpdateAsync_RejectsFrontmatterDrift ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "update-frontmatter-drift");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var installService = SkillTestData.CreateInstallService();
+        var updateService = SkillTestData.CreateUpdateService();
+        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var install = await installService.InstallAsync(packages, request, CancellationToken.None);
+        Assert.True(install.IsSuccess, install.Failure?.Message);
+        var skillPath = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName, "SKILL.md");
+        File.WriteAllText(skillPath, File.ReadAllText(skillPath).Replace("description:", "description: Drifted", StringComparison.Ordinal));
+
+        var result = await updateService.UpdateAsync(new SkillUpdateInput(packages, request), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InstallTargetFrontmatterDigestMismatch, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task UpdateAsync_RejectsHostArtifactDrift ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "update-host-artifact-drift");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var installService = SkillTestData.CreateInstallService();
+        var updateService = SkillTestData.CreateUpdateService();
+        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var install = await installService.InstallAsync(packages, request, CancellationToken.None);
+        Assert.True(install.IsSuccess, install.Failure?.Message);
+        File.AppendAllText(Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName, "agents", "openai.yaml"), "\n# Drifted metadata.\n");
+
+        var result = await updateService.UpdateAsync(new SkillUpdateInput(packages, request), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InstallTargetHostArtifactDigestMismatch, result.Failure!.Code);
     }
 
     [Fact]
@@ -207,6 +266,7 @@ public sealed class SkillUpdateServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
         Assert.Equal(SkillUpdateActionKind.Created, action.ActionKind);
+        Assert.Equal(nameof(SkillInstalledTargetStateKind.Missing), action.TargetState!.Kind);
         Assert.NotEmpty(action.Diffs!);
         Assert.False(Directory.Exists(Path.Combine(result.Value.TargetRoot, packages[0].Manifest.SkillName)));
     }
@@ -231,6 +291,8 @@ public sealed class SkillUpdateServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
         Assert.Equal(SkillUpdateActionKind.Updated, action.ActionKind);
+        Assert.Equal(nameof(SkillInstalledTargetStateKind.CleanOutdated), action.TargetState!.Kind);
+        Assert.Equal(SkillFailureCodes.InstallTargetOutdated, action.TargetState.Code);
         Assert.NotEmpty(action.Diffs!);
         Assert.Equal(originalManifest, File.ReadAllText(manifestPath));
     }

@@ -1,6 +1,7 @@
 using MackySoft.AgentSkills.Hosts.Claude;
 using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Installation.Targeting;
+using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
 
@@ -8,6 +9,17 @@ namespace MackySoft.AgentSkills.Tests.Doctor;
 
 public sealed class SkillDoctorServiceTests
 {
+    public enum SharedDriftCase
+    {
+        Manifest,
+        CommonContent,
+        FileSet,
+        Frontmatter,
+        HostArtifact,
+        HostConflict,
+        NameCollision,
+    }
+
     [Fact]
     [Trait("Size", "Small")]
     public async Task DiagnoseAsync_ReturnsHealthy_WhenTargetMatchesHost ()
@@ -61,6 +73,35 @@ public sealed class SkillDoctorServiceTests
 
         Assert.False(result.IsHealthy);
         Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetHostConflict);
+    }
+
+    [Theory]
+    [Trait("Size", "Small")]
+    [InlineData(SharedDriftCase.Manifest)]
+    [InlineData(SharedDriftCase.CommonContent)]
+    [InlineData(SharedDriftCase.FileSet)]
+    [InlineData(SharedDriftCase.Frontmatter)]
+    [InlineData(SharedDriftCase.HostArtifact)]
+    [InlineData(SharedDriftCase.HostConflict)]
+    [InlineData(SharedDriftCase.NameCollision)]
+    public async Task DiagnoseAsync_UsesSameDriftCodeAsTargetStateAnalyzer (SharedDriftCase driftCase)
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", $"doctor-shared-{driftCase}");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var package = packages[0];
+        var host = OpenAiSkillHostAdapter.HostKey;
+        var (targetRoot, skillDirectory) = await PrepareSharedDriftCaseAsync(scope, packages, driftCase);
+
+        var stateResult = await SkillTestData.CreateTargetStateAnalyzer().AnalyzeAsync(package, skillDirectory, host, CancellationToken.None);
+        Assert.True(stateResult.IsSuccess, stateResult.Failure?.Message);
+        var doctor = SkillTestData.CreateDoctorService();
+
+        var result = await doctor.DiagnoseAsync(packages, host, targetRoot, CancellationToken.None);
+
+        Assert.False(result.IsHealthy);
+        var diagnostic = Assert.Single(result.Diagnostics, diagnostic => diagnostic.SkillName == package.Manifest.SkillName);
+        Assert.Equal(stateResult.Value!.Failure!.Code, diagnostic.Code);
+        Assert.Equal(GetExpectedSharedDriftCode(driftCase), diagnostic.Code);
     }
 
     [Fact]
@@ -373,5 +414,87 @@ public sealed class SkillDoctorServiceTests
 
         Assert.False(result.IsHealthy);
         Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.HostUnsupported);
+    }
+
+    private static async Task<(string TargetRoot, string SkillDirectory)> PrepareSharedDriftCaseAsync (
+        TestDirectoryScope scope,
+        IReadOnlyList<MackySoft.AgentSkills.Packaging.Canonical.CanonicalSkillPackage> packages,
+        SharedDriftCase driftCase)
+    {
+        var package = packages[0];
+        if (driftCase == SharedDriftCase.HostConflict)
+        {
+            var claudeInstall = await SkillTestData.CreateInstallService().InstallAsync(
+                packages,
+                new SkillInstallRequest(ClaudeSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath, "shared-skills"),
+                CancellationToken.None);
+            Assert.True(claudeInstall.IsSuccess, claudeInstall.Failure?.Message);
+            return (claudeInstall.Value!.TargetRoot, Path.Combine(claudeInstall.Value.TargetRoot, package.Manifest.SkillName));
+        }
+
+        var targetRoot = scope.CreateDirectory(".agents/skills");
+        var skillDirectory = Path.Combine(targetRoot, package.Manifest.SkillName);
+        if (driftCase == SharedDriftCase.NameCollision)
+        {
+            Directory.CreateDirectory(skillDirectory);
+            var manifest = SkillTestData.WithComputedManifestDigest(package.Manifest with
+            {
+                SkillName = "different-skill",
+            });
+            File.WriteAllText(Path.Combine(skillDirectory, "agent-skill.json"), new SkillManifestJsonSerializer().Serialize(manifest));
+            return (targetRoot, skillDirectory);
+        }
+
+        var installResult = await SkillTestData.CreateInstallService().InstallAsync(
+            packages,
+            new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+            CancellationToken.None);
+        Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
+        targetRoot = installResult.Value!.TargetRoot;
+        skillDirectory = Path.Combine(targetRoot, package.Manifest.SkillName);
+
+        switch (driftCase)
+        {
+            case SharedDriftCase.Manifest:
+                SkillTestData.TamperManifestDigest(Path.Combine(skillDirectory, "agent-skill.json"));
+                break;
+            case SharedDriftCase.CommonContent:
+                File.AppendAllText(Path.Combine(skillDirectory, "SKILL.md"), "\nInjected instruction.\n");
+                break;
+            case SharedDriftCase.FileSet:
+                File.Delete(Path.Combine(
+                    skillDirectory,
+                    package.Files.First(static file => file.RelativePath.StartsWith("references/", StringComparison.Ordinal)).RelativePath));
+                break;
+            case SharedDriftCase.Frontmatter:
+                var skillPath = Path.Combine(skillDirectory, "SKILL.md");
+                File.WriteAllText(skillPath, File.ReadAllText(skillPath).Replace("description:", "description: Drifted", StringComparison.Ordinal));
+                break;
+            case SharedDriftCase.HostArtifact:
+                File.AppendAllText(Path.Combine(skillDirectory, "agents", "openai.yaml"), "\n# Drifted metadata.\n");
+                break;
+            case SharedDriftCase.HostConflict:
+            case SharedDriftCase.NameCollision:
+                throw new ArgumentOutOfRangeException(nameof(driftCase), driftCase, "Case was handled before installing OpenAI target.");
+            default:
+                throw new ArgumentOutOfRangeException(nameof(driftCase), driftCase, "Unsupported shared drift case.");
+        }
+
+        return (targetRoot, skillDirectory);
+    }
+
+    private static SkillFailureCode GetExpectedSharedDriftCode (SharedDriftCase driftCase)
+    {
+        return driftCase switch
+        {
+            SharedDriftCase.Manifest => SkillFailureCodes.InstallTargetManifestDigestMismatch,
+            SharedDriftCase.CommonContent => SkillFailureCodes.InstallTargetContentDigestMismatch,
+            SharedDriftCase.FileSet => SkillFailureCodes.InstallTargetFileSetMismatch,
+            SharedDriftCase.Frontmatter => SkillFailureCodes.InstallTargetFrontmatterDigestMismatch,
+            SharedDriftCase.HostArtifact => SkillFailureCodes.InstallTargetHostArtifactDigestMismatch,
+            SharedDriftCase.HostConflict => SkillFailureCodes.InstallTargetHostConflict,
+            SharedDriftCase.NameCollision => SkillFailureCodes.InstallTargetNameCollision,
+            _ => throw new ArgumentOutOfRangeException(nameof(driftCase), driftCase, "Unsupported shared drift case."),
+        };
     }
 }

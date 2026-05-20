@@ -337,6 +337,18 @@ internal static class SkillTestData
         File.WriteAllText(manifestPath, manifestText.Replace(manifest.ManifestDigest, replacementDigest, StringComparison.Ordinal));
     }
 
+    internal static string WriteNameCollisionManifest (string targetRoot, CanonicalSkillPackage package)
+    {
+        var skillDirectory = Path.Combine(targetRoot, package.Manifest.SkillName);
+        Directory.CreateDirectory(skillDirectory);
+        var manifest = WithComputedManifestDigest(package.Manifest with
+        {
+            SkillName = package.Manifest.SkillName + "-collision",
+        });
+        File.WriteAllText(Path.Combine(skillDirectory, "agent-skill.json"), new SkillManifestJsonSerializer().Serialize(manifest));
+        return skillDirectory;
+    }
+
     internal static SkillManifest WithComputedManifestDigest (SkillManifest manifest)
     {
         var serializer = new SkillManifestJsonSerializer();

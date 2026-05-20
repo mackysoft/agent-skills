@@ -109,6 +109,24 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task AnalyzeAsync_ClassifiesExtraReferenceAsFileSetDrift_WhenCanonicalPackageIsOutdated ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "state-extra-reference-outdated");
+        var (packages, targetRoot) = await InstallOpenAiAsync(scope);
+        var updatedPackage = SkillTestData.CreatePackageWithUpdatedBody(packages[0]);
+        var skillDirectory = GetSkillDirectory(targetRoot, packages[0]);
+        var extraReferencePath = Path.Combine(skillDirectory, "references", "extra.md");
+        File.WriteAllText(extraReferencePath, "# Extra\n");
+
+        var state = await AnalyzeOpenAiAsync(updatedPackage, skillDirectory);
+
+        Assert.Equal(SkillInstalledTargetStateKind.FileSetDrift, state.Kind);
+        Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, state.Failure!.Code);
+        Assert.Contains("references/extra.md", state.FileSet!.ExtraFiles);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task AnalyzeAsync_ClassifiesCleanOutdatedPackage ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "state-clean-outdated");
@@ -176,26 +194,6 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
         Assert.Equal(SkillInstalledTargetStateKind.Unmanaged, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetUnmanaged, state.Failure!.Code);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task DiagnoseAsync_UsesSameDriftCodeAsTargetStateAnalyzer ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "state-doctor-shared-code");
-        var (packages, targetRoot) = await InstallOpenAiAsync(scope);
-        var package = packages[0];
-        var skillDirectory = GetSkillDirectory(targetRoot, package);
-        File.AppendAllText(Path.Combine(skillDirectory, "SKILL.md"), "\nInjected instruction.\n");
-
-        var state = await AnalyzeOpenAiAsync(package, skillDirectory);
-        var doctor = SkillTestData.CreateDoctorService();
-        var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, targetRoot, CancellationToken.None);
-
-        Assert.False(result.IsHealthy);
-        Assert.Contains(result.Diagnostics, diagnostic =>
-            diagnostic.SkillName == package.Manifest.SkillName
-            && diagnostic.Code == state.Failure!.Code);
     }
 
     private static async Task<(IReadOnlyList<CanonicalSkillPackage> Packages, string TargetRoot)> InstallOpenAiAsync (TestDirectoryScope scope)
