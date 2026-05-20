@@ -121,7 +121,7 @@ internal static class SkillTestData
         var hostAdapters = CreateDefaultHostAdapterSet();
         var installedPackageValidator = CreateInstalledPackageValidator(hostAdapters);
         return new SkillInstallService(
-            new SkillInstallTargetResolver(hostAdapters, new SkillUserTargetRootResolver()),
+            new SkillInstallTargetResolver(hostAdapters, CreateUserTargetRootResolver()),
             new SkillMaterializationService(hostAdapters),
             new SkillInstalledTargetStateAnalyzer(installedPackageValidator, CreateInstalledPackageIntegrityVerifier(hostAdapters)),
             CreatePackageWriter(),
@@ -133,7 +133,7 @@ internal static class SkillTestData
         var hostAdapters = CreateDefaultHostAdapterSet();
         var installedPackageValidator = CreateInstalledPackageValidator(hostAdapters);
         return new SkillUpdateService(
-            new SkillInstallTargetResolver(hostAdapters, new SkillUserTargetRootResolver()),
+            new SkillInstallTargetResolver(hostAdapters, CreateUserTargetRootResolver()),
             new SkillMaterializationService(hostAdapters),
             new SkillInstalledTargetStateAnalyzer(installedPackageValidator, CreateInstalledPackageIntegrityVerifier(hostAdapters)),
             packageWriter ?? CreatePackageWriter(),
@@ -145,7 +145,7 @@ internal static class SkillTestData
         var hostAdapters = CreateDefaultHostAdapterSet();
         var installedPackageValidator = CreateInstalledPackageValidator(hostAdapters);
         return new SkillUninstallService(
-            new SkillInstallTargetResolver(hostAdapters, new SkillUserTargetRootResolver()),
+            new SkillInstallTargetResolver(hostAdapters, CreateUserTargetRootResolver()),
             new SkillInstalledTargetStateAnalyzer(installedPackageValidator, CreateInstalledPackageIntegrityVerifier(hostAdapters)),
             CreatePackageRemover());
     }
@@ -167,6 +167,13 @@ internal static class SkillTestData
     internal static SkillInstalledPackageRemover CreatePackageRemover ()
     {
         return new SkillInstalledPackageRemover(new SkillPackageDirectoryOperations());
+    }
+
+    internal static SkillUserTargetRootResolver CreateUserTargetRootResolver ()
+    {
+        return new SkillUserTargetRootResolver(
+            static () => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            Environment.GetEnvironmentVariable);
     }
 
     internal static SkillDoctorService CreateDoctorService ()
