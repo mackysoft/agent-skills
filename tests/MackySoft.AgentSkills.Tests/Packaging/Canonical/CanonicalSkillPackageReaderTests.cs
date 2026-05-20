@@ -1,3 +1,4 @@
+using System.Text;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Shared;
@@ -75,6 +76,65 @@ public sealed class CanonicalSkillPackageReaderTests
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
         Assert.Contains("manifestDigest", result.Failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task ReadAllAsync_RejectsTamperedManifestDigest ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "generated-manifest-digest-tampered");
+        var skillsRoot = CopyGeneratedSkills(scope);
+        var manifestPath = Path.Combine(skillsRoot, SkillTestData.ExpectedSkillNames[0], "agent-skill.json");
+        var serializer = new SkillManifestJsonSerializer();
+        var manifest = serializer.Deserialize(await File.ReadAllTextAsync(manifestPath));
+        var driftedManifest = manifest with
+        {
+            ManifestDigest = "sha256:" + new string('f', 64),
+        };
+        await File.WriteAllTextAsync(manifestPath, serializer.Serialize(driftedManifest));
+        var reader = SkillTestData.CreatePackageReader();
+
+        var result = await reader.ReadAllAsync(skillsRoot, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Contains("manifestDigest", result.Failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task ReadAllAsync_RejectsManifestCrLfLineEndings ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "generated-manifest-crlf");
+        var skillsRoot = CopyGeneratedSkills(scope);
+        var manifestPath = Path.Combine(skillsRoot, SkillTestData.ExpectedSkillNames[0], "agent-skill.json");
+        var manifestText = await File.ReadAllTextAsync(manifestPath);
+        await File.WriteAllTextAsync(manifestPath, manifestText.Replace("\n", "\r\n", StringComparison.Ordinal));
+        var reader = SkillTestData.CreatePackageReader();
+
+        var result = await reader.ReadAllAsync(skillsRoot, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Contains("not canonical", result.Failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task ReadAllAsync_RejectsManifestUtf8ByteOrderMark ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "generated-manifest-bom");
+        var skillsRoot = CopyGeneratedSkills(scope);
+        var manifestPath = Path.Combine(skillsRoot, SkillTestData.ExpectedSkillNames[0], "agent-skill.json");
+        var manifestText = await File.ReadAllTextAsync(manifestPath);
+        await File.WriteAllBytesAsync(manifestPath, [0xEF, 0xBB, 0xBF, .. Encoding.UTF8.GetBytes(manifestText)]);
+        var reader = SkillTestData.CreatePackageReader();
+
+        var result = await reader.ReadAllAsync(skillsRoot, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Contains("byte order mark", result.Failure.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -252,7 +312,7 @@ public sealed class CanonicalSkillPackageReaderTests
     private static SkillManifest WithComputedManifestDigest (SkillManifest manifest)
     {
         var serializer = new SkillManifestJsonSerializer();
-        return new SkillManifestDigestCalculator(new SkillDigestCalculator(), serializer)
+        return new SkillManifestDigestCalculator(serializer)
             .WithComputedManifestDigest(manifest);
     }
 }

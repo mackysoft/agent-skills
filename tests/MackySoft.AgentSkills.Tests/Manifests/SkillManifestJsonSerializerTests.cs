@@ -1,4 +1,4 @@
-using MackySoft.AgentSkills.Digests;
+using System.Text.Json;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Shared;
 
@@ -29,12 +29,16 @@ public sealed class SkillManifestJsonSerializerTests
         var json = serializer.Serialize(manifest);
 
         Assert.Contains("\"manifestDigest\": \"sha256:", json, StringComparison.Ordinal);
-        Assert.True(
-            json.IndexOf("\"contentDigest\"", StringComparison.Ordinal) < json.IndexOf("\"manifestDigest\"", StringComparison.Ordinal),
-            json);
-        Assert.True(
-            json.IndexOf("\"manifestDigest\"", StringComparison.Ordinal) < json.IndexOf("\"hostArtifacts\"", StringComparison.Ordinal),
-            json);
+        using var document = JsonDocument.Parse(json);
+        Assert.Equal(
+            new[] { "schemaVersion", "skillName", "displayName", "description", "contentDigest", "manifestDigest", "hostArtifacts" },
+            document.RootElement.EnumerateObject().Select(static property => property.Name).ToArray());
+        Assert.Equal(
+            new[] { "claude", "copilot", "openai" },
+            document.RootElement.GetProperty("hostArtifacts").EnumerateArray().Select(static artifact => artifact.GetProperty("host").GetString()).ToArray());
+        Assert.Equal(
+            new[] { "host", "path", "digest", "materializedFrontmatterDigest" },
+            document.RootElement.GetProperty("hostArtifacts").EnumerateArray().Last().EnumerateObject().Select(static property => property.Name).ToArray());
     }
 
     [Theory]
@@ -65,7 +69,7 @@ public sealed class SkillManifestJsonSerializerTests
     private static SkillManifest CreateManifest ()
     {
         var serializer = new SkillManifestJsonSerializer();
-        var digestCalculator = new SkillManifestDigestCalculator(new SkillDigestCalculator(), serializer);
+        var digestCalculator = new SkillManifestDigestCalculator(serializer);
         var manifest = new SkillManifest(
             SkillManifest.CurrentSchemaVersion,
             "sample-skill",

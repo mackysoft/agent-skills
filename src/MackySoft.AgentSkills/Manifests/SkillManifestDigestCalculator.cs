@@ -1,23 +1,19 @@
-using MackySoft.AgentSkills.Digests;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace MackySoft.AgentSkills.Manifests;
 
 /// <summary> Computes canonical <c>agent-skill.json</c> manifest digests. </summary>
 public sealed class SkillManifestDigestCalculator
 {
-    private const string ManifestPath = "agent-skill.json";
+    private const string DigestPrefix = "sha256:";
 
-    private readonly SkillDigestCalculator digestCalculator;
     private readonly SkillManifestJsonSerializer manifestSerializer;
 
     /// <summary> Initializes a new instance of the <see cref="SkillManifestDigestCalculator" /> class. </summary>
-    /// <param name="digestCalculator"> The deterministic digest calculator. </param>
     /// <param name="manifestSerializer"> The canonical manifest serializer. </param>
-    public SkillManifestDigestCalculator (
-        SkillDigestCalculator digestCalculator,
-        SkillManifestJsonSerializer manifestSerializer)
+    public SkillManifestDigestCalculator (SkillManifestJsonSerializer manifestSerializer)
     {
-        this.digestCalculator = digestCalculator ?? throw new ArgumentNullException(nameof(digestCalculator));
         this.manifestSerializer = manifestSerializer ?? throw new ArgumentNullException(nameof(manifestSerializer));
     }
 
@@ -28,9 +24,9 @@ public sealed class SkillManifestDigestCalculator
     {
         ArgumentNullException.ThrowIfNull(manifest);
 
-        return digestCalculator.ComputeSingleFileDigest(
-            ManifestPath,
-            manifestSerializer.SerializeWithoutManifestDigest(manifest));
+        var json = manifestSerializer.SerializeWithoutManifestDigest(manifest);
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(json));
+        return DigestPrefix + Convert.ToHexString(hash).ToLowerInvariant();
     }
 
     /// <summary> Returns a manifest whose <c>manifestDigest</c> matches its canonical content. </summary>

@@ -144,7 +144,27 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput(packages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task UpdateAsync_RejectsManifestDigestOnlyLocalModification ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "update-manifest-digest-local-modification");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var installService = SkillTestData.CreateInstallService();
+        var updateService = SkillTestData.CreateUpdateService();
+        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var install = await installService.InstallAsync(packages, request, CancellationToken.None);
+        Assert.True(install.IsSuccess, install.Failure?.Message);
+        var manifestPath = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName, "agent-skill.json");
+        SkillTestData.TamperManifestDigest(manifestPath);
+
+        var result = await updateService.UpdateAsync(new SkillUpdateInput(packages, request), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
     }
 
     [Fact]
@@ -169,7 +189,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput(updatedPackages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
     }
 
     [Fact]

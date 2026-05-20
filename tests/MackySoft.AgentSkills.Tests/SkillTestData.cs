@@ -77,11 +77,13 @@ internal static class SkillTestData
 
     internal static SkillPackageGenerationService CreatePackageGenerationService ()
     {
+        var manifestSerializer = new SkillManifestJsonSerializer();
         return new SkillPackageGenerationService(
             new SkillSourceDefinitionReader(),
             CreateDefaultHostAdapterSet(),
             new SkillDigestCalculator(),
-            new SkillManifestJsonSerializer());
+            manifestSerializer,
+            new SkillManifestDigestCalculator(manifestSerializer));
     }
 
     internal static CanonicalSkillPackageReader CreatePackageReader ()
@@ -302,10 +304,12 @@ internal static class SkillTestData
 
     internal static SkillInstalledPackageIntegrityVerifier CreateInstalledPackageIntegrityVerifier (SkillHostAdapterSet hostAdapters)
     {
+        var manifestSerializer = new SkillManifestJsonSerializer();
         return new SkillInstalledPackageIntegrityVerifier(
             CreateInstalledManifestReader(hostAdapters),
             hostAdapters,
-            new SkillManifestJsonSerializer(),
+            manifestSerializer,
+            new SkillManifestDigestCalculator(manifestSerializer),
             new SkillHostMaterializationInspector(hostAdapters, new SkillDigestCalculator()),
             new SkillDigestCalculator());
     }
@@ -317,10 +321,20 @@ internal static class SkillTestData
             new SkillManifestValidator(hostAdapters));
     }
 
+    internal static void TamperManifestDigest (string manifestPath)
+    {
+        var manifestText = File.ReadAllText(manifestPath);
+        var manifest = new SkillManifestJsonSerializer().Deserialize(manifestText);
+        var replacementDigest = string.Equals(manifest.ManifestDigest, "sha256:" + new string('f', 64), StringComparison.Ordinal)
+            ? "sha256:" + new string('0', 64)
+            : "sha256:" + new string('f', 64);
+        File.WriteAllText(manifestPath, manifestText.Replace(manifest.ManifestDigest, replacementDigest, StringComparison.Ordinal));
+    }
+
     internal static SkillManifest WithComputedManifestDigest (SkillManifest manifest)
     {
         var serializer = new SkillManifestJsonSerializer();
-        return new SkillManifestDigestCalculator(new SkillDigestCalculator(), serializer)
+        return new SkillManifestDigestCalculator(serializer)
             .WithComputedManifestDigest(manifest);
     }
 

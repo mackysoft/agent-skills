@@ -18,6 +18,7 @@ public sealed class SkillInstalledPackageIntegrityVerifier
     private readonly SkillInstalledManifestReader installedManifestReader;
     private readonly SkillHostAdapterSet hostAdapters;
     private readonly SkillManifestJsonSerializer manifestSerializer;
+    private readonly SkillManifestDigestCalculator manifestDigestCalculator;
     private readonly SkillHostMaterializationInspector hostInspector;
     private readonly SkillDigestCalculator digestCalculator;
 
@@ -33,10 +34,35 @@ public sealed class SkillInstalledPackageIntegrityVerifier
         SkillManifestJsonSerializer manifestSerializer,
         SkillHostMaterializationInspector hostInspector,
         SkillDigestCalculator digestCalculator)
+        : this(
+            installedManifestReader,
+            hostAdapters,
+            manifestSerializer,
+            new SkillManifestDigestCalculator(manifestSerializer),
+            hostInspector,
+            digestCalculator)
+    {
+    }
+
+    /// <summary> Initializes a new instance of the <see cref="SkillInstalledPackageIntegrityVerifier" /> class. </summary>
+    /// <param name="installedManifestReader"> The installed manifest reader. </param>
+    /// <param name="hostAdapters"> The supported host adapter set. </param>
+    /// <param name="manifestSerializer"> The manifest serializer. </param>
+    /// <param name="manifestDigestCalculator"> The canonical manifest digest calculator. </param>
+    /// <param name="hostInspector"> The host materialization inspector. </param>
+    /// <param name="digestCalculator"> The digest calculator. </param>
+    public SkillInstalledPackageIntegrityVerifier (
+        SkillInstalledManifestReader installedManifestReader,
+        SkillHostAdapterSet hostAdapters,
+        SkillManifestJsonSerializer manifestSerializer,
+        SkillManifestDigestCalculator manifestDigestCalculator,
+        SkillHostMaterializationInspector hostInspector,
+        SkillDigestCalculator digestCalculator)
     {
         this.installedManifestReader = installedManifestReader ?? throw new ArgumentNullException(nameof(installedManifestReader));
         this.hostAdapters = hostAdapters ?? throw new ArgumentNullException(nameof(hostAdapters));
         this.manifestSerializer = manifestSerializer ?? throw new ArgumentNullException(nameof(manifestSerializer));
+        this.manifestDigestCalculator = manifestDigestCalculator ?? throw new ArgumentNullException(nameof(manifestDigestCalculator));
         this.hostInspector = hostInspector ?? throw new ArgumentNullException(nameof(hostInspector));
         this.digestCalculator = digestCalculator ?? throw new ArgumentNullException(nameof(digestCalculator));
     }
@@ -138,6 +164,12 @@ public sealed class SkillInstalledPackageIntegrityVerifier
         }
 
         var manifest = installedManifest.Manifest;
+        var manifestDigest = manifestDigestCalculator.ComputeManifestDigest(manifest);
+        if (!string.Equals(manifestDigest, manifest.ManifestDigest, StringComparison.Ordinal))
+        {
+            return SkillOperationResult<bool>.Success(false);
+        }
+
         var metadata = new SkillHostMetadata(manifest.SkillName, manifest.DisplayName, manifest.Description);
         var artifactByHost = manifest.HostArtifacts.ToDictionary(static artifact => artifact.Host, StringComparer.Ordinal);
         foreach (var adapter in hostAdapters.Adapters)

@@ -99,7 +99,16 @@ public sealed class CanonicalSkillPackageReader
             return PackageFailure("Generated SKILL package is missing agent-skill.json.");
         }
 
-        var manifestResult = manifestSerializer.TryDeserialize(manifestFile.Content);
+        var manifestTextResult = await ReadManifestTextAsync(directoryResult.Value!, cancellationToken).ConfigureAwait(false);
+        if (!manifestTextResult.IsSuccess)
+        {
+            return SkillOperationResult<CanonicalSkillPackage>.FailureResult(
+                manifestTextResult.Failure!.Code,
+                manifestTextResult.Failure.Message);
+        }
+
+        var manifestText = manifestTextResult.Value!;
+        var manifestResult = manifestSerializer.TryDeserialize(manifestText);
         if (!manifestResult.IsSuccess)
         {
             return PackageFailure(manifestResult.Failure!.Message);
@@ -117,7 +126,7 @@ public sealed class CanonicalSkillPackageReader
             return PackageFailure($"agent-skill.json skillName must match generated package directory name: {manifest.SkillName}");
         }
 
-        if (!string.Equals(manifestFile.Content, manifestSerializer.Serialize(manifest), StringComparison.Ordinal))
+        if (!string.Equals(manifestText, manifestSerializer.Serialize(manifest), StringComparison.Ordinal))
         {
             return PackageFailure($"agent-skill.json is not canonical: {manifest.SkillName}");
         }
@@ -155,6 +164,24 @@ public sealed class CanonicalSkillPackageReader
         return SkillOperationResult<IReadOnlyList<SkillPackageFile>>.Success(files
             .OrderBy(static file => file.RelativePath, StringComparer.Ordinal)
             .ToArray());
+    }
+
+    private static async ValueTask<SkillOperationResult<string>> ReadManifestTextAsync (
+        string skillDirectory,
+        CancellationToken cancellationToken)
+    {
+        var manifestPathResult = SkillPackagePathBoundary.ResolvePackageFilePath(skillDirectory, "agent-skill.json");
+        if (!manifestPathResult.IsSuccess)
+        {
+            return SkillOperationResult<string>.FailureResult(
+                manifestPathResult.Failure!.Code,
+                manifestPathResult.Failure.Message);
+        }
+
+        return await SkillPackageManifestTextReader.ReadUtf8WithoutByteOrderMarkAsync(
+                manifestPathResult.Value!,
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private async ValueTask<SkillOperationResult<bool>> ReadDirectoryEntriesAsync (
@@ -221,6 +248,7 @@ public sealed class CanonicalSkillPackageReader
 
         return SkillOperationResult<bool>.Success(true);
     }
+
     private SkillOperationResult<bool> ValidateFiles (
         IReadOnlyList<SkillPackageFile> files,
         SkillManifest manifest)

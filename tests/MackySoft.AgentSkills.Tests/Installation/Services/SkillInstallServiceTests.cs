@@ -1,3 +1,4 @@
+using System.Text;
 using MackySoft.AgentSkills.Hosts.Claude;
 using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Installation.Requests;
@@ -300,7 +301,7 @@ public sealed class SkillInstallServiceTests
         var result = await service.InstallAsync(packages, request, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
     }
 
     [Fact]
@@ -324,7 +325,56 @@ public sealed class SkillInstallServiceTests
         var result = await service.InstallAsync(packages, request, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task InstallAsync_DryRunBlocksInstalledManifestDigestOnlyDriftAsLocalModification ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "install-manifest-digest-drift");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var service = SkillTestData.CreateInstallService();
+        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var created = await service.InstallAsync(packages, request, CancellationToken.None);
+        Assert.True(created.IsSuccess, created.Failure?.Message);
+
+        var manifestPath = Path.Combine(created.Value!.TargetRoot, packages[0].Manifest.SkillName, "agent-skill.json");
+        SkillTestData.TamperManifestDigest(manifestPath);
+        var tamperedManifest = File.ReadAllText(manifestPath);
+
+        var result = await service.InstallAsync(
+            new SkillInstallInput(packages, request, DryRun: true, PrintDiff: true),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        var action = result.Value!.Actions.Single(action => action.Identity.SkillName == packages[0].Manifest.SkillName);
+        Assert.Equal(SkillInstallActionKind.BlockedLocalModification, action.ActionKind);
+        Assert.Equal(SkillBlockedReason.LocalModificationRequiresForce, action.BlockedReason);
+        Assert.NotEmpty(action.Diffs!);
+        Assert.Equal(tamperedManifest, File.ReadAllText(manifestPath));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task InstallAsync_RejectsInstalledManifestUtf8ByteOrderMark ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "install-manifest-bom");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var service = SkillTestData.CreateInstallService();
+        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var created = await service.InstallAsync(packages, request, CancellationToken.None);
+        Assert.True(created.IsSuccess, created.Failure?.Message);
+
+        var manifestPath = Path.Combine(created.Value!.TargetRoot, packages[0].Manifest.SkillName, "agent-skill.json");
+        var manifestText = File.ReadAllText(manifestPath);
+        await File.WriteAllBytesAsync(manifestPath, [0xEF, 0xBB, 0xBF, .. Encoding.UTF8.GetBytes(manifestText)]);
+
+        var result = await service.InstallAsync(packages, request, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Contains("byte order mark", result.Failure.Message, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -1,4 +1,3 @@
-using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Shared;
 
@@ -15,7 +14,7 @@ public sealed class SkillManifestValidator
     public SkillManifestValidator (SkillHostAdapterSet hostAdapters)
         : this(
             hostAdapters,
-            new SkillManifestDigestCalculator(new SkillDigestCalculator(), new SkillManifestJsonSerializer()))
+            new SkillManifestDigestCalculator(new SkillManifestJsonSerializer()))
     {
     }
 
@@ -34,6 +33,26 @@ public sealed class SkillManifestValidator
     /// <param name="manifest"> The manifest. </param>
     /// <returns> The valid manifest or validation failure. </returns>
     public SkillOperationResult<SkillManifest> Validate (SkillManifest manifest)
+    {
+        var shapeResult = ValidateShape(manifest);
+        if (!shapeResult.IsSuccess)
+        {
+            return shapeResult;
+        }
+
+        var expectedManifestDigest = manifestDigestCalculator.ComputeManifestDigest(manifest);
+        if (!string.Equals(expectedManifestDigest, manifest.ManifestDigest, StringComparison.Ordinal))
+        {
+            return Failure("agent-skill.json manifestDigest does not match manifest content.");
+        }
+
+        return SkillOperationResult<SkillManifest>.Success(manifest);
+    }
+
+    /// <summary> Validates one manifest shape without checking whether <c>manifestDigest</c> matches the manifest content. </summary>
+    /// <param name="manifest"> The manifest. </param>
+    /// <returns> The valid manifest shape or validation failure. </returns>
+    internal SkillOperationResult<SkillManifest> ValidateShape (SkillManifest manifest)
     {
         ArgumentNullException.ThrowIfNull(manifest);
 
@@ -94,12 +113,6 @@ public sealed class SkillManifestValidator
             {
                 return Failure($"Host artifact '{artifact.Host}' must contain metadata artifact digest.");
             }
-        }
-
-        var expectedManifestDigest = manifestDigestCalculator.ComputeManifestDigest(manifest);
-        if (!string.Equals(expectedManifestDigest, manifest.ManifestDigest, StringComparison.Ordinal))
-        {
-            return Failure("agent-skill.json manifestDigest does not match manifest content.");
         }
 
         return SkillOperationResult<SkillManifest>.Success(manifest);
