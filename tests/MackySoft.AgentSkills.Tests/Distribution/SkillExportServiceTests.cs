@@ -1,6 +1,9 @@
 using System.IO.Compression;
+using System.Text;
 using MackySoft.AgentSkills.Distribution;
+using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.OpenAi;
+using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
 
@@ -8,6 +11,10 @@ namespace MackySoft.AgentSkills.Tests.Distribution;
 
 public sealed class SkillExportServiceTests
 {
+    private static readonly DateTime ZipEntryTimestamp = new(1980, 1, 1, 0, 0, 0);
+    private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+    private static readonly byte[] Utf8Preamble = Encoding.UTF8.GetPreamble();
+
     [Fact]
     [Trait("Size", "Small")]
     public async Task ExportAsync_RejectsUnsafePackageName ()
@@ -110,20 +117,142 @@ public sealed class SkillExportServiceTests
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "export-zip-deterministic");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var service = SkillTestData.CreateExportService();
-        var firstZip = scope.GetPath("first.zip");
-        var secondZip = scope.GetPath("second.zip");
 
-        var first = await service.ExportAsync(packages, OpenAiSkillHostAdapter.HostKey, firstZip, SkillExportFormat.Zip, CancellationToken.None);
-        var second = await service.ExportAsync(packages, OpenAiSkillHostAdapter.HostKey, secondZip, SkillExportFormat.Zip, CancellationToken.None);
+        foreach (var adapter in GetSupportedAdapters())
+        {
+            var host = adapter.Descriptor.HostKey;
+            var firstZip = scope.GetPath($"{host}-first.zip");
+            var secondZip = scope.GetPath($"{host}-second.zip");
 
-        Assert.True(first.IsSuccess, first.Failure?.Message);
-        Assert.True(second.IsSuccess, second.Failure?.Message);
-        Assert.Equal(await File.ReadAllBytesAsync(firstZip), await File.ReadAllBytesAsync(secondZip));
-        using var archive = ZipFile.OpenRead(firstZip);
+            var first = await service.ExportAsync(packages, host, firstZip, SkillExportFormat.Zip, CancellationToken.None);
+            var second = await service.ExportAsync(packages, host, secondZip, SkillExportFormat.Zip, CancellationToken.None);
+
+            Assert.True(first.IsSuccess, first.Failure?.Message);
+            Assert.True(second.IsSuccess, second.Failure?.Message);
+            Assert.Equal(await File.ReadAllBytesAsync(firstZip), await File.ReadAllBytesAsync(secondZip));
+            AssertFileMapEqual(CreateExpectedExportMap(packages, host), ReadZipExport(firstZip));
+        }
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task ExportAsync_DirectoryFormat_WritesSameMaterializedFileSetAsZipFormat ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "export-directory-zip-equivalence");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var service = SkillTestData.CreateExportService();
+
+        foreach (var adapter in GetSupportedAdapters())
+        {
+            var host = adapter.Descriptor.HostKey;
+            var directoryRoot = scope.GetPath($"{host}-directory");
+            var zipPath = scope.GetPath($"{host}.zip");
+            var expectedMap = CreateExpectedExportMap(packages, host);
+
+            var directory = await service.ExportAsync(packages, host, directoryRoot, SkillExportFormat.Directory, CancellationToken.None);
+            var zip = await service.ExportAsync(packages, host, zipPath, SkillExportFormat.Zip, CancellationToken.None);
+
+            Assert.True(directory.IsSuccess, directory.Failure?.Message);
+            Assert.True(zip.IsSuccess, zip.Failure?.Message);
+            AssertFileMapEqual(expectedMap, await ReadDirectoryExportAsync(directoryRoot, CancellationToken.None));
+            AssertFileMapEqual(expectedMap, ReadZipExport(zipPath));
+        }
+    }
+
+    private static IReadOnlyList<ISkillHostAdapter> GetSupportedAdapters ()
+    {
+        return SkillTestData.CreateDefaultHostAdapterSet().Adapters;
+    }
+
+    private static IReadOnlyDictionary<string, string> CreateExpectedExportMap (
+        IReadOnlyList<CanonicalSkillPackage> packages,
+        string host)
+    {
+        var service = SkillTestData.CreateMaterializationService();
+        var files = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var package in packages.OrderBy(static package => package.Manifest.SkillName, StringComparer.Ordinal))
+        {
+            var result = service.Materialize(package, host);
+            Assert.True(result.IsSuccess, result.Failure?.Message);
+
+            foreach (var file in result.Value!.Files.OrderBy(static file => file.RelativePath, StringComparer.Ordinal))
+            {
+                files.Add($"{package.Manifest.SkillName}/{file.RelativePath}", file.Content);
+            }
+        }
+
+        return files;
+    }
+
+    private static async ValueTask<IReadOnlyDictionary<string, string>> ReadDirectoryExportAsync (
+        string outputRoot,
+        CancellationToken cancellationToken)
+    {
+        var files = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var path in Directory.EnumerateFiles(outputRoot, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var relativePath = Path.GetRelativePath(outputRoot, path)
+                .Replace(Path.DirectorySeparatorChar, '/')
+                .Replace(Path.AltDirectorySeparatorChar, '/');
+            var content = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
+            Assert.DoesNotContain("\r", content, StringComparison.Ordinal);
+            files.Add(relativePath, content);
+        }
+
+        return files;
+    }
+
+    private static IReadOnlyDictionary<string, string> ReadZipExport (string zipPath)
+    {
+        var files = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        using var archive = ZipFile.OpenRead(zipPath);
         var entryNames = archive.Entries.Select(static entry => entry.FullName).ToArray();
         Assert.Equal(entryNames.Order(StringComparer.Ordinal).ToArray(), entryNames);
-        Assert.Contains($"{packages[0].Manifest.SkillName}/SKILL.md", entryNames);
-        Assert.Contains($"{packages[0].Manifest.SkillName}/agents/openai.yaml", entryNames);
-        Assert.All(archive.Entries, static entry => Assert.Equal(new DateTime(1980, 1, 1, 0, 0, 0), entry.LastWriteTime.DateTime));
+        Assert.DoesNotContain(entryNames, static entryName => entryName.EndsWith("/", StringComparison.Ordinal));
+
+        foreach (var entry in archive.Entries)
+        {
+            Assert.Equal(ZipEntryTimestamp, entry.LastWriteTime.DateTime);
+
+            using var entryStream = entry.Open();
+            using var memoryStream = new MemoryStream();
+            entryStream.CopyTo(memoryStream);
+
+            var bytes = memoryStream.ToArray();
+            Assert.False(HasUtf8Preamble(bytes));
+            Assert.DoesNotContain((byte)'\r', bytes);
+
+            var content = StrictUtf8.GetString(bytes);
+            Assert.DoesNotContain("\r", content, StringComparison.Ordinal);
+            files.Add(entry.FullName, content);
+        }
+
+        return files;
+    }
+
+    private static bool HasUtf8Preamble (byte[] bytes)
+    {
+        return Utf8Preamble.Length > 0
+            && bytes.Length >= Utf8Preamble.Length
+            && bytes.AsSpan(0, Utf8Preamble.Length).SequenceEqual(Utf8Preamble);
+    }
+
+    private static void AssertFileMapEqual (
+        IReadOnlyDictionary<string, string> expected,
+        IReadOnlyDictionary<string, string> actual)
+    {
+        var expectedPaths = expected.Keys.Order(StringComparer.Ordinal).ToArray();
+        var actualPaths = actual.Keys.Order(StringComparer.Ordinal).ToArray();
+        Assert.Equal(expectedPaths, actualPaths);
+
+        foreach (var path in expectedPaths)
+        {
+            Assert.Equal(expected[path], actual[path]);
+        }
     }
 }
