@@ -95,6 +95,27 @@ public sealed class SkillHostAdapterSetTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public void Constructor_RejectsDescriptorWithoutSupportedScopes ()
+    {
+        var exception = Assert.Throws<ArgumentException>(() => new SkillHostAdapterSet(
+        [
+            new TestSkillHostAdapter(new SkillHostDescriptor(
+                HostKey: "alpha",
+                SupportsProjectScope: false,
+                SupportsUserScope: false,
+                ProjectDefaultTargetPath: null,
+                UserDefaultTargetPath: null,
+                UserTargetRootPolicy: null,
+                RequiresMetadataArtifact: false,
+                MetadataArtifactPath: null,
+                ReloadGuidance: "Reload alpha skills.")),
+        ]));
+
+        Assert.Contains("must support at least one install scope", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public void Constructor_RejectsProjectDefaultTargetPathWhenProjectScopeUnsupported ()
     {
         var exception = Assert.Throws<ArgumentException>(() => new SkillHostAdapterSet(
@@ -242,6 +263,20 @@ public sealed class SkillHostAdapterSetTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public void Constructor_RejectsLegacyMetadataArtifactPathMismatch ()
+    {
+        var exception = Assert.Throws<ArgumentException>(() => new SkillHostAdapterSet(
+        [
+            new LegacyMetadataArtifactPathHostAdapter(
+                descriptorMetadataArtifactPath: "agents/alpha.yaml",
+                legacyMetadataArtifactPath: "agents/beta.yaml"),
+        ]));
+
+        Assert.Contains("metadata artifact path must match descriptor metadata artifact path", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public void Constructor_RejectsEmptyAdapters ()
     {
         var exception = Assert.Throws<ArgumentException>(() => new SkillHostAdapterSet([]));
@@ -292,6 +327,36 @@ public sealed class SkillHostAdapterSetTests
         {
             ArgumentNullException.ThrowIfNull(metadata);
             return new SkillHostArtifactSet(string.Empty, null);
+        }
+    }
+
+    private sealed class LegacyMetadataArtifactPathHostAdapter : ISkillHostAdapter
+    {
+        public LegacyMetadataArtifactPathHostAdapter (
+            string descriptorMetadataArtifactPath,
+            string legacyMetadataArtifactPath)
+        {
+            Descriptor = new SkillHostDescriptor(
+                HostKey: "alpha",
+                SupportsProjectScope: true,
+                SupportsUserScope: true,
+                ProjectDefaultTargetPath: ".alpha/skills",
+                UserDefaultTargetPath: "~/.alpha/skills",
+                UserTargetRootPolicy: new SkillUserTargetRootPolicy(null, null, ".alpha/skills"),
+                RequiresMetadataArtifact: true,
+                MetadataArtifactPath: descriptorMetadataArtifactPath,
+                ReloadGuidance: "Reload alpha skills.");
+            MetadataArtifactPath = legacyMetadataArtifactPath;
+        }
+
+        public SkillHostDescriptor Descriptor { get; }
+
+        public string? MetadataArtifactPath { get; }
+
+        public SkillHostArtifactSet BuildArtifacts (SkillHostMetadata metadata)
+        {
+            ArgumentNullException.ThrowIfNull(metadata);
+            return new SkillHostArtifactSet(string.Empty, string.Empty);
         }
     }
 }

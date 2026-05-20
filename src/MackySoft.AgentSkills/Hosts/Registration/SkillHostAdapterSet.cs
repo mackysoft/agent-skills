@@ -25,7 +25,7 @@ public sealed class SkillHostAdapterSet
 
         foreach (var adapter in adapterArray)
         {
-            ValidateDescriptor(adapter.Descriptor, nameof(adapters));
+            ValidateDescriptor(adapter, nameof(adapters));
         }
 
         var duplicateHost = adapterArray
@@ -73,14 +73,21 @@ public sealed class SkillHostAdapterSet
     }
 
     private static void ValidateDescriptor (
-        SkillHostDescriptor descriptor,
+        ISkillHostAdapter adapter,
         string parameterName)
     {
+        var descriptor = adapter.Descriptor;
         ArgumentNullException.ThrowIfNull(descriptor, parameterName);
         ArgumentException.ThrowIfNullOrWhiteSpace(descriptor.HostKey, parameterName);
+        if (!descriptor.SupportsProjectScope && !descriptor.SupportsUserScope)
+        {
+            throw new ArgumentException("Host adapter descriptor must support at least one install scope.", parameterName);
+        }
+
         ValidateProjectScope(descriptor, parameterName);
         ValidateUserScope(descriptor, parameterName);
         ValidateMetadataArtifact(descriptor, parameterName);
+        ValidateLegacyMetadataArtifactPath(adapter, descriptor, parameterName);
         ArgumentException.ThrowIfNullOrWhiteSpace(descriptor.ReloadGuidance, parameterName);
     }
 
@@ -180,6 +187,17 @@ public sealed class SkillHostAdapterSet
         if (!SkillRelativePath.IsSafeFilePath(descriptor.MetadataArtifactPath))
         {
             throw new ArgumentException("Host adapter metadata artifact path must be a safe relative path.", parameterName);
+        }
+    }
+
+    private static void ValidateLegacyMetadataArtifactPath (
+        ISkillHostAdapter adapter,
+        SkillHostDescriptor descriptor,
+        string parameterName)
+    {
+        if (!string.Equals(adapter.MetadataArtifactPath, descriptor.MetadataArtifactPath, StringComparison.Ordinal))
+        {
+            throw new ArgumentException("Host adapter metadata artifact path must match descriptor metadata artifact path.", parameterName);
         }
     }
 }
