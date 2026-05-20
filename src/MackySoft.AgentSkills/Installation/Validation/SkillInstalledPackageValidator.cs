@@ -116,17 +116,17 @@ public sealed class SkillInstalledPackageValidator
                 $"Installed skill directory is not materialized for requested host: {skillDirectory}");
         }
 
-        var fileSetResult = fileSetVerifier.MatchesExpectedFiles(skillDirectory, materializedResult.Value!.Files);
+        var fileSetResult = await fileSetVerifier.VerifyAsync(skillDirectory, materializedResult.Value!.Files, cancellationToken).ConfigureAwait(false);
         if (!fileSetResult.IsSuccess)
         {
             return SkillOperationResult<SkillManifest>.FailureResult(fileSetResult.Failure!.Code, fileSetResult.Failure.Message);
         }
 
-        return fileSetResult.Value
-            ? ValidateCanonicalManifestText(package, installedManifest.ManifestText, manifest)
-            : SkillOperationResult<SkillManifest>.FailureResult(
+        return fileSetResult.Value!.HasFileSetDrift
+            ? SkillOperationResult<SkillManifest>.FailureResult(
                 SkillFailureCodes.InstallTargetDigestMismatch,
-                $"Installed SKILL file set does not match materialized package: {package.Manifest.SkillName}");
+                $"Installed SKILL file set does not match materialized package: {package.Manifest.SkillName}")
+            : ValidateCanonicalManifestText(package, installedManifest.ManifestText, manifest);
     }
 
     private static SkillOperationResult<SkillManifest> ValidateCanonicalManifestText (

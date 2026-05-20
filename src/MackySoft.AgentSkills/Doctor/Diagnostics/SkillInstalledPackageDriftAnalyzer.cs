@@ -109,13 +109,13 @@ public sealed class SkillInstalledPackageDriftAnalyzer
             return SkillOperationResult<SkillInstalledPackageDrift>.FailureResult(materializedResult.Failure!.Code, materializedResult.Failure.Message);
         }
 
-        var fileSetResult = fileSetVerifier.MatchesExpectedFiles(skillDirectory, materializedResult.Value!.Files);
+        var fileSetResult = await fileSetVerifier.VerifyAsync(skillDirectory, materializedResult.Value!.Files, cancellationToken).ConfigureAwait(false);
         if (!fileSetResult.IsSuccess)
         {
             return SkillOperationResult<SkillInstalledPackageDrift>.FailureResult(fileSetResult.Failure!.Code, fileSetResult.Failure.Message);
         }
 
-        if (!fileSetResult.Value)
+        if (fileSetResult.Value!.HasFileSetDrift)
         {
             return Drift(
                 SkillFailureCodes.InstallTargetFileSetMismatch,

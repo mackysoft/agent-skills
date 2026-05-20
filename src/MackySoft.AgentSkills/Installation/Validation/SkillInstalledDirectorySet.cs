@@ -1,9 +1,6 @@
-using MackySoft.AgentSkills.Packaging.FileSystem;
-using MackySoft.AgentSkills.Shared;
-
 namespace MackySoft.AgentSkills.Installation.Validation;
 
-/// <summary> Builds and verifies installed package directory entries. </summary>
+/// <summary> Builds installed package directory sets from package-relative file paths. </summary>
 internal static class SkillInstalledDirectorySet
 {
     /// <summary> Builds the directory set required by package-relative file paths. </summary>
@@ -40,34 +37,5 @@ internal static class SkillInstalledDirectorySet
             directoryPaths.Add(directoryPath);
             lastSeparatorIndex = directoryPath.LastIndexOf('/');
         }
-    }
-
-    /// <summary> Checks that every installed directory entry is explicitly allowed. </summary>
-    /// <param name="skillDirectory"> The installed skill directory. </param>
-    /// <param name="allowedDirectoryPaths"> The package-relative directories that may exist. </param>
-    /// <returns> <see langword="true" /> when the directory set is exact; otherwise <see langword="false" />. </returns>
-    public static SkillOperationResult<bool> ContainsOnlyAllowedDirectories (
-        string skillDirectory,
-        IReadOnlySet<string> allowedDirectoryPaths)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
-        ArgumentNullException.ThrowIfNull(allowedDirectoryPaths);
-
-        foreach (var directoryPath in Directory.EnumerateDirectories(skillDirectory, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
-        {
-            var directoryPathResult = SkillPackagePathBoundary.ResolveUnderRoot(skillDirectory, directoryPath);
-            if (!directoryPathResult.IsSuccess)
-            {
-                return SkillOperationResult<bool>.FailureResult(directoryPathResult.Failure!.Code, directoryPathResult.Failure.Message);
-            }
-
-            var relativePath = Path.GetRelativePath(skillDirectory, Path.GetFullPath(directoryPath)).Replace(Path.DirectorySeparatorChar, '/');
-            if (!allowedDirectoryPaths.Contains(relativePath))
-            {
-                return SkillOperationResult<bool>.Success(false);
-            }
-        }
-
-        return SkillOperationResult<bool>.Success(true);
     }
 }
