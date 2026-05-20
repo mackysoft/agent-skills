@@ -282,7 +282,7 @@ public sealed class SkillUninstallServiceTests
         var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
         Assert.True(Directory.Exists(localDirectoryLink));
     }
 

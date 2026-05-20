@@ -4,7 +4,7 @@ using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Installation.Validation;
 
-/// <summary> Reads and validates an installed <c>agent-skill.json</c> manifest. </summary>
+/// <summary> Reads and validates the shape of an installed <c>agent-skill.json</c> manifest. </summary>
 public sealed class SkillInstalledManifestReader
 {
     private readonly SkillManifestJsonSerializer manifestSerializer;
@@ -21,7 +21,7 @@ public sealed class SkillInstalledManifestReader
         this.manifestValidator = manifestValidator ?? throw new ArgumentNullException(nameof(manifestValidator));
     }
 
-    /// <summary> Reads and validates the required installed manifest from one skill directory. </summary>
+    /// <summary> Reads and shape-validates the required installed manifest from one skill directory. </summary>
     /// <param name="skillDirectory"> The installed skill directory. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The installed manifest or validation failure. </returns>
@@ -48,7 +48,15 @@ public sealed class SkillInstalledManifestReader
                 $"Target skill directory is missing agent-skill.json: {skillDirectory}");
         }
 
-        var manifestText = await File.ReadAllTextAsync(manifestPath, cancellationToken).ConfigureAwait(false);
+        var manifestTextResult = await SkillPackageManifestTextReader.ReadUtf8WithoutByteOrderMarkAsync(manifestPath, cancellationToken).ConfigureAwait(false);
+        if (!manifestTextResult.IsSuccess)
+        {
+            return SkillOperationResult<SkillInstalledManifest>.FailureResult(
+                manifestTextResult.Failure!.Code,
+                manifestTextResult.Failure.Message);
+        }
+
+        var manifestText = manifestTextResult.Value!;
         var manifestResult = manifestSerializer.TryDeserialize(manifestText);
         if (!manifestResult.IsSuccess)
         {
@@ -58,7 +66,7 @@ public sealed class SkillInstalledManifestReader
         }
 
         var manifest = manifestResult.Value!;
-        var validationResult = manifestValidator.Validate(manifest);
+        var validationResult = manifestValidator.ValidateShape(manifest);
         if (!validationResult.IsSuccess)
         {
             return SkillOperationResult<SkillInstalledManifest>.FailureResult(

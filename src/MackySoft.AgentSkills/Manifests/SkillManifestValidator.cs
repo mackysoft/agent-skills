@@ -7,18 +7,43 @@ namespace MackySoft.AgentSkills.Manifests;
 public sealed class SkillManifestValidator
 {
     private readonly SkillHostAdapterSet hostAdapters;
+    private readonly SkillManifestDigestCalculator manifestDigestCalculator;
 
     /// <summary> Initializes a new instance of the <see cref="SkillManifestValidator" /> class. </summary>
     /// <param name="hostAdapters"> The supported host adapter set. </param>
-    public SkillManifestValidator (SkillHostAdapterSet hostAdapters)
+    /// <param name="manifestDigestCalculator"> The canonical manifest digest calculator. </param>
+    public SkillManifestValidator (
+        SkillHostAdapterSet hostAdapters,
+        SkillManifestDigestCalculator manifestDigestCalculator)
     {
         this.hostAdapters = hostAdapters ?? throw new ArgumentNullException(nameof(hostAdapters));
+        this.manifestDigestCalculator = manifestDigestCalculator ?? throw new ArgumentNullException(nameof(manifestDigestCalculator));
     }
 
     /// <summary> Validates one manifest. </summary>
     /// <param name="manifest"> The manifest. </param>
     /// <returns> The valid manifest or validation failure. </returns>
     public SkillOperationResult<SkillManifest> Validate (SkillManifest manifest)
+    {
+        var shapeResult = ValidateShape(manifest);
+        if (!shapeResult.IsSuccess)
+        {
+            return shapeResult;
+        }
+
+        var expectedManifestDigest = manifestDigestCalculator.ComputeManifestDigest(manifest);
+        if (!string.Equals(expectedManifestDigest, manifest.ManifestDigest, StringComparison.Ordinal))
+        {
+            return Failure("agent-skill.json manifestDigest does not match manifest content.");
+        }
+
+        return SkillOperationResult<SkillManifest>.Success(manifest);
+    }
+
+    /// <summary> Validates one manifest shape without checking whether <c>manifestDigest</c> matches the manifest content. </summary>
+    /// <param name="manifest"> The manifest. </param>
+    /// <returns> The valid manifest shape or validation failure. </returns>
+    internal SkillOperationResult<SkillManifest> ValidateShape (SkillManifest manifest)
     {
         ArgumentNullException.ThrowIfNull(manifest);
 
@@ -42,6 +67,11 @@ public sealed class SkillManifestValidator
         if (!IsSha256Digest(manifest.ContentDigest))
         {
             return Failure("agent-skill.json contentDigest must be a sha256 digest.");
+        }
+
+        if (!IsSha256Digest(manifest.ManifestDigest))
+        {
+            return Failure("agent-skill.json manifestDigest must be a sha256 digest.");
         }
 
         var expectedHosts = hostAdapters.Adapters.Select(static adapter => adapter.Descriptor.HostKey).Order(StringComparer.Ordinal).ToArray();
