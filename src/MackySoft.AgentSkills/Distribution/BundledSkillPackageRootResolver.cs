@@ -6,11 +6,6 @@ public sealed class BundledSkillPackageRootResolver
     private readonly string baseDirectory;
 
     /// <summary> Initializes a new instance of the <see cref="BundledSkillPackageRootResolver" /> class. </summary>
-    public BundledSkillPackageRootResolver () : this(AppContext.BaseDirectory)
-    {
-    }
-
-    /// <summary> Initializes a new instance of the <see cref="BundledSkillPackageRootResolver" /> class. </summary>
     /// <param name="baseDirectory"> The application base directory containing bundled package files. </param>
     public BundledSkillPackageRootResolver (string baseDirectory)
     {

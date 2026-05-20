@@ -3,8 +3,9 @@ using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Doctor;
 using MackySoft.AgentSkills.Doctor.Diagnostics;
 using MackySoft.AgentSkills.Generation;
+using MackySoft.AgentSkills.Hosts.Claude;
 using MackySoft.AgentSkills.Hosts.Contracts;
-using MackySoft.AgentSkills.Hosts.Defaults;
+using MackySoft.AgentSkills.Hosts.Copilot;
 using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Contracts;
@@ -72,7 +73,12 @@ internal static class SkillTestData
 
     internal static SkillHostAdapterSet CreateDefaultHostAdapterSet ()
     {
-        return DefaultSkillHostAdapters.CreateSet();
+        return new SkillHostAdapterSet(
+        [
+            new ClaudeSkillHostAdapter(),
+            new CopilotSkillHostAdapter(),
+            new OpenAiSkillHostAdapter(),
+        ]);
     }
 
     internal static SkillPackageGenerationService CreatePackageGenerationService ()
@@ -121,7 +127,7 @@ internal static class SkillTestData
         var hostAdapters = CreateDefaultHostAdapterSet();
         var installedPackageValidator = CreateInstalledPackageValidator(hostAdapters);
         return new SkillInstallService(
-            new SkillInstallTargetResolver(hostAdapters, new SkillUserTargetRootResolver()),
+            new SkillInstallTargetResolver(hostAdapters, CreateUserTargetRootResolver()),
             new SkillMaterializationService(hostAdapters),
             new SkillInstalledTargetStateAnalyzer(installedPackageValidator, CreateInstalledPackageIntegrityVerifier(hostAdapters)),
             CreatePackageWriter(),
@@ -133,7 +139,7 @@ internal static class SkillTestData
         var hostAdapters = CreateDefaultHostAdapterSet();
         var installedPackageValidator = CreateInstalledPackageValidator(hostAdapters);
         return new SkillUpdateService(
-            new SkillInstallTargetResolver(hostAdapters, new SkillUserTargetRootResolver()),
+            new SkillInstallTargetResolver(hostAdapters, CreateUserTargetRootResolver()),
             new SkillMaterializationService(hostAdapters),
             new SkillInstalledTargetStateAnalyzer(installedPackageValidator, CreateInstalledPackageIntegrityVerifier(hostAdapters)),
             packageWriter ?? CreatePackageWriter(),
@@ -145,7 +151,7 @@ internal static class SkillTestData
         var hostAdapters = CreateDefaultHostAdapterSet();
         var installedPackageValidator = CreateInstalledPackageValidator(hostAdapters);
         return new SkillUninstallService(
-            new SkillInstallTargetResolver(hostAdapters, new SkillUserTargetRootResolver()),
+            new SkillInstallTargetResolver(hostAdapters, CreateUserTargetRootResolver()),
             new SkillInstalledTargetStateAnalyzer(installedPackageValidator, CreateInstalledPackageIntegrityVerifier(hostAdapters)),
             CreatePackageRemover());
     }
@@ -167,6 +173,13 @@ internal static class SkillTestData
     internal static SkillInstalledPackageRemover CreatePackageRemover ()
     {
         return new SkillInstalledPackageRemover(new SkillPackageDirectoryOperations());
+    }
+
+    internal static SkillUserTargetRootResolver CreateUserTargetRootResolver ()
+    {
+        return new SkillUserTargetRootResolver(
+            static () => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            Environment.GetEnvironmentVariable);
     }
 
     internal static SkillDoctorService CreateDoctorService ()
