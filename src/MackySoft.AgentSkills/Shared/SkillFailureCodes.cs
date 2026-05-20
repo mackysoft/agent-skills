@@ -6,6 +6,9 @@ public static class SkillFailureCodes
     /// <summary> Gets the code emitted when the requested host is not supported by the global host adapter set. </summary>
     public static readonly SkillFailureCode HostUnsupported = new("SKILL_HOST_UNSUPPORTED");
 
+    /// <summary> Gets the code emitted when the requested install scope is not supported by the selected host. </summary>
+    public static readonly SkillFailureCode ScopeUnsupported = new("SKILL_SCOPE_UNSUPPORTED");
+
     /// <summary> Gets the code emitted when a source definition is missing or invalid. </summary>
     public static readonly SkillFailureCode SourceInvalid = new("SKILL_SOURCE_INVALID");
 

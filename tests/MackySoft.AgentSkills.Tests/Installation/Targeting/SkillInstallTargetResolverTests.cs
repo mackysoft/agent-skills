@@ -1,6 +1,8 @@
 using MackySoft.AgentSkills.Hosts.Claude;
+using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Copilot;
 using MackySoft.AgentSkills.Hosts.OpenAi;
+using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
@@ -130,12 +132,74 @@ public sealed class SkillInstallTargetResolverTests
         Assert.Equal(SkillFailureCodes.HostUnsupported, result.Failure!.Code);
     }
 
+    [Fact]
+    [Trait("Size", "Small")]
+    public void ResolveTarget_ProjectScope_ReturnsScopeUnsupportedWhenHostDoesNotSupportProjectScope ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "target-project-unsupported");
+        var resolver = CreateResolverWithHostAdapters(
+            scope.GetPath("home"),
+            new SkillHostAdapterSet(
+            [
+                new TestSkillHostAdapter(new SkillHostDescriptor(
+                    HostKey: "user-only",
+                    SupportsProjectScope: false,
+                    SupportsUserScope: true,
+                    ProjectDefaultTargetPath: null,
+                    UserDefaultTargetPath: "~/.user-only/skills",
+                    UserTargetRootPolicy: new SkillUserTargetRootPolicy(null, null, ".user-only/skills"),
+                    RequiresMetadataArtifact: false,
+                    MetadataArtifactPath: null,
+                    ReloadGuidance: "Reload user-only skills.")),
+            ]));
+
+        var result = resolver.ResolveTarget(new SkillInstallRequest("user-only", SkillScopeKind.Project, scope.FullPath));
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.ScopeUnsupported, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void ResolveTarget_UserScope_ReturnsScopeUnsupportedWhenHostDoesNotSupportUserScope ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "target-user-unsupported");
+        var resolver = CreateResolverWithHostAdapters(
+            scope.GetPath("home"),
+            new SkillHostAdapterSet(
+            [
+                new TestSkillHostAdapter(new SkillHostDescriptor(
+                    HostKey: "project-only",
+                    SupportsProjectScope: true,
+                    SupportsUserScope: false,
+                    ProjectDefaultTargetPath: ".project-only/skills",
+                    UserDefaultTargetPath: null,
+                    UserTargetRootPolicy: null,
+                    RequiresMetadataArtifact: false,
+                    MetadataArtifactPath: null,
+                    ReloadGuidance: "Reload project-only skills.")),
+            ]));
+
+        var result = resolver.ResolveTarget(new SkillInstallRequest("project-only", SkillScopeKind.User, null));
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.ScopeUnsupported, result.Failure!.Code);
+    }
+
     private static SkillInstallTargetResolver CreateResolver (
         string homeDirectory,
         string? codexHome = null)
     {
+        return CreateResolverWithHostAdapters(homeDirectory, SkillTestData.CreateDefaultHostAdapterSet(), codexHome);
+    }
+
+    private static SkillInstallTargetResolver CreateResolverWithHostAdapters (
+        string homeDirectory,
+        SkillHostAdapterSet hostAdapters,
+        string? codexHome = null)
+    {
         return new SkillInstallTargetResolver(
-            SkillTestData.CreateDefaultHostAdapterSet(),
+            hostAdapters,
             new SkillUserTargetRootResolver(
                 () => homeDirectory,
                 name => string.Equals(name, "CODEX_HOME", StringComparison.Ordinal) ? codexHome : null));
@@ -172,5 +236,21 @@ public sealed class SkillInstallTargetResolverTests
         }
 
         return Path.GetFullPath(currentPath);
+    }
+
+    private sealed class TestSkillHostAdapter : ISkillHostAdapter
+    {
+        public TestSkillHostAdapter (SkillHostDescriptor descriptor)
+        {
+            Descriptor = descriptor ?? throw new ArgumentNullException(nameof(descriptor));
+        }
+
+        public SkillHostDescriptor Descriptor { get; }
+
+        public SkillHostArtifactSet BuildArtifacts (SkillHostMetadata metadata)
+        {
+            ArgumentNullException.ThrowIfNull(metadata);
+            return new SkillHostArtifactSet(string.Empty, null);
+        }
     }
 }

@@ -25,28 +25,7 @@ public sealed class SkillHostAdapterSet
 
         foreach (var adapter in adapterArray)
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(adapter.Descriptor.HostKey, nameof(adapters));
-            ArgumentException.ThrowIfNullOrWhiteSpace(adapter.Descriptor.ProjectTargetDirectory, nameof(adapters));
-            ArgumentException.ThrowIfNullOrWhiteSpace(adapter.Descriptor.UserTargetDirectory, nameof(adapters));
-            ArgumentNullException.ThrowIfNull(adapter.Descriptor.UserTargetRootPolicy, nameof(adapters));
-            if (!SkillRelativePath.IsSafeFilePath(adapter.Descriptor.UserTargetRootPolicy.HomeRelativeDirectory))
-            {
-                throw new ArgumentException("Host adapter home-relative user target directory must be a safe relative path.", nameof(adapters));
-            }
-
-            if (string.IsNullOrWhiteSpace(adapter.Descriptor.UserTargetRootPolicy.EnvironmentVariableName)
-                && !string.IsNullOrWhiteSpace(adapter.Descriptor.UserTargetRootPolicy.EnvironmentVariableChildDirectory))
-            {
-                throw new ArgumentException("Host adapter environment variable child directory requires an environment variable name.", nameof(adapters));
-            }
-
-            if (!string.IsNullOrWhiteSpace(adapter.Descriptor.UserTargetRootPolicy.EnvironmentVariableChildDirectory)
-                && !SkillRelativePath.IsSafeFilePath(adapter.Descriptor.UserTargetRootPolicy.EnvironmentVariableChildDirectory))
-            {
-                throw new ArgumentException("Host adapter environment variable child directory must be a safe relative path.", nameof(adapters));
-            }
-
-            ArgumentException.ThrowIfNullOrWhiteSpace(adapter.Descriptor.ReloadGuidance, nameof(adapters));
+            ValidateDescriptor(adapter.Descriptor, nameof(adapters));
         }
 
         var duplicateHost = adapterArray
@@ -91,5 +70,116 @@ public sealed class SkillHostAdapterSet
         return SkillOperationResult<ISkillHostAdapter>.FailureResult(
             SkillFailureCodes.HostUnsupported,
             $"Unsupported SKILL host: {host}");
+    }
+
+    private static void ValidateDescriptor (
+        SkillHostDescriptor descriptor,
+        string parameterName)
+    {
+        ArgumentNullException.ThrowIfNull(descriptor, parameterName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(descriptor.HostKey, parameterName);
+        ValidateProjectScope(descriptor, parameterName);
+        ValidateUserScope(descriptor, parameterName);
+        ValidateMetadataArtifact(descriptor, parameterName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(descriptor.ReloadGuidance, parameterName);
+    }
+
+    private static void ValidateProjectScope (
+        SkillHostDescriptor descriptor,
+        string parameterName)
+    {
+        if (!descriptor.SupportsProjectScope)
+        {
+            if (descriptor.ProjectDefaultTargetPath is not null)
+            {
+                throw new ArgumentException("Host adapter project default target path must be null when project scope is not supported.", parameterName);
+            }
+
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(descriptor.ProjectDefaultTargetPath))
+        {
+            throw new ArgumentException("Host adapter project default target path is required when project scope is supported.", parameterName);
+        }
+
+        if (!SkillRelativePath.IsSafeFilePath(descriptor.ProjectDefaultTargetPath))
+        {
+            throw new ArgumentException("Host adapter project default target path must be a safe relative path.", parameterName);
+        }
+    }
+
+    private static void ValidateUserScope (
+        SkillHostDescriptor descriptor,
+        string parameterName)
+    {
+        if (!descriptor.SupportsUserScope)
+        {
+            if (descriptor.UserDefaultTargetPath is not null || descriptor.UserTargetRootPolicy is not null)
+            {
+                throw new ArgumentException("Host adapter user default target metadata must be null when user scope is not supported.", parameterName);
+            }
+
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(descriptor.UserDefaultTargetPath))
+        {
+            throw new ArgumentException("Host adapter user default target path is required when user scope is supported.", parameterName);
+        }
+
+        if (descriptor.UserTargetRootPolicy is null)
+        {
+            throw new ArgumentException("Host adapter user target root policy is required when user scope is supported.", parameterName);
+        }
+
+        ValidateUserTargetRootPolicy(descriptor.UserTargetRootPolicy, parameterName);
+    }
+
+    private static void ValidateUserTargetRootPolicy (
+        SkillUserTargetRootPolicy policy,
+        string parameterName)
+    {
+        if (!SkillRelativePath.IsSafeFilePath(policy.HomeRelativeDirectory))
+        {
+            throw new ArgumentException("Host adapter home-relative user target directory must be a safe relative path.", parameterName);
+        }
+
+        if (string.IsNullOrWhiteSpace(policy.EnvironmentVariableName)
+            && !string.IsNullOrWhiteSpace(policy.EnvironmentVariableChildDirectory))
+        {
+            throw new ArgumentException("Host adapter environment variable child directory requires an environment variable name.", parameterName);
+        }
+
+        if (!string.IsNullOrWhiteSpace(policy.EnvironmentVariableChildDirectory)
+            && !SkillRelativePath.IsSafeFilePath(policy.EnvironmentVariableChildDirectory))
+        {
+            throw new ArgumentException("Host adapter environment variable child directory must be a safe relative path.", parameterName);
+        }
+    }
+
+    private static void ValidateMetadataArtifact (
+        SkillHostDescriptor descriptor,
+        string parameterName)
+    {
+        if (!descriptor.RequiresMetadataArtifact)
+        {
+            if (descriptor.MetadataArtifactPath is not null)
+            {
+                throw new ArgumentException("Host adapter metadata artifact path must be null when metadata artifacts are not required.", parameterName);
+            }
+
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(descriptor.MetadataArtifactPath))
+        {
+            throw new ArgumentException("Host adapter metadata artifact path is required when metadata artifacts are required.", parameterName);
+        }
+
+        if (!SkillRelativePath.IsSafeFilePath(descriptor.MetadataArtifactPath))
+        {
+            throw new ArgumentException("Host adapter metadata artifact path must be a safe relative path.", parameterName);
+        }
     }
 }

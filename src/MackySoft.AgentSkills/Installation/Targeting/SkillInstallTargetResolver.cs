@@ -38,8 +38,12 @@ public sealed class SkillInstallTargetResolver
         var descriptor = adapterResult.Value!.Descriptor;
         return request.Scope switch
         {
-            SkillScopeKind.Project => ResolveProjectTarget(request, descriptor.HostKey, descriptor.ProjectTargetDirectory),
-            SkillScopeKind.User => ResolveUserTarget(request, descriptor),
+            SkillScopeKind.Project => descriptor.SupportsProjectScope
+                ? ResolveProjectTarget(request, descriptor.HostKey, descriptor.ProjectDefaultTargetPath!)
+                : UnsupportedScope(descriptor.HostKey, request.Scope),
+            SkillScopeKind.User => descriptor.SupportsUserScope
+                ? ResolveUserTarget(request, descriptor)
+                : UnsupportedScope(descriptor.HostKey, request.Scope),
             _ => SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(
                 SkillFailureCodes.PathUnsafe,
                 $"Unsupported SKILL install scope: {request.Scope}"),
@@ -115,6 +119,15 @@ public sealed class SkillInstallTargetResolver
         return resolvedTargetRoot.IsSuccess
             ? SkillOperationResult<SkillResolvedInstallTarget>.Success(new SkillResolvedInstallTarget(descriptor.HostKey, resolvedTargetRoot.Value!))
             : SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(resolvedTargetRoot.Failure!.Code, resolvedTargetRoot.Failure.Message);
+    }
+
+    private static SkillOperationResult<SkillResolvedInstallTarget> UnsupportedScope (
+        string host,
+        SkillScopeKind scope)
+    {
+        return SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(
+            SkillFailureCodes.ScopeUnsupported,
+            $"SKILL host '{host}' does not support {scope} scope.");
     }
 
     private static SkillOperationResult<string> GetFullPath (

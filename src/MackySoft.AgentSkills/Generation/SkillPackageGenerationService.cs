@@ -122,8 +122,9 @@ public sealed class SkillPackageGenerationService
         {
             var artifacts = adapter.BuildArtifacts(hostMetadata);
             var frontmatterDigest = digestCalculator.ComputeSingleFileDigest("SKILL.md.frontmatter", artifacts.Frontmatter);
+            var metadataArtifactPath = adapter.Descriptor.MetadataArtifactPath;
 
-            if (adapter.MetadataArtifactPath is null)
+            if (metadataArtifactPath is null)
             {
                 if (artifacts.MetadataContent is not null)
                 {
@@ -138,16 +139,16 @@ public sealed class SkillPackageGenerationService
 
             if (artifacts.MetadataContent is null)
             {
-                throw new InvalidOperationException($"Host adapter '{adapter.Descriptor.HostKey}' must emit metadata artifact '{adapter.MetadataArtifactPath}'.");
+                throw new InvalidOperationException($"Host adapter '{adapter.Descriptor.HostKey}' must emit metadata artifact '{metadataArtifactPath}'.");
             }
 
             yield return new GeneratedHostArtifactOutput(
                 new SkillHostArtifactManifest(
                     adapter.Descriptor.HostKey,
-                    adapter.MetadataArtifactPath,
-                    digestCalculator.ComputeSingleFileDigest(adapter.MetadataArtifactPath, artifacts.MetadataContent),
+                    metadataArtifactPath,
+                    digestCalculator.ComputeSingleFileDigest(metadataArtifactPath, artifacts.MetadataContent),
                     frontmatterDigest),
-                [SkillPackageFile.Create(adapter.MetadataArtifactPath, artifacts.MetadataContent)]);
+                [SkillPackageFile.Create(metadataArtifactPath, artifacts.MetadataContent)]);
         }
     }
 

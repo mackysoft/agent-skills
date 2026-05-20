@@ -11,14 +11,15 @@ public sealed class OpenAiSkillHostAdapter : ISkillHostAdapter
 
     /// <inheritdoc />
     public SkillHostDescriptor Descriptor { get; } = new(
-        HostKey,
-        ".agents/skills",
-        "${CODEX_HOME}/skills or ~/.codex/skills",
-        new SkillUserTargetRootPolicy("CODEX_HOME", "skills", ".codex/skills"),
-        "Restart the Codex session or app to reload installed or updated skills.");
-
-    /// <inheritdoc />
-    public string MetadataArtifactPath => "agents/openai.yaml";
+        HostKey: HostKey,
+        SupportsProjectScope: true,
+        SupportsUserScope: true,
+        ProjectDefaultTargetPath: ".agents/skills",
+        UserDefaultTargetPath: "${CODEX_HOME}/skills or ~/.codex/skills",
+        UserTargetRootPolicy: new SkillUserTargetRootPolicy("CODEX_HOME", "skills", ".codex/skills"),
+        RequiresMetadataArtifact: true,
+        MetadataArtifactPath: "agents/openai.yaml",
+        ReloadGuidance: "Restart the Codex session or app to reload installed or updated skills.");
 
     /// <inheritdoc />
     public SkillHostArtifactSet BuildArtifacts (SkillHostMetadata metadata)

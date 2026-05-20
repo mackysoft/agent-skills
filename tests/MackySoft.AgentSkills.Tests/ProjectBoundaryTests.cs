@@ -375,30 +375,31 @@ public sealed class ProjectBoundaryTests
             .Adapters
             .SelectMany(static adapter =>
             {
+                var userTargetRootPolicy = adapter.Descriptor.UserTargetRootPolicy!;
                 var references = new List<string>
                 {
                     $"{adapter.GetType().Name}.HostKey",
                     adapter.Descriptor.HostKey,
-                    adapter.Descriptor.ProjectTargetDirectory,
-                    adapter.Descriptor.UserTargetDirectory,
-                    adapter.Descriptor.UserTargetRootPolicy.HomeRelativeDirectory,
+                    adapter.Descriptor.ProjectDefaultTargetPath!,
+                    adapter.Descriptor.UserDefaultTargetPath!,
+                    userTargetRootPolicy.HomeRelativeDirectory,
                     adapter.Descriptor.ReloadGuidance,
                 };
 
-                if (adapter.MetadataArtifactPath is not null)
+                if (adapter.Descriptor.MetadataArtifactPath is not null)
                 {
-                    references.Add(adapter.MetadataArtifactPath);
+                    references.Add(adapter.Descriptor.MetadataArtifactPath);
                 }
 
-                if (!string.IsNullOrWhiteSpace(adapter.Descriptor.UserTargetRootPolicy.EnvironmentVariableName))
+                if (!string.IsNullOrWhiteSpace(userTargetRootPolicy.EnvironmentVariableName))
                 {
-                    references.Add(adapter.Descriptor.UserTargetRootPolicy.EnvironmentVariableName);
+                    references.Add(userTargetRootPolicy.EnvironmentVariableName);
                 }
 
-                if (!string.IsNullOrWhiteSpace(adapter.Descriptor.UserTargetRootPolicy.EnvironmentVariableChildDirectory)
-                    && !string.Equals(adapter.Descriptor.UserTargetRootPolicy.EnvironmentVariableChildDirectory, "skills", StringComparison.Ordinal))
+                if (!string.IsNullOrWhiteSpace(userTargetRootPolicy.EnvironmentVariableChildDirectory)
+                    && !string.Equals(userTargetRootPolicy.EnvironmentVariableChildDirectory, "skills", StringComparison.Ordinal))
                 {
-                    references.Add(adapter.Descriptor.UserTargetRootPolicy.EnvironmentVariableChildDirectory);
+                    references.Add(userTargetRootPolicy.EnvironmentVariableChildDirectory);
                 }
 
                 return references;
