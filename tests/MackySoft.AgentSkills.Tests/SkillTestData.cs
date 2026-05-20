@@ -3,8 +3,9 @@ using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Doctor;
 using MackySoft.AgentSkills.Doctor.Diagnostics;
 using MackySoft.AgentSkills.Generation;
+using MackySoft.AgentSkills.Hosts.Claude;
 using MackySoft.AgentSkills.Hosts.Contracts;
-using MackySoft.AgentSkills.Hosts.Defaults;
+using MackySoft.AgentSkills.Hosts.Copilot;
 using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Contracts;
@@ -72,7 +73,12 @@ internal static class SkillTestData
 
     internal static SkillHostAdapterSet CreateDefaultHostAdapterSet ()
     {
-        return DefaultSkillHostAdapters.CreateSet();
+        return new SkillHostAdapterSet(
+        [
+            new ClaudeSkillHostAdapter(),
+            new CopilotSkillHostAdapter(),
+            new OpenAiSkillHostAdapter(),
+        ]);
     }
 
     internal static SkillPackageGenerationService CreatePackageGenerationService ()
