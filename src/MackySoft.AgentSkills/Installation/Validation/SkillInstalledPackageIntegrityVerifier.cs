@@ -12,7 +12,6 @@ public sealed class SkillInstalledPackageIntegrityVerifier
 {
     private const string SkillBodyPath = "SKILL.md";
     private const string ManifestPath = "agent-skill.json";
-    private const string ReferencesDirectory = "references";
     private const string ReferencesPrefix = "references/";
 
     private readonly SkillInstalledManifestReader installedManifestReader;
@@ -108,7 +107,14 @@ public sealed class SkillInstalledPackageIntegrityVerifier
                 $"Installed skill directory does not match requested host materialization: {skillDirectory}");
         }
 
-        var digestResult = await VerifyInstalledContentDigestAsync(skillDirectory, manifest, cancellationToken).ConfigureAwait(false);
+        var entriesResult = SkillInstalledFileSetVerifier.ReadInstalledEntries(skillDirectory, cancellationToken);
+        if (!entriesResult.IsSuccess)
+        {
+            return SkillOperationResult<SkillManifest>.FailureResult(entriesResult.Failure!.Code, entriesResult.Failure.Message);
+        }
+
+        var installedEntries = entriesResult.Value!;
+        var digestResult = await VerifyInstalledContentDigestAsync(skillDirectory, manifest, installedEntries, cancellationToken).ConfigureAwait(false);
         if (!digestResult.IsSuccess)
         {
             return SkillOperationResult<SkillManifest>.FailureResult(digestResult.Failure!.Code, digestResult.Failure.Message);
@@ -121,17 +127,17 @@ public sealed class SkillInstalledPackageIntegrityVerifier
                 $"Installed SKILL files do not match installed contentDigest: {manifest.SkillName}");
         }
 
-        var fileSetResult = VerifyInstalledFileSet(skillDirectory, manifest, host);
+        var fileSetResult = VerifyInstalledFileSet(skillDirectory, manifest, host, installedEntries, cancellationToken);
         if (!fileSetResult.IsSuccess)
         {
             return SkillOperationResult<SkillManifest>.FailureResult(fileSetResult.Failure!.Code, fileSetResult.Failure.Message);
         }
 
-        return fileSetResult.Value
-            ? SkillOperationResult<SkillManifest>.Success(manifest)
-            : SkillOperationResult<SkillManifest>.FailureResult(
+        return fileSetResult.Value!.HasFileSetDrift
+            ? SkillOperationResult<SkillManifest>.FailureResult(
                 SkillFailureCodes.InstallTargetDigestMismatch,
-                $"Installed SKILL file set contains unmanaged files: {manifest.SkillName}");
+                $"Installed SKILL file set contains unmanaged files: {manifest.SkillName}")
+            : SkillOperationResult<SkillManifest>.Success(manifest);
     }
 
     private SkillOperationResult<bool> VerifyInstalledManifestIntegrity (SkillInstalledManifest installedManifest)
@@ -199,9 +205,10 @@ public sealed class SkillInstalledPackageIntegrityVerifier
     private async ValueTask<SkillOperationResult<bool>> VerifyInstalledContentDigestAsync (
         string skillDirectory,
         SkillManifest manifest,
+        SkillInstalledFileSetVerifier.SkillInstalledFileSetEntries installedEntries,
         CancellationToken cancellationToken)
     {
-        var digestInputResult = await ReadInstalledDigestInputsAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
+        var digestInputResult = await ReadInstalledDigestInputsAsync(skillDirectory, installedEntries, cancellationToken).ConfigureAwait(false);
         if (!digestInputResult.IsSuccess)
         {
             return SkillOperationResult<bool>.FailureResult(digestInputResult.Failure!.Code, digestInputResult.Failure.Message);
@@ -213,6 +220,7 @@ public sealed class SkillInstalledPackageIntegrityVerifier
 
     private static async ValueTask<SkillOperationResult<IReadOnlyList<SkillDigestInputFile>>> ReadInstalledDigestInputsAsync (
         string skillDirectory,
+        SkillInstalledFileSetVerifier.SkillInstalledFileSetEntries installedEntries,
         CancellationToken cancellationToken)
     {
         var skillBodyResult = await ReadInstalledSkillBodyAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
@@ -233,46 +241,18 @@ public sealed class SkillInstalledPackageIntegrityVerifier
             new(SkillBodyPath, skillBodyResult.Value.Body),
         };
 
-        var referencesPathResult = SkillPackagePathBoundary.ResolvePackageFilePath(skillDirectory, ReferencesDirectory);
-        if (!referencesPathResult.IsSuccess)
-        {
-            return SkillOperationResult<IReadOnlyList<SkillDigestInputFile>>.FailureResult(
-                referencesPathResult.Failure!.Code,
-                referencesPathResult.Failure.Message);
-        }
-
-        var referencesPath = referencesPathResult.Value!;
-        if (!Directory.Exists(referencesPath))
-        {
-            return SkillOperationResult<IReadOnlyList<SkillDigestInputFile>>.Success(digestInputs);
-        }
-
-        foreach (var referencePath in Directory.EnumerateFiles(referencesPath, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
+        foreach (var relativePath in installedEntries.Files
+            .Where(static path => path.StartsWith(ReferencesPrefix, StringComparison.Ordinal))
+            .Order(StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var relativePath = Path.GetRelativePath(skillDirectory, referencePath).Replace(Path.DirectorySeparatorChar, '/');
-            var regularFileResult = SkillPackageRegularFileResolver.VerifyRegularFile(referencePath, relativePath);
-            if (!regularFileResult.IsSuccess)
-            {
-                return SkillOperationResult<IReadOnlyList<SkillDigestInputFile>>.FailureResult(
-                    regularFileResult.Failure!.Code,
-                    regularFileResult.Failure.Message);
-            }
-
-            var resolvedPathResult = SkillPackagePathBoundary.ResolveUnderRoot(skillDirectory, referencePath);
+            var resolvedPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, relativePath);
             if (!resolvedPathResult.IsSuccess)
             {
                 return SkillOperationResult<IReadOnlyList<SkillDigestInputFile>>.FailureResult(
                     resolvedPathResult.Failure!.Code,
                     resolvedPathResult.Failure.Message);
-            }
-
-            if (!relativePath.StartsWith(ReferencesPrefix, StringComparison.Ordinal))
-            {
-                return SkillOperationResult<IReadOnlyList<SkillDigestInputFile>>.FailureResult(
-                    SkillFailureCodes.PathUnsafe,
-                    $"Reference file path escaped references directory: {relativePath}");
             }
 
             var content = SkillTextNormalizer.NormalizeToLf(await File.ReadAllTextAsync(resolvedPathResult.Value!, cancellationToken).ConfigureAwait(false));
@@ -312,12 +292,14 @@ public sealed class SkillInstalledPackageIntegrityVerifier
         return SkillOperationResult<InstalledSkillBody>.Success(new InstalledSkillBody(true, body));
     }
 
-    private static SkillOperationResult<bool> VerifyInstalledFileSet (
+    private static SkillOperationResult<SkillInstalledFileSetVerificationResult> VerifyInstalledFileSet (
         string skillDirectory,
         SkillManifest manifest,
-        string host)
+        string host,
+        SkillInstalledFileSetVerifier.SkillInstalledFileSetEntries installedEntries,
+        CancellationToken cancellationToken)
     {
-        var allowedPaths = new HashSet<string>(StringComparer.Ordinal)
+        var requiredPaths = new HashSet<string>(StringComparer.Ordinal)
         {
             SkillBodyPath,
             ManifestPath,
@@ -326,46 +308,22 @@ public sealed class SkillInstalledPackageIntegrityVerifier
         var hostArtifact = manifest.HostArtifacts.SingleOrDefault(artifact => string.Equals(artifact.Host, host, StringComparison.Ordinal));
         if (hostArtifact is null)
         {
-            return SkillOperationResult<bool>.FailureResult(SkillFailureCodes.ManifestInvalid, $"Manifest does not contain host artifact '{host}'.");
+            return SkillOperationResult<SkillInstalledFileSetVerificationResult>.FailureResult(
+                SkillFailureCodes.ManifestInvalid,
+                $"Manifest does not contain host artifact '{host}'.");
         }
 
         if (!string.IsNullOrWhiteSpace(hostArtifact.Path))
         {
-            allowedPaths.Add(hostArtifact.Path);
+            requiredPaths.Add(hostArtifact.Path);
         }
 
-        var allowedDirectoryPaths = SkillInstalledDirectorySet.BuildParentDirectories(allowedPaths);
-        foreach (var filePath in Directory.EnumerateFiles(skillDirectory, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
-        {
-            var relativePath = Path.GetRelativePath(skillDirectory, filePath).Replace(Path.DirectorySeparatorChar, '/');
-            var regularFileResult = SkillPackageRegularFileResolver.VerifyRegularFile(filePath, relativePath);
-            if (!regularFileResult.IsSuccess)
-            {
-                return SkillOperationResult<bool>.FailureResult(regularFileResult.Failure!.Code, regularFileResult.Failure.Message);
-            }
-
-            var resolvedPathResult = SkillPackagePathBoundary.ResolveUnderRoot(skillDirectory, filePath);
-            if (!resolvedPathResult.IsSuccess)
-            {
-                return SkillOperationResult<bool>.FailureResult(resolvedPathResult.Failure!.Code, resolvedPathResult.Failure.Message);
-            }
-
-            if (allowedPaths.Contains(relativePath) || relativePath.StartsWith(ReferencesPrefix, StringComparison.Ordinal))
-            {
-                SkillInstalledDirectorySet.AddParentDirectories(allowedDirectoryPaths, relativePath);
-                continue;
-            }
-
-            return SkillOperationResult<bool>.Success(false);
-        }
-
-        var directorySetResult = SkillInstalledDirectorySet.ContainsOnlyAllowedDirectories(skillDirectory, allowedDirectoryPaths);
-        if (!directorySetResult.IsSuccess)
-        {
-            return SkillOperationResult<bool>.FailureResult(directorySetResult.Failure!.Code, directorySetResult.Failure.Message);
-        }
-
-        return directorySetResult;
+        return SkillInstalledFileSetVerifier.VerifyInstalledEntries(
+            skillDirectory,
+            requiredPaths,
+            [ReferencesPrefix],
+            installedEntries,
+            cancellationToken);
     }
 
     private readonly record struct InstalledSkillBody (
