@@ -299,38 +299,39 @@ public sealed class CanonicalSkillPackageReader
         {
             var artifact = artifactByHost[adapter.Descriptor.HostKey];
             var hostArtifacts = adapter.BuildArtifacts(metadata);
+            var metadataArtifactPath = adapter.Descriptor.MetadataArtifactPath;
             var frontmatterDigest = digestCalculator.ComputeSingleFileDigest("SKILL.md.frontmatter", hostArtifacts.Frontmatter);
             if (!string.Equals(frontmatterDigest, artifact.MaterializedFrontmatterDigest, StringComparison.Ordinal))
             {
                 return BoolFailure($"Generated SKILL host frontmatter digest does not match adapter output: {manifest.SkillName}/{artifact.Host}");
             }
 
-            if (adapter.MetadataArtifactPath is null)
+            if (metadataArtifactPath is null)
             {
                 continue;
             }
 
-            var artifactFile = files.SingleOrDefault(file => string.Equals(file.RelativePath, adapter.MetadataArtifactPath, StringComparison.Ordinal));
+            var artifactFile = files.SingleOrDefault(file => string.Equals(file.RelativePath, metadataArtifactPath, StringComparison.Ordinal));
             if (artifactFile is null)
             {
-                return BoolFailure($"Generated SKILL package is missing host artifact: {manifest.SkillName}/{adapter.MetadataArtifactPath}");
+                return BoolFailure($"Generated SKILL package is missing host artifact: {manifest.SkillName}/{metadataArtifactPath}");
             }
 
             if (hostArtifacts.MetadataContent is null)
             {
-                return BoolFailure($"Generated SKILL host artifact adapter output is missing: {manifest.SkillName}/{adapter.MetadataArtifactPath}");
+                return BoolFailure($"Generated SKILL host artifact adapter output is missing: {manifest.SkillName}/{metadataArtifactPath}");
             }
 
-            var expectedArtifactDigest = digestCalculator.ComputeSingleFileDigest(adapter.MetadataArtifactPath, hostArtifacts.MetadataContent);
+            var expectedArtifactDigest = digestCalculator.ComputeSingleFileDigest(metadataArtifactPath, hostArtifacts.MetadataContent);
             if (!string.Equals(expectedArtifactDigest, artifact.Digest, StringComparison.Ordinal))
             {
-                return BoolFailure($"Generated SKILL host artifact digest does not match adapter output: {manifest.SkillName}/{adapter.MetadataArtifactPath}");
+                return BoolFailure($"Generated SKILL host artifact digest does not match adapter output: {manifest.SkillName}/{metadataArtifactPath}");
             }
 
-            var artifactDigest = digestCalculator.ComputeSingleFileDigest(adapter.MetadataArtifactPath, artifactFile.Content);
+            var artifactDigest = digestCalculator.ComputeSingleFileDigest(metadataArtifactPath, artifactFile.Content);
             if (!string.Equals(artifactDigest, artifact.Digest, StringComparison.Ordinal))
             {
-                return BoolFailure($"Generated SKILL host artifact digest does not match files: {manifest.SkillName}/{adapter.MetadataArtifactPath}");
+                return BoolFailure($"Generated SKILL host artifact digest does not match files: {manifest.SkillName}/{metadataArtifactPath}");
             }
         }
 

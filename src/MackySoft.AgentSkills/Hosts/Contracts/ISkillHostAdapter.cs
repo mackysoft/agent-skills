@@ -7,7 +7,7 @@ public interface ISkillHostAdapter
     SkillHostDescriptor Descriptor { get; }
 
     /// <summary> Gets the host-specific metadata artifact path, or <see langword="null" /> when the host uses frontmatter only. </summary>
-    string? MetadataArtifactPath { get; }
+    string? MetadataArtifactPath => Descriptor.MetadataArtifactPath;
 
     /// <summary> Builds host-specific artifacts for one skill. </summary>
     /// <param name="metadata"> The host-independent metadata. </param>

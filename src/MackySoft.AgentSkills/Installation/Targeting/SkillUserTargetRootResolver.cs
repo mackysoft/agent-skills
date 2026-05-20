@@ -35,6 +35,13 @@ public sealed class SkillUserTargetRootResolver
         ArgumentNullException.ThrowIfNull(descriptor);
 
         var policy = descriptor.UserTargetRootPolicy;
+        if (!descriptor.SupportsUserScope || policy is null)
+        {
+            return SkillOperationResult<string>.FailureResult(
+                SkillFailureCodes.UserTargetUnavailable,
+                $"SKILL host '{descriptor.HostKey}' does not define a user-scope target root.");
+        }
+
         if (!SkillRelativePath.IsSafeFilePath(policy.HomeRelativeDirectory))
         {
             return SkillOperationResult<string>.FailureResult(

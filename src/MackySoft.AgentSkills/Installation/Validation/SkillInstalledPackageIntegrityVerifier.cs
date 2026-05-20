@@ -166,13 +166,14 @@ public sealed class SkillInstalledPackageIntegrityVerifier
             }
 
             var artifacts = adapter.BuildArtifacts(metadata);
+            var metadataArtifactPath = adapter.Descriptor.MetadataArtifactPath;
             var frontmatterDigest = digestCalculator.ComputeSingleFileDigest("SKILL.md.frontmatter", artifacts.Frontmatter);
             if (!string.Equals(artifact.MaterializedFrontmatterDigest, frontmatterDigest, StringComparison.Ordinal))
             {
                 return SkillOperationResult<bool>.Success(false);
             }
 
-            if (adapter.MetadataArtifactPath is null)
+            if (metadataArtifactPath is null)
             {
                 if (artifact.Path is not null || artifact.Digest is not null)
                 {
@@ -191,8 +192,8 @@ public sealed class SkillInstalledPackageIntegrityVerifier
                     $"Host adapter '{adapter.Descriptor.HostKey}' did not generate metadata content.");
             }
 
-            var metadataDigest = digestCalculator.ComputeSingleFileDigest(adapter.MetadataArtifactPath, artifacts.MetadataContent);
-            if (!string.Equals(artifact.Path, adapter.MetadataArtifactPath, StringComparison.Ordinal)
+            var metadataDigest = digestCalculator.ComputeSingleFileDigest(metadataArtifactPath, artifacts.MetadataContent);
+            if (!string.Equals(artifact.Path, metadataArtifactPath, StringComparison.Ordinal)
                 || !string.Equals(artifact.Digest, metadataDigest, StringComparison.Ordinal))
             {
                 return SkillOperationResult<bool>.Success(false);

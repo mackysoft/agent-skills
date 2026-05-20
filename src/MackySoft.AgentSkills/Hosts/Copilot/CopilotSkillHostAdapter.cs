@@ -11,14 +11,15 @@ public sealed class CopilotSkillHostAdapter : ISkillHostAdapter
 
     /// <inheritdoc />
     public SkillHostDescriptor Descriptor { get; } = new(
-        HostKey,
-        ".github/skills",
-        "~/.copilot/skills",
-        new SkillUserTargetRootPolicy(null, null, ".copilot/skills"),
-        "Run /skills reload in GitHub Copilot CLI to load newly installed or updated skills.");
-
-    /// <inheritdoc />
-    public string? MetadataArtifactPath => null;
+        HostKey: HostKey,
+        SupportsProjectScope: true,
+        SupportsUserScope: true,
+        ProjectDefaultTargetPath: ".github/skills",
+        UserDefaultTargetPath: "~/.copilot/skills",
+        UserTargetRootPolicy: new SkillUserTargetRootPolicy(null, null, ".copilot/skills"),
+        RequiresMetadataArtifact: false,
+        MetadataArtifactPath: null,
+        ReloadGuidance: "Run /skills reload in GitHub Copilot CLI to load newly installed or updated skills.");
 
     /// <inheritdoc />
     public SkillHostArtifactSet BuildArtifacts (SkillHostMetadata metadata)

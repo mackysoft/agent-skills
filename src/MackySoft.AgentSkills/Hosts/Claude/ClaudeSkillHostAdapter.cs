@@ -11,14 +11,15 @@ public sealed class ClaudeSkillHostAdapter : ISkillHostAdapter
 
     /// <inheritdoc />
     public SkillHostDescriptor Descriptor { get; } = new(
-        HostKey,
-        ".claude/skills",
-        "~/.claude/skills",
-        new SkillUserTargetRootPolicy(null, null, ".claude/skills"),
-        "Claude Code watches existing skill directories. Restart Claude Code if the top-level skills directory was created after the session started.");
-
-    /// <inheritdoc />
-    public string? MetadataArtifactPath => null;
+        HostKey: HostKey,
+        SupportsProjectScope: true,
+        SupportsUserScope: true,
+        ProjectDefaultTargetPath: ".claude/skills",
+        UserDefaultTargetPath: "~/.claude/skills",
+        UserTargetRootPolicy: new SkillUserTargetRootPolicy(null, null, ".claude/skills"),
+        RequiresMetadataArtifact: false,
+        MetadataArtifactPath: null,
+        ReloadGuidance: "Claude Code watches existing skill directories. Restart Claude Code if the top-level skills directory was created after the session started.");
 
     /// <inheritdoc />
     public SkillHostArtifactSet BuildArtifacts (SkillHostMetadata metadata)

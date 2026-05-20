@@ -85,12 +85,13 @@ public sealed class SkillManifestValidator
         foreach (var adapter in hostAdapters.Adapters)
         {
             var artifact = artifactByHost[adapter.Descriptor.HostKey];
+            var metadataArtifactPath = adapter.Descriptor.MetadataArtifactPath;
             if (!IsSha256Digest(artifact.MaterializedFrontmatterDigest))
             {
                 return Failure($"Host artifact '{artifact.Host}' frontmatter digest must be a sha256 digest.");
             }
 
-            if (adapter.MetadataArtifactPath is null)
+            if (metadataArtifactPath is null)
             {
                 if (artifact.Path is not null || artifact.Digest is not null)
                 {
@@ -100,7 +101,7 @@ public sealed class SkillManifestValidator
                 continue;
             }
 
-            if (!string.Equals(artifact.Path, adapter.MetadataArtifactPath, StringComparison.Ordinal) || !IsSha256Digest(artifact.Digest))
+            if (!string.Equals(artifact.Path, metadataArtifactPath, StringComparison.Ordinal) || !IsSha256Digest(artifact.Digest))
             {
                 return Failure($"Host artifact '{artifact.Host}' must contain metadata artifact digest.");
             }
