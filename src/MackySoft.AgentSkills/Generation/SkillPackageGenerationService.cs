@@ -15,22 +15,26 @@ public sealed class SkillPackageGenerationService
     private readonly SkillHostAdapterSet hostAdapters;
     private readonly SkillDigestCalculator digestCalculator;
     private readonly SkillManifestJsonSerializer manifestSerializer;
+    private readonly SkillManifestDigestCalculator manifestDigestCalculator;
 
     /// <summary> Initializes a new instance of the <see cref="SkillPackageGenerationService" /> class. </summary>
     /// <param name="sourceReader"> The source definition reader. </param>
     /// <param name="hostAdapters"> The supported host adapter set. </param>
     /// <param name="digestCalculator"> The digest calculator. </param>
     /// <param name="manifestSerializer"> The manifest serializer. </param>
+    /// <param name="manifestDigestCalculator"> The manifest digest calculator. </param>
     public SkillPackageGenerationService (
         SkillSourceDefinitionReader sourceReader,
         SkillHostAdapterSet hostAdapters,
         SkillDigestCalculator digestCalculator,
-        SkillManifestJsonSerializer manifestSerializer)
+        SkillManifestJsonSerializer manifestSerializer,
+        SkillManifestDigestCalculator manifestDigestCalculator)
     {
         this.sourceReader = sourceReader ?? throw new ArgumentNullException(nameof(sourceReader));
         this.hostAdapters = hostAdapters ?? throw new ArgumentNullException(nameof(hostAdapters));
         this.digestCalculator = digestCalculator ?? throw new ArgumentNullException(nameof(digestCalculator));
         this.manifestSerializer = manifestSerializer ?? throw new ArgumentNullException(nameof(manifestSerializer));
+        this.manifestDigestCalculator = manifestDigestCalculator ?? throw new ArgumentNullException(nameof(manifestDigestCalculator));
     }
 
     /// <summary> Generates all SKILL packages under one source definitions root. </summary>
@@ -97,7 +101,9 @@ public sealed class SkillPackageGenerationService
             definition.Metadata.DisplayName,
             definition.Metadata.Description,
             contentDigest,
+            string.Empty,
             hostArtifacts);
+        manifest = manifestDigestCalculator.WithComputedManifestDigest(manifest);
 
         var manifestFile = SkillPackageFile.Create("agent-skill.json", manifestSerializer.Serialize(manifest));
         var hostArtifactFiles = hostArtifactOutputs

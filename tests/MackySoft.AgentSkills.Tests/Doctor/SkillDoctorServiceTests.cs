@@ -133,6 +133,28 @@ public sealed class SkillDoctorServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task DiagnoseAsync_ReportsDigestMismatch_WhenInstalledManifestDigestChanged ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "doctor-manifest-digest-drift");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var installService = SkillTestData.CreateInstallService();
+        var installResult = await installService.InstallAsync(
+            packages,
+            new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+            CancellationToken.None);
+        Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
+        var manifestPath = Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName, "agent-skill.json");
+        SkillTestData.TamperManifestDigest(manifestPath);
+        var doctor = SkillTestData.CreateDoctorService();
+
+        var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, installResult.Value.TargetRoot, CancellationToken.None);
+
+        Assert.False(result.IsHealthy);
+        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetDigestMismatch);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task DiagnoseAsync_ReportsDigestMismatch_WhenInstalledReferenceIsMissing ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "doctor-reference-missing");

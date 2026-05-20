@@ -3,6 +3,7 @@ using MackySoft.AgentSkills.Hosts.Claude;
 using MackySoft.AgentSkills.Hosts.Copilot;
 using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Manifests;
+using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
 
@@ -52,6 +53,39 @@ public sealed class SkillPackageGenerationServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task GenerateAllAsync_ComputesManifestDigestFromCanonicalManifestJsonExcludingManifestDigest ()
+    {
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var serializer = new SkillManifestJsonSerializer();
+        var calculator = new SkillManifestDigestCalculator(serializer);
+
+        foreach (var package in packages)
+        {
+            var expectedDigest = calculator.ComputeManifestDigest(package.Manifest);
+            var selfDriftedManifest = package.Manifest with
+            {
+                ManifestDigest = "sha256:" + new string('f', 64),
+            };
+
+            Assert.Equal(expectedDigest, package.Manifest.ManifestDigest);
+            Assert.Equal(expectedDigest, calculator.ComputeManifestDigest(selfDriftedManifest));
+        }
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task GenerateAllAsync_GeneratesByteIdenticalManifestJsonFromIdenticalInputs ()
+    {
+        var first = await SkillTestData.GenerateFixturePackagesAsync();
+        var second = await SkillTestData.GenerateFixturePackagesAsync();
+
+        Assert.Equal(
+            first.Select(static package => GetManifestContent(package)).ToArray(),
+            second.Select(static package => GetManifestContent(package)).ToArray());
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task GeneratedManifestJson_RoundTrips ()
     {
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
@@ -68,6 +102,7 @@ public sealed class SkillPackageGenerationServiceTests
             Assert.Equal(package.Manifest.DisplayName, manifest.DisplayName);
             Assert.Equal(package.Manifest.Description, manifest.Description);
             Assert.Equal(package.Manifest.ContentDigest, manifest.ContentDigest);
+            Assert.Equal(package.Manifest.ManifestDigest, manifest.ManifestDigest);
             Assert.Equal(package.Manifest.HostArtifacts, manifest.HostArtifacts);
             Assert.Equal(manifestFile.Content, serializer.Serialize(manifest));
         }
@@ -84,5 +119,10 @@ public sealed class SkillPackageGenerationServiceTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+    }
+
+    private static string GetManifestContent (CanonicalSkillPackage package)
+    {
+        return package.Files.Single(static file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal)).Content;
     }
 }
