@@ -11,7 +11,7 @@ public sealed class SkillInstalledFileSetVerifier
     /// <param name="expectedFiles"> The host-materialized file set expected for this directory. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The structured file-set verification result, or a hard path-safety failure. </returns>
-    public async ValueTask<SkillOperationResult<SkillInstalledFileSetVerificationResult>> VerifyAsync (
+    public ValueTask<SkillOperationResult<SkillInstalledFileSetVerificationResult>> VerifyAsync (
         string skillDirectory,
         IReadOnlyCollection<SkillPackageFile> expectedFiles,
         CancellationToken cancellationToken = default)
@@ -20,119 +20,202 @@ public sealed class SkillInstalledFileSetVerifier
         ArgumentNullException.ThrowIfNull(expectedFiles);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var expectedFileByPath = expectedFiles.ToDictionary(
-            static file => file.RelativePath,
-            static file => SkillTextNormalizer.NormalizeToLf(file.Content),
-            StringComparer.Ordinal);
-        var expectedRelativePaths = expectedFileByPath.Keys.ToHashSet(StringComparer.Ordinal);
-        var expectedDirectoryPaths = SkillInstalledDirectorySet.BuildParentDirectories(expectedRelativePaths);
+        var expectedRelativePaths = expectedFiles
+            .Select(static file => file.RelativePath)
+            .ToHashSet(StringComparer.Ordinal);
+        var entriesResult = ReadInstalledEntries(skillDirectory, cancellationToken);
+        if (!entriesResult.IsSuccess)
+        {
+            return FailureValueTask(entriesResult.Failure!.Code, entriesResult.Failure.Message);
+        }
+
+        var result = VerifyInstalledEntries(
+            skillDirectory,
+            expectedRelativePaths,
+            Array.Empty<string>(),
+            entriesResult.Value!,
+            cancellationToken);
+
+        return ValueTask.FromResult(result);
+    }
+
+    internal static SkillOperationResult<SkillInstalledFileSetVerificationResult> VerifyInstalledEntries (
+        string skillDirectory,
+        IReadOnlyCollection<string> requiredRelativePaths,
+        IReadOnlyCollection<string> managedFilePrefixes,
+        SkillInstalledFileSetEntries installedEntries,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+        ArgumentNullException.ThrowIfNull(requiredRelativePaths);
+        ArgumentNullException.ThrowIfNull(managedFilePrefixes);
+        ArgumentNullException.ThrowIfNull(installedEntries);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var requiredPathSet = requiredRelativePaths.ToHashSet(StringComparer.Ordinal);
+        var managedPrefixes = managedFilePrefixes.ToArray();
+        var explainedDirectoryPaths = SkillInstalledDirectorySet.BuildParentDirectories(requiredPathSet);
         var missingFiles = new List<string>();
         var extraFiles = new List<string>();
-        var mismatchedFiles = new List<string>();
 
-        foreach (var expectedRelativePath in expectedRelativePaths.Order(StringComparer.Ordinal))
+        foreach (var requiredPath in requiredPathSet.Order(StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var expectedPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, expectedRelativePath);
-            if (!expectedPathResult.IsSuccess)
+            var requiredPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, requiredPath);
+            if (!requiredPathResult.IsSuccess)
             {
-                return Failure(expectedPathResult.Failure!.Code, expectedPathResult.Failure.Message);
+                return SkillOperationResult<SkillInstalledFileSetVerificationResult>.FailureResult(
+                    requiredPathResult.Failure!.Code,
+                    requiredPathResult.Failure.Message);
             }
 
-            if (!File.Exists(expectedPathResult.Value!))
+            if (!File.Exists(requiredPathResult.Value!))
             {
-                missingFiles.Add(expectedRelativePath);
-                continue;
-            }
-
-            var installedContent = SkillTextNormalizer.NormalizeToLf(await File.ReadAllTextAsync(expectedPathResult.Value!, cancellationToken).ConfigureAwait(false));
-            if (!string.Equals(installedContent, expectedFileByPath[expectedRelativePath], StringComparison.Ordinal))
-            {
-                mismatchedFiles.Add(expectedRelativePath);
+                missingFiles.Add(requiredPath);
             }
         }
 
-        foreach (var filePath in Directory.EnumerateFiles(skillDirectory, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
+        foreach (var relativePath in installedEntries.Files)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            SkillInstalledDirectorySet.AddParentDirectories(explainedDirectoryPaths, relativePath);
 
-            var relativePath = Path.GetRelativePath(skillDirectory, filePath).Replace(Path.DirectorySeparatorChar, '/');
-            var regularFileResult = SkillPackageRegularFileResolver.VerifyRegularFile(filePath, relativePath);
-            if (!regularFileResult.IsSuccess)
-            {
-                return Failure(regularFileResult.Failure!.Code, regularFileResult.Failure.Message);
-            }
-
-            var filePathResult = SkillPackagePathBoundary.ResolveUnderRoot(skillDirectory, filePath);
-            if (!filePathResult.IsSuccess)
-            {
-                return Failure(filePathResult.Failure!.Code, filePathResult.Failure.Message);
-            }
-
-            SkillInstalledDirectorySet.AddParentDirectories(expectedDirectoryPaths, relativePath);
-
-            if (!expectedRelativePaths.Contains(relativePath))
+            if (!requiredPathSet.Contains(relativePath) && !StartsWithAny(relativePath, managedPrefixes))
             {
                 extraFiles.Add(relativePath);
             }
         }
 
-        var extraDirectoriesResult = GetExtraDirectories(skillDirectory, expectedDirectoryPaths, cancellationToken);
-        if (!extraDirectoriesResult.IsSuccess)
-        {
-            return Failure(extraDirectoriesResult.Failure!.Code, extraDirectoriesResult.Failure.Message);
-        }
+        var extraDirectories = GetExtraDirectories(installedEntries.Directories, explainedDirectoryPaths);
 
         return SkillOperationResult<SkillInstalledFileSetVerificationResult>.Success(new SkillInstalledFileSetVerificationResult(
             missingFiles.Order(StringComparer.Ordinal).ToArray(),
             extraFiles.Order(StringComparer.Ordinal).ToArray(),
-            mismatchedFiles.Order(StringComparer.Ordinal).ToArray(),
-            extraDirectoriesResult.Value!));
+            extraDirectories));
     }
 
-    internal static SkillOperationResult<IReadOnlyList<string>> GetExtraDirectories (
+    internal static SkillOperationResult<SkillInstalledFileSetEntries> ReadInstalledEntries (
         string skillDirectory,
-        IReadOnlySet<string> explainedDirectoryPaths,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var skillDirectoryResult = SkillPackagePathBoundary.ResolveUnderRoot(skillDirectory, skillDirectory);
+        if (!skillDirectoryResult.IsSuccess)
+        {
+            return SkillOperationResult<SkillInstalledFileSetEntries>.FailureResult(
+                skillDirectoryResult.Failure!.Code,
+                skillDirectoryResult.Failure.Message);
+        }
+
+        var resolvedSkillDirectory = skillDirectoryResult.Value!;
+        var files = new List<string>();
+        var directories = new List<string>();
+        var result = ReadInstalledEntriesRecursive(resolvedSkillDirectory, resolvedSkillDirectory, files, directories, cancellationToken);
+        return result.IsSuccess
+            ? SkillOperationResult<SkillInstalledFileSetEntries>.Success(new SkillInstalledFileSetEntries(
+                files.Order(StringComparer.Ordinal).ToArray(),
+                directories.Order(StringComparer.Ordinal).ToArray()))
+            : SkillOperationResult<SkillInstalledFileSetEntries>.FailureResult(result.Failure!.Code, result.Failure.Message);
+    }
+
+    internal static IReadOnlyList<string> GetExtraDirectories (
+        IReadOnlyCollection<string> installedDirectoryPaths,
+        IReadOnlySet<string> explainedDirectoryPaths)
+    {
+        ArgumentNullException.ThrowIfNull(installedDirectoryPaths);
         ArgumentNullException.ThrowIfNull(explainedDirectoryPaths);
 
-        var extraDirectories = new List<string>();
-        foreach (var directoryPath in Directory.EnumerateDirectories(skillDirectory, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
+        return installedDirectoryPaths
+            .Where(directoryPath => !explainedDirectoryPaths.Contains(directoryPath))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static SkillOperationResult<bool> ReadInstalledEntriesRecursive (
+        string skillDirectory,
+        string directoryPath,
+        List<string> files,
+        List<string> directories,
+        CancellationToken cancellationToken)
+    {
+        foreach (var entryPath in Directory.EnumerateFileSystemEntries(directoryPath).Order(StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var directoryPathResult = SkillPackagePathBoundary.ResolveUnderRoot(skillDirectory, directoryPath);
-            if (!directoryPathResult.IsSuccess)
+            var relativePath = Path.GetRelativePath(skillDirectory, entryPath).Replace(Path.DirectorySeparatorChar, '/');
+            if (SkillPackageFileSystemEntryGuard.IsDirectory(entryPath))
             {
-                return SkillOperationResult<IReadOnlyList<string>>.FailureResult(directoryPathResult.Failure!.Code, directoryPathResult.Failure.Message);
+                var resolvedPathResult = SkillPackagePathBoundary.ResolveUnderRoot(skillDirectory, entryPath);
+                if (!resolvedPathResult.IsSuccess)
+                {
+                    return SkillOperationResult<bool>.FailureResult(
+                        resolvedPathResult.Failure!.Code,
+                        $"Package path escaped skill directory: {relativePath}");
+                }
+
+                directories.Add(relativePath);
+                var directoryResult = ReadInstalledEntriesRecursive(
+                    skillDirectory,
+                    resolvedPathResult.Value!,
+                    files,
+                    directories,
+                    cancellationToken);
+                if (!directoryResult.IsSuccess)
+                {
+                    return directoryResult;
+                }
+
+                continue;
             }
 
-            var relativePath = Path.GetRelativePath(skillDirectory, Path.GetFullPath(directoryPath)).Replace(Path.DirectorySeparatorChar, '/');
-            if (!SkillPackageFileSystemEntryGuard.IsDirectory(directoryPath))
+            if (SkillPackageFileSystemEntryGuard.IsRegularFile(entryPath))
             {
-                return SkillOperationResult<IReadOnlyList<string>>.FailureResult(
-                    SkillFailureCodes.PathUnsafe,
-                    $"Package directory must be a regular directory: {relativePath}");
+                var resolvedPathResult = SkillPackagePathBoundary.ResolveUnderRoot(skillDirectory, entryPath);
+                if (!resolvedPathResult.IsSuccess)
+                {
+                    return SkillOperationResult<bool>.FailureResult(
+                        resolvedPathResult.Failure!.Code,
+                        $"Package path escaped skill directory: {relativePath}");
+                }
+
+                files.Add(relativePath);
+                continue;
             }
 
-            if (!explainedDirectoryPaths.Contains(relativePath))
+            return SkillOperationResult<bool>.FailureResult(
+                SkillFailureCodes.PathUnsafe,
+                $"Package path must be a regular file or directory: {relativePath}");
+        }
+
+        return SkillOperationResult<bool>.Success(true);
+    }
+
+    private static bool StartsWithAny (
+        string relativePath,
+        IReadOnlyCollection<string> prefixes)
+    {
+        foreach (var prefix in prefixes)
+        {
+            if (relativePath.StartsWith(prefix, StringComparison.Ordinal))
             {
-                extraDirectories.Add(relativePath);
+                return true;
             }
         }
 
-        return SkillOperationResult<IReadOnlyList<string>>.Success(extraDirectories
-            .Order(StringComparer.Ordinal)
-            .ToArray());
+        return false;
     }
 
-    private static SkillOperationResult<SkillInstalledFileSetVerificationResult> Failure (
+    private static ValueTask<SkillOperationResult<SkillInstalledFileSetVerificationResult>> FailureValueTask (
         SkillFailureCode code,
         string message)
     {
-        return SkillOperationResult<SkillInstalledFileSetVerificationResult>.FailureResult(code, message);
+        return ValueTask.FromResult(SkillOperationResult<SkillInstalledFileSetVerificationResult>.FailureResult(code, message));
     }
+
+    internal sealed record SkillInstalledFileSetEntries (
+        IReadOnlyList<string> Files,
+        IReadOnlyList<string> Directories);
 }
