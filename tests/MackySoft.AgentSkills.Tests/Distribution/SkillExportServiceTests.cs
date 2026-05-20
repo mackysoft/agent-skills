@@ -136,7 +136,7 @@ public sealed class SkillExportServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task ExportAsync_DirectoryFormat_WritesSameMaterializedFileSetAsZipFormat ()
+    public async Task ExportAsync_DirectoryFormat_WritesDeterministicFileSetMatchingZipFormat ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "export-directory-zip-equivalence");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
@@ -145,16 +145,22 @@ public sealed class SkillExportServiceTests
         foreach (var adapter in GetSupportedAdapters())
         {
             var host = adapter.Descriptor.HostKey;
-            var directoryRoot = scope.GetPath($"{host}-directory");
+            var firstDirectoryRoot = scope.GetPath($"{host}-directory-a");
+            var secondDirectoryRoot = scope.GetPath($"{host}-directory-b");
             var zipPath = scope.GetPath($"{host}.zip");
             var expectedMap = CreateExpectedExportMap(packages, host);
 
-            var directory = await service.ExportAsync(packages, host, directoryRoot, SkillExportFormat.Directory, CancellationToken.None);
+            var firstDirectory = await service.ExportAsync(packages, host, firstDirectoryRoot, SkillExportFormat.Directory, CancellationToken.None);
+            var secondDirectory = await service.ExportAsync(packages, host, secondDirectoryRoot, SkillExportFormat.Directory, CancellationToken.None);
             var zip = await service.ExportAsync(packages, host, zipPath, SkillExportFormat.Zip, CancellationToken.None);
 
-            Assert.True(directory.IsSuccess, directory.Failure?.Message);
+            Assert.True(firstDirectory.IsSuccess, firstDirectory.Failure?.Message);
+            Assert.True(secondDirectory.IsSuccess, secondDirectory.Failure?.Message);
             Assert.True(zip.IsSuccess, zip.Failure?.Message);
-            AssertFileMapEqual(expectedMap, await ReadDirectoryExportAsync(directoryRoot, CancellationToken.None));
+            AssertFileMapEqual(expectedMap, await ReadDirectoryExportAsync(firstDirectoryRoot, CancellationToken.None));
+            AssertByteMapEqual(
+                await ReadDirectoryExportBytesAsync(firstDirectoryRoot, CancellationToken.None),
+                await ReadDirectoryExportBytesAsync(secondDirectoryRoot, CancellationToken.None));
             AssertFileMapEqual(expectedMap, ReadZipExport(zipPath));
         }
     }
@@ -206,6 +212,29 @@ public sealed class SkillExportServiceTests
         return files;
     }
 
+    private static async ValueTask<IReadOnlyDictionary<string, byte[]>> ReadDirectoryExportBytesAsync (
+        string outputRoot,
+        CancellationToken cancellationToken)
+    {
+        var files = new Dictionary<string, byte[]>(StringComparer.Ordinal);
+
+        foreach (var path in Directory.EnumerateFiles(outputRoot, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var relativePath = Path.GetRelativePath(outputRoot, path)
+                .Replace(Path.DirectorySeparatorChar, '/')
+                .Replace(Path.AltDirectorySeparatorChar, '/');
+            var bytes = await File.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
+            Assert.False(HasUtf8Preamble(bytes));
+            Assert.DoesNotContain((byte)'\r', bytes);
+            _ = StrictUtf8.GetString(bytes);
+            files.Add(relativePath, bytes);
+        }
+
+        return files;
+    }
+
     private static IReadOnlyDictionary<string, string> ReadZipExport (string zipPath)
     {
         var files = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -245,6 +274,20 @@ public sealed class SkillExportServiceTests
     private static void AssertFileMapEqual (
         IReadOnlyDictionary<string, string> expected,
         IReadOnlyDictionary<string, string> actual)
+    {
+        var expectedPaths = expected.Keys.Order(StringComparer.Ordinal).ToArray();
+        var actualPaths = actual.Keys.Order(StringComparer.Ordinal).ToArray();
+        Assert.Equal(expectedPaths, actualPaths);
+
+        foreach (var path in expectedPaths)
+        {
+            Assert.Equal(expected[path], actual[path]);
+        }
+    }
+
+    private static void AssertByteMapEqual (
+        IReadOnlyDictionary<string, byte[]> expected,
+        IReadOnlyDictionary<string, byte[]> actual)
     {
         var expectedPaths = expected.Keys.Order(StringComparer.Ordinal).ToArray();
         var actualPaths = actual.Keys.Order(StringComparer.Ordinal).ToArray();
