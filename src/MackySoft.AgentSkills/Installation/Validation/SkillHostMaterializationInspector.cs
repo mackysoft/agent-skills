@@ -49,6 +49,7 @@ public sealed class SkillHostMaterializationInspector
 
         var adapter = adapterResult.Value!;
         var hostKey = adapter.Descriptor.HostKey;
+        var descriptorMetadataArtifactPath = adapter.Descriptor.MetadataArtifactPath;
         var expectedArtifact = manifest.HostArtifacts.SingleOrDefault(artifact => string.Equals(artifact.Host, hostKey, StringComparison.Ordinal));
         if (expectedArtifact is null)
         {
@@ -79,7 +80,7 @@ public sealed class SkillHostMaterializationInspector
             return SkillOperationResult<bool>.Success(false);
         }
 
-        if (adapter.MetadataArtifactPath is null)
+        if (descriptorMetadataArtifactPath is null)
         {
             return expectedArtifact.Path is null && expectedArtifact.Digest is null
                 ? SkillOperationResult<bool>.Success(true)
@@ -91,7 +92,7 @@ public sealed class SkillHostMaterializationInspector
         var metadataArtifactPath = expectedArtifact.Path;
         var metadataArtifactDigest = expectedArtifact.Digest;
         if (metadataArtifactPath is null
-            || !string.Equals(metadataArtifactPath, adapter.MetadataArtifactPath, StringComparison.Ordinal)
+            || !string.Equals(metadataArtifactPath, descriptorMetadataArtifactPath, StringComparison.Ordinal)
             || string.IsNullOrWhiteSpace(metadataArtifactDigest))
         {
             return SkillOperationResult<bool>.FailureResult(

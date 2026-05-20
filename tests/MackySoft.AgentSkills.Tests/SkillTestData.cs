@@ -301,9 +301,10 @@ internal static class SkillTestData
             var adapter = adapterResult.Value!;
             var artifacts = adapter.BuildArtifacts(metadata);
             var frontmatterDigest = digestCalculator.ComputeSingleFileDigest("SKILL.md.frontmatter", artifacts.Frontmatter);
-            var metadataDigest = artifacts.MetadataContent is null || adapter.MetadataArtifactPath is null
+            var metadataArtifactPath = adapter.Descriptor.MetadataArtifactPath;
+            var metadataDigest = artifacts.MetadataContent is null || metadataArtifactPath is null
                 ? null
-                : digestCalculator.ComputeSingleFileDigest(adapter.MetadataArtifactPath, artifacts.MetadataContent);
+                : digestCalculator.ComputeSingleFileDigest(metadataArtifactPath, artifacts.MetadataContent);
 
             if (string.Equals(adapter.Descriptor.HostKey, OpenAiSkillHostAdapter.HostKey, StringComparison.Ordinal))
             {
@@ -312,7 +313,7 @@ internal static class SkillTestData
 
             hostArtifacts.Add(new SkillHostArtifactManifest(
                 adapter.Descriptor.HostKey,
-                adapter.MetadataArtifactPath,
+                metadataArtifactPath,
                 metadataDigest,
                 frontmatterDigest));
         }

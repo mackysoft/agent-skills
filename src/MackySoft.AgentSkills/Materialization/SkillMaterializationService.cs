@@ -41,6 +41,7 @@ public sealed class SkillMaterializationService
 
         var adapter = adapterResult.Value!;
         var artifacts = adapter.BuildArtifacts(metadata);
+        var metadataArtifactPath = adapter.Descriptor.MetadataArtifactPath;
         var files = new List<SkillPackageFile>();
         var hostArtifactFilePaths = package.Manifest.HostArtifacts
             .Select(static artifact => artifact.Path)
@@ -63,7 +64,7 @@ public sealed class SkillMaterializationService
             files.Add(file);
         }
 
-        if (adapter.MetadataArtifactPath is null)
+        if (metadataArtifactPath is null)
         {
             if (artifacts.MetadataContent is not null)
             {
@@ -74,10 +75,10 @@ public sealed class SkillMaterializationService
         {
             if (artifacts.MetadataContent is null)
             {
-                throw new InvalidOperationException($"Host adapter '{adapter.Descriptor.HostKey}' must emit metadata artifact '{adapter.MetadataArtifactPath}'.");
+                throw new InvalidOperationException($"Host adapter '{adapter.Descriptor.HostKey}' must emit metadata artifact '{metadataArtifactPath}'.");
             }
 
-            files.Add(SkillPackageFile.Create(adapter.MetadataArtifactPath, artifacts.MetadataContent));
+            files.Add(SkillPackageFile.Create(metadataArtifactPath, artifacts.MetadataContent));
         }
 
         return SkillOperationResult<SkillMaterializedPackage>.Success(new SkillMaterializedPackage(

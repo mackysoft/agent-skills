@@ -17,11 +17,15 @@ public sealed class SkillUserTargetRootResolverTests
             () => scope.GetPath("home"),
             name => string.Equals(name, "TEST_SKILLS_HOME", StringComparison.Ordinal) ? environmentRoot : null);
         var descriptor = new SkillHostDescriptor(
-            "test",
-            ".test/project-skills",
-            "${TEST_SKILLS_HOME}",
-            new SkillUserTargetRootPolicy("TEST_SKILLS_HOME", null, ".test/skills"),
-            "Reload test skills.");
+            HostKey: "test",
+            SupportsProjectScope: true,
+            SupportsUserScope: true,
+            ProjectDefaultTargetPath: ".test/project-skills",
+            UserDefaultTargetPath: "${TEST_SKILLS_HOME}",
+            UserTargetRootPolicy: new SkillUserTargetRootPolicy("TEST_SKILLS_HOME", null, ".test/skills"),
+            RequiresMetadataArtifact: false,
+            MetadataArtifactPath: null,
+            ReloadGuidance: "Reload test skills.");
 
         var result = resolver.ResolveDefaultTargetRoot(descriptor);
 
@@ -38,11 +42,15 @@ public sealed class SkillUserTargetRootResolverTests
             () => scope.GetPath("home"),
             static _ => null);
         var descriptor = new SkillHostDescriptor(
-            "test",
-            ".test/project-skills",
-            "~/.test/skills",
-            new SkillUserTargetRootPolicy(null, "skills", ".test/skills"),
-            "Reload test skills.");
+            HostKey: "test",
+            SupportsProjectScope: true,
+            SupportsUserScope: true,
+            ProjectDefaultTargetPath: ".test/project-skills",
+            UserDefaultTargetPath: "~/.test/skills",
+            UserTargetRootPolicy: new SkillUserTargetRootPolicy(null, "skills", ".test/skills"),
+            RequiresMetadataArtifact: false,
+            MetadataArtifactPath: null,
+            ReloadGuidance: "Reload test skills.");
 
         var result = resolver.ResolveDefaultTargetRoot(descriptor);
 

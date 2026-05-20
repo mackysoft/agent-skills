@@ -375,30 +375,40 @@ public sealed class ProjectBoundaryTests
             .Adapters
             .SelectMany(static adapter =>
             {
+                var descriptor = adapter.Descriptor;
                 var references = new List<string>
                 {
                     $"{adapter.GetType().Name}.HostKey",
-                    adapter.Descriptor.HostKey,
-                    adapter.Descriptor.ProjectTargetDirectory,
-                    adapter.Descriptor.UserTargetDirectory,
-                    adapter.Descriptor.UserTargetRootPolicy.HomeRelativeDirectory,
-                    adapter.Descriptor.ReloadGuidance,
+                    descriptor.HostKey,
+                    descriptor.ReloadGuidance,
                 };
 
-                if (adapter.MetadataArtifactPath is not null)
+                if (descriptor.SupportsProjectScope)
                 {
-                    references.Add(adapter.MetadataArtifactPath);
+                    references.Add(descriptor.ProjectDefaultTargetPath!);
                 }
 
-                if (!string.IsNullOrWhiteSpace(adapter.Descriptor.UserTargetRootPolicy.EnvironmentVariableName))
+                if (descriptor.SupportsUserScope)
                 {
-                    references.Add(adapter.Descriptor.UserTargetRootPolicy.EnvironmentVariableName);
+                    var userTargetRootPolicy = descriptor.UserTargetRootPolicy!;
+                    references.Add(descriptor.UserDefaultTargetPath!);
+                    references.Add(userTargetRootPolicy.HomeRelativeDirectory);
+
+                    if (!string.IsNullOrWhiteSpace(userTargetRootPolicy.EnvironmentVariableName))
+                    {
+                        references.Add(userTargetRootPolicy.EnvironmentVariableName);
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(userTargetRootPolicy.EnvironmentVariableChildDirectory)
+                        && !string.Equals(userTargetRootPolicy.EnvironmentVariableChildDirectory, "skills", StringComparison.Ordinal))
+                    {
+                        references.Add(userTargetRootPolicy.EnvironmentVariableChildDirectory);
+                    }
                 }
 
-                if (!string.IsNullOrWhiteSpace(adapter.Descriptor.UserTargetRootPolicy.EnvironmentVariableChildDirectory)
-                    && !string.Equals(adapter.Descriptor.UserTargetRootPolicy.EnvironmentVariableChildDirectory, "skills", StringComparison.Ordinal))
+                if (descriptor.MetadataArtifactPath is not null)
                 {
-                    references.Add(adapter.Descriptor.UserTargetRootPolicy.EnvironmentVariableChildDirectory);
+                    references.Add(descriptor.MetadataArtifactPath);
                 }
 
                 return references;

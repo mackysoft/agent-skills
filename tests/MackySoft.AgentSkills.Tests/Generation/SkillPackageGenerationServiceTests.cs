@@ -182,11 +182,15 @@ public sealed class SkillPackageGenerationServiceTests
         {
             MetadataArtifactPath = metadataArtifactPath;
             Descriptor = new SkillHostDescriptor(
-                hostKey,
-                $".{hostKey}/skills",
-                "~/.test/skills",
-                new SkillUserTargetRootPolicy(null, null, ".test/skills"),
-                "Reload test skills.");
+                HostKey: hostKey,
+                SupportsProjectScope: true,
+                SupportsUserScope: true,
+                ProjectDefaultTargetPath: $".{hostKey}/skills",
+                UserDefaultTargetPath: "~/.test/skills",
+                UserTargetRootPolicy: new SkillUserTargetRootPolicy(null, null, ".test/skills"),
+                RequiresMetadataArtifact: true,
+                MetadataArtifactPath: metadataArtifactPath,
+                ReloadGuidance: "Reload test skills.");
         }
 
         public SkillHostDescriptor Descriptor { get; }
