@@ -211,12 +211,7 @@ public sealed class SkillInstallService
                         state,
                         cancellationToken)
                     .ConfigureAwait(false);
-            case SkillInstalledTargetStateKind.LocalModified:
-            case SkillInstalledTargetStateKind.ManifestDrift:
-            case SkillInstalledTargetStateKind.CommonContentDrift:
-            case SkillInstalledTargetStateKind.FrontmatterDrift:
-            case SkillInstalledTargetStateKind.HostArtifactDrift:
-            case SkillInstalledTargetStateKind.FileSetDrift:
+            case var kind when kind.IsLocalModificationDrift():
                 return await CreateManagedMismatchActionPlanAsync(
                         package,
                         host,
@@ -369,7 +364,7 @@ public sealed class SkillInstallService
         var isValid = actionKind switch
         {
             SkillInstallActionKind.Created => state.Kind == SkillInstalledTargetStateKind.Missing,
-            SkillInstallActionKind.Updated => force && (state.Kind == SkillInstalledTargetStateKind.CleanOutdated || IsLocalModificationState(state.Kind)),
+            SkillInstallActionKind.Updated => force && (state.Kind == SkillInstalledTargetStateKind.CleanOutdated || state.Kind.IsLocalModificationDrift()),
             _ => true,
         };
         if (isValid)
@@ -397,16 +392,6 @@ public sealed class SkillInstallService
         return state.Kind == SkillInstalledTargetStateKind.Unmanaged
             ? SkillFailureCodes.InstallTargetUnmanaged
             : ResolveStateFailureCode(state);
-    }
-
-    private static bool IsLocalModificationState (SkillInstalledTargetStateKind state)
-    {
-        return state is SkillInstalledTargetStateKind.LocalModified
-            or SkillInstalledTargetStateKind.ManifestDrift
-            or SkillInstalledTargetStateKind.CommonContentDrift
-            or SkillInstalledTargetStateKind.FrontmatterDrift
-            or SkillInstalledTargetStateKind.HostArtifactDrift
-            or SkillInstalledTargetStateKind.FileSetDrift;
     }
 
     private static SkillFailureCode ResolveStateFailureCode (SkillInstalledTargetState state)

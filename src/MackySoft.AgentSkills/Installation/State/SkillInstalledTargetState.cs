@@ -1,4 +1,3 @@
-using MackySoft.AgentSkills.Installation.Validation;
 using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Installation.State;
@@ -10,4 +9,4 @@ namespace MackySoft.AgentSkills.Installation.State;
 public sealed record SkillInstalledTargetState (
     SkillInstalledTargetStateKind Kind,
     SkillFailure? Failure = null,
-    SkillInstalledFileSetVerificationResult? FileSet = null);
+    SkillInstalledTargetFileSet? FileSet = null);

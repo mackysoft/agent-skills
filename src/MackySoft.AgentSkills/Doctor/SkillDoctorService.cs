@@ -135,12 +135,6 @@ public sealed class SkillDoctorService
                     "Skill directory is not managed by Agent Skills.",
                     package.Manifest.SkillName));
                 return;
-            case SkillInstalledTargetStateKind.LocalModified:
-            case SkillInstalledTargetStateKind.ManifestDrift:
-            case SkillInstalledTargetStateKind.CommonContentDrift:
-            case SkillInstalledTargetStateKind.FrontmatterDrift:
-            case SkillInstalledTargetStateKind.HostArtifactDrift:
-            case SkillInstalledTargetStateKind.FileSetDrift:
             case SkillInstalledTargetStateKind.NameCollision:
             case SkillInstalledTargetStateKind.HostConflict:
                 var failure = stateResult.Value.Failure ?? SkillFailure.Create(
@@ -152,6 +146,18 @@ public sealed class SkillDoctorService
                     package.Manifest.SkillName));
                 return;
             default:
+                if (stateResult.Value.Kind.IsLocalModificationDrift())
+                {
+                    var driftFailure = stateResult.Value.Failure ?? SkillFailure.Create(
+                        SkillFailureCodes.InstallTargetLocalModification,
+                        "Installed SKILL package contains local modifications.");
+                    diagnostics.Add(SkillDoctorDiagnostic.Error(
+                        driftFailure.Code,
+                        driftFailure.Message,
+                        package.Manifest.SkillName));
+                    return;
+                }
+
                 throw new ArgumentOutOfRangeException(nameof(stateResult), stateResult.Value.Kind, "Unsupported target state.");
         }
     }

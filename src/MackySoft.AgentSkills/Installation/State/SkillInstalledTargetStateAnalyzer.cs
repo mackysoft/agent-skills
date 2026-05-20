@@ -155,7 +155,7 @@ public sealed class SkillInstalledTargetStateAnalyzer
             : integrityFailure;
     }
 
-    private static ValueTask<SkillOperationResult<SkillInstalledFileSetVerificationResult>> ReadCurrentFileSetDriftAsync (
+    private static ValueTask<SkillOperationResult<SkillInstalledTargetFileSet>> ReadCurrentFileSetDriftAsync (
         CanonicalSkillPackage package,
         string skillDirectory,
         string host,
@@ -167,34 +167,37 @@ public sealed class SkillInstalledTargetStateAnalyzer
         var entriesResult = SkillInstalledFileSetVerifier.ReadInstalledEntries(skillDirectory, cancellationToken);
         if (!entriesResult.IsSuccess)
         {
-            return ValueTask.FromResult(SkillOperationResult<SkillInstalledFileSetVerificationResult>.FailureResult(
+            return ValueTask.FromResult(SkillOperationResult<SkillInstalledTargetFileSet>.FailureResult(
                 entriesResult.Failure!.Code,
                 entriesResult.Failure.Message));
         }
 
-        var hostArtifact = package.Manifest.HostArtifacts.SingleOrDefault(artifact => string.Equals(artifact.Host, host, StringComparison.Ordinal));
-        if (hostArtifact is null)
+        var requiredPathsResult = SkillManagedFileSetPaths.CreateMaterializedRequiredPaths(package, host);
+        if (!requiredPathsResult.IsSuccess)
         {
-            return ValueTask.FromResult(SkillOperationResult<SkillInstalledFileSetVerificationResult>.FailureResult(
-                SkillFailureCodes.ManifestInvalid,
-                $"Manifest does not contain host artifact '{host}'."));
+            return ValueTask.FromResult(SkillOperationResult<SkillInstalledTargetFileSet>.FailureResult(
+                requiredPathsResult.Failure!.Code,
+                requiredPathsResult.Failure.Message));
         }
 
-        var hostArtifactPath = hostArtifact.Path;
-        var requiredPaths = package.Files
-            .Select(static file => file.RelativePath)
-            .Where(path => string.Equals(path, "agent-skill.json", StringComparison.Ordinal)
-                || string.Equals(path, "SKILL.md", StringComparison.Ordinal)
-                || path.StartsWith("references/", StringComparison.Ordinal)
-                || (!string.IsNullOrWhiteSpace(hostArtifactPath) && string.Equals(path, hostArtifactPath, StringComparison.Ordinal)))
-            .ToArray();
-
-        return ValueTask.FromResult(SkillInstalledFileSetVerifier.VerifyInstalledEntries(
+        var fileSetResult = SkillInstalledFileSetVerifier.VerifyInstalledEntries(
             skillDirectory,
-            requiredPaths,
+            requiredPathsResult.Value!,
             Array.Empty<string>(),
             entriesResult.Value!,
-            cancellationToken));
+            cancellationToken);
+        if (!fileSetResult.IsSuccess)
+        {
+            return ValueTask.FromResult(SkillOperationResult<SkillInstalledTargetFileSet>.FailureResult(
+                fileSetResult.Failure!.Code,
+                fileSetResult.Failure.Message));
+        }
+
+        var fileSet = fileSetResult.Value!;
+        return ValueTask.FromResult(SkillOperationResult<SkillInstalledTargetFileSet>.Success(new SkillInstalledTargetFileSet(
+            fileSet.MissingFiles,
+            fileSet.ExtraFiles,
+            fileSet.ExtraDirectories)));
     }
 
     private static SkillInstalledTargetStateKind ResolveStateKind (SkillFailureCode code)
@@ -241,7 +244,7 @@ public sealed class SkillInstalledTargetStateAnalyzer
     private static SkillOperationResult<SkillInstalledTargetState> Success (
         SkillInstalledTargetStateKind kind,
         SkillFailure? failure = null,
-        SkillInstalledFileSetVerificationResult? fileSet = null)
+        SkillInstalledTargetFileSet? fileSet = null)
     {
         return SkillOperationResult<SkillInstalledTargetState>.Success(new SkillInstalledTargetState(kind, failure, fileSet));
     }

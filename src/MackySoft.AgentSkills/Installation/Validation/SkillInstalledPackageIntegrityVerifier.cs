@@ -10,9 +10,7 @@ namespace MackySoft.AgentSkills.Installation.Validation;
 /// <summary> Verifies an installed SKILL package against its own installed manifest. </summary>
 public sealed class SkillInstalledPackageIntegrityVerifier
 {
-    private const string SkillBodyPath = "SKILL.md";
-    private const string ManifestPath = "agent-skill.json";
-    private const string ReferencesPrefix = "references/";
+    private const string SkillBodyPath = SkillManagedFileSetPaths.SkillBodyPath;
 
     private readonly SkillInstalledManifestReader installedManifestReader;
     private readonly SkillHostAdapterSet hostAdapters;
@@ -373,7 +371,7 @@ public sealed class SkillInstalledPackageIntegrityVerifier
         };
 
         foreach (var relativePath in installedEntries.Files
-            .Where(static path => path.StartsWith(ReferencesPrefix, StringComparison.Ordinal))
+            .Where(static path => path.StartsWith(SkillManagedFileSetPaths.ReferencesPrefix, StringComparison.Ordinal))
             .Order(StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -430,29 +428,18 @@ public sealed class SkillInstalledPackageIntegrityVerifier
         SkillInstalledFileSetVerifier.SkillInstalledFileSetEntries installedEntries,
         CancellationToken cancellationToken)
     {
-        var requiredPaths = new HashSet<string>(StringComparer.Ordinal)
-        {
-            SkillBodyPath,
-            ManifestPath,
-        };
-
-        var hostArtifact = manifest.HostArtifacts.SingleOrDefault(artifact => string.Equals(artifact.Host, host, StringComparison.Ordinal));
-        if (hostArtifact is null)
+        var requiredPathsResult = SkillManagedFileSetPaths.CreateInstalledManifestRequiredPaths(manifest, host);
+        if (!requiredPathsResult.IsSuccess)
         {
             return SkillOperationResult<SkillInstalledFileSetVerificationResult>.FailureResult(
-                SkillFailureCodes.ManifestInvalid,
-                $"Manifest does not contain host artifact '{host}'.");
-        }
-
-        if (!string.IsNullOrWhiteSpace(hostArtifact.Path))
-        {
-            requiredPaths.Add(hostArtifact.Path);
+                requiredPathsResult.Failure!.Code,
+                requiredPathsResult.Failure.Message);
         }
 
         return SkillInstalledFileSetVerifier.VerifyInstalledEntries(
             skillDirectory,
-            requiredPaths,
-            [ReferencesPrefix],
+            requiredPathsResult.Value!,
+            [SkillManagedFileSetPaths.ReferencesPrefix],
             installedEntries,
             cancellationToken);
     }
