@@ -442,7 +442,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput(updatedPackages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
         Assert.True(Directory.Exists(localDirectoryLink));
     }
 
