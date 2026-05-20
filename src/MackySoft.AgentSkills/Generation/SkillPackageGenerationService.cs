@@ -15,6 +15,7 @@ public sealed class SkillPackageGenerationService
     private readonly SkillHostAdapterSet hostAdapters;
     private readonly SkillDigestCalculator digestCalculator;
     private readonly SkillManifestJsonSerializer manifestSerializer;
+    private readonly SkillManifestDigestCalculator manifestDigestCalculator;
 
     /// <summary> Initializes a new instance of the <see cref="SkillPackageGenerationService" /> class. </summary>
     /// <param name="sourceReader"> The source definition reader. </param>
@@ -31,6 +32,7 @@ public sealed class SkillPackageGenerationService
         this.hostAdapters = hostAdapters ?? throw new ArgumentNullException(nameof(hostAdapters));
         this.digestCalculator = digestCalculator ?? throw new ArgumentNullException(nameof(digestCalculator));
         this.manifestSerializer = manifestSerializer ?? throw new ArgumentNullException(nameof(manifestSerializer));
+        this.manifestDigestCalculator = new SkillManifestDigestCalculator(this.digestCalculator, this.manifestSerializer);
     }
 
     /// <summary> Generates all SKILL packages under one source definitions root. </summary>
@@ -97,7 +99,9 @@ public sealed class SkillPackageGenerationService
             definition.Metadata.DisplayName,
             definition.Metadata.Description,
             contentDigest,
+            string.Empty,
             hostArtifacts);
+        manifest = manifestDigestCalculator.WithComputedManifestDigest(manifest);
 
         var manifestFile = SkillPackageFile.Create("agent-skill.json", manifestSerializer.Serialize(manifest));
         var hostArtifactFiles = hostArtifactOutputs

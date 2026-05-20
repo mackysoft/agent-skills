@@ -144,7 +144,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput(packages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -169,7 +169,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput(updatedPackages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
     }
 
     [Fact]

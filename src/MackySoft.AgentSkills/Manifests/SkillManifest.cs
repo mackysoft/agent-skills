@@ -6,6 +6,7 @@ namespace MackySoft.AgentSkills.Manifests;
 /// <param name="DisplayName"> The display name shown by SKILL listing commands. </param>
 /// <param name="Description"> The host-independent SKILL description. </param>
 /// <param name="ContentDigest"> The host-independent content digest. </param>
+/// <param name="ManifestDigest"> The canonical manifest digest excluding this field. </param>
 /// <param name="HostArtifacts"> The host-specific artifact digests. </param>
 public sealed record SkillManifest (
     int SchemaVersion,
@@ -13,6 +14,7 @@ public sealed record SkillManifest (
     string DisplayName,
     string Description,
     string ContentDigest,
+    string ManifestDigest,
     IReadOnlyList<SkillHostArtifactManifest> HostArtifacts)
 {
     /// <summary> Gets the current manifest schema version. </summary>

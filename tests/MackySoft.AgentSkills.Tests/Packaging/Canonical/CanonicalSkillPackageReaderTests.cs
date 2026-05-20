@@ -56,6 +56,29 @@ public sealed class CanonicalSkillPackageReaderTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task ReadAllAsync_RejectsManifestDigestDrift ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "generated-manifest-drift");
+        var skillsRoot = CopyGeneratedSkills(scope);
+        var manifestPath = Path.Combine(skillsRoot, SkillTestData.ExpectedSkillNames[0], "agent-skill.json");
+        var serializer = new SkillManifestJsonSerializer();
+        var manifest = serializer.Deserialize(await File.ReadAllTextAsync(manifestPath));
+        var driftedManifest = manifest with
+        {
+            DisplayName = manifest.DisplayName + " Drifted",
+        };
+        await File.WriteAllTextAsync(manifestPath, serializer.Serialize(driftedManifest));
+        var reader = SkillTestData.CreatePackageReader();
+
+        var result = await reader.ReadAllAsync(skillsRoot, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Contains("manifestDigest", result.Failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task ReadAllAsync_RejectsHostArtifactAdapterOutputDrift ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "generated-host-artifact-adapter-drift");
@@ -77,6 +100,7 @@ public sealed class CanonicalSkillPackageReaderTests
                     : artifact)
                 .ToArray(),
         };
+        driftedManifest = WithComputedManifestDigest(driftedManifest);
         await File.WriteAllTextAsync(manifestPath, serializer.Serialize(driftedManifest));
         var reader = SkillTestData.CreatePackageReader();
 
@@ -103,6 +127,7 @@ public sealed class CanonicalSkillPackageReaderTests
                     : artifact)
                 .ToArray(),
         };
+        driftedManifest = WithComputedManifestDigest(driftedManifest);
         await File.WriteAllTextAsync(manifestPath, serializer.Serialize(driftedManifest));
         var reader = SkillTestData.CreatePackageReader();
 
@@ -222,5 +247,12 @@ public sealed class CanonicalSkillPackageReaderTests
             Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
             File.Copy(filePath, targetPath, overwrite: true);
         }
+    }
+
+    private static SkillManifest WithComputedManifestDigest (SkillManifest manifest)
+    {
+        var serializer = new SkillManifestJsonSerializer();
+        return new SkillManifestDigestCalculator(new SkillDigestCalculator(), serializer)
+            .WithComputedManifestDigest(manifest);
     }
 }

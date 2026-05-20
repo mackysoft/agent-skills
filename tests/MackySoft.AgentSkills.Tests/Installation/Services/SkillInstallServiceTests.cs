@@ -300,7 +300,7 @@ public sealed class SkillInstallServiceTests
         var result = await service.InstallAsync(packages, request, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -324,7 +324,7 @@ public sealed class SkillInstallServiceTests
         var result = await service.InstallAsync(packages, request, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
     }
 
     [Fact]

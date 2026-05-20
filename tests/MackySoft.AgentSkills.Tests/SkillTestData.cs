@@ -200,6 +200,7 @@ internal static class SkillTestData
         {
             ContentDigest = contentDigest,
         };
+        manifest = WithComputedManifestDigest(manifest);
         var manifestText = new SkillManifestJsonSerializer().Serialize(manifest);
         files = files
             .Select(file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal)
@@ -252,6 +253,7 @@ internal static class SkillTestData
         {
             HostArtifacts = hostArtifacts.ToArray(),
         };
+        manifest = WithComputedManifestDigest(manifest);
         var manifestText = new SkillManifestJsonSerializer().Serialize(manifest);
         var files = package.Files
             .Select(file =>
@@ -313,6 +315,13 @@ internal static class SkillTestData
         return new SkillInstalledManifestReader(
             new SkillManifestJsonSerializer(),
             new SkillManifestValidator(hostAdapters));
+    }
+
+    internal static SkillManifest WithComputedManifestDigest (SkillManifest manifest)
+    {
+        var serializer = new SkillManifestJsonSerializer();
+        return new SkillManifestDigestCalculator(new SkillDigestCalculator(), serializer)
+            .WithComputedManifestDigest(manifest);
     }
 
     private sealed class CallbackPackageFileList : IReadOnlyList<SkillPackageFile>

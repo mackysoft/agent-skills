@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Shared;
 
@@ -7,12 +8,26 @@ namespace MackySoft.AgentSkills.Manifests;
 public sealed class SkillManifestValidator
 {
     private readonly SkillHostAdapterSet hostAdapters;
+    private readonly SkillManifestDigestCalculator manifestDigestCalculator;
 
     /// <summary> Initializes a new instance of the <see cref="SkillManifestValidator" /> class. </summary>
     /// <param name="hostAdapters"> The supported host adapter set. </param>
     public SkillManifestValidator (SkillHostAdapterSet hostAdapters)
+        : this(
+            hostAdapters,
+            new SkillManifestDigestCalculator(new SkillDigestCalculator(), new SkillManifestJsonSerializer()))
+    {
+    }
+
+    /// <summary> Initializes a new instance of the <see cref="SkillManifestValidator" /> class. </summary>
+    /// <param name="hostAdapters"> The supported host adapter set. </param>
+    /// <param name="manifestDigestCalculator"> The canonical manifest digest calculator. </param>
+    public SkillManifestValidator (
+        SkillHostAdapterSet hostAdapters,
+        SkillManifestDigestCalculator manifestDigestCalculator)
     {
         this.hostAdapters = hostAdapters ?? throw new ArgumentNullException(nameof(hostAdapters));
+        this.manifestDigestCalculator = manifestDigestCalculator ?? throw new ArgumentNullException(nameof(manifestDigestCalculator));
     }
 
     /// <summary> Validates one manifest. </summary>
@@ -42,6 +57,11 @@ public sealed class SkillManifestValidator
         if (!IsSha256Digest(manifest.ContentDigest))
         {
             return Failure("agent-skill.json contentDigest must be a sha256 digest.");
+        }
+
+        if (!IsSha256Digest(manifest.ManifestDigest))
+        {
+            return Failure("agent-skill.json manifestDigest must be a sha256 digest.");
         }
 
         var expectedHosts = hostAdapters.Adapters.Select(static adapter => adapter.Descriptor.HostKey).Order(StringComparer.Ordinal).ToArray();
@@ -74,6 +94,12 @@ public sealed class SkillManifestValidator
             {
                 return Failure($"Host artifact '{artifact.Host}' must contain metadata artifact digest.");
             }
+        }
+
+        var expectedManifestDigest = manifestDigestCalculator.ComputeManifestDigest(manifest);
+        if (!string.Equals(expectedManifestDigest, manifest.ManifestDigest, StringComparison.Ordinal))
+        {
+            return Failure("agent-skill.json manifestDigest does not match manifest content.");
         }
 
         return SkillOperationResult<SkillManifest>.Success(manifest);

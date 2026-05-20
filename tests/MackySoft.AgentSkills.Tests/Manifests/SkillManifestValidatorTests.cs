@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Shared;
 
@@ -34,6 +35,23 @@ public sealed class SkillManifestValidatorTests
         Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
     }
 
+    [Fact]
+    [Trait("Size", "Small")]
+    public void Validate_RejectsManifestDigestDrift ()
+    {
+        var validator = SkillTestData.CreateManifestValidator();
+        var manifest = CreateManifest("sample-skill") with
+        {
+            DisplayName = "Drifted Skill",
+        };
+
+        var result = validator.Validate(manifest);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Contains("manifestDigest", result.Failure.Message, StringComparison.Ordinal);
+    }
+
     [Theory]
     [MemberData(nameof(InvalidManifestCases))]
     [Trait("Size", "Small")]
@@ -56,6 +74,7 @@ public sealed class SkillManifestValidatorTests
             valid with { DisplayName = "" },
             valid with { Description = "" },
             valid with { ContentDigest = "sha256:not-hex" },
+            valid with { ManifestDigest = "sha256:not-hex" },
             valid with { HostArtifacts = valid.HostArtifacts.Where(static artifact => artifact.Host != "copilot").ToArray() },
             valid with { HostArtifacts = valid.HostArtifacts.Concat([new SkillHostArtifactManifest("generic", null, null, "sha256:" + new string('5', 64))]).ToArray() },
             valid with { HostArtifacts = valid.HostArtifacts.Select(static artifact => artifact.Host == "claude" ? artifact with { MaterializedFrontmatterDigest = "sha256:not-hex" } : artifact).ToArray() },
@@ -67,16 +86,21 @@ public sealed class SkillManifestValidatorTests
 
     private static SkillManifest CreateManifest (string skillName)
     {
-        return new SkillManifest(
+        var serializer = new SkillManifestJsonSerializer();
+        var digestCalculator = new SkillManifestDigestCalculator(new SkillDigestCalculator(), serializer);
+        var manifest = new SkillManifest(
             SkillManifest.CurrentSchemaVersion,
             skillName,
             "Sample Skill",
             "Use this sample skill for tests.",
             "sha256:" + new string('0', 64),
+            string.Empty,
             [
                 new SkillHostArtifactManifest("claude", null, null, "sha256:" + new string('1', 64)),
                 new SkillHostArtifactManifest("copilot", null, null, "sha256:" + new string('2', 64)),
                 new SkillHostArtifactManifest("openai", "agents/openai.yaml", "sha256:" + new string('3', 64), "sha256:" + new string('4', 64)),
             ]);
+
+        return digestCalculator.WithComputedManifestDigest(manifest);
     }
 }

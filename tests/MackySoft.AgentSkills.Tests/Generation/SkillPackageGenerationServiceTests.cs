@@ -52,6 +52,27 @@ public sealed class SkillPackageGenerationServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task GenerateAllAsync_ComputesManifestDigestFromCanonicalManifestJsonExcludingManifestDigest ()
+    {
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var serializer = new SkillManifestJsonSerializer();
+        var calculator = new SkillManifestDigestCalculator(new SkillDigestCalculator(), serializer);
+
+        foreach (var package in packages)
+        {
+            var expectedDigest = calculator.ComputeManifestDigest(package.Manifest);
+            var selfDriftedManifest = package.Manifest with
+            {
+                ManifestDigest = "sha256:" + new string('f', 64),
+            };
+
+            Assert.Equal(expectedDigest, package.Manifest.ManifestDigest);
+            Assert.Equal(expectedDigest, calculator.ComputeManifestDigest(selfDriftedManifest));
+        }
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task GeneratedManifestJson_RoundTrips ()
     {
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
@@ -68,6 +89,7 @@ public sealed class SkillPackageGenerationServiceTests
             Assert.Equal(package.Manifest.DisplayName, manifest.DisplayName);
             Assert.Equal(package.Manifest.Description, manifest.Description);
             Assert.Equal(package.Manifest.ContentDigest, manifest.ContentDigest);
+            Assert.Equal(package.Manifest.ManifestDigest, manifest.ManifestDigest);
             Assert.Equal(package.Manifest.HostArtifacts, manifest.HostArtifacts);
             Assert.Equal(manifestFile.Content, serializer.Serialize(manifest));
         }

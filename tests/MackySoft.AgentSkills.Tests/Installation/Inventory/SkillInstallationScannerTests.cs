@@ -180,6 +180,7 @@ public sealed class SkillInstallationScannerTests
         {
             SkillName = "external-skill",
         };
+        externalManifest = SkillTestData.WithComputedManifestDigest(externalManifest);
         scope.WriteFile(".agents/skills/external-skill/agent-skill.json", serializer.Serialize(externalManifest));
         var scanner = SkillTestData.CreateInstallationScanner();
 
@@ -202,6 +203,7 @@ public sealed class SkillInstallationScannerTests
             SkillName = "external-skill",
             HostArtifacts = Array.Empty<SkillHostArtifactManifest>(),
         };
+        externalManifest = SkillTestData.WithComputedManifestDigest(externalManifest);
         scope.WriteFile(".agents/skills/external-skill/agent-skill.json", serializer.Serialize(externalManifest));
         var scanner = SkillTestData.CreateInstallationScanner();
 

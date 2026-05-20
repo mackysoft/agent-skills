@@ -19,40 +19,24 @@ public sealed class SkillManifestJsonSerializer
     /// <returns> The serialized JSON with LF line endings and a trailing newline. </returns>
     public string Serialize (SkillManifest manifest)
     {
+        return Serialize(manifest, includeManifestDigest: true);
+    }
+
+    internal string SerializeWithoutManifestDigest (SkillManifest manifest)
+    {
+        return Serialize(manifest, includeManifestDigest: false);
+    }
+
+    private static string Serialize (
+        SkillManifest manifest,
+        bool includeManifestDigest)
+    {
         ArgumentNullException.ThrowIfNull(manifest);
 
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream, WriterOptions))
         {
-            writer.WriteStartObject();
-            writer.WriteNumber("schemaVersion", manifest.SchemaVersion);
-            writer.WriteString("skillName", manifest.SkillName);
-            writer.WriteString("displayName", manifest.DisplayName);
-            writer.WriteString("description", manifest.Description);
-            writer.WriteString("contentDigest", manifest.ContentDigest);
-            writer.WritePropertyName("hostArtifacts");
-            writer.WriteStartArray();
-
-            foreach (var artifact in manifest.HostArtifacts.OrderBy(static artifact => artifact.Host, StringComparer.Ordinal))
-            {
-                writer.WriteStartObject();
-                writer.WriteString("host", artifact.Host);
-                if (!string.IsNullOrWhiteSpace(artifact.Path))
-                {
-                    writer.WriteString("path", artifact.Path);
-                }
-
-                if (!string.IsNullOrWhiteSpace(artifact.Digest))
-                {
-                    writer.WriteString("digest", artifact.Digest);
-                }
-
-                writer.WriteString("materializedFrontmatterDigest", artifact.MaterializedFrontmatterDigest);
-                writer.WriteEndObject();
-            }
-
-            writer.WriteEndArray();
-            writer.WriteEndObject();
+            WriteManifest(writer, manifest, includeManifestDigest);
         }
 
         var json = SkillTextNormalizer.NormalizeToLf(Encoding.UTF8.GetString(stream.ToArray()));
@@ -84,6 +68,7 @@ public sealed class SkillManifestJsonSerializer
             DisplayName: root.GetProperty("displayName").GetString() ?? string.Empty,
             Description: root.GetProperty("description").GetString() ?? string.Empty,
             ContentDigest: root.GetProperty("contentDigest").GetString() ?? string.Empty,
+            ManifestDigest: root.GetProperty("manifestDigest").GetString() ?? string.Empty,
             HostArtifacts: artifacts);
     }
 
@@ -102,5 +87,46 @@ public sealed class SkillManifestJsonSerializer
                 SkillFailureCodes.ManifestInvalid,
                 "agent-skill.json is invalid.");
         }
+    }
+
+    private static void WriteManifest (
+        Utf8JsonWriter writer,
+        SkillManifest manifest,
+        bool includeManifestDigest)
+    {
+        writer.WriteStartObject();
+        writer.WriteNumber("schemaVersion", manifest.SchemaVersion);
+        writer.WriteString("skillName", manifest.SkillName);
+        writer.WriteString("displayName", manifest.DisplayName);
+        writer.WriteString("description", manifest.Description);
+        writer.WriteString("contentDigest", manifest.ContentDigest);
+        if (includeManifestDigest)
+        {
+            writer.WriteString("manifestDigest", manifest.ManifestDigest);
+        }
+
+        writer.WritePropertyName("hostArtifacts");
+        writer.WriteStartArray();
+
+        foreach (var artifact in manifest.HostArtifacts.OrderBy(static artifact => artifact.Host, StringComparer.Ordinal))
+        {
+            writer.WriteStartObject();
+            writer.WriteString("host", artifact.Host);
+            if (!string.IsNullOrWhiteSpace(artifact.Path))
+            {
+                writer.WriteString("path", artifact.Path);
+            }
+
+            if (!string.IsNullOrWhiteSpace(artifact.Digest))
+            {
+                writer.WriteString("digest", artifact.Digest);
+            }
+
+            writer.WriteString("materializedFrontmatterDigest", artifact.MaterializedFrontmatterDigest);
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+        writer.WriteEndObject();
     }
 }
