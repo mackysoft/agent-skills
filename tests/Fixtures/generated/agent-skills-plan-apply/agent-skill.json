@@ -4,7 +4,7 @@
   "displayName": "Agent Skills Plan Apply",
   "description": "Use when building, validating, planning, and applying a Agent Skills JSON request for Unity changes. Enforces read -> describe -> build request -> validate -> plan -> call -> verify.",
   "contentDigest": "sha256:3fa85c99817a993495afdfde13ae1b089fc040170a5973d88fe4f27375954759",
-  "manifestDigest": "sha256:9c4701d21848314c6e438de1cf3d4abe2e34f711fab3b6b94b9fcfe0637b6aa5",
+  "manifestDigest": "sha256:d4101affa196cd40940b415d1dac747cdff7edfaa233aa4035c80e3665525149",
   "hostArtifacts": [
     {
       "host": "claude",
