@@ -41,7 +41,7 @@ Install the CLI through a .NET tool manifest in each product repository.
 
 ```bash
 dotnet new tool-manifest
-dotnet tool install MackySoft.AgentSkills.Cli --version 0.1.0
+dotnet tool install MackySoft.AgentSkills.Cli --version 0.2.0
 ```
 
 Generate canonical packages.
@@ -64,13 +64,13 @@ The CLI validates definition metadata, computes deterministic digests, writes `a
 Use the library from product CLI or application code that needs to list, export, install, update, uninstall, or diagnose generated agent skills.
 
 ```bash
-dotnet add <PROJECT>.csproj package MackySoft.AgentSkills --version 0.1.0
+dotnet add <PROJECT>.csproj package MackySoft.AgentSkills --version 0.2.0
 ```
 
 Equivalent project file reference:
 
 ```xml
-<PackageReference Include="MackySoft.AgentSkills" Version="0.1.0" />
+<PackageReference Include="MackySoft.AgentSkills" Version="0.2.0" />
 ```
 
 The canonical package manifest file is `agent-skill.json`. Generated package directories are canonical package inputs; runtime materialization converts those packages into host-specific install/export contents.
@@ -83,10 +83,11 @@ Supported host keys:
 
 ## Release
 
-Publishing is performed by the `nuget-package` GitHub Actions workflow. The workflow reads the package version from `Directory.Build.props`; it does not accept a manual version override. To publish a new version:
+Publishing is performed by the `nuget-package` GitHub Actions workflow. The package version is declared in `Directory.Build.props`, and the release tag must use the same SemVer value without a leading `v`. To publish a new version:
 
-1. Update `<Version>` in `Directory.Build.props`.
-2. Open and merge a pull request for that version change.
-3. Run the `nuget-package` workflow from the default branch.
+1. Update `<Version>` in `Directory.Build.props` and update package usage examples.
+2. Open and merge a pull request for that version change into the default branch.
+3. Create and push the matching release tag from the default branch commit.
+4. Update the GitHub Release notes after the workflow mirrors the published packages.
 
-The workflow publishes both `MackySoft.AgentSkills` and `MackySoft.AgentSkills.Cli` for the same version. It creates the release tag only after both NuGet packages are available on nuget.org.
+The workflow publishes both `MackySoft.AgentSkills` and `MackySoft.AgentSkills.Cli` for the same version, waits until both packages are available on nuget.org, and mirrors the published package artifacts to the GitHub Release.
