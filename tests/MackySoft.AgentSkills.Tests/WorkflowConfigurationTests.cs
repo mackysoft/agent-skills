@@ -16,10 +16,9 @@ public sealed class WorkflowConfigurationTests
         Assert.Contains("          - ubuntu-latest", workflow, StringComparison.Ordinal);
         Assert.Contains("          - windows-latest", workflow, StringComparison.Ordinal);
         Assert.Contains("          - macos-latest", workflow, StringComparison.Ordinal);
-        Assert.Contains("uses: mackysoft/actions/setup-dotnet-cache@v1", workflow, StringComparison.Ordinal);
-        Assert.Contains("restore-command: dotnet restore AgentSkills.slnx", workflow, StringComparison.Ordinal);
-        Assert.Contains("run: bash scripts/verify.sh --no-restore --configuration Release", workflow, StringComparison.Ordinal);
-        Assert.Equal(1, CountOccurrences(workflow, "run: bash scripts/verify.sh --no-restore --configuration Release"));
+        Assert.Contains("uses: actions/setup-dotnet@v5", workflow, StringComparison.Ordinal);
+        Assert.Contains("run: bash scripts/verify.sh --configuration Release", workflow, StringComparison.Ordinal);
+        Assert.Equal(1, CountOccurrences(workflow, "run: bash scripts/verify.sh --configuration Release"));
     }
 
     [Fact]
@@ -34,7 +33,6 @@ public sealed class WorkflowConfigurationTests
         Assert.Contains("workflow_dispatch:", workflow, StringComparison.Ordinal);
         Assert.Contains("test:\n    uses: ./.github/workflows/dotnet-verify.yaml", workflow, StringComparison.Ordinal);
         Assert.Contains("package:\n    name: package\n    needs: test", workflow, StringComparison.Ordinal);
-        Assert.Contains("uses: mackysoft/actions/setup-dotnet-cache@v1", workflow, StringComparison.Ordinal);
         Assert.Contains("run: bash scripts/verify-packages.sh --configuration Release", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("NuGet/login", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("dotnet nuget push", workflow, StringComparison.Ordinal);
@@ -50,42 +48,42 @@ public sealed class WorkflowConfigurationTests
         Assert.Contains("push:\n    tags:\n      - \"[0-9]*.[0-9]*.[0-9]*\"", workflow, StringComparison.Ordinal);
         Assert.Contains("test:\n    uses: ./.github/workflows/dotnet-verify.yaml", workflow, StringComparison.Ordinal);
         Assert.Contains("package:\n    name: package\n    needs: test", workflow, StringComparison.Ordinal);
-        Assert.Contains("uses: mackysoft/actions/setup-dotnet-cache@v1", workflow, StringComparison.Ordinal);
-        Assert.Contains("uses: mackysoft/actions/resolve-release-version@v1", workflow, StringComparison.Ordinal);
-        Assert.Contains("allow-prerelease: true", workflow, StringComparison.Ordinal);
-        Assert.Contains("uses: mackysoft/actions/validate-release-source@v1", workflow, StringComparison.Ordinal);
-        Assert.Contains("releaseSha: ${{ steps.source.outputs.release-sha }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("tag_name=\"${GITHUB_REF_NAME}\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("semver_pattern='^(0|[1-9][0-9]*)\\.", workflow, StringComparison.Ordinal);
+        Assert.Contains("if [[ ! \"${tag_name}\" =~ ${semver_pattern} ]]; then", workflow, StringComparison.Ordinal);
+        Assert.Contains("package_version=\"${tag_name}\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("releaseSha: ${{ steps.source.outputs.releaseSha }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("echo \"RELEASE_SHA=${release_sha}\" >> \"${GITHUB_ENV}\"", workflow, StringComparison.Ordinal);
         Assert.Contains("fetch-depth: 0", workflow, StringComparison.Ordinal);
+        Assert.Contains("git fetch origin \"${DEFAULT_BRANCH}:refs/remotes/origin/${DEFAULT_BRANCH}\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("release_sha=\"$(git rev-list -n 1 \"refs/tags/${TAG_NAME}\")\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("checkout_sha=\"$(git rev-parse HEAD)\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("if [[ \"${checkout_sha}\" != \"${release_sha}\" ]]; then", workflow, StringComparison.Ordinal);
+        Assert.Contains("git merge-base --is-ancestor \"${release_sha}\" \"origin/${DEFAULT_BRANCH}\"", workflow, StringComparison.Ordinal);
         Assert.Contains("publish:\n    name: publish\n    needs: package", workflow, StringComparison.Ordinal);
         Assert.Contains("PACKAGE_VERSION: ${{ needs.package.outputs.packageVersion }}", workflow, StringComparison.Ordinal);
         Assert.Contains("RELEASE_SHA: ${{ needs.package.outputs.releaseSha }}", workflow, StringComparison.Ordinal);
         Assert.Contains("name: nuget-packages", workflow, StringComparison.Ordinal);
-        Assert.Contains("- name: Validate publish source", workflow, StringComparison.Ordinal);
-        Assert.Contains("release-sha: ${{ env.RELEASE_SHA }}", workflow, StringComparison.Ordinal);
-        Assert.Contains("require-head-match: true", workflow, StringComparison.Ordinal);
-        Assert.Contains("uses: mackysoft/actions/inspect-nuget-package-state@v1", workflow, StringComparison.Ordinal);
-        Assert.Contains("fail-on-partial: false", workflow, StringComparison.Ordinal);
-        Assert.Contains("- name: Map publication state", workflow, StringComparison.Ordinal);
+        Assert.Contains("bash scripts/validate-release-tag.sh --tag-name \"${GITHUB_REF_NAME}\" --expected-sha \"${RELEASE_SHA}\"", workflow, StringComparison.Ordinal);
         Assert.Contains("- name: Download and validate existing published packages", workflow, StringComparison.Ordinal);
         Assert.Contains("steps.state.outputs.libraryExists == 'true' || steps.state.outputs.cliExists == 'true'", workflow, StringComparison.Ordinal);
         Assert.Contains("scripts/validate-nuget-package-repository-commit.sh", workflow, StringComparison.Ordinal);
-        Assert.Contains("steps.publication.outputs.publish-required == 'true'", workflow, StringComparison.Ordinal);
-        Assert.Contains("uses: mackysoft/actions/publish-nuget-package@v1", workflow, StringComparison.Ordinal);
-        Assert.Contains("uses: mackysoft/actions/wait-nuget-packages@v1", workflow, StringComparison.Ordinal);
+        Assert.Contains("steps.state.outputs.libraryExists != 'true' || steps.state.outputs.cliExists != 'true'", workflow, StringComparison.Ordinal);
+        Assert.Contains("- name: Publish library to nuget.org", workflow, StringComparison.Ordinal);
+        Assert.Contains("- name: Publish CLI to nuget.org", workflow, StringComparison.Ordinal);
         Assert.Contains("- name: Download published packages for release mirror", workflow, StringComparison.Ordinal);
         Assert.Contains("curl --fail --silent --show-error --location \"${url}\" --output \"${path}\"", workflow, StringComparison.Ordinal);
-        Assert.Contains("--version \"${{ steps.version.outputs.package-version }}\"", workflow, StringComparison.Ordinal);
-        Assert.Contains("--repository-commit \"${{ steps.source.outputs.release-sha }}\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("--version \"${PACKAGE_VERSION}\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("--repository-commit \"${RELEASE_SHA}\"", workflow, StringComparison.Ordinal);
         Assert.Contains("artifacts/packages/MackySoft.AgentSkills.${PACKAGE_VERSION}.nupkg", workflow, StringComparison.Ordinal);
         Assert.Contains("artifacts/packages/MackySoft.AgentSkills.Cli.${PACKAGE_VERSION}.nupkg", workflow, StringComparison.Ordinal);
         Assert.Contains("libraryPackageUrl=${library_package_url}", workflow, StringComparison.Ordinal);
-        Assert.Contains("uses: mackysoft/actions/mirror-github-release-assets@v1", workflow, StringComparison.Ordinal);
-        Assert.Contains("update-existing-release: false", workflow, StringComparison.Ordinal);
+        Assert.Contains("dotnet nuget push \\", workflow, StringComparison.Ordinal);
+        Assert.Contains("--title \"${RELEASE_TAG}\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("--notes \"\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("--expected-sha \"${RELEASE_SHA}\"", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("DISPATCH_VERSION", workflow, StringComparison.Ordinal);
-        Assert.DoesNotContain("NuGet/login@v1", workflow, StringComparison.Ordinal);
-        Assert.DoesNotContain("dotnet nuget push", workflow, StringComparison.Ordinal);
-        Assert.DoesNotContain("validate-release-tag.sh", workflow, StringComparison.Ordinal);
-        Assert.DoesNotContain("mirror-nuget-package-release.sh", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("--skip-duplicate", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("- name: Use existing published packages", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("packagesExist=", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("has an incomplete NuGet publication state", workflow, StringComparison.Ordinal);
@@ -99,32 +97,41 @@ public sealed class WorkflowConfigurationTests
         var validateSourceIndex = workflow.IndexOf("- name: Validate release source", StringComparison.Ordinal);
         var packIndex = workflow.IndexOf("- name: Pack and smoke test", StringComparison.Ordinal);
         var validatePublishTagIndex = workflow.IndexOf("- name: Validate publish tag", StringComparison.Ordinal);
-        var validatePublishSourceIndex = workflow.IndexOf("- name: Validate publish source", StringComparison.Ordinal);
-        var inspectIndex = workflow.IndexOf("- name: Inspect publication state", StringComparison.Ordinal);
-        var downloadExistingIndex = workflow.IndexOf("- name: Download and validate existing published packages", StringComparison.Ordinal);
-        var publishIndex = workflow.IndexOf("- name: Publish to nuget.org", StringComparison.Ordinal);
+        var publishLibraryIndex = workflow.IndexOf("- name: Publish library to nuget.org", StringComparison.Ordinal);
+        var publishCliIndex = workflow.IndexOf("- name: Publish CLI to nuget.org", StringComparison.Ordinal);
         var waitIndex = workflow.IndexOf("- name: Wait for published packages", StringComparison.Ordinal);
         var downloadPublishedIndex = workflow.IndexOf("- name: Download published packages for release mirror", StringComparison.Ordinal);
         var mirrorIndex = workflow.IndexOf("- name: Mirror packages to GitHub Release", StringComparison.Ordinal);
         Assert.NotEqual(-1, validateSourceIndex);
         Assert.NotEqual(-1, packIndex);
         Assert.NotEqual(-1, validatePublishTagIndex);
-        Assert.NotEqual(-1, validatePublishSourceIndex);
-        Assert.NotEqual(-1, inspectIndex);
-        Assert.NotEqual(-1, downloadExistingIndex);
-        Assert.NotEqual(-1, publishIndex);
+        Assert.NotEqual(-1, publishLibraryIndex);
+        Assert.NotEqual(-1, publishCliIndex);
         Assert.NotEqual(-1, waitIndex);
         Assert.NotEqual(-1, downloadPublishedIndex);
         Assert.NotEqual(-1, mirrorIndex);
         Assert.True(validateSourceIndex < packIndex);
-        Assert.True(validatePublishTagIndex < validatePublishSourceIndex);
-        Assert.True(validatePublishSourceIndex < inspectIndex);
-        Assert.True(inspectIndex < downloadExistingIndex);
-        Assert.True(downloadExistingIndex < publishIndex);
-        Assert.True(publishIndex < waitIndex);
+        Assert.True(validatePublishTagIndex < publishLibraryIndex);
+        Assert.True(publishLibraryIndex < publishCliIndex);
+        Assert.True(publishCliIndex < waitIndex);
         Assert.True(waitIndex < downloadPublishedIndex);
         Assert.True(downloadPublishedIndex < mirrorIndex);
         Assert.True(waitIndex < mirrorIndex);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void Release_mirror_script_accepts_empty_notes_and_requires_existing_tag ()
+    {
+        var script = File.ReadAllText(ToRepositoryPath("scripts/mirror-nuget-package-release.sh"));
+
+        Assert.Contains("release_notes_set=false", script, StringComparison.Ordinal);
+        Assert.Contains("release_notes_set=true", script, StringComparison.Ordinal);
+        Assert.Contains("\"${release_notes_set}\" != true", script, StringComparison.Ordinal);
+        Assert.Contains("--expected-sha <sha>", script, StringComparison.Ordinal);
+        Assert.Contains("validate-release-tag.sh", script, StringComparison.Ordinal);
+        Assert.Contains("--verify-tag", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("|| -z \"${release_notes}\"", script, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -146,6 +153,18 @@ public sealed class WorkflowConfigurationTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public void Release_tag_validation_script_requires_expected_sha ()
+    {
+        var script = File.ReadAllText(ToRepositoryPath("scripts/validate-release-tag.sh"));
+
+        Assert.Contains("--tag-name <tag> --expected-sha <sha>", script, StringComparison.Ordinal);
+        Assert.Contains("git fetch --force \"${remote}\" \"refs/tags/${tag_name}:refs/tags/${tag_name}\"", script, StringComparison.Ordinal);
+        Assert.Contains("tag_sha=\"$(git rev-list -n 1 \"refs/tags/${tag_name}\")\"", script, StringComparison.Ordinal);
+        Assert.Contains("if [[ \"${tag_sha}\" != \"${expected_sha}\" ]]; then", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public void Nuget_package_repository_commit_validation_script_checks_nuspec_commit ()
     {
         var script = File.ReadAllText(ToRepositoryPath("scripts/validate-nuget-package-repository-commit.sh"));
@@ -154,18 +173,6 @@ public sealed class WorkflowConfigurationTests
         Assert.Contains("unzip -p \"${package_path}\" \"*.nuspec\"", script, StringComparison.Ordinal);
         Assert.Contains("commit=\"([^\"]+)\"", script, StringComparison.Ordinal);
         Assert.Contains("if [[ \"${package_commit}\" != \"${expected_commit}\" ]]; then", script, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public void Code_quality_uses_editorconfig_without_diagnostic_filter ()
-    {
-        var script = File.ReadAllText(ToRepositoryPath("scripts/code-quality.sh"));
-
-        Assert.Contains("dotnet format \"$command\" \"$solution\"", script, StringComparison.Ordinal);
-        Assert.Contains("run_dotnet_format style --verbosity minimal --no-restore", script, StringComparison.Ordinal);
-        Assert.DoesNotContain("--diagnostics", script, StringComparison.Ordinal);
-        Assert.DoesNotContain("diagnostics=(", script, StringComparison.Ordinal);
     }
 
     private static string ToRepositoryPath (string relativePath)

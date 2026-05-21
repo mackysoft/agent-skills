@@ -1,8 +1,7 @@
+namespace MackySoft.Tests;
 
 using System.Text.Json;
 using Xunit.Sdk;
-
-namespace MackySoft.Tests;
 
 internal static class JsonAssert
 {

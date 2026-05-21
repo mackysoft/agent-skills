@@ -1,7 +1,6 @@
+namespace MackySoft.Tests;
 
 using System.Text;
-
-namespace MackySoft.Tests;
 
 internal static class JsonSchemaValidationMessageBuilder
 {
