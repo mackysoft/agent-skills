@@ -1,4 +1,4 @@
-namespace MackySoft.AgentSkills.OperationReports;
+namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
 /// <summary> Represents one host-specific artifact in a listed canonical skill. </summary>
 /// <param name="Host"> The canonical host literal. </param>

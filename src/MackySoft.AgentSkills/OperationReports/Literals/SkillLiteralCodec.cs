@@ -6,11 +6,46 @@ using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Shared;
 
-namespace MackySoft.AgentSkills.OperationReports;
+namespace MackySoft.AgentSkills.OperationReports.Literals;
 
 /// <summary> Converts AgentSkills domain values to and from stable product-neutral literals. </summary>
 public static class SkillLiteralCodec
 {
+    private static readonly ActionLiteralDefinition<SkillInstallActionKind>[] InstallActionDefinitions =
+    [
+        new(SkillInstallActionKind.Created, "created", SkillOperationActionStatus.Changed),
+        new(SkillInstallActionKind.Updated, "updated", SkillOperationActionStatus.Changed),
+        new(SkillInstallActionKind.NoOp, "noOp", SkillOperationActionStatus.NoOp),
+        new(SkillInstallActionKind.BlockedManagedOverwrite, "blockedManagedOverwrite", SkillOperationActionStatus.Blocked),
+        new(SkillInstallActionKind.BlockedLocalModification, "blockedLocalModification", SkillOperationActionStatus.Blocked),
+        new(SkillInstallActionKind.BlockedUnmanaged, "blockedUnmanaged", SkillOperationActionStatus.Blocked),
+    ];
+
+    private static readonly ActionLiteralDefinition<SkillUpdateActionKind>[] UpdateActionDefinitions =
+    [
+        new(SkillUpdateActionKind.Created, "created", SkillOperationActionStatus.Changed),
+        new(SkillUpdateActionKind.Updated, "updated", SkillOperationActionStatus.Changed),
+        new(SkillUpdateActionKind.NoOp, "noOp", SkillOperationActionStatus.NoOp),
+        new(SkillUpdateActionKind.BlockedLocalModification, "blockedLocalModification", SkillOperationActionStatus.Blocked),
+        new(SkillUpdateActionKind.BlockedUnmanaged, "blockedUnmanaged", SkillOperationActionStatus.Blocked),
+    ];
+
+    private static readonly ActionLiteralDefinition<SkillUninstallActionKind>[] UninstallActionDefinitions =
+    [
+        new(SkillUninstallActionKind.Deleted, "deleted", SkillOperationActionStatus.Changed),
+        new(SkillUninstallActionKind.NoOp, "noOp", SkillOperationActionStatus.NoOp),
+        new(SkillUninstallActionKind.SkippedUnmanaged, "skippedUnmanaged", SkillOperationActionStatus.Skipped),
+        new(SkillUninstallActionKind.BlockedLocalModification, "blockedLocalModification", SkillOperationActionStatus.Blocked),
+    ];
+
+    private static readonly SkillOperationActionStatus[] ActionStatusOrder =
+    [
+        SkillOperationActionStatus.Changed,
+        SkillOperationActionStatus.NoOp,
+        SkillOperationActionStatus.Skipped,
+        SkillOperationActionStatus.Blocked,
+    ];
+
     /// <summary> Normalizes a supported host literal to the canonical host key. </summary>
     /// <param name="host"> The caller-provided host literal. Null, empty, and whitespace values return a host-unsupported failure. </param>
     /// <param name="hostAdapters"> The supported host adapter set used as the canonical host source. </param>
@@ -110,16 +145,7 @@ public static class SkillLiteralCodec
     /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="actionKind" /> is not a defined <see cref="SkillInstallActionKind" /> value. </exception>
     public static string FormatInstallAction (SkillInstallActionKind actionKind)
     {
-        return actionKind switch
-        {
-            SkillInstallActionKind.Created => "created",
-            SkillInstallActionKind.Updated => "updated",
-            SkillInstallActionKind.NoOp => "noOp",
-            SkillInstallActionKind.BlockedManagedOverwrite => "blockedManagedOverwrite",
-            SkillInstallActionKind.BlockedLocalModification => "blockedLocalModification",
-            SkillInstallActionKind.BlockedUnmanaged => "blockedUnmanaged",
-            _ => throw new ArgumentOutOfRangeException(nameof(actionKind), actionKind, "Unsupported SKILL install action kind."),
-        };
+        return FormatAction(InstallActionDefinitions, actionKind, nameof(actionKind), "Unsupported SKILL install action kind.");
     }
 
     /// <summary> Formats an update action as a stable lower camel literal. </summary>
@@ -128,15 +154,7 @@ public static class SkillLiteralCodec
     /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="actionKind" /> is not a defined <see cref="SkillUpdateActionKind" /> value. </exception>
     public static string FormatUpdateAction (SkillUpdateActionKind actionKind)
     {
-        return actionKind switch
-        {
-            SkillUpdateActionKind.Created => "created",
-            SkillUpdateActionKind.Updated => "updated",
-            SkillUpdateActionKind.NoOp => "noOp",
-            SkillUpdateActionKind.BlockedLocalModification => "blockedLocalModification",
-            SkillUpdateActionKind.BlockedUnmanaged => "blockedUnmanaged",
-            _ => throw new ArgumentOutOfRangeException(nameof(actionKind), actionKind, "Unsupported SKILL update action kind."),
-        };
+        return FormatAction(UpdateActionDefinitions, actionKind, nameof(actionKind), "Unsupported SKILL update action kind.");
     }
 
     /// <summary> Formats an uninstall action as a stable lower camel literal. </summary>
@@ -145,21 +163,14 @@ public static class SkillLiteralCodec
     /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="actionKind" /> is not a defined <see cref="SkillUninstallActionKind" /> value. </exception>
     public static string FormatUninstallAction (SkillUninstallActionKind actionKind)
     {
-        return actionKind switch
-        {
-            SkillUninstallActionKind.Deleted => "deleted",
-            SkillUninstallActionKind.NoOp => "noOp",
-            SkillUninstallActionKind.SkippedUnmanaged => "skippedUnmanaged",
-            SkillUninstallActionKind.BlockedLocalModification => "blockedLocalModification",
-            _ => throw new ArgumentOutOfRangeException(nameof(actionKind), actionKind, "Unsupported SKILL uninstall action kind."),
-        };
+        return FormatAction(UninstallActionDefinitions, actionKind, nameof(actionKind), "Unsupported SKILL uninstall action kind.");
     }
 
     /// <summary> Formats a coarse action status as a stable lower camel literal. </summary>
     /// <param name="status"> The operation action status to format. </param>
     /// <returns> The stable literal for <paramref name="status" />. </returns>
     /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="status" /> is not a defined <see cref="SkillOperationActionStatus" /> value. </exception>
-    public static string FormatActionStatus (SkillOperationActionStatus status)
+    internal static string FormatActionStatus (SkillOperationActionStatus status)
     {
         return status switch
         {
@@ -252,4 +263,98 @@ public static class SkillLiteralCodec
 
         return code.Value;
     }
+
+    internal static IReadOnlyList<string> GetInstallActionLiterals ()
+    {
+        return GetActionLiterals(InstallActionDefinitions);
+    }
+
+    internal static IReadOnlyList<string> GetUpdateActionLiterals ()
+    {
+        return GetActionLiterals(UpdateActionDefinitions);
+    }
+
+    internal static IReadOnlyList<string> GetUninstallActionLiterals ()
+    {
+        return GetActionLiterals(UninstallActionDefinitions);
+    }
+
+    internal static IReadOnlyList<string> GetActionStatusLiterals ()
+    {
+        return ActionStatusOrder
+            .Select(FormatActionStatus)
+            .ToArray();
+    }
+
+    internal static SkillOperationActionStatus GetInstallActionStatus (SkillInstallActionKind actionKind)
+    {
+        return GetActionStatus(InstallActionDefinitions, actionKind, nameof(actionKind), "Unsupported SKILL install action kind.");
+    }
+
+    internal static SkillOperationActionStatus GetUpdateActionStatus (SkillUpdateActionKind actionKind)
+    {
+        return GetActionStatus(UpdateActionDefinitions, actionKind, nameof(actionKind), "Unsupported SKILL update action kind.");
+    }
+
+    internal static SkillOperationActionStatus GetUninstallActionStatus (SkillUninstallActionKind actionKind)
+    {
+        return GetActionStatus(UninstallActionDefinitions, actionKind, nameof(actionKind), "Unsupported SKILL uninstall action kind.");
+    }
+
+    private static IReadOnlyList<string> GetActionLiterals<TActionKind> (IReadOnlyList<ActionLiteralDefinition<TActionKind>> definitions)
+        where TActionKind : struct, Enum
+    {
+        return definitions
+            .Select(static definition => definition.Literal)
+            .ToArray();
+    }
+
+    private static string FormatAction<TActionKind> (
+        IReadOnlyList<ActionLiteralDefinition<TActionKind>> definitions,
+        TActionKind actionKind,
+        string parameterName,
+        string message)
+        where TActionKind : struct, Enum
+    {
+        return TryGetActionDefinition(definitions, actionKind, out var definition)
+            ? definition.Literal
+            : throw new ArgumentOutOfRangeException(parameterName, actionKind, message);
+    }
+
+    private static SkillOperationActionStatus GetActionStatus<TActionKind> (
+        IReadOnlyList<ActionLiteralDefinition<TActionKind>> definitions,
+        TActionKind actionKind,
+        string parameterName,
+        string message)
+        where TActionKind : struct, Enum
+    {
+        return TryGetActionDefinition(definitions, actionKind, out var definition)
+            ? definition.Status
+            : throw new ArgumentOutOfRangeException(parameterName, actionKind, message);
+    }
+
+    private static bool TryGetActionDefinition<TActionKind> (
+        IReadOnlyList<ActionLiteralDefinition<TActionKind>> definitions,
+        TActionKind actionKind,
+        out ActionLiteralDefinition<TActionKind> definition)
+        where TActionKind : struct, Enum
+    {
+        foreach (var candidate in definitions)
+        {
+            if (EqualityComparer<TActionKind>.Default.Equals(candidate.Kind, actionKind))
+            {
+                definition = candidate;
+                return true;
+            }
+        }
+
+        definition = default;
+        return false;
+    }
+
+    private readonly record struct ActionLiteralDefinition<TActionKind> (
+        TActionKind Kind,
+        string Literal,
+        SkillOperationActionStatus Status)
+        where TActionKind : struct, Enum;
 }

@@ -5,22 +5,16 @@ using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
+using MackySoft.AgentSkills.OperationReports.Contracts;
+using MackySoft.AgentSkills.OperationReports.Literals;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 
-namespace MackySoft.AgentSkills.OperationReports;
+namespace MackySoft.AgentSkills.OperationReports.Projection;
 
 /// <summary> Builds product-neutral reports from AgentSkills operation result models. </summary>
 public static class SkillOperationReportBuilder
 {
-    private static readonly SkillOperationActionStatus[] StatusOrder =
-    [
-        SkillOperationActionStatus.Changed,
-        SkillOperationActionStatus.NoOp,
-        SkillOperationActionStatus.Skipped,
-        SkillOperationActionStatus.Blocked,
-    ];
-
     /// <summary> Creates list report data from canonical packages and host descriptors. </summary>
     /// <param name="packages"> The canonical packages to list. Must not be <see langword="null" />. </param>
     /// <param name="hostAdapters"> The supported host adapter set. Must not be <see langword="null" />. </param>
@@ -102,15 +96,12 @@ public static class SkillOperationReportBuilder
             context,
             static action => action.Identity,
             static action => SkillLiteralCodec.FormatInstallAction(action.ActionKind),
-            static action => GetStatus(action.ActionKind),
+            static action => SkillLiteralCodec.GetInstallActionStatus(action.ActionKind),
             static action => action.BlockedReason,
             static action => action.TargetState,
             static action => action.FileChanges,
             static action => action.Diffs,
-            Enum.GetValues<SkillInstallActionKind>()
-                .OrderBy(static actionKind => (int)actionKind)
-                .Select(SkillLiteralCodec.FormatInstallAction)
-                .ToArray());
+            SkillLiteralCodec.GetInstallActionLiterals());
     }
 
     /// <summary> Creates product-neutral report data from a successful update operation. </summary>
@@ -136,15 +127,12 @@ public static class SkillOperationReportBuilder
             context,
             static action => action.Identity,
             static action => SkillLiteralCodec.FormatUpdateAction(action.ActionKind),
-            static action => GetStatus(action.ActionKind),
+            static action => SkillLiteralCodec.GetUpdateActionStatus(action.ActionKind),
             static action => action.BlockedReason,
             static action => action.TargetState,
             static action => action.FileChanges,
             static action => action.Diffs,
-            Enum.GetValues<SkillUpdateActionKind>()
-                .OrderBy(static actionKind => (int)actionKind)
-                .Select(SkillLiteralCodec.FormatUpdateAction)
-                .ToArray());
+            SkillLiteralCodec.GetUpdateActionLiterals());
     }
 
     /// <summary> Creates product-neutral report data from a successful uninstall operation. </summary>
@@ -170,15 +158,12 @@ public static class SkillOperationReportBuilder
             context,
             static action => action.Identity,
             static action => SkillLiteralCodec.FormatUninstallAction(action.ActionKind),
-            static action => GetStatus(action.ActionKind),
+            static action => SkillLiteralCodec.GetUninstallActionStatus(action.ActionKind),
             static action => action.BlockedReason,
             static action => action.TargetState,
             static action => action.FileChanges,
             static _ => null,
-            Enum.GetValues<SkillUninstallActionKind>()
-                .OrderBy(static actionKind => (int)actionKind)
-                .Select(SkillLiteralCodec.FormatUninstallAction)
-                .ToArray());
+            SkillLiteralCodec.GetUninstallActionLiterals());
     }
 
     /// <summary> Creates product-neutral report data from a doctor result. </summary>
@@ -257,12 +242,11 @@ public static class SkillOperationReportBuilder
             targetRoot,
             dryRun,
             force,
-            printDiff,
             context.HostDescriptor.ReloadGuidance,
             projectedActions,
             CreateCounts(actionLiteralOrder, projectedActions, static action => action.Action),
             CreateCounts(
-                StatusOrder.Select(SkillLiteralCodec.FormatActionStatus).ToArray(),
+                SkillLiteralCodec.GetActionStatusLiterals(),
                 projectedActions,
                 static action => action.Status));
     }
@@ -295,40 +279,6 @@ public static class SkillOperationReportBuilder
             CreateFileDiffReports(printDiff ? getDiffs(action) : null));
     }
 
-    private static SkillOperationActionStatus GetStatus (SkillInstallActionKind actionKind)
-    {
-        return actionKind switch
-        {
-            SkillInstallActionKind.Created or SkillInstallActionKind.Updated => SkillOperationActionStatus.Changed,
-            SkillInstallActionKind.NoOp => SkillOperationActionStatus.NoOp,
-            SkillInstallActionKind.BlockedManagedOverwrite or SkillInstallActionKind.BlockedLocalModification or SkillInstallActionKind.BlockedUnmanaged => SkillOperationActionStatus.Blocked,
-            _ => throw new ArgumentOutOfRangeException(nameof(actionKind), actionKind, "Unsupported SKILL install action kind."),
-        };
-    }
-
-    private static SkillOperationActionStatus GetStatus (SkillUpdateActionKind actionKind)
-    {
-        return actionKind switch
-        {
-            SkillUpdateActionKind.Created or SkillUpdateActionKind.Updated => SkillOperationActionStatus.Changed,
-            SkillUpdateActionKind.NoOp => SkillOperationActionStatus.NoOp,
-            SkillUpdateActionKind.BlockedLocalModification or SkillUpdateActionKind.BlockedUnmanaged => SkillOperationActionStatus.Blocked,
-            _ => throw new ArgumentOutOfRangeException(nameof(actionKind), actionKind, "Unsupported SKILL update action kind."),
-        };
-    }
-
-    private static SkillOperationActionStatus GetStatus (SkillUninstallActionKind actionKind)
-    {
-        return actionKind switch
-        {
-            SkillUninstallActionKind.Deleted => SkillOperationActionStatus.Changed,
-            SkillUninstallActionKind.NoOp => SkillOperationActionStatus.NoOp,
-            SkillUninstallActionKind.SkippedUnmanaged => SkillOperationActionStatus.Skipped,
-            SkillUninstallActionKind.BlockedLocalModification => SkillOperationActionStatus.Blocked,
-            _ => throw new ArgumentOutOfRangeException(nameof(actionKind), actionKind, "Unsupported SKILL uninstall action kind."),
-        };
-    }
-
     private static SkillTargetStateReport? CreateTargetStateReport (SkillActionTargetState? state)
     {
         if (state is null)
@@ -353,21 +303,33 @@ public static class SkillOperationReportBuilder
         return fileChanges is null
             ? null
             : new SkillOperationFileChangesReport(
-                fileChanges.ReplacedFiles.Order(StringComparer.Ordinal).ToArray(),
-                fileChanges.RemovedFiles.Order(StringComparer.Ordinal).ToArray());
+                CreateSafeRelativePathReports(fileChanges.ReplacedFiles, nameof(fileChanges)),
+                CreateSafeRelativePathReports(fileChanges.RemovedFiles, nameof(fileChanges)));
     }
 
     private static IReadOnlyList<SkillOperationFileDiffReport> CreateFileDiffReports (IReadOnlyList<SkillActionDiff>? diffs)
     {
-        return (diffs ?? Array.Empty<SkillActionDiff>())
-            .SelectMany(static diff => diff.Files)
+        var files = new List<SkillOperationFileDiffReport>();
+        foreach (var diff in diffs ?? Array.Empty<SkillActionDiff>())
+        {
+            ArgumentNullException.ThrowIfNull(diff);
+            ArgumentNullException.ThrowIfNull(diff.Files);
+
+            foreach (var file in diff.Files)
+            {
+                ArgumentNullException.ThrowIfNull(file);
+                ValidateSafeRelativePath(file.RelativePath, nameof(diffs));
+                files.Add(new SkillOperationFileDiffReport(
+                    file.RelativePath,
+                    SkillLiteralCodec.FormatDiffChangeKind(file.ChangeKind),
+                    file.BeforeContent,
+                    file.AfterContent));
+            }
+        }
+
+        return files
             .OrderBy(static file => file.RelativePath, StringComparer.Ordinal)
-            .ThenBy(static file => (int)file.ChangeKind)
-            .Select(static file => new SkillOperationFileDiffReport(
-                file.RelativePath,
-                SkillLiteralCodec.FormatDiffChangeKind(file.ChangeKind),
-                file.BeforeContent,
-                file.AfterContent))
+            .ThenBy(static file => file.ChangeKind, StringComparer.Ordinal)
             .ToArray();
     }
 
@@ -437,9 +399,43 @@ public static class SkillOperationReportBuilder
         return fileSet is null
             ? null
             : new SkillTargetFileSetReport(
-                fileSet.MissingFiles.Order(StringComparer.Ordinal).ToArray(),
-                fileSet.ExtraFiles.Order(StringComparer.Ordinal).ToArray(),
-                fileSet.ExtraDirectories.Order(StringComparer.Ordinal).ToArray());
+                CreateSafeRelativePathReports(fileSet.MissingFiles, nameof(fileSet)),
+                CreateSafeRelativePathReports(fileSet.ExtraFiles, nameof(fileSet)),
+                CreateSafeRelativePathReports(fileSet.ExtraDirectories, nameof(fileSet)));
+    }
+
+    private static IReadOnlyList<string> CreateSafeRelativePathReports (
+        IReadOnlyList<string> relativePaths,
+        string parameterName)
+    {
+        ArgumentNullException.ThrowIfNull(relativePaths);
+
+        foreach (var relativePath in relativePaths)
+        {
+            ValidateSafeRelativePath(relativePath, parameterName);
+        }
+
+        return relativePaths
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static void ValidateSafeRelativePath (
+        string relativePath,
+        string parameterName)
+    {
+        if (!IsSafeReportRelativePath(relativePath))
+        {
+            throw new ArgumentException($"Operation report path must be a safe slash-separated relative file path: {relativePath}", parameterName);
+        }
+    }
+
+    private static bool IsSafeReportRelativePath (string? relativePath)
+    {
+        return SkillRelativePath.IsSafeFilePath(relativePath)
+            && relativePath is not null
+            && !relativePath.Contains(':', StringComparison.Ordinal)
+            && !relativePath.Any(char.IsControl);
     }
 
     private static void ValidateIdentity (

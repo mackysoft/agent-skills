@@ -1,4 +1,4 @@
-namespace MackySoft.AgentSkills.OperationReports;
+namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
 /// <summary> Represents one file diff with a stable change-kind literal. </summary>
 /// <param name="RelativePath"> The slash-separated path relative to the skill directory. </param>

@@ -1,4 +1,4 @@
-namespace MackySoft.AgentSkills.OperationReports;
+namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
 /// <summary> Represents product-neutral user-scope target root resolution data for one host. </summary>
 /// <param name="EnvironmentVariableName"> The optional environment variable that overrides the home-relative target root. </param>

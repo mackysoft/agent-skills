@@ -1,4 +1,4 @@
-namespace MackySoft.AgentSkills.OperationReports;
+namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
 /// <summary> Represents structured file-set drift details for a target state. </summary>
 /// <param name="MissingFiles"> Expected managed files that are missing from the target. </param>

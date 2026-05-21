@@ -1,4 +1,4 @@
-namespace MackySoft.AgentSkills.OperationReports;
+namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
 /// <summary> Represents one doctor diagnostic with stable severity and target state literals. </summary>
 /// <param name="Severity"> The stable diagnostic severity literal. </param>

@@ -1,7 +1,7 @@
-namespace MackySoft.AgentSkills.OperationReports;
+namespace MackySoft.AgentSkills.OperationReports.Literals;
 
 /// <summary> Defines the coarse status for one operation action. </summary>
-public enum SkillOperationActionStatus
+internal enum SkillOperationActionStatus
 {
     /// <summary> The action creates, updates, replaces, or deletes target files. </summary>
     Changed = 0,

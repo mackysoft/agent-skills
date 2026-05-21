@@ -1,4 +1,4 @@
-namespace MackySoft.AgentSkills.OperationReports;
+namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
 /// <summary> Represents a target state with stable literals suitable for product CLI payloads. </summary>
 /// <param name="Kind"> The stable target state literal. </param>

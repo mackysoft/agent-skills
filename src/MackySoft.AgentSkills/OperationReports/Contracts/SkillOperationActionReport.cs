@@ -1,4 +1,4 @@
-namespace MackySoft.AgentSkills.OperationReports;
+namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
 /// <summary> Represents one per-skill operation action with stable action and status literals. </summary>
 /// <param name="SkillName"> The canonical skill name. </param>

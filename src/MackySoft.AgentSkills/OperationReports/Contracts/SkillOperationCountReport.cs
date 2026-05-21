@@ -1,4 +1,4 @@
-namespace MackySoft.AgentSkills.OperationReports;
+namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
 /// <summary> Represents a deterministic count for one stable operation literal. </summary>
 /// <param name="Literal"> The stable action or status literal being counted. </param>

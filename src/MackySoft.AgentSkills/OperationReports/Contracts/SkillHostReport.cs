@@ -1,4 +1,4 @@
-namespace MackySoft.AgentSkills.OperationReports;
+namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
 /// <summary> Represents product-neutral capability data for one supported SKILL host. </summary>
 /// <param name="Host"> The canonical host key. </param>

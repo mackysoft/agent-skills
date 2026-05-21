@@ -1,4 +1,4 @@
-namespace MackySoft.AgentSkills.OperationReports;
+namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
 /// <summary> Represents product-neutral list data for one canonical skill package. </summary>
 /// <param name="SchemaVersion"> The manifest schema version. </param>

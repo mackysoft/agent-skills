@@ -1,4 +1,4 @@
-namespace MackySoft.AgentSkills.OperationReports;
+namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
 /// <summary> Represents product-neutral doctor result data. </summary>
 /// <param name="Host"> The canonical host key diagnosed by the doctor workflow. </param>

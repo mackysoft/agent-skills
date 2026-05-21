@@ -3,7 +3,7 @@ using MackySoft.AgentSkills.Shared;
 namespace MackySoft.AgentSkills.Installation.State;
 
 /// <summary> Provides shared classification for installed target state drift failure codes. </summary>
-public static class SkillInstalledTargetStateClassifier
+internal static class SkillInstalledTargetStateClassifier
 {
     private static readonly StateClassification[] DriftClassifications =
     [

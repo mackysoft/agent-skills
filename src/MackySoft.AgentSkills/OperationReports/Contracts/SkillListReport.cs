@@ -1,4 +1,4 @@
-namespace MackySoft.AgentSkills.OperationReports;
+namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
 /// <summary> Represents product-neutral list data for generated skills and supported hosts. </summary>
 /// <param name="Skills"> The canonical skill reports sorted by skill name using ordinal comparison. </param>

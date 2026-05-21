@@ -4,7 +4,7 @@ using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
-using MackySoft.AgentSkills.OperationReports;
+using MackySoft.AgentSkills.OperationReports.Literals;
 using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Tests.OperationReports;
@@ -141,14 +141,16 @@ public sealed class SkillLiteralCodecTests
 
     [Theory]
     [Trait("Size", "Small")]
-    [InlineData(SkillOperationActionStatus.Changed, "changed")]
-    [InlineData(SkillOperationActionStatus.NoOp, "noOp")]
-    [InlineData(SkillOperationActionStatus.Skipped, "skipped")]
-    [InlineData(SkillOperationActionStatus.Blocked, "blocked")]
+    [InlineData(0, "changed")]
+    [InlineData(1, "noOp")]
+    [InlineData(2, "skipped")]
+    [InlineData(3, "blocked")]
     public void FormatActionStatus_ReturnsStableLiteral (
-        SkillOperationActionStatus status,
+        int statusValue,
         string expected)
     {
+        var status = (SkillOperationActionStatus)statusValue;
+
         Assert.Equal(expected, SkillLiteralCodec.FormatActionStatus(status));
     }
 

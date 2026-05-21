@@ -1,4 +1,4 @@
-namespace MackySoft.AgentSkills.OperationReports;
+namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
 /// <summary> Represents a product-neutral install, update, or uninstall report. </summary>
 /// <param name="Host"> The canonical host key used for the operation. </param>
@@ -6,7 +6,6 @@ namespace MackySoft.AgentSkills.OperationReports;
 /// <param name="TargetRoot"> The canonical absolute host target root. </param>
 /// <param name="DryRun"> Whether the report represents a plan without writes. </param>
 /// <param name="Force"> Whether the operation used force semantics. </param>
-/// <param name="PrintDiff"> Whether file content diffs were requested for the operation. </param>
 /// <param name="ReloadGuidance"> The host-specific guidance for reloading installed or updated SKILLs. </param>
 /// <param name="Actions"> The per-skill action reports sorted by skill name using ordinal comparison. </param>
 /// <param name="ActionCounts"> Counts for every action literal supported by the source operation kind, in stable literal order. </param>
@@ -17,7 +16,6 @@ public sealed record SkillOperationReport (
     string TargetRoot,
     bool DryRun,
     bool Force,
-    bool PrintDiff,
     string ReloadGuidance,
     IReadOnlyList<SkillOperationActionReport> Actions,
     IReadOnlyList<SkillOperationCountReport> ActionCounts,

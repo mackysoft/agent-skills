@@ -1,4 +1,4 @@
-namespace MackySoft.AgentSkills.OperationReports;
+namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
 /// <summary> Represents existing target files that an operation replaces or removes. </summary>
 /// <param name="ReplacedFiles"> Existing files replaced by the operation, sorted using ordinal comparison. </param>
