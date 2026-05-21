@@ -93,16 +93,18 @@ public sealed class SkillUpdateServiceTests
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "update-unmanaged");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var service = SkillTestData.CreateUpdateService();
-        scope.WriteFile(Path.Combine(".agents", "skills", packages[0].Manifest.SkillName, "SKILL.md"), "# Existing\n");
+        var unmanagedPath = scope.WriteFile(Path.Combine(".agents", "skills", packages[0].Manifest.SkillName, "SKILL.md"), "# Existing\n");
 
         var result = await service.UpdateAsync(
             new SkillUpdateInput(
                 packages,
-                new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath)),
+                new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+                Force: true),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.InstallTargetUnmanaged, result.Failure!.Code);
+        Assert.Equal("# Existing\n", File.ReadAllText(unmanagedPath));
     }
 
     [Fact]
@@ -118,7 +120,8 @@ public sealed class SkillUpdateServiceTests
         var result = await service.UpdateAsync(
             new SkillUpdateInput(
                 packages,
-                new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath)),
+                new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+                Force: true),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -268,6 +271,9 @@ public sealed class SkillUpdateServiceTests
         Assert.Equal(SkillUpdateActionKind.Created, action.ActionKind);
         Assert.Equal(nameof(SkillInstalledTargetStateKind.Missing), action.TargetState!.Kind);
         Assert.NotEmpty(action.Diffs!);
+        Assert.NotNull(action.FileChanges);
+        Assert.Empty(action.FileChanges!.ReplacedFiles);
+        Assert.Empty(action.FileChanges!.RemovedFiles);
         Assert.False(Directory.Exists(Path.Combine(result.Value.TargetRoot, packages[0].Manifest.SkillName)));
     }
 
@@ -294,6 +300,9 @@ public sealed class SkillUpdateServiceTests
         Assert.Equal(nameof(SkillInstalledTargetStateKind.CleanOutdated), action.TargetState!.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetOutdated, action.TargetState.Code);
         Assert.NotEmpty(action.Diffs!);
+        Assert.NotNull(action.FileChanges);
+        Assert.Contains("SKILL.md", action.FileChanges!.ReplacedFiles);
+        Assert.Empty(action.FileChanges!.RemovedFiles);
         Assert.Equal(originalManifest, File.ReadAllText(manifestPath));
     }
 
@@ -344,7 +353,85 @@ public sealed class SkillUpdateServiceTests
         var action = result.Value!.Actions.Single(action => action.Identity.SkillName == packages[0].Manifest.SkillName);
         Assert.Equal(SkillUpdateActionKind.Updated, action.ActionKind);
         Assert.NotEmpty(action.Diffs!);
+        Assert.Equal(new[] { "SKILL.md" }, action.FileChanges!.ReplacedFiles);
+        Assert.Empty(action.FileChanges!.RemovedFiles);
         Assert.DoesNotContain("Injected instruction.", File.ReadAllText(skillPath), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task UpdateAsync_DryRunWithForceReportsRemovedFileWithoutWritingOrDiffs ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "update-dry-run-force-extra-file");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var installService = SkillTestData.CreateInstallService();
+        var updateService = SkillTestData.CreateUpdateService();
+        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var install = await installService.InstallAsync(packages, request, CancellationToken.None);
+        Assert.True(install.IsSuccess, install.Failure?.Message);
+        var skillDirectory = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName);
+        var extraFile = Path.Combine(skillDirectory, "local-note.md");
+        File.WriteAllText(extraFile, "# Local note\n");
+
+        var result = await updateService.UpdateAsync(new SkillUpdateInput([packages[0]], request, DryRun: true, Force: true), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        var action = result.Value!.Actions.Single();
+        Assert.Equal(SkillUpdateActionKind.Updated, action.ActionKind);
+        Assert.Empty(action.Diffs!);
+        Assert.Empty(action.FileChanges!.ReplacedFiles);
+        Assert.Equal(new[] { "local-note.md" }, action.FileChanges!.RemovedFiles);
+        Assert.True(File.Exists(extraFile));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task UpdateAsync_DryRunWithForceReportsReplacedFileWithoutWriting ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "update-dry-run-force-local-modification");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var installService = SkillTestData.CreateInstallService();
+        var updateService = SkillTestData.CreateUpdateService();
+        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var install = await installService.InstallAsync(packages, request, CancellationToken.None);
+        Assert.True(install.IsSuccess, install.Failure?.Message);
+        var skillPath = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName, "SKILL.md");
+        File.AppendAllText(skillPath, "\nInjected instruction.\n");
+
+        var result = await updateService.UpdateAsync(new SkillUpdateInput([packages[0]], request, DryRun: true, Force: true), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        var action = result.Value!.Actions.Single();
+        Assert.Equal(SkillUpdateActionKind.Updated, action.ActionKind);
+        Assert.Equal(new[] { "SKILL.md" }, action.FileChanges!.ReplacedFiles);
+        Assert.Empty(action.FileChanges!.RemovedFiles);
+        Assert.Contains("Injected instruction.", File.ReadAllText(skillPath), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task UpdateAsync_WithForceRemovesExtraFileAndReportsIt ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "update-force-extra-file");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var installService = SkillTestData.CreateInstallService();
+        var updateService = SkillTestData.CreateUpdateService();
+        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var install = await installService.InstallAsync(packages, request, CancellationToken.None);
+        Assert.True(install.IsSuccess, install.Failure?.Message);
+        var skillDirectory = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName);
+        var extraFile = Path.Combine(skillDirectory, "local-note.md");
+        File.WriteAllText(extraFile, "# Local note\n");
+
+        var result = await updateService.UpdateAsync(new SkillUpdateInput([packages[0]], request, Force: true), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        var action = result.Value!.Actions.Single();
+        Assert.Equal(SkillUpdateActionKind.Updated, action.ActionKind);
+        Assert.Empty(action.FileChanges!.ReplacedFiles);
+        Assert.Equal(new[] { "local-note.md" }, action.FileChanges!.RemovedFiles);
+        Assert.False(File.Exists(extraFile));
+        Assert.True(File.Exists(Path.Combine(result.Value!.TargetRoot, packages[1].Manifest.SkillName, "agent-skill.json")));
     }
 
     [Fact]
@@ -370,6 +457,7 @@ public sealed class SkillUpdateServiceTests
         Assert.Equal(SkillUpdateActionKind.BlockedUnmanaged, action.ActionKind);
         Assert.Equal(SkillBlockedReason.UnmanagedTarget, action.BlockedReason);
         Assert.Empty(action.Diffs!);
+        Assert.Null(action.FileChanges);
         Assert.True(File.Exists(unmanagedPath));
     }
 
@@ -439,6 +527,58 @@ public sealed class SkillUpdateServiceTests
         var skillText = File.ReadAllText(skillPath);
         Assert.Contains("Injected after planning.", skillText, StringComparison.Ordinal);
         Assert.DoesNotContain("Fixture update.", skillText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task UpdateAsync_WithForceWhenTargetChangesAfterPlanning_ReturnsFailureWithoutOverwriting ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "update-force-target-race");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var installService = SkillTestData.CreateInstallService();
+        var updateService = SkillTestData.CreateUpdateService();
+        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var install = await installService.InstallAsync([packages[0], packages[1]], request, CancellationToken.None);
+        Assert.True(install.IsSuccess, install.Failure?.Message);
+        var skillDirectory = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName);
+        var skillPath = Path.Combine(skillDirectory, "SKILL.md");
+        var lateFile = Path.Combine(skillDirectory, "late-local-note.md");
+        File.AppendAllText(skillPath, "\nInjected before planning.\n");
+        var secondPackage = SkillTestData.WithFileEnumerationCallback(packages[1], () =>
+            File.WriteAllText(lateFile, "# Late local note\n"));
+
+        var result = await updateService.UpdateAsync(new SkillUpdateInput([packages[0], secondPackage], request, Force: true), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, result.Failure!.Code);
+        Assert.Contains("Injected before planning.", File.ReadAllText(skillPath), StringComparison.Ordinal);
+        Assert.True(File.Exists(lateFile));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task UpdateAsync_WithForceWhenEmptyDirectoryAppearsAfterPlanning_ReturnsFailureWithoutOverwriting ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "update-force-empty-directory-race");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var installService = SkillTestData.CreateInstallService();
+        var updateService = SkillTestData.CreateUpdateService();
+        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var install = await installService.InstallAsync([packages[0], packages[1]], request, CancellationToken.None);
+        Assert.True(install.IsSuccess, install.Failure?.Message);
+        var skillDirectory = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName);
+        var skillPath = Path.Combine(skillDirectory, "SKILL.md");
+        var lateDirectory = Path.Combine(skillDirectory, "late-local-notes");
+        File.AppendAllText(skillPath, "\nInjected before planning.\n");
+        var secondPackage = SkillTestData.WithFileEnumerationCallback(packages[1], () =>
+            Directory.CreateDirectory(lateDirectory));
+
+        var result = await updateService.UpdateAsync(new SkillUpdateInput([packages[0], secondPackage], request, Force: true), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, result.Failure!.Code);
+        Assert.Contains("Injected before planning.", File.ReadAllText(skillPath), StringComparison.Ordinal);
+        Assert.True(Directory.Exists(lateDirectory));
     }
 
     [Fact]
@@ -548,7 +688,8 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(
             new SkillUpdateInput(
                 packages,
-                new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath, "shared-skills")),
+                new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath, "shared-skills"),
+                Force: true),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -598,7 +739,8 @@ public sealed class SkillUpdateServiceTests
         var result = await service.UpdateAsync(
             new SkillUpdateInput(
                 [package],
-                new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath)),
+                new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+                Force: true),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);

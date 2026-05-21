@@ -1,4 +1,5 @@
 using MackySoft.AgentSkills.Installation.Contracts;
+using MackySoft.AgentSkills.Installation.Diffing;
 using MackySoft.AgentSkills.Installation.Requests;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Installation.State;
@@ -15,6 +16,7 @@ public sealed class SkillUninstallService
     private readonly SkillInstallTargetResolver targetResolver;
     private readonly SkillInstalledTargetStateAnalyzer targetStateAnalyzer;
     private readonly ISkillInstalledPackageRemover packageRemover;
+    private readonly SkillMaterializedPackageDiffBuilder diffBuilder;
 
     /// <summary> Initializes a new instance of the <see cref="SkillUninstallService" /> class. </summary>
     /// <param name="targetResolver"> The target resolver. </param>
@@ -24,10 +26,29 @@ public sealed class SkillUninstallService
         SkillInstallTargetResolver targetResolver,
         SkillInstalledTargetStateAnalyzer targetStateAnalyzer,
         ISkillInstalledPackageRemover packageRemover)
+        : this(
+            targetResolver,
+            targetStateAnalyzer,
+            packageRemover,
+            new SkillMaterializedPackageDiffBuilder())
+    {
+    }
+
+    /// <summary> Initializes a new instance of the <see cref="SkillUninstallService" /> class. </summary>
+    /// <param name="targetResolver"> The target resolver. </param>
+    /// <param name="targetStateAnalyzer"> The installed target state analyzer. </param>
+    /// <param name="packageRemover"> The installed package remover. </param>
+    /// <param name="diffBuilder"> The structured diff builder. </param>
+    public SkillUninstallService (
+        SkillInstallTargetResolver targetResolver,
+        SkillInstalledTargetStateAnalyzer targetStateAnalyzer,
+        ISkillInstalledPackageRemover packageRemover,
+        SkillMaterializedPackageDiffBuilder diffBuilder)
     {
         this.targetResolver = targetResolver ?? throw new ArgumentNullException(nameof(targetResolver));
         this.targetStateAnalyzer = targetStateAnalyzer ?? throw new ArgumentNullException(nameof(targetStateAnalyzer));
         this.packageRemover = packageRemover ?? throw new ArgumentNullException(nameof(packageRemover));
+        this.diffBuilder = diffBuilder ?? throw new ArgumentNullException(nameof(diffBuilder));
     }
 
     /// <summary> Uninstalls SKILL packages. </summary>
@@ -72,7 +93,7 @@ public sealed class SkillUninstallService
                 return SkillOperationResult<SkillUninstallResult>.FailureResult(stateResult.Failure!.Code, stateResult.Failure.Message);
             }
 
-            var actionPlanResult = CreateActionPlan(package, skillDirectory, identity, stateResult.Value!, input);
+            var actionPlanResult = await CreateActionPlanAsync(package, skillDirectory, identity, stateResult.Value!, input, cancellationToken).ConfigureAwait(false);
             if (!actionPlanResult.IsSuccess)
             {
                 return SkillOperationResult<SkillUninstallResult>.FailureResult(actionPlanResult.Failure!.Code, actionPlanResult.Failure.Message);
@@ -95,6 +116,7 @@ public sealed class SkillUninstallService
                         actionPlan.Package,
                         target.Host,
                         actionPlan.SkillDirectory,
+                        actionPlan.TargetSnapshot,
                         input.Force,
                         cancellationToken)
                     .ConfigureAwait(false);
@@ -119,6 +141,7 @@ public sealed class SkillUninstallService
                             actionPlan.Package,
                             target.Host,
                             directory,
+                            actionPlan.TargetSnapshot,
                             input.Force,
                             token),
                         cancellationToken)
@@ -137,12 +160,13 @@ public sealed class SkillUninstallService
             input.Force));
     }
 
-    private static SkillOperationResult<SkillUninstallActionPlan> CreateActionPlan (
+    private async ValueTask<SkillOperationResult<SkillUninstallActionPlan>> CreateActionPlanAsync (
         CanonicalSkillPackage package,
         string skillDirectory,
         SkillInstallIdentity identity,
         SkillInstalledTargetState state,
-        SkillUninstallInput input)
+        SkillUninstallInput input,
+        CancellationToken cancellationToken)
     {
         switch (state.Kind)
         {
@@ -154,11 +178,7 @@ public sealed class SkillUninstallService
                     ShouldDelete: false));
             case SkillInstalledTargetStateKind.Current:
             case SkillInstalledTargetStateKind.CleanOutdated:
-                return SkillOperationResult<SkillUninstallActionPlan>.Success(new SkillUninstallActionPlan(
-                    new SkillUninstallAction(identity, SkillUninstallActionKind.Deleted, TargetState: SkillActionTargetStateProjection.Create(state)),
-                    skillDirectory,
-                    package,
-                    ShouldDelete: true));
+                return await CreateDeleteActionPlanAsync(package, skillDirectory, identity, state, cancellationToken).ConfigureAwait(false);
             case SkillInstalledTargetStateKind.Unmanaged:
                 return SkillOperationResult<SkillUninstallActionPlan>.Success(new SkillUninstallActionPlan(
                     new SkillUninstallAction(identity, SkillUninstallActionKind.SkippedUnmanaged, TargetState: SkillActionTargetStateProjection.Create(state)),
@@ -166,7 +186,7 @@ public sealed class SkillUninstallService
                     package,
                     ShouldDelete: false));
             case var kind when kind.IsLocalModificationDrift():
-                return CreateLocalModificationActionPlan(package, skillDirectory, identity, state, input);
+                return await CreateLocalModificationActionPlanAsync(package, skillDirectory, identity, state, input, cancellationToken).ConfigureAwait(false);
             case SkillInstalledTargetStateKind.NameCollision:
             case SkillInstalledTargetStateKind.HostConflict:
                 return SkillOperationResult<SkillUninstallActionPlan>.FailureResult(
@@ -177,20 +197,17 @@ public sealed class SkillUninstallService
         }
     }
 
-    private static SkillOperationResult<SkillUninstallActionPlan> CreateLocalModificationActionPlan (
+    private async ValueTask<SkillOperationResult<SkillUninstallActionPlan>> CreateLocalModificationActionPlanAsync (
         CanonicalSkillPackage package,
         string skillDirectory,
         SkillInstallIdentity identity,
         SkillInstalledTargetState state,
-        SkillUninstallInput input)
+        SkillUninstallInput input,
+        CancellationToken cancellationToken)
     {
         if (input.Force)
         {
-            return SkillOperationResult<SkillUninstallActionPlan>.Success(new SkillUninstallActionPlan(
-                new SkillUninstallAction(identity, SkillUninstallActionKind.Deleted, TargetState: SkillActionTargetStateProjection.Create(state)),
-                skillDirectory,
-                package,
-                ShouldDelete: true));
+            return await CreateDeleteActionPlanAsync(package, skillDirectory, identity, state, cancellationToken).ConfigureAwait(false);
         }
 
         if (input.DryRun)
@@ -211,10 +228,37 @@ public sealed class SkillUninstallService
             $"Target skill directory contains local modifications. Use --force to delete: {skillDirectory}");
     }
 
+    private async ValueTask<SkillOperationResult<SkillUninstallActionPlan>> CreateDeleteActionPlanAsync (
+        CanonicalSkillPackage package,
+        string skillDirectory,
+        SkillInstallIdentity identity,
+        SkillInstalledTargetState state,
+        CancellationToken cancellationToken)
+    {
+        var fileChangesResult = await diffBuilder.BuildDeletionFileChangesAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
+        if (!fileChangesResult.IsSuccess)
+        {
+            return SkillOperationResult<SkillUninstallActionPlan>.FailureResult(
+                fileChangesResult.Failure!.Code,
+                fileChangesResult.Failure.Message);
+        }
+
+        return SkillOperationResult<SkillUninstallActionPlan>.Success(new SkillUninstallActionPlan(
+            new SkillUninstallAction(identity, SkillUninstallActionKind.Deleted, TargetState: SkillActionTargetStateProjection.Create(state))
+            {
+                FileChanges = fileChangesResult.Value!.FileChanges,
+            },
+            skillDirectory,
+            package,
+            ShouldDelete: true,
+            TargetSnapshot: fileChangesResult.Value.TargetSnapshot));
+    }
+
     private async ValueTask<SkillOperationResult<bool>> ValidateDeletePreconditionAsync (
         CanonicalSkillPackage package,
         string host,
         string skillDirectory,
+        SkillActionTargetSnapshot? targetSnapshot,
         bool force,
         CancellationToken cancellationToken)
     {
@@ -225,12 +269,12 @@ public sealed class SkillUninstallService
         }
 
         var state = stateResult.Value!;
-        var isValid = force
-            ? state.Kind is SkillInstalledTargetStateKind.Current or SkillInstalledTargetStateKind.CleanOutdated || state.Kind.IsLocalModificationDrift()
-            : state.Kind is SkillInstalledTargetStateKind.Current or SkillInstalledTargetStateKind.CleanOutdated;
+        var isValid = SkillForceTargetStatePolicy.CanDelete(state.Kind, force);
         if (isValid)
         {
-            return SkillOperationResult<bool>.Success(true);
+            return targetSnapshot is null
+                ? SkillOperationResult<bool>.Success(true)
+                : await ValidateTargetSnapshotAsync(skillDirectory, targetSnapshot, state, cancellationToken).ConfigureAwait(false);
         }
 
         return SkillOperationResult<bool>.FailureResult(
@@ -250,9 +294,32 @@ public sealed class SkillUninstallService
         return state.Failure?.Code ?? SkillFailureCodes.InstallTargetDigestMismatch;
     }
 
+    private async ValueTask<SkillOperationResult<bool>> ValidateTargetSnapshotAsync (
+        string skillDirectory,
+        SkillActionTargetSnapshot expectedSnapshot,
+        SkillInstalledTargetState state,
+        CancellationToken cancellationToken)
+    {
+        var snapshotResult = await diffBuilder.BuildTargetSnapshotAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
+        if (!snapshotResult.IsSuccess)
+        {
+            return SkillOperationResult<bool>.FailureResult(snapshotResult.Failure!.Code, snapshotResult.Failure.Message);
+        }
+
+        if (snapshotResult.Value == expectedSnapshot)
+        {
+            return SkillOperationResult<bool>.Success(true);
+        }
+
+        return SkillOperationResult<bool>.FailureResult(
+            ResolveChangedTargetFailureCode(state),
+            $"Target skill directory changed after planning; refusing to delete: {skillDirectory}");
+    }
+
     private sealed record SkillUninstallActionPlan (
         SkillUninstallAction Action,
         string SkillDirectory,
         CanonicalSkillPackage Package,
-        bool ShouldDelete);
+        bool ShouldDelete,
+        SkillActionTargetSnapshot? TargetSnapshot = null);
 }

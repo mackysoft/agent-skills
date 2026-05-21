@@ -55,6 +55,19 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
 
         if (!directoryOperations.Exists(resolvedSkillDirectory))
         {
+            if (precondition is not null)
+            {
+                var preconditionResult = await precondition(resolvedSkillDirectory, cancellationToken).ConfigureAwait(false);
+                if (!preconditionResult.IsSuccess)
+                {
+                    return SkillOperationResult<bool>.FailureResult(preconditionResult.Failure!.Code, preconditionResult.Failure.Message);
+                }
+
+                return SkillOperationResult<bool>.FailureResult(
+                    SkillFailureCodes.InstallTargetDigestMismatch,
+                    $"Target skill directory changed after planning; refusing to delete: {resolvedSkillDirectory}");
+            }
+
             return SkillOperationResult<bool>.Success(true);
         }
 

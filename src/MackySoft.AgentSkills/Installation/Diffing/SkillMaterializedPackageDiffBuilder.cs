@@ -1,3 +1,6 @@
+using System.Buffers.Binary;
+using System.Security.Cryptography;
+using System.Text;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Materialization;
 using MackySoft.AgentSkills.Packaging.FileSystem;
@@ -8,6 +11,8 @@ namespace MackySoft.AgentSkills.Installation.Diffing;
 /// <summary> Builds structured file diffs between an installed target and a materialized package. </summary>
 public sealed class SkillMaterializedPackageDiffBuilder
 {
+    private const string SnapshotDigestPrefix = "sha256:";
+
     /// <summary> Builds one structured diff for a target directory and desired materialized package. </summary>
     /// <param name="skillDirectory"> The target skill directory. </param>
     /// <param name="materializedPackage"> The desired materialized package. </param>
@@ -22,7 +27,7 @@ public sealed class SkillMaterializedPackageDiffBuilder
         ArgumentNullException.ThrowIfNull(materializedPackage);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var beforeResult = await ReadExistingFilesAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
+        var beforeResult = await ReadExistingTargetEntriesAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
         if (!beforeResult.IsSuccess)
         {
             return SkillOperationResult<IReadOnlyList<SkillActionDiff>>.FailureResult(
@@ -30,12 +35,131 @@ public sealed class SkillMaterializedPackageDiffBuilder
                 beforeResult.Failure.Message);
         }
 
-        var beforeFiles = beforeResult.Value!;
-        var afterFiles = materializedPackage.Files.ToDictionary(
-            static file => file.RelativePath,
-            static file => SkillTextNormalizer.NormalizeToLf(file.Content),
-            StringComparer.Ordinal);
+        var beforeFiles = beforeResult.Value!.Files;
+        var afterFiles = CreateNormalizedPackageFileMap(materializedPackage);
 
+        return SkillOperationResult<IReadOnlyList<SkillActionDiff>>.Success(BuildDiffs(beforeFiles, afterFiles));
+    }
+
+    /// <summary> Builds structured diffs when requested, or returns an empty diff list. </summary>
+    /// <param name="skillDirectory"> The target skill directory. </param>
+    /// <param name="materializedPackage"> The desired materialized package. </param>
+    /// <param name="printDiff"> Whether structured diffs should be included. </param>
+    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
+    /// <returns> Structured diffs, an empty list, or a path-safety/read failure. </returns>
+    public ValueTask<SkillOperationResult<IReadOnlyList<SkillActionDiff>>> BuildOptionalAsync (
+        string skillDirectory,
+        SkillMaterializedPackage materializedPackage,
+        bool printDiff,
+        CancellationToken cancellationToken = default)
+    {
+        return printDiff
+            ? BuildAsync(skillDirectory, materializedPackage, cancellationToken)
+            : ValueTask.FromResult(SkillOperationResult<IReadOnlyList<SkillActionDiff>>.Success(Array.Empty<SkillActionDiff>()));
+    }
+
+    /// <summary>
+    /// Builds replacement file changes, a target snapshot, and optional structured diffs for one target directory.
+    /// </summary>
+    /// <param name="skillDirectory"> The target skill directory. </param>
+    /// <param name="materializedPackage"> The desired materialized package. </param>
+    /// <param name="printDiff"> Whether structured diffs should be included. </param>
+    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
+    /// <returns>
+    /// Replacement file changes with the target snapshot and optional diffs, or a path-safety/read failure.
+    /// File changes are returned even when <paramref name="printDiff" /> is <see langword="false" />.
+    /// </returns>
+    internal async ValueTask<SkillOperationResult<SkillMaterializedPackageChangePlan>> BuildReplacementPlanAsync (
+        string skillDirectory,
+        SkillMaterializedPackage materializedPackage,
+        bool printDiff,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+        ArgumentNullException.ThrowIfNull(materializedPackage);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var beforeResult = await ReadExistingTargetEntriesAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
+        if (!beforeResult.IsSuccess)
+        {
+            return SkillOperationResult<SkillMaterializedPackageChangePlan>.FailureResult(
+                beforeResult.Failure!.Code,
+                beforeResult.Failure.Message);
+        }
+
+        var beforeEntries = beforeResult.Value!;
+        var beforeFiles = beforeEntries.Files;
+        var afterFiles = CreateNormalizedPackageFileMap(materializedPackage);
+        var diffs = printDiff ? BuildDiffs(beforeFiles, afterFiles) : Array.Empty<SkillActionDiff>();
+        var fileChanges = new SkillActionFileChangePlan(
+            BuildReplacementFileChanges(beforeFiles, afterFiles),
+            CreateTargetSnapshot(beforeEntries));
+
+        return SkillOperationResult<SkillMaterializedPackageChangePlan>.Success(new SkillMaterializedPackageChangePlan(
+            diffs,
+            fileChanges));
+    }
+
+    /// <summary> Builds deterministic file removals and a target snapshot for deleting one target directory. </summary>
+    /// <param name="skillDirectory"> The target skill directory. </param>
+    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
+    /// <returns>
+    /// Removal file changes for existing files with the target snapshot, or a path-safety/read failure.
+    /// Directories are represented only in the target snapshot.
+    /// </returns>
+    internal async ValueTask<SkillOperationResult<SkillActionFileChangePlan>> BuildDeletionFileChangesAsync (
+        string skillDirectory,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var beforeResult = await ReadExistingTargetEntriesAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
+        if (!beforeResult.IsSuccess)
+        {
+            return SkillOperationResult<SkillActionFileChangePlan>.FailureResult(
+                beforeResult.Failure!.Code,
+                beforeResult.Failure.Message);
+        }
+
+        var beforeEntries = beforeResult.Value!;
+        var beforeFiles = beforeEntries.Files;
+        return SkillOperationResult<SkillActionFileChangePlan>.Success(new SkillActionFileChangePlan(
+            new SkillActionFileChanges(
+                Array.Empty<string>(),
+                beforeFiles.Keys.Order(StringComparer.Ordinal).ToArray()),
+            CreateTargetSnapshot(beforeEntries)));
+    }
+
+    /// <summary> Builds the current target snapshot used by execution preconditions. </summary>
+    /// <param name="skillDirectory"> The target skill directory. </param>
+    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
+    /// <returns>
+    /// The current file-and-directory target snapshot, an empty snapshot when the target is missing, or a
+    /// path-safety/read failure.
+    /// </returns>
+    internal async ValueTask<SkillOperationResult<SkillActionTargetSnapshot>> BuildTargetSnapshotAsync (
+        string skillDirectory,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var beforeResult = await ReadExistingTargetEntriesAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
+        if (!beforeResult.IsSuccess)
+        {
+            return SkillOperationResult<SkillActionTargetSnapshot>.FailureResult(
+                beforeResult.Failure!.Code,
+                beforeResult.Failure.Message);
+        }
+
+        return SkillOperationResult<SkillActionTargetSnapshot>.Success(CreateTargetSnapshot(beforeResult.Value!));
+    }
+
+    private static IReadOnlyList<SkillActionDiff> BuildDiffs (
+        IReadOnlyDictionary<string, string> beforeFiles,
+        IReadOnlyDictionary<string, string> afterFiles)
+    {
         var relativePaths = beforeFiles.Keys
             .Concat(afterFiles.Keys)
             .Distinct(StringComparer.Ordinal)
@@ -44,8 +168,6 @@ public sealed class SkillMaterializedPackageDiffBuilder
         var fileDiffs = new List<SkillFileDiff>();
         foreach (var relativePath in relativePaths)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
             var hasBefore = beforeFiles.TryGetValue(relativePath, out var beforeContent);
             var hasAfter = afterFiles.TryGetValue(relativePath, out var afterContent);
             if (hasBefore && hasAfter)
@@ -67,29 +189,103 @@ public sealed class SkillMaterializedPackageDiffBuilder
             fileDiffs.Add(new SkillFileDiff(relativePath, SkillDiffChangeKind.Deleted, beforeContent, null));
         }
 
-        return fileDiffs.Count == 0
-            ? SkillOperationResult<IReadOnlyList<SkillActionDiff>>.Success(Array.Empty<SkillActionDiff>())
-            : SkillOperationResult<IReadOnlyList<SkillActionDiff>>.Success([new SkillActionDiff(fileDiffs)]);
+        return fileDiffs.Count == 0 ? Array.Empty<SkillActionDiff>() : [new SkillActionDiff(fileDiffs)];
     }
 
-    /// <summary> Builds structured diffs when requested, or returns an empty diff list. </summary>
-    /// <param name="skillDirectory"> The target skill directory. </param>
-    /// <param name="materializedPackage"> The desired materialized package. </param>
-    /// <param name="printDiff"> Whether structured diffs should be included. </param>
-    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
-    /// <returns> Structured diffs, an empty list, or a path-safety/read failure. </returns>
-    public ValueTask<SkillOperationResult<IReadOnlyList<SkillActionDiff>>> BuildOptionalAsync (
-        string skillDirectory,
-        SkillMaterializedPackage materializedPackage,
-        bool printDiff,
-        CancellationToken cancellationToken = default)
+    private static SkillActionFileChanges BuildReplacementFileChanges (
+        IReadOnlyDictionary<string, string> beforeFiles,
+        IReadOnlyDictionary<string, string> afterFiles)
     {
-        return printDiff
-            ? BuildAsync(skillDirectory, materializedPackage, cancellationToken)
-            : ValueTask.FromResult(SkillOperationResult<IReadOnlyList<SkillActionDiff>>.Success(Array.Empty<SkillActionDiff>()));
+        var replacedFiles = new List<string>();
+        var removedFiles = new List<string>();
+
+        foreach (var relativePath in beforeFiles.Keys.Order(StringComparer.Ordinal))
+        {
+            var hasAfter = afterFiles.TryGetValue(relativePath, out var afterContent);
+            if (!hasAfter)
+            {
+                removedFiles.Add(relativePath);
+                continue;
+            }
+
+            if (!string.Equals(beforeFiles[relativePath], afterContent, StringComparison.Ordinal))
+            {
+                replacedFiles.Add(relativePath);
+            }
+        }
+
+        return new SkillActionFileChanges(
+            replacedFiles.ToArray(),
+            removedFiles.ToArray());
     }
 
-    private static async ValueTask<SkillOperationResult<Dictionary<string, string>>> ReadExistingFilesAsync (
+    private static Dictionary<string, string> CreateNormalizedPackageFileMap (SkillMaterializedPackage materializedPackage)
+    {
+        return materializedPackage.Files.ToDictionary(
+            static file => file.RelativePath,
+            static file => SkillTextNormalizer.NormalizeToLf(file.Content),
+            StringComparer.Ordinal);
+    }
+
+    private static SkillActionTargetSnapshot CreateTargetSnapshot (SkillExistingTargetEntries entries)
+    {
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        foreach (var directoryPath in entries.Directories.Order(StringComparer.Ordinal))
+        {
+            AppendSnapshotEntry(hash, "D", directoryPath, content: null);
+        }
+
+        foreach (var file in entries.Files.OrderBy(static file => file.Key, StringComparer.Ordinal))
+        {
+            AppendSnapshotEntry(hash, "F", file.Key, file.Value);
+        }
+
+        return new SkillActionTargetSnapshot(SnapshotDigestPrefix + ToLowerHex(hash.GetHashAndReset()));
+    }
+
+    private static void AppendSnapshotEntry (
+        IncrementalHash hash,
+        string kind,
+        string relativePath,
+        string? content)
+    {
+        AppendLengthPrefixedUtf8(hash, kind);
+        AppendLengthPrefixedUtf8(hash, relativePath);
+        if (content is not null)
+        {
+            AppendLengthPrefixedUtf8(hash, content);
+        }
+    }
+
+    private static void AppendLengthPrefixedUtf8 (
+        IncrementalHash hash,
+        string value)
+    {
+        var bytes = Encoding.UTF8.GetBytes(value);
+        Span<byte> lengthBytes = stackalloc byte[4];
+        BinaryPrimitives.WriteInt32BigEndian(lengthBytes, bytes.Length);
+        hash.AppendData(lengthBytes);
+        hash.AppendData(bytes);
+    }
+
+    private static string ToLowerHex (byte[] bytes)
+    {
+        const string HexChars = "0123456789abcdef";
+
+        var chars = new char[bytes.Length * 2];
+        var index = 0;
+        for (var i = 0; i < bytes.Length; i++)
+        {
+            var value = bytes[i];
+            chars[index] = HexChars[value >> 4];
+            chars[index + 1] = HexChars[value & 0x0F];
+            index += 2;
+        }
+
+        return new string(chars);
+    }
+
+    private static async ValueTask<SkillOperationResult<SkillExistingTargetEntries>> ReadExistingTargetEntriesAsync (
         string skillDirectory,
         CancellationToken cancellationToken)
     {
@@ -97,13 +293,15 @@ public sealed class SkillMaterializedPackageDiffBuilder
         var fullSkillDirectory = Path.GetFullPath(skillDirectory);
         if (!Directory.Exists(fullSkillDirectory))
         {
-            return SkillOperationResult<Dictionary<string, string>>.Success(files);
+            return SkillOperationResult<SkillExistingTargetEntries>.Success(new SkillExistingTargetEntries(
+                files,
+                Array.Empty<string>()));
         }
 
         var skillDirectoryResult = SkillPackagePathBoundary.ResolveUnderRoot(fullSkillDirectory, fullSkillDirectory);
         if (!skillDirectoryResult.IsSuccess)
         {
-            return SkillOperationResult<Dictionary<string, string>>.FailureResult(
+            return SkillOperationResult<SkillExistingTargetEntries>.FailureResult(
                 skillDirectoryResult.Failure!.Code,
                 skillDirectoryResult.Failure.Message);
         }
@@ -112,23 +310,43 @@ public sealed class SkillMaterializedPackageDiffBuilder
 
         try
         {
-            foreach (var filePath in Directory.EnumerateFiles(resolvedSkillDirectory, "*", SearchOption.AllDirectories))
+            var relativeFilePaths = new List<string>();
+            var relativeDirectoryPaths = new List<string>();
+            var entriesResult = ReadExistingEntriesRecursive(
+                resolvedSkillDirectory,
+                resolvedSkillDirectory,
+                relativeFilePaths,
+                relativeDirectoryPaths,
+                cancellationToken);
+            if (!entriesResult.IsSuccess)
+            {
+                return SkillOperationResult<SkillExistingTargetEntries>.FailureResult(
+                    entriesResult.Failure!.Code,
+                    entriesResult.Failure.Message);
+            }
+
+            var directories = relativeDirectoryPaths.Order(StringComparer.Ordinal).ToArray();
+            foreach (var directoryPath in directories)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var relativePath = Path.GetRelativePath(resolvedSkillDirectory, filePath).Replace(Path.DirectorySeparatorChar, '/');
-                var regularFileResult = SkillPackageRegularFileResolver.VerifyRegularFile(filePath, relativePath);
-                if (!regularFileResult.IsSuccess)
+                var directoryPathResult = ValidateSafeRelativePath(directoryPath);
+                if (!directoryPathResult.IsSuccess)
                 {
-                    return SkillOperationResult<Dictionary<string, string>>.FailureResult(
-                        regularFileResult.Failure!.Code,
-                        regularFileResult.Failure.Message);
+                    return SkillOperationResult<SkillExistingTargetEntries>.FailureResult(
+                        directoryPathResult.Failure!.Code,
+                        directoryPathResult.Failure.Message);
                 }
+            }
 
-                var resolvedPathResult = SkillPackagePathBoundary.ResolveUnderRoot(resolvedSkillDirectory, filePath);
+            foreach (var relativePath in relativeFilePaths.Order(StringComparer.Ordinal))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var resolvedPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(resolvedSkillDirectory, relativePath);
                 if (!resolvedPathResult.IsSuccess)
                 {
-                    return SkillOperationResult<Dictionary<string, string>>.FailureResult(
+                    return SkillOperationResult<SkillExistingTargetEntries>.FailureResult(
                         resolvedPathResult.Failure!.Code,
                         resolvedPathResult.Failure.Message);
                 }
@@ -136,14 +354,92 @@ public sealed class SkillMaterializedPackageDiffBuilder
                 files[relativePath] = SkillTextNormalizer.NormalizeToLf(
                     await File.ReadAllTextAsync(resolvedPathResult.Value!, cancellationToken).ConfigureAwait(false));
             }
+
+            return SkillOperationResult<SkillExistingTargetEntries>.Success(new SkillExistingTargetEntries(
+                files,
+                directories));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return SkillOperationResult<Dictionary<string, string>>.FailureResult(
+            return SkillOperationResult<SkillExistingTargetEntries>.FailureResult(
                 SkillFailureCodes.InstallTargetReadFailed,
                 $"Failed to read SKILL package diff input: {resolvedSkillDirectory}. {ex.Message}");
         }
-
-        return SkillOperationResult<Dictionary<string, string>>.Success(files);
     }
+
+    private static SkillOperationResult<bool> ReadExistingEntriesRecursive (
+        string skillDirectory,
+        string directoryPath,
+        List<string> files,
+        List<string> directories,
+        CancellationToken cancellationToken)
+    {
+        foreach (var entryPath in Directory.EnumerateFileSystemEntries(directoryPath).Order(StringComparer.Ordinal))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var relativePath = Path.GetRelativePath(skillDirectory, entryPath).Replace(Path.DirectorySeparatorChar, '/');
+            if (SkillPackageFileSystemEntryGuard.IsDirectory(entryPath))
+            {
+                var resolvedPathResult = SkillPackagePathBoundary.ResolveUnderRoot(skillDirectory, entryPath);
+                if (!resolvedPathResult.IsSuccess)
+                {
+                    return SkillOperationResult<bool>.FailureResult(
+                        resolvedPathResult.Failure!.Code,
+                        $"Package path escaped skill directory: {relativePath}");
+                }
+
+                directories.Add(relativePath);
+                var directoryResult = ReadExistingEntriesRecursive(
+                    skillDirectory,
+                    resolvedPathResult.Value!,
+                    files,
+                    directories,
+                    cancellationToken);
+                if (!directoryResult.IsSuccess)
+                {
+                    return directoryResult;
+                }
+
+                continue;
+            }
+
+            if (SkillPackageFileSystemEntryGuard.IsRegularFile(entryPath))
+            {
+                var resolvedPathResult = SkillPackagePathBoundary.ResolveUnderRoot(skillDirectory, entryPath);
+                if (!resolvedPathResult.IsSuccess)
+                {
+                    return SkillOperationResult<bool>.FailureResult(
+                        resolvedPathResult.Failure!.Code,
+                        $"Package path escaped skill directory: {relativePath}");
+                }
+
+                files.Add(relativePath);
+                continue;
+            }
+
+            return SkillOperationResult<bool>.FailureResult(
+                SkillFailureCodes.PathUnsafe,
+                $"Package path must be a regular file or directory: {relativePath}");
+        }
+
+        return SkillOperationResult<bool>.Success(true);
+    }
+
+    private static SkillOperationResult<bool> ValidateSafeRelativePath (string relativePath)
+    {
+        return SkillRelativePath.IsSafeFilePath(relativePath)
+            ? SkillOperationResult<bool>.Success(true)
+            : SkillOperationResult<bool>.FailureResult(
+                SkillFailureCodes.PathUnsafe,
+                $"Package path is unsafe: {relativePath}");
+    }
+
+    internal sealed record SkillMaterializedPackageChangePlan (
+        IReadOnlyList<SkillActionDiff> Diffs,
+        SkillActionFileChangePlan FileChanges);
+
+    private sealed record SkillExistingTargetEntries (
+        IReadOnlyDictionary<string, string> Files,
+        IReadOnlyList<string> Directories);
 }

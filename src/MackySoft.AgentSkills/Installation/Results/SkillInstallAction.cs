@@ -12,4 +12,17 @@ public sealed record SkillInstallAction (
     SkillInstallActionKind ActionKind,
     SkillBlockedReason? BlockedReason = null,
     IReadOnlyList<SkillActionDiff>? Diffs = null,
-    SkillActionTargetState? TargetState = null);
+    SkillActionTargetState? TargetState = null)
+{
+    /// <summary>
+    /// Gets the existing file change summary for <see cref="SkillInstallActionKind.Created" /> and
+    /// <see cref="SkillInstallActionKind.Updated" /> actions.
+    /// </summary>
+    /// <remarks>
+    /// The value is an empty summary for <see cref="SkillInstallActionKind.Created" /> and the planned or
+    /// performed replacement summary for <see cref="SkillInstallActionKind.Updated" />. It is
+    /// <see langword="null" /> for <see cref="SkillInstallActionKind.NoOp" />, blocked managed overwrite,
+    /// blocked local modification, and blocked unmanaged actions.
+    /// </remarks>
+    public SkillActionFileChanges? FileChanges { get; init; }
+}

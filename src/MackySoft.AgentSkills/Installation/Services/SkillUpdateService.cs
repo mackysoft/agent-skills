@@ -114,6 +114,7 @@ public sealed class SkillUpdateService
                         target.Host,
                         actionPlan.SkillDirectory,
                         actionPlan.Action.ActionKind,
+                        actionPlan.TargetSnapshot,
                         input.Force,
                         cancellationToken)
                     .ConfigureAwait(false);
@@ -141,6 +142,7 @@ public sealed class SkillUpdateService
                             target.Host,
                             directory,
                             actionPlan.Action.ActionKind,
+                            actionPlan.TargetSnapshot,
                             input.Force,
                             token),
                         cancellationToken)
@@ -291,7 +293,7 @@ public sealed class SkillUpdateService
         SkillUpdateInput input,
         CancellationToken cancellationToken)
     {
-        var packagePlanResult = await CreateMaterializedPackagePlanAsync(package, host, skillDirectory, input.PrintDiff, cancellationToken).ConfigureAwait(false);
+        var packagePlanResult = await CreateMaterializedPackageWritePlanAsync(package, host, skillDirectory, input.PrintDiff, cancellationToken).ConfigureAwait(false);
         if (!packagePlanResult.IsSuccess)
         {
             return SkillOperationResult<SkillUpdateActionPlan>.FailureResult(packagePlanResult.Failure!.Code, packagePlanResult.Failure.Message);
@@ -304,10 +306,14 @@ public sealed class SkillUpdateService
                 actionKind,
                 null,
                 packagePlan.Diffs,
-                SkillActionTargetStateProjection.Create(state)),
+                SkillActionTargetStateProjection.Create(state))
+            {
+                FileChanges = packagePlan.FileChanges,
+            },
             skillDirectory,
             package,
-            packagePlan.MaterializedPackage));
+            packagePlan.MaterializedPackage,
+            packagePlan.TargetSnapshot));
     }
 
     private async ValueTask<SkillOperationResult<SkillUpdateActionPlan>> CreateBlockedActionPlanAsync (
@@ -336,6 +342,7 @@ public sealed class SkillUpdateService
         string host,
         string skillDirectory,
         SkillUpdateActionKind actionKind,
+        SkillActionTargetSnapshot? targetSnapshot,
         bool force,
         CancellationToken cancellationToken)
     {
@@ -348,14 +355,15 @@ public sealed class SkillUpdateService
         var state = stateResult.Value!;
         var isValid = actionKind switch
         {
-            SkillUpdateActionKind.Created => state.Kind == SkillInstalledTargetStateKind.Missing,
-            SkillUpdateActionKind.Updated when force => state.Kind == SkillInstalledTargetStateKind.CleanOutdated || state.Kind.IsLocalModificationDrift(),
-            SkillUpdateActionKind.Updated => state.Kind == SkillInstalledTargetStateKind.CleanOutdated,
+            SkillUpdateActionKind.Created => SkillForceTargetStatePolicy.CanCreate(state.Kind),
+            SkillUpdateActionKind.Updated => SkillForceTargetStatePolicy.CanUpdateReplace(state.Kind, force),
             _ => true,
         };
         if (isValid)
         {
-            return SkillOperationResult<bool>.Success(true);
+            return targetSnapshot is null
+                ? SkillOperationResult<bool>.Success(true)
+                : await ValidateTargetSnapshotAsync(skillDirectory, targetSnapshot, state, cancellationToken).ConfigureAwait(false);
         }
 
         return SkillOperationResult<bool>.FailureResult(
@@ -385,6 +393,28 @@ public sealed class SkillUpdateService
         return state.Failure?.Code ?? SkillFailureCodes.InstallTargetDigestMismatch;
     }
 
+    private async ValueTask<SkillOperationResult<bool>> ValidateTargetSnapshotAsync (
+        string skillDirectory,
+        SkillActionTargetSnapshot expectedSnapshot,
+        SkillInstalledTargetState state,
+        CancellationToken cancellationToken)
+    {
+        var snapshotResult = await diffBuilder.BuildTargetSnapshotAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
+        if (!snapshotResult.IsSuccess)
+        {
+            return SkillOperationResult<bool>.FailureResult(snapshotResult.Failure!.Code, snapshotResult.Failure.Message);
+        }
+
+        if (snapshotResult.Value == expectedSnapshot)
+        {
+            return SkillOperationResult<bool>.Success(true);
+        }
+
+        return SkillOperationResult<bool>.FailureResult(
+            ResolveChangedTargetFailureCode(state),
+            $"Target skill directory changed after planning; refusing to write: {skillDirectory}");
+    }
+
     private async ValueTask<SkillOperationResult<SkillMaterializedPackagePlan>> CreateMaterializedPackagePlanAsync (
         CanonicalSkillPackage package,
         string host,
@@ -404,13 +434,47 @@ public sealed class SkillUpdateService
             : SkillOperationResult<SkillMaterializedPackagePlan>.FailureResult(diffResult.Failure!.Code, diffResult.Failure.Message);
     }
 
+    private async ValueTask<SkillOperationResult<SkillMaterializedPackageWritePlan>> CreateMaterializedPackageWritePlanAsync (
+        CanonicalSkillPackage package,
+        string host,
+        string skillDirectory,
+        bool printDiff,
+        CancellationToken cancellationToken)
+    {
+        var materializedResult = materializationService.Materialize(package, host);
+        if (!materializedResult.IsSuccess)
+        {
+            return SkillOperationResult<SkillMaterializedPackageWritePlan>.FailureResult(materializedResult.Failure!.Code, materializedResult.Failure.Message);
+        }
+
+        var changePlanResult = await diffBuilder.BuildReplacementPlanAsync(skillDirectory, materializedResult.Value!, printDiff, cancellationToken).ConfigureAwait(false);
+        if (!changePlanResult.IsSuccess)
+        {
+            return SkillOperationResult<SkillMaterializedPackageWritePlan>.FailureResult(changePlanResult.Failure!.Code, changePlanResult.Failure.Message);
+        }
+
+        var changePlan = changePlanResult.Value!;
+        return SkillOperationResult<SkillMaterializedPackageWritePlan>.Success(new SkillMaterializedPackageWritePlan(
+            materializedResult.Value!,
+            changePlan.Diffs,
+            changePlan.FileChanges.FileChanges,
+            changePlan.FileChanges.TargetSnapshot));
+    }
+
     private sealed record SkillMaterializedPackagePlan (
         SkillMaterializedPackage MaterializedPackage,
         IReadOnlyList<SkillActionDiff> Diffs);
+
+    private sealed record SkillMaterializedPackageWritePlan (
+        SkillMaterializedPackage MaterializedPackage,
+        IReadOnlyList<SkillActionDiff> Diffs,
+        SkillActionFileChanges FileChanges,
+        SkillActionTargetSnapshot TargetSnapshot);
 
     private sealed record SkillUpdateActionPlan (
         SkillUpdateAction Action,
         string SkillDirectory,
         CanonicalSkillPackage Package,
-        SkillMaterializedPackage? MaterializedPackage);
+        SkillMaterializedPackage? MaterializedPackage,
+        SkillActionTargetSnapshot? TargetSnapshot = null);
 }

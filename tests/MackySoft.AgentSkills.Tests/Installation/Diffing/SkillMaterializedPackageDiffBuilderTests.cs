@@ -92,4 +92,48 @@ public sealed class SkillMaterializedPackageDiffBuilderTests
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
     }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task BuildTargetSnapshotAsync_DistinguishesNullDelimitedContentFromAdditionalFile ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "diff-builder-snapshot-length-prefix");
+        var firstDirectory = scope.CreateDirectory("first-skill");
+        var secondDirectory = scope.CreateDirectory("second-skill");
+        File.WriteAllText(Path.Combine(firstDirectory, "a"), "\0F\0b\0x");
+        File.WriteAllText(Path.Combine(secondDirectory, "a"), string.Empty);
+        File.WriteAllText(Path.Combine(secondDirectory, "b"), "x");
+        var builder = new SkillMaterializedPackageDiffBuilder();
+
+        var first = await builder.BuildTargetSnapshotAsync(firstDirectory, CancellationToken.None);
+        var second = await builder.BuildTargetSnapshotAsync(secondDirectory, CancellationToken.None);
+
+        Assert.True(first.IsSuccess, first.Failure?.Message);
+        Assert.True(second.IsSuccess, second.Failure?.Message);
+        Assert.NotEqual(first.Value, second.Value);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task BuildAsync_RejectsExistingFilePathWithBackslash ()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "diff-builder-backslash-path");
+        var skillDirectory = scope.CreateDirectory("sample-skill");
+        scope.WriteFile(Path.Combine("sample-skill", "unsafe\\name.md"), "# Unsafe\n");
+        var package = new SkillMaterializedPackage(
+            "sample-skill",
+            OpenAiSkillHostAdapter.HostKey,
+            [SkillPackageFile.Create("SKILL.md", "# After\n")]);
+        var builder = new SkillMaterializedPackageDiffBuilder();
+
+        var result = await builder.BuildAsync(skillDirectory, package, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+    }
 }
