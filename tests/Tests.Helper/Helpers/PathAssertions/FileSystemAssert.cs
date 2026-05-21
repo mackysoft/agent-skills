@@ -1,7 +1,6 @@
+namespace MackySoft.Tests;
 
 using Xunit.Sdk;
-
-namespace MackySoft.Tests;
 
 internal static class FileSystemAssert
 {

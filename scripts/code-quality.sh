@@ -105,6 +105,16 @@ done
 solution="$(dotnet_resolve_solution "$solution_arg")"
 cd "$DOTNET_REPO_ROOT"
 
+diagnostics=(
+  IDE0005
+  IDE0011
+  IDE0036
+  IDE0048
+  IDE0049
+  IDE0062
+  IDE1006
+)
+
 run_restore() {
   if [ "$restore" = true ]; then
     dotnet restore "$solution"
@@ -123,13 +133,13 @@ run_dotnet_format() {
 }
 
 run_format() {
-  run_dotnet_format style --verbosity minimal --no-restore
+  run_dotnet_format style --diagnostics "${diagnostics[@]}" --verbosity minimal --no-restore
   run_dotnet_format whitespace --verbosity minimal --no-restore
 }
 
 run_format_verify() {
   run_dotnet_format whitespace --verify-no-changes --verbosity minimal --no-restore
-  run_dotnet_format style --verify-no-changes --verbosity minimal --no-restore
+  run_dotnet_format style --diagnostics "${diagnostics[@]}" --verify-no-changes --verbosity minimal --no-restore
 }
 
 run_restore
