@@ -6,11 +6,12 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$script_dir/dotnet-common.sh"
 
 usage() {
-  echo "usage: bash scripts/verify-packages.sh [--configuration <name>] [--version <semver>] [--output <package-dir>]" >&2
+  echo "usage: bash scripts/verify-packages.sh [--configuration <name>] [--version <semver>] [--repository-commit <sha>] [--output <package-dir>]" >&2
 }
 
 configuration="Release"
 package_version=""
+repository_commit=""
 package_output=""
 
 while [ "$#" -gt 0 ]; do
@@ -39,6 +40,19 @@ while [ "$#" -gt 0 ]; do
       ;;
     --version=*)
       package_version="${1#--version=}"
+      shift
+      ;;
+    --repository-commit)
+      if [ "$#" -lt 2 ]; then
+        usage
+        exit 2
+      fi
+
+      repository_commit="$2"
+      shift 2
+      ;;
+    --repository-commit=*)
+      repository_commit="${1#--repository-commit=}"
       shift
       ;;
     --output)
@@ -70,8 +84,14 @@ if [ -z "$package_version" ]; then
   package_version="$(sed -nE 's:.*<Version>([^<]+)</Version>.*:\1:p' "$DOTNET_REPO_ROOT/Directory.Build.props" | head -n 1)"
 fi
 
-if [[ ! "$package_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+semver_pattern='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*))?$'
+if [[ ! "$package_version" =~ $semver_pattern ]]; then
   echo "package version must be SemVer without a leading v: $package_version" >&2
+  exit 2
+fi
+
+if [[ -n "$repository_commit" && ! "$repository_commit" =~ ^[0-9a-fA-F]{40}$ ]]; then
+  echo "repository commit must be a 40-character Git SHA: $repository_commit" >&2
   exit 2
 fi
 
@@ -100,19 +120,25 @@ mkdir -p "$package_dir"
 rm -f "$package_dir"/MackySoft.AgentSkills."$package_version".nupkg
 rm -f "$package_dir"/MackySoft.AgentSkills.Cli."$package_version".nupkg
 
+pack_properties=(
+  -p:Version="$package_version"
+  -p:PackageVersion="$package_version"
+)
+if [ -n "$repository_commit" ]; then
+  pack_properties+=(-p:RepositoryCommit="$repository_commit")
+fi
+
 cd "$DOTNET_REPO_ROOT"
 dotnet restore AgentSkills.slnx
 dotnet pack src/MackySoft.AgentSkills/MackySoft.AgentSkills.csproj \
   --configuration "$configuration" \
   --no-restore \
-  -p:Version="$package_version" \
-  -p:PackageVersion="$package_version" \
+  "${pack_properties[@]}" \
   --output "$package_dir"
 dotnet pack src/MackySoft.AgentSkills.Cli/MackySoft.AgentSkills.Cli.csproj \
   --configuration "$configuration" \
   --no-restore \
-  -p:Version="$package_version" \
-  -p:PackageVersion="$package_version" \
+  "${pack_properties[@]}" \
   --output "$package_dir"
 
 library_package="$package_dir/MackySoft.AgentSkills.$package_version.nupkg"
@@ -125,6 +151,17 @@ fi
 if [ ! -f "$cli_package" ]; then
   echo "CLI package was not created: $cli_package" >&2
   exit 1
+fi
+
+if [ -n "$repository_commit" ]; then
+  bash "$script_dir/validate-nuget-package-repository-commit.sh" \
+    --package-id MackySoft.AgentSkills \
+    --package-path "$library_package" \
+    --expected-commit "$repository_commit"
+  bash "$script_dir/validate-nuget-package-repository-commit.sh" \
+    --package-id MackySoft.AgentSkills.Cli \
+    --package-path "$cli_package" \
+    --expected-commit "$repository_commit"
 fi
 
 consumer_dir="$work_root/consumer"
