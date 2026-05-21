@@ -22,8 +22,8 @@ jobs:
     permissions:
       contents: read
     outputs:
-      packageVersion: ${{ steps.version.outputs.packageVersion }}
-      releaseSha: ${{ steps.source.outputs.releaseSha }}
+      packageVersion: ${{ steps.version.outputs.package-version }}
+      releaseSha: ${{ steps.source.outputs.release-sha }}
 
     defaults:
       run:
@@ -36,69 +36,35 @@ jobs:
           fetch-depth: 0
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: mackysoft/actions/setup-dotnet-cache@v1
         with:
           dotnet-version: 10.0.x
-
-      - name: Cache NuGet packages
-        uses: actions/cache@v5
-        with:
-          path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('AgentSkills.slnx', '**/*.csproj') }}
+          cache-key-files: |
+            AgentSkills.slnx
+            **/*.csproj
 
       - name: Resolve package version
         id: version
-        run: |
-          set -euo pipefail
-
-          if [[ "${GITHUB_REF_TYPE}" != "tag" ]]; then
-            echo "NuGet publish must be triggered by a release tag." >&2
-            exit 2
-          fi
-
-          tag_name="${GITHUB_REF_NAME}"
-          semver_pattern='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*))?$'
-          if [[ ! "${tag_name}" =~ ${semver_pattern} ]]; then
-            echo "Release tag must be SemVer without a leading v: ${tag_name}" >&2
-            exit 2
-          fi
-
-          package_version="${tag_name}"
-          echo "packageVersion=${package_version}" >> "${GITHUB_OUTPUT}"
-          echo "PACKAGE_VERSION=${package_version}" >> "${GITHUB_ENV}"
+        uses: mackysoft/actions/resolve-release-version@v1
+        with:
+          event-name: ${{ github.event_name }}
+          ref-name: ${{ github.ref_name }}
+          allow-prerelease: true
 
       - name: Validate release source
         id: source
-        env:
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          TAG_NAME: ${{ github.ref_name }}
-        run: |
-          set -euo pipefail
-
-          git fetch origin "${DEFAULT_BRANCH}:refs/remotes/origin/${DEFAULT_BRANCH}"
-          git fetch --force origin "refs/tags/${TAG_NAME}:refs/tags/${TAG_NAME}"
-
-          release_sha="$(git rev-list -n 1 "refs/tags/${TAG_NAME}")"
-          checkout_sha="$(git rev-parse HEAD)"
-          if [[ "${checkout_sha}" != "${release_sha}" ]]; then
-            echo "Checked out source does not match release tag. Expected: ${release_sha}. Actual: ${checkout_sha}" >&2
-            exit 1
-          fi
-
-          if ! git merge-base --is-ancestor "${release_sha}" "origin/${DEFAULT_BRANCH}"; then
-            echo "Release source must be reachable from origin/${DEFAULT_BRANCH}. Actual sha: ${release_sha}" >&2
-            exit 1
-          fi
-
-          echo "releaseSha=${release_sha}" >> "${GITHUB_OUTPUT}"
-          echo "RELEASE_SHA=${release_sha}" >> "${GITHUB_ENV}"
+        uses: mackysoft/actions/validate-release-source@v1
+        with:
+          tag-name: ${{ steps.version.outputs.tag-name }}
+          default-branch: ${{ github.event.repository.default_branch }}
+          require-head-match: true
 
       - name: Pack and smoke test
         run: >-
           bash scripts/verify-packages.sh
           --configuration Release
-          --version "${PACKAGE_VERSION}"
-          --repository-commit "${RELEASE_SHA}"
+          --version "${{ steps.version.outputs.package-version }}"
+          --repository-commit "${{ steps.source.outputs.release-sha }}"
           --output artifacts/packages
 
       - name: Upload packages
@@ -131,9 +97,12 @@ jobs:
           fetch-depth: 0
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: mackysoft/actions/setup-dotnet-cache@v1
         with:
           dotnet-version: 10.0.x
+          cache-key-files: |
+            AgentSkills.slnx
+            **/*.csproj
 
       - name: Download packages
         uses: actions/download-artifact@v7
@@ -160,13 +129,31 @@ jobs:
             exit 2
           fi
 
-          bash scripts/validate-release-tag.sh --tag-name "${GITHUB_REF_NAME}" --expected-sha "${RELEASE_SHA}"
-
           test -f "artifacts/packages/MackySoft.AgentSkills.${PACKAGE_VERSION}.nupkg"
           test -f "artifacts/packages/MackySoft.AgentSkills.Cli.${PACKAGE_VERSION}.nupkg"
 
+      - name: Validate publish source
+        uses: mackysoft/actions/validate-release-source@v1
+        with:
+          tag-name: ${{ github.ref_name }}
+          release-sha: ${{ env.RELEASE_SHA }}
+          default-branch: ${{ github.event.repository.default_branch }}
+          require-head-match: true
+
       - name: Inspect publication state
+        id: publication
+        uses: mackysoft/actions/inspect-nuget-package-state@v1
+        with:
+          version: ${{ env.PACKAGE_VERSION }}
+          fail-on-partial: false
+          package-ids: |
+            MackySoft.AgentSkills
+            MackySoft.AgentSkills.Cli
+
+      - name: Map publication state
         id: state
+        env:
+          EXISTING_PACKAGE_IDS: ${{ steps.publication.outputs.existing-package-ids }}
         run: |
           set -euo pipefail
 
@@ -184,19 +171,15 @@ jobs:
               "${lower_version}"
           }
 
-          package_exists() {
-            curl --fail --silent --head "$1" >/dev/null 2>&1
-          }
-
           library_package_url="$(package_url "MackySoft.AgentSkills" "${PACKAGE_VERSION}")"
           cli_package_url="$(package_url "MackySoft.AgentSkills.Cli" "${PACKAGE_VERSION}")"
 
           library_exists=false
           cli_exists=false
-          if package_exists "${library_package_url}"; then
+          if grep -Fx "MackySoft.AgentSkills" <<< "${EXISTING_PACKAGE_IDS}" >/dev/null; then
             library_exists=true
           fi
-          if package_exists "${cli_package_url}"; then
+          if grep -Fx "MackySoft.AgentSkills.Cli" <<< "${EXISTING_PACKAGE_IDS}" >/dev/null; then
             cli_exists=true
           fi
 
@@ -244,7 +227,7 @@ jobs:
             "artifacts/packages/MackySoft.AgentSkills.Cli.${PACKAGE_VERSION}.nupkg"
 
       - name: Validate NuGet trusted publishing user
-        if: ${{ steps.state.outputs.libraryExists != 'true' || steps.state.outputs.cliExists != 'true' }}
+        if: ${{ steps.publication.outputs.publish-required == 'true' }}
         env:
           NUGET_USER: ${{ vars.NUGET_USER }}
         run: |
@@ -252,66 +235,23 @@ jobs:
 
           if [[ -z "${NUGET_USER}" ]]; then
             echo "Repository variable NUGET_USER must be set to the nuget.org profile name." >&2
-            exit 2
-          fi
-
-      - name: NuGet login
-        if: ${{ steps.state.outputs.libraryExists != 'true' || steps.state.outputs.cliExists != 'true' }}
-        uses: NuGet/login@v1
-        id: login
-        with:
-          user: ${{ vars.NUGET_USER }}
-
-      - name: Publish library to nuget.org
-        if: ${{ steps.state.outputs.libraryExists != 'true' }}
-        run: |
-          set -euo pipefail
-
-          bash scripts/validate-release-tag.sh --tag-name "${GITHUB_REF_NAME}" --expected-sha "${RELEASE_SHA}"
-          dotnet nuget push \
-            "artifacts/packages/MackySoft.AgentSkills.${PACKAGE_VERSION}.nupkg" \
-            --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" \
-            --source https://api.nuget.org/v3/index.json
-
-      - name: Publish CLI to nuget.org
-        if: ${{ steps.state.outputs.cliExists != 'true' }}
-        run: |
-          set -euo pipefail
-
-          bash scripts/validate-release-tag.sh --tag-name "${GITHUB_REF_NAME}" --expected-sha "${RELEASE_SHA}"
-          dotnet nuget push \
-            "artifacts/packages/MackySoft.AgentSkills.Cli.${PACKAGE_VERSION}.nupkg" \
-            --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" \
-            --source https://api.nuget.org/v3/index.json
-
-      - name: Wait for published packages
-        env:
-          LIBRARY_PACKAGE_URL: ${{ steps.state.outputs.libraryPackageUrl }}
-          CLI_PACKAGE_URL: ${{ steps.state.outputs.cliPackageUrl }}
-        run: |
-          set -euo pipefail
-
-          wait_for_package() {
-            local package_id="$1"
-            local url="$2"
-            if [[ -z "${url}" ]]; then
-              echo "Package URL output is missing: ${package_id}" >&2
               exit 2
             fi
 
-            for attempt in {1..30}; do
-              if curl --fail --silent --show-error --head "${url}" >/dev/null; then
-                return 0
-              fi
-              echo "Waiting for ${package_id} ${PACKAGE_VERSION} to become available on nuget.org (${attempt}/30)."
-              sleep 10
-            done
-            echo "Package did not become available on nuget.org: ${package_id} ${PACKAGE_VERSION}" >&2
-            exit 1
-          }
+      - name: Publish to nuget.org
+        if: ${{ steps.publication.outputs.publish-required == 'true' }}
+        uses: mackysoft/actions/publish-nuget-package@v1
+        with:
+          package-glob: artifacts/packages/*.nupkg
+          nuget-user: ${{ vars.NUGET_USER }}
 
-          wait_for_package "MackySoft.AgentSkills" "${LIBRARY_PACKAGE_URL}"
-          wait_for_package "MackySoft.AgentSkills.Cli" "${CLI_PACKAGE_URL}"
+      - name: Wait for published packages
+        uses: mackysoft/actions/wait-nuget-packages@v1
+        with:
+          version: ${{ env.PACKAGE_VERSION }}
+          package-ids: |
+            MackySoft.AgentSkills
+            MackySoft.AgentSkills.Cli
 
       - name: Download published packages for release mirror
         env:
@@ -341,16 +281,21 @@ jobs:
             "${CLI_PACKAGE_URL}" \
             "artifacts/packages/MackySoft.AgentSkills.Cli.${PACKAGE_VERSION}.nupkg"
 
+      - name: Validate release source before mirror
+        uses: mackysoft/actions/validate-release-source@v1
+        with:
+          tag-name: ${{ github.ref_name }}
+          release-sha: ${{ env.RELEASE_SHA }}
+          default-branch: ${{ github.event.repository.default_branch }}
+          require-head-match: true
+
       - name: Mirror packages to GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ needs.package.outputs.packageVersion }}
-          REPOSITORY: ${{ github.repository }}
-        run: >-
-          ./scripts/mirror-nuget-package-release.sh
-          --repository "${REPOSITORY}"
-          --tag-name "${RELEASE_TAG}"
-          --package-glob "artifacts/packages/*.nupkg"
-          --title "${RELEASE_TAG}"
-          --notes ""
-          --expected-sha "${RELEASE_SHA}"
+        uses: mackysoft/actions/mirror-github-release-assets@v1
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          tag-name: ${{ needs.package.outputs.packageVersion }}
+          title: ${{ needs.package.outputs.packageVersion }}
+          notes: ""
+          asset-glob: artifacts/packages/*.nupkg
+          update-existing-release: false

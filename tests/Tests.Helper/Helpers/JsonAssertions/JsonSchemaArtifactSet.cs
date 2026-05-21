@@ -1,6 +1,7 @@
-namespace MackySoft.Tests;
 
 using System.Text.Json;
+
+namespace MackySoft.Tests;
 
 internal sealed class JsonSchemaArtifactSet : IDisposable
 {
@@ -378,7 +379,6 @@ internal sealed class JsonSchemaArtifactSet : IDisposable
     {
         referencedSchema = default;
         referencedSchemaPath = currentSchemaPath;
-        error = null;
 
         var hashIndex = reference.IndexOf('#', StringComparison.Ordinal);
         var referencePath = hashIndex >= 0 ? reference[..hashIndex] : reference;
@@ -424,6 +424,7 @@ internal sealed class JsonSchemaArtifactSet : IDisposable
         referencedSchema = document.RootElement;
         if (string.IsNullOrWhiteSpace(pointer))
         {
+            error = null;
             return true;
         }
 

@@ -1,6 +1,7 @@
-namespace MackySoft.Tests;
 
 using System.Text.Json;
+
+namespace MackySoft.Tests;
 
 internal readonly struct JsonAssertionContext
 {

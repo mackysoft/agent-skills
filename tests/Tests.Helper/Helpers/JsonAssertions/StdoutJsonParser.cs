@@ -1,7 +1,7 @@
-namespace MackySoft.Tests;
 
 using System.Text.Json;
-using Xunit;
+
+namespace MackySoft.Tests;
 
 internal static class StdoutJsonParser
 {
