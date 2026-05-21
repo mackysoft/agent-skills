@@ -2,7 +2,7 @@ using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Installation.State;
 
-/// <summary> Provides shared classification for installed target state failure codes. </summary>
+/// <summary> Provides shared classification for installed target state drift failure codes. </summary>
 public static class SkillInstalledTargetStateClassifier
 {
     private static readonly StateClassification[] DriftClassifications =
@@ -16,14 +16,6 @@ public static class SkillInstalledTargetStateClassifier
         new(SkillFailureCodes.InstallTargetLocalModification, SkillInstalledTargetStateKind.LocalModified, 5),
     ];
 
-    private static readonly StateClassification[] NonDriftClassifications =
-    [
-        new(SkillFailureCodes.InstallTargetOutdated, SkillInstalledTargetStateKind.CleanOutdated, int.MaxValue),
-        new(SkillFailureCodes.InstallTargetUnmanaged, SkillInstalledTargetStateKind.Unmanaged, int.MaxValue),
-        new(SkillFailureCodes.InstallTargetNameCollision, SkillInstalledTargetStateKind.NameCollision, int.MaxValue),
-        new(SkillFailureCodes.InstallTargetHostConflict, SkillInstalledTargetStateKind.HostConflict, int.MaxValue),
-    ];
-
     /// <summary> Resolves a validation failure code to the target state kind that represents a drifted managed target. </summary>
     /// <param name="code"> The failure code emitted by target validation or installed package integrity verification. </param>
     /// <param name="kind"> The resolved drift state kind when this method returns <see langword="true" />. </param>
@@ -33,18 +25,6 @@ public static class SkillInstalledTargetStateClassifier
         out SkillInstalledTargetStateKind kind)
     {
         return TryResolve(DriftClassifications, code, out kind);
-    }
-
-    /// <summary> Resolves a failure code to the closest stable target state kind for reporting. </summary>
-    /// <param name="code"> The failure code emitted by an install, update, uninstall, or doctor workflow. </param>
-    /// <param name="kind"> The resolved target state kind when this method returns <see langword="true" />. </param>
-    /// <returns> <see langword="true" /> when <paramref name="code" /> has a stable target state meaning; otherwise <see langword="false" />. </returns>
-    public static bool TryResolveStateKind (
-        SkillFailureCode code,
-        out SkillInstalledTargetStateKind kind)
-    {
-        return TryResolveDriftKind(code, out kind)
-            || TryResolve(NonDriftClassifications, code, out kind);
     }
 
     /// <summary> Gets the ordering priority used when multiple managed drift signals are present for the same target. </summary>

@@ -5,7 +5,7 @@ namespace MackySoft.AgentSkills.OperationReports;
 /// <param name="Code"> The machine-readable diagnostic code. </param>
 /// <param name="Message"> The diagnostic message emitted by AgentSkills. </param>
 /// <param name="SkillName"> The related skill name, or <see langword="null" /> for target-level diagnostics. </param>
-/// <param name="TargetState"> The stable target state literal resolved from <paramref name="Code" />, when the code has target state meaning. </param>
+/// <param name="TargetState"> The stable target state literal resolved from <paramref name="Code" />, when the code has managed drift meaning. </param>
 public sealed record SkillDoctorDiagnosticReport (
     string Severity,
     string Code,

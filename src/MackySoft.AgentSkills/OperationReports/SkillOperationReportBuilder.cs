@@ -1,5 +1,6 @@
 using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Doctor;
+using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Installation.State;
@@ -48,21 +49,21 @@ public static class SkillOperationReportBuilder
     /// <summary> Creates export report data from a successful export operation. </summary>
     /// <param name="outputPath"> The output directory or zip file path returned by export. Must not be null, empty, or whitespace. </param>
     /// <param name="packages"> The exported packages. Must not be <see langword="null" />. </param>
-    /// <param name="host"> The canonical host key used for export. Must not be null, empty, or whitespace. </param>
+    /// <param name="hostDescriptor"> The descriptor for the host used for export. Must not be <see langword="null" />. </param>
     /// <param name="format"> The export format used for export. </param>
     /// <returns> A report whose skill names are sorted using ordinal comparison. </returns>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="packages" /> is <see langword="null" />. </exception>
-    /// <exception cref="ArgumentException"> Thrown when <paramref name="outputPath" /> or <paramref name="host" /> is null, empty, or whitespace. </exception>
+    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="packages" /> or <paramref name="hostDescriptor" /> is <see langword="null" />. </exception>
+    /// <exception cref="ArgumentException"> Thrown when <paramref name="outputPath" />, the host key, or reload guidance is null, empty, or whitespace. </exception>
     /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="format" /> is not a supported export format. </exception>
     public static SkillExportReport CreateExportReport (
         string outputPath,
         IReadOnlyList<CanonicalSkillPackage> packages,
-        string host,
+        SkillHostDescriptor hostDescriptor,
         SkillExportFormat format)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
         ArgumentNullException.ThrowIfNull(packages);
-        ArgumentException.ThrowIfNullOrWhiteSpace(host);
+        ValidateHostDescriptor(hostDescriptor);
 
         var skills = packages
             .Select(static package => package.Manifest.SkillName)
@@ -70,11 +71,12 @@ public static class SkillOperationReportBuilder
             .ToArray();
 
         return new SkillExportReport(
-            host,
+            hostDescriptor.HostKey,
             SkillLiteralCodec.FormatExportFormat(format),
             outputPath,
             skills,
-            skills.Length);
+            skills.Length,
+            hostDescriptor.ReloadGuidance);
     }
 
     /// <summary> Creates product-neutral report data from a successful install operation. </summary>
@@ -82,7 +84,8 @@ public static class SkillOperationReportBuilder
     /// <param name="context"> The normalized host and scope used for the install operation. Must not be <see langword="null" />. </param>
     /// <returns> A report whose actions and counts are deterministic. </returns>
     /// <exception cref="ArgumentNullException"> Thrown when <paramref name="result" /> or <paramref name="context" /> is <see langword="null" />. </exception>
-    /// <exception cref="ArgumentException"> Thrown when <paramref name="context" /> does not match an action identity in <paramref name="result" />. </exception>
+    /// <exception cref="ArgumentException"> Thrown when the result target root or context host descriptor is invalid, when <paramref name="context" /> does not match an action identity in <paramref name="result" />, or when an action target state contains an unsupported kind or invalid failure code. </exception>
+    /// <exception cref="ArgumentOutOfRangeException"> Thrown when the context scope, action kind, or diff change kind is unsupported. </exception>
     public static SkillOperationReport CreateInstallReport (
         SkillInstallResult result,
         SkillOperationReportContext context)
@@ -115,7 +118,8 @@ public static class SkillOperationReportBuilder
     /// <param name="context"> The normalized host and scope used for the update operation. Must not be <see langword="null" />. </param>
     /// <returns> A report whose actions and counts are deterministic. </returns>
     /// <exception cref="ArgumentNullException"> Thrown when <paramref name="result" /> or <paramref name="context" /> is <see langword="null" />. </exception>
-    /// <exception cref="ArgumentException"> Thrown when <paramref name="context" /> does not match an action identity in <paramref name="result" />. </exception>
+    /// <exception cref="ArgumentException"> Thrown when the result target root or context host descriptor is invalid, when <paramref name="context" /> does not match an action identity in <paramref name="result" />, or when an action target state contains an unsupported kind or invalid failure code. </exception>
+    /// <exception cref="ArgumentOutOfRangeException"> Thrown when the context scope, action kind, or diff change kind is unsupported. </exception>
     public static SkillOperationReport CreateUpdateReport (
         SkillUpdateResult result,
         SkillOperationReportContext context)
@@ -148,7 +152,8 @@ public static class SkillOperationReportBuilder
     /// <param name="context"> The normalized host and scope used for the uninstall operation. Must not be <see langword="null" />. </param>
     /// <returns> A report whose actions and counts are deterministic. </returns>
     /// <exception cref="ArgumentNullException"> Thrown when <paramref name="result" /> or <paramref name="context" /> is <see langword="null" />. </exception>
-    /// <exception cref="ArgumentException"> Thrown when <paramref name="context" /> does not match an action identity in <paramref name="result" />. </exception>
+    /// <exception cref="ArgumentException"> Thrown when the result target root or context host descriptor is invalid, when <paramref name="context" /> does not match an action identity in <paramref name="result" />, or when an action target state contains an unsupported kind or invalid failure code. </exception>
+    /// <exception cref="ArgumentOutOfRangeException"> Thrown when the context scope, action kind, or diff change kind is unsupported. </exception>
     public static SkillOperationReport CreateUninstallReport (
         SkillUninstallResult result,
         SkillOperationReportContext context)
@@ -193,6 +198,7 @@ public static class SkillOperationReportBuilder
             .ThenBy(static diagnostic => diagnostic.SkillName, StringComparer.Ordinal)
             .ThenBy(static diagnostic => diagnostic.Code, StringComparer.Ordinal)
             .ThenBy(static diagnostic => diagnostic.Message, StringComparer.Ordinal)
+            .ThenBy(static diagnostic => (int)diagnostic.Severity)
             .Select(static diagnostic => new SkillDoctorDiagnosticReport(
                 SkillLiteralCodec.FormatDoctorSeverity(diagnostic.Severity),
                 diagnostic.Code,
@@ -227,7 +233,7 @@ public static class SkillOperationReportBuilder
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(targetRoot);
         ArgumentNullException.ThrowIfNull(actions);
-        ArgumentException.ThrowIfNullOrWhiteSpace(context.Host);
+        ValidateHostDescriptor(context.HostDescriptor);
 
         var projectedActions = actions
             .OrderBy(action => getIdentity(action).SkillName, StringComparer.Ordinal)
@@ -241,16 +247,18 @@ public static class SkillOperationReportBuilder
                 getBlockedReason,
                 getTargetState,
                 getFileChanges,
+                printDiff,
                 getDiffs))
             .ToArray();
 
         return new SkillOperationReport(
-            context.Host,
+            context.HostDescriptor.HostKey,
             SkillLiteralCodec.FormatScope(context.Scope),
             targetRoot,
             dryRun,
             force,
             printDiff,
+            context.HostDescriptor.ReloadGuidance,
             projectedActions,
             CreateCounts(actionLiteralOrder, projectedActions, static action => action.Action),
             CreateCounts(
@@ -269,6 +277,7 @@ public static class SkillOperationReportBuilder
         Func<TAction, SkillBlockedReason?> getBlockedReason,
         Func<TAction, SkillActionTargetState?> getTargetState,
         Func<TAction, SkillActionFileChanges?> getFileChanges,
+        bool printDiff,
         Func<TAction, IReadOnlyList<SkillActionDiff>?> getDiffs)
     {
         var identity = getIdentity(action);
@@ -283,7 +292,7 @@ public static class SkillOperationReportBuilder
             blockedReason.HasValue ? SkillLiteralCodec.FormatBlockedReason(blockedReason.Value) : null,
             CreateTargetStateReport(getTargetState(action)),
             CreateFileChangesReport(getFileChanges(action)),
-            CreateFileDiffReports(getDiffs(action)));
+            CreateFileDiffReports(printDiff ? getDiffs(action) : null));
     }
 
     private static SkillOperationActionStatus GetStatus (SkillInstallActionKind actionKind)
@@ -377,7 +386,7 @@ public static class SkillOperationReportBuilder
     private static string? ResolveDiagnosticTargetState (string code)
     {
         return SkillFailureCode.TryCreate(code, out var failureCode)
-            && SkillInstalledTargetStateClassifier.TryResolveStateKind(failureCode, out var stateKind)
+            && SkillInstalledTargetStateClassifier.TryResolveDriftKind(failureCode, out var stateKind)
                 ? SkillLiteralCodec.FormatTargetStateKind(stateKind)
                 : null;
     }
@@ -397,7 +406,7 @@ public static class SkillOperationReportBuilder
         string targetRoot,
         SkillOperationReportContext context)
     {
-        if (!string.Equals(identity.Host, context.Host, StringComparison.Ordinal))
+        if (!string.Equals(identity.Host, context.HostDescriptor.HostKey, StringComparison.Ordinal))
         {
             throw new ArgumentException("Operation report context host must match every action identity host.", nameof(context));
         }
@@ -411,5 +420,12 @@ public static class SkillOperationReportBuilder
         {
             throw new ArgumentException("Operation result target root must match every action identity target root.", nameof(targetRoot));
         }
+    }
+
+    private static void ValidateHostDescriptor (SkillHostDescriptor hostDescriptor)
+    {
+        ArgumentNullException.ThrowIfNull(hostDescriptor);
+        ArgumentException.ThrowIfNullOrWhiteSpace(hostDescriptor.HostKey, nameof(hostDescriptor));
+        ArgumentException.ThrowIfNullOrWhiteSpace(hostDescriptor.ReloadGuidance, nameof(hostDescriptor));
     }
 }
