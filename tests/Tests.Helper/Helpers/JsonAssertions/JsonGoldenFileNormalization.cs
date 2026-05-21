@@ -1,10 +1,11 @@
-namespace MackySoft.Tests;
 
 using System.Globalization;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using Xunit.Sdk;
+
+namespace MackySoft.Tests;
 
 internal sealed class JsonGoldenFileNormalization
 {

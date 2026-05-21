@@ -85,7 +85,7 @@ public sealed class SkillManifestValidatorTests
 
     private static SkillManifest CreateManifest (string skillName)
     {
-        var serializer = new SkillManifestJsonSerializer();
+        _ = new SkillManifestJsonSerializer();
         var manifest = new SkillManifest(
             SkillManifest.CurrentSchemaVersion,
             skillName,

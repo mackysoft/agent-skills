@@ -1,8 +1,9 @@
-namespace MackySoft.Tests;
 
 using System.Text;
 using System.Text.Json;
 using Xunit.Sdk;
+
+namespace MackySoft.Tests;
 
 internal static class JsonGoldenFileAssert
 {

@@ -27,15 +27,13 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: mackysoft/actions/setup-dotnet-cache@v1
         with:
           dotnet-version: 10.0.x
-
-      - name: Cache NuGet packages
-        uses: actions/cache@v5
-        with:
-          path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('AgentSkills.slnx', '**/*.csproj') }}
+          cache-key-files: |
+            AgentSkills.slnx
+            **/*.csproj
+          restore-command: dotnet restore AgentSkills.slnx
 
       - name: Verify
-        run: bash scripts/verify.sh --configuration Release
+        run: bash scripts/verify.sh --no-restore --configuration Release

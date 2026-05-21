@@ -1,6 +1,7 @@
-namespace MackySoft.Tests;
 
 using System.Reflection;
+
+namespace MackySoft.Tests;
 
 internal static class StaticFieldValueReader
 {
