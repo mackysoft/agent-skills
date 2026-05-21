@@ -48,7 +48,7 @@ jobs:
 
       - name: Guard release source
         id: release_source
-        uses: mackysoft/actions/release-source-guard@v1
+        uses: mackysoft/actions/release/source-guard@v1
         with:
           tag-name: ${{ github.ref_name }}
           default-branch: ${{ github.event.repository.default_branch }}
@@ -106,7 +106,7 @@ jobs:
 
       - name: Guard release source
         id: release_source
-        uses: mackysoft/actions/release-source-guard@v1
+        uses: mackysoft/actions/release/source-guard@v1
         with:
           tag-name: ${{ github.ref_name }}
           default-branch: ${{ github.event.repository.default_branch }}
@@ -128,7 +128,7 @@ jobs:
 
       - name: Inspect publication state
         id: package_state
-        uses: mackysoft/actions/nuget-package-state@v1
+        uses: mackysoft/actions/nuget/package-state@v1
         with:
           mode: inspect
           package-version: ${{ env.PACKAGE_VERSION }}
@@ -138,13 +138,13 @@ jobs:
 
       - name: Publish packages to nuget.org
         if: ${{ steps.package_state.outputs['publish-required'] == 'true' }}
-        uses: mackysoft/actions/nuget-trusted-publish@v1
+        uses: mackysoft/actions/nuget/trusted-publish@v1
         with:
           package-glob: artifacts/packages/*.nupkg
           nuget-user: ${{ vars.NUGET_USER }}
 
       - name: Wait for published packages
-        uses: mackysoft/actions/nuget-package-state@v1
+        uses: mackysoft/actions/nuget/package-state@v1
         with:
           mode: wait
           package-version: ${{ env.PACKAGE_VERSION }}
@@ -193,7 +193,7 @@ jobs:
             "artifacts/packages/MackySoft.AgentSkills.Cli.${PACKAGE_VERSION}.nupkg"
 
       - name: Re-guard release source
-        uses: mackysoft/actions/release-source-guard@v1
+        uses: mackysoft/actions/release/source-guard@v1
         with:
           tag-name: ${{ github.ref_name }}
           default-branch: ${{ github.event.repository.default_branch }}

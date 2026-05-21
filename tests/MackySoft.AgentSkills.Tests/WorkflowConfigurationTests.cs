@@ -51,7 +51,7 @@ public sealed class WorkflowConfigurationTests
         Assert.Contains("packageVersion: ${{ steps.release_source.outputs['package-version'] }}", workflow, StringComparison.Ordinal);
         Assert.Contains("releaseSha: ${{ steps.release_source.outputs['release-sha'] }}", workflow, StringComparison.Ordinal);
         Assert.Contains("fetch-depth: 0", workflow, StringComparison.Ordinal);
-        Assert.Contains("uses: mackysoft/actions/release-source-guard@v1", workflow, StringComparison.Ordinal);
+        Assert.Contains("uses: mackysoft/actions/release/source-guard@v1", workflow, StringComparison.Ordinal);
         Assert.Contains("tag-name: ${{ github.ref_name }}", workflow, StringComparison.Ordinal);
         Assert.Contains("default-branch: ${{ github.event.repository.default_branch }}", workflow, StringComparison.Ordinal);
         Assert.Contains("expected-release-sha: ${{ env.RELEASE_SHA }}", workflow, StringComparison.Ordinal);
@@ -60,10 +60,10 @@ public sealed class WorkflowConfigurationTests
         Assert.Contains("RELEASE_SHA: ${{ needs.package.outputs.releaseSha }}", workflow, StringComparison.Ordinal);
         Assert.Contains("name: nuget-packages", workflow, StringComparison.Ordinal);
         Assert.Contains("- name: Inspect publication state", workflow, StringComparison.Ordinal);
-        Assert.Contains("uses: mackysoft/actions/nuget-package-state@v1", workflow, StringComparison.Ordinal);
+        Assert.Contains("uses: mackysoft/actions/nuget/package-state@v1", workflow, StringComparison.Ordinal);
         Assert.Contains("mode: inspect", workflow, StringComparison.Ordinal);
         Assert.Contains("steps.package_state.outputs['publish-required'] == 'true'", workflow, StringComparison.Ordinal);
-        Assert.Contains("uses: mackysoft/actions/nuget-trusted-publish@v1", workflow, StringComparison.Ordinal);
+        Assert.Contains("uses: mackysoft/actions/nuget/trusted-publish@v1", workflow, StringComparison.Ordinal);
         Assert.Contains("package-glob: artifacts/packages/*.nupkg", workflow, StringComparison.Ordinal);
         Assert.Contains("nuget-user: ${{ vars.NUGET_USER }}", workflow, StringComparison.Ordinal);
         Assert.Contains("mode: wait", workflow, StringComparison.Ordinal);
@@ -95,9 +95,9 @@ public sealed class WorkflowConfigurationTests
         Assert.DoesNotContain("Release tag ${tag_name} must match Directory.Build.props Version", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("- name: Create release tag", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("Agent Skills ${PACKAGE_VERSION}", workflow, StringComparison.Ordinal);
-        Assert.Equal(3, CountOccurrences(workflow, "uses: mackysoft/actions/release-source-guard@v1"));
-        Assert.Equal(2, CountOccurrences(workflow, "uses: mackysoft/actions/nuget-package-state@v1"));
-        Assert.Equal(1, CountOccurrences(workflow, "uses: mackysoft/actions/nuget-trusted-publish@v1"));
+        Assert.Equal(3, CountOccurrences(workflow, "uses: mackysoft/actions/release/source-guard@v1"));
+        Assert.Equal(2, CountOccurrences(workflow, "uses: mackysoft/actions/nuget/package-state@v1"));
+        Assert.Equal(1, CountOccurrences(workflow, "uses: mackysoft/actions/nuget/trusted-publish@v1"));
         Assert.Equal(1, CountOccurrences(workflow, "package_url()"));
 
         var packageGuardIndex = workflow.IndexOf("- name: Guard release source", StringComparison.Ordinal);
