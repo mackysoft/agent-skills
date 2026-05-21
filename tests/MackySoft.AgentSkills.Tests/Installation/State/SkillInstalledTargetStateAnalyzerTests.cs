@@ -28,6 +28,23 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task AnalyzeAsync_PrioritizesManifestDriftOverFileSetDrift ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "state-manifest-over-file-set");
+        var (packages, targetRoot) = await InstallOpenAiAsync(scope);
+        var skillDirectory = GetSkillDirectory(targetRoot, packages[0]);
+        SkillTestData.TamperManifestDigest(Path.Combine(skillDirectory, "agent-skill.json"));
+        File.WriteAllText(Path.Combine(skillDirectory, "references", "extra.md"), "# Extra\n");
+
+        var state = await AnalyzeOpenAiAsync(packages[0], skillDirectory);
+
+        Assert.Equal(SkillInstalledTargetStateKind.ManifestDrift, state.Kind);
+        Assert.Equal(SkillFailureCodes.InstallTargetManifestDigestMismatch, state.Failure!.Code);
+        Assert.Null(state.FileSet);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task AnalyzeAsync_ClassifiesCommonContentDrift ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "state-content-drift");

@@ -50,22 +50,12 @@ public sealed class SkillInstalledTargetStateAnalyzer
         }
 
         var currentFailure = currentResult.Failure!;
-        if (currentFailure.Code == SkillFailureCodes.InstallTargetUnmanaged)
+        if (TryResolveNonDriftStateKind(currentFailure.Code, out var currentNonDriftKind))
         {
-            return Success(SkillInstalledTargetStateKind.Unmanaged, currentFailure);
+            return Success(currentNonDriftKind, currentFailure);
         }
 
-        if (currentFailure.Code == SkillFailureCodes.InstallTargetNameCollision)
-        {
-            return Success(SkillInstalledTargetStateKind.NameCollision, currentFailure);
-        }
-
-        if (currentFailure.Code == SkillFailureCodes.InstallTargetHostConflict)
-        {
-            return Success(SkillInstalledTargetStateKind.HostConflict, currentFailure);
-        }
-
-        if (!IsDriftFailure(currentFailure.Code))
+        if (!SkillInstalledTargetStateKindExtensions.TryResolveDriftKind(currentFailure.Code, out _))
         {
             return SkillOperationResult<SkillInstalledTargetState>.FailureResult(currentFailure.Code, currentFailure.Message);
         }
@@ -81,22 +71,12 @@ public sealed class SkillInstalledTargetStateAnalyzer
         }
 
         var integrityFailure = integrityResult.Failure!;
-        if (integrityFailure.Code == SkillFailureCodes.InstallTargetUnmanaged)
+        if (TryResolveNonDriftStateKind(integrityFailure.Code, out var integrityNonDriftKind))
         {
-            return Success(SkillInstalledTargetStateKind.Unmanaged, integrityFailure);
+            return Success(integrityNonDriftKind, integrityFailure);
         }
 
-        if (integrityFailure.Code == SkillFailureCodes.InstallTargetNameCollision)
-        {
-            return Success(SkillInstalledTargetStateKind.NameCollision, integrityFailure);
-        }
-
-        if (integrityFailure.Code == SkillFailureCodes.InstallTargetHostConflict)
-        {
-            return Success(SkillInstalledTargetStateKind.HostConflict, integrityFailure);
-        }
-
-        if (!IsDriftFailure(integrityFailure.Code))
+        if (!SkillInstalledTargetStateKindExtensions.TryResolveDriftKind(integrityFailure.Code, out _))
         {
             return SkillOperationResult<SkillInstalledTargetState>.FailureResult(integrityFailure.Code, integrityFailure.Message);
         }
@@ -120,7 +100,11 @@ public sealed class SkillInstalledTargetStateAnalyzer
         CancellationToken cancellationToken)
     {
         var selectedFailure = SelectDriftFailure(currentFailure, integrityFailure);
-        var stateKind = ResolveStateKind(selectedFailure.Code);
+        if (!SkillInstalledTargetStateKindExtensions.TryResolveDriftKind(selectedFailure.Code, out var stateKind))
+        {
+            return SkillOperationResult<SkillInstalledTargetState>.FailureResult(selectedFailure.Code, selectedFailure.Message);
+        }
+
         if (stateKind == SkillInstalledTargetStateKind.FileSetDrift)
         {
             var fileSetResult = await ReadCurrentFileSetDriftAsync(package, skillDirectory, host, cancellationToken).ConfigureAwait(false);
@@ -139,20 +123,48 @@ public sealed class SkillInstalledTargetStateAnalyzer
         SkillFailure currentFailure,
         SkillFailure integrityFailure)
     {
-        if (currentFailure.Code == SkillFailureCodes.InstallTargetFileSetMismatch)
-        {
-            return currentFailure;
-        }
-
-        if (currentFailure.Code == SkillFailureCodes.InstallTargetHostArtifactDigestMismatch
-            && integrityFailure.Code == SkillFailureCodes.InstallTargetContentDigestMismatch)
-        {
-            return currentFailure;
-        }
-
-        return integrityFailure.Code == SkillFailureCodes.InstallTargetDigestMismatch
+        var normalizedIntegrityFailure = integrityFailure.Code == SkillFailureCodes.InstallTargetDigestMismatch
             ? SkillFailure.Create(SkillFailureCodes.InstallTargetLocalModification, integrityFailure.Message)
             : integrityFailure;
+        if (!SkillInstalledTargetStateKindExtensions.TryResolveDriftKind(currentFailure.Code, out var currentKind))
+        {
+            return normalizedIntegrityFailure;
+        }
+
+        if (!SkillInstalledTargetStateKindExtensions.TryResolveDriftKind(normalizedIntegrityFailure.Code, out var integrityKind))
+        {
+            return currentFailure;
+        }
+
+        return currentKind.GetDriftPriority() <= integrityKind.GetDriftPriority()
+            ? currentFailure
+            : normalizedIntegrityFailure;
+    }
+
+    private static bool TryResolveNonDriftStateKind (
+        SkillFailureCode code,
+        out SkillInstalledTargetStateKind kind)
+    {
+        if (code == SkillFailureCodes.InstallTargetUnmanaged)
+        {
+            kind = SkillInstalledTargetStateKind.Unmanaged;
+            return true;
+        }
+
+        if (code == SkillFailureCodes.InstallTargetNameCollision)
+        {
+            kind = SkillInstalledTargetStateKind.NameCollision;
+            return true;
+        }
+
+        if (code == SkillFailureCodes.InstallTargetHostConflict)
+        {
+            kind = SkillInstalledTargetStateKind.HostConflict;
+            return true;
+        }
+
+        kind = default;
+        return false;
     }
 
     private static ValueTask<SkillOperationResult<SkillInstalledTargetFileSet>> ReadCurrentFileSetDriftAsync (
@@ -198,47 +210,6 @@ public sealed class SkillInstalledTargetStateAnalyzer
             fileSet.MissingFiles,
             fileSet.ExtraFiles,
             fileSet.ExtraDirectories)));
-    }
-
-    private static SkillInstalledTargetStateKind ResolveStateKind (SkillFailureCode code)
-    {
-        if (code == SkillFailureCodes.InstallTargetManifestDigestMismatch)
-        {
-            return SkillInstalledTargetStateKind.ManifestDrift;
-        }
-
-        if (code == SkillFailureCodes.InstallTargetContentDigestMismatch)
-        {
-            return SkillInstalledTargetStateKind.CommonContentDrift;
-        }
-
-        if (code == SkillFailureCodes.InstallTargetFrontmatterDigestMismatch)
-        {
-            return SkillInstalledTargetStateKind.FrontmatterDrift;
-        }
-
-        if (code == SkillFailureCodes.InstallTargetHostArtifactDigestMismatch)
-        {
-            return SkillInstalledTargetStateKind.HostArtifactDrift;
-        }
-
-        if (code == SkillFailureCodes.InstallTargetFileSetMismatch)
-        {
-            return SkillInstalledTargetStateKind.FileSetDrift;
-        }
-
-        return SkillInstalledTargetStateKind.LocalModified;
-    }
-
-    private static bool IsDriftFailure (SkillFailureCode code)
-    {
-        return code == SkillFailureCodes.InstallTargetDigestMismatch
-            || code == SkillFailureCodes.InstallTargetManifestDigestMismatch
-            || code == SkillFailureCodes.InstallTargetContentDigestMismatch
-            || code == SkillFailureCodes.InstallTargetFrontmatterDigestMismatch
-            || code == SkillFailureCodes.InstallTargetHostArtifactDigestMismatch
-            || code == SkillFailureCodes.InstallTargetFileSetMismatch
-            || code == SkillFailureCodes.InstallTargetLocalModification;
     }
 
     private static SkillOperationResult<SkillInstalledTargetState> Success (

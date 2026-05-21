@@ -1,6 +1,4 @@
 using MackySoft.AgentSkills.Digests;
-using MackySoft.AgentSkills.Hosts.Contracts;
-using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Packaging.FileSystem;
 using MackySoft.AgentSkills.Shared;
@@ -11,7 +9,6 @@ namespace MackySoft.AgentSkills.Installation.Validation;
 public sealed class SkillInstalledPackageIntegrityVerifier
 {
     private readonly SkillInstalledManifestReader installedManifestReader;
-    private readonly SkillHostAdapterSet hostAdapters;
     private readonly SkillManifestJsonSerializer manifestSerializer;
     private readonly SkillManifestDigestCalculator manifestDigestCalculator;
     private readonly SkillHostMaterializationInspector hostInspector;
@@ -19,21 +16,18 @@ public sealed class SkillInstalledPackageIntegrityVerifier
 
     /// <summary> Initializes a new instance of the <see cref="SkillInstalledPackageIntegrityVerifier" /> class. </summary>
     /// <param name="installedManifestReader"> The installed manifest reader. </param>
-    /// <param name="hostAdapters"> The supported host adapter set. </param>
     /// <param name="manifestSerializer"> The manifest serializer. </param>
     /// <param name="manifestDigestCalculator"> The canonical manifest digest calculator. </param>
     /// <param name="hostInspector"> The host materialization inspector. </param>
     /// <param name="digestCalculator"> The digest calculator. </param>
     public SkillInstalledPackageIntegrityVerifier (
         SkillInstalledManifestReader installedManifestReader,
-        SkillHostAdapterSet hostAdapters,
         SkillManifestJsonSerializer manifestSerializer,
         SkillManifestDigestCalculator manifestDigestCalculator,
         SkillHostMaterializationInspector hostInspector,
         SkillDigestCalculator digestCalculator)
     {
         this.installedManifestReader = installedManifestReader ?? throw new ArgumentNullException(nameof(installedManifestReader));
-        this.hostAdapters = hostAdapters ?? throw new ArgumentNullException(nameof(hostAdapters));
         this.manifestSerializer = manifestSerializer ?? throw new ArgumentNullException(nameof(manifestSerializer));
         this.manifestDigestCalculator = manifestDigestCalculator ?? throw new ArgumentNullException(nameof(manifestDigestCalculator));
         this.hostInspector = hostInspector ?? throw new ArgumentNullException(nameof(hostInspector));
@@ -72,9 +66,10 @@ public sealed class SkillInstalledPackageIntegrityVerifier
 
         if (!manifestIntegrityResult.Value!.Matches)
         {
+            var failure = manifestIntegrityResult.Value.Failure!;
             return SkillOperationResult<SkillManifest>.FailureResult(
-                manifestIntegrityResult.Value.FailureCode,
-                manifestIntegrityResult.Value.Message);
+                failure.Code,
+                failure.Message);
         }
 
         var differentHostResult = await hostInspector.MatchesDifferentHostAsync(skillDirectory, manifest, host, cancellationToken).ConfigureAwait(false);
@@ -155,56 +150,6 @@ public sealed class SkillInstalledPackageIntegrityVerifier
             return SkillOperationResult<IntegrityCheckResult>.Success(IntegrityCheckResult.Mismatch(
                 SkillFailureCodes.InstallTargetManifestDigestMismatch,
                 $"Installed SKILL manifestDigest does not match manifest content: {manifest.SkillName}"));
-        }
-
-        var metadata = new SkillHostMetadata(manifest.SkillName, manifest.DisplayName, manifest.Description);
-        var artifactByHost = manifest.HostArtifacts.ToDictionary(static artifact => artifact.Host, StringComparer.Ordinal);
-        foreach (var adapter in hostAdapters.Adapters)
-        {
-            if (!artifactByHost.TryGetValue(adapter.Descriptor.HostKey, out var artifact))
-            {
-                return SkillOperationResult<IntegrityCheckResult>.FailureResult(
-                    SkillFailureCodes.ManifestInvalid,
-                    $"Manifest host artifact '{adapter.Descriptor.HostKey}' is missing.");
-            }
-
-            var artifacts = adapter.BuildArtifacts(metadata);
-            var metadataArtifactPath = adapter.Descriptor.MetadataArtifactPath;
-            var frontmatterDigest = digestCalculator.ComputeSingleFileDigest("SKILL.md.frontmatter", artifacts.Frontmatter);
-            if (!string.Equals(artifact.MaterializedFrontmatterDigest, frontmatterDigest, StringComparison.Ordinal))
-            {
-                return SkillOperationResult<IntegrityCheckResult>.Success(IntegrityCheckResult.Mismatch(
-                    SkillFailureCodes.InstallTargetManifestDigestMismatch,
-                    $"Installed SKILL manifest frontmatter metadata does not match adapter output: {manifest.SkillName}/{artifact.Host}"));
-            }
-
-            if (metadataArtifactPath is null)
-            {
-                if (artifact.Path is not null || artifact.Digest is not null)
-                {
-                    return SkillOperationResult<IntegrityCheckResult>.FailureResult(
-                        SkillFailureCodes.ManifestInvalid,
-                        $"Manifest host artifact '{artifact.Host}' must not contain metadata artifact fields.");
-                }
-
-                continue;
-            }
-
-            if (artifacts.MetadataContent is null)
-            {
-                return SkillOperationResult<IntegrityCheckResult>.FailureResult(
-                    SkillFailureCodes.ManifestInvalid,
-                    $"Host adapter '{adapter.Descriptor.HostKey}' did not generate metadata content.");
-            }
-
-            var metadataDigest = digestCalculator.ComputeSingleFileDigest(metadataArtifactPath, artifacts.MetadataContent);
-            if (!string.Equals(artifact.Path, metadataArtifactPath, StringComparison.Ordinal)
-                || !string.Equals(artifact.Digest, metadataDigest, StringComparison.Ordinal))
-            {
-                return SkillOperationResult<IntegrityCheckResult>.Success(IntegrityCheckResult.Mismatch(
-                    SkillFailureCodes.InstallTargetManifestDigestMismatch,
-                    $"Installed SKILL manifest host artifact metadata does not match adapter output: {manifest.SkillName}/{artifact.Host}"));
-            }
         }
 
         return SkillOperationResult<IntegrityCheckResult>.Success(IntegrityCheckResult.Match);
@@ -444,19 +389,17 @@ public sealed class SkillInstalledPackageIntegrityVerifier
 
     private sealed record IntegrityCheckResult (
         bool Matches,
-        SkillFailureCode FailureCode,
-        string Message)
+        SkillFailure? Failure)
     {
         public static IntegrityCheckResult Match { get; } = new(
             true,
-            SkillFailureCodes.InstallTargetLocalModification,
-            "Installed SKILL package integrity matched.");
+            null);
 
         public static IntegrityCheckResult Mismatch (
             SkillFailureCode failureCode,
             string message)
         {
-            return new IntegrityCheckResult(false, failureCode, message);
+            return new IntegrityCheckResult(false, SkillFailure.Create(failureCode, message));
         }
     }
 
