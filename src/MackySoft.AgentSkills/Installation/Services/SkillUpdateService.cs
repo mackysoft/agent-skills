@@ -178,12 +178,13 @@ public sealed class SkillUpdateService
                         skillDirectory,
                         identity,
                         SkillUpdateActionKind.Created,
+                        state,
                         input,
                         cancellationToken)
                     .ConfigureAwait(false);
             case SkillInstalledTargetStateKind.Current:
                 return SkillOperationResult<SkillUpdateActionPlan>.Success(new SkillUpdateActionPlan(
-                    new SkillUpdateAction(identity, SkillUpdateActionKind.NoOp),
+                    new SkillUpdateAction(identity, SkillUpdateActionKind.NoOp, TargetState: SkillActionTargetStateProjection.Create(state)),
                     skillDirectory,
                     package,
                     null));
@@ -194,15 +195,17 @@ public sealed class SkillUpdateService
                         skillDirectory,
                         identity,
                         SkillUpdateActionKind.Updated,
+                        state,
                         input,
                         cancellationToken)
                     .ConfigureAwait(false);
-            case SkillInstalledTargetStateKind.LocalModified:
+            case var kind when kind.IsLocalModificationDrift():
                 return await CreateLocalModificationActionPlanAsync(
                         package,
                         host,
                         skillDirectory,
                         identity,
+                        state,
                         input,
                         cancellationToken)
                     .ConfigureAwait(false);
@@ -221,9 +224,15 @@ public sealed class SkillUpdateService
                         identity,
                         SkillUpdateActionKind.BlockedUnmanaged,
                         SkillBlockedReason.UnmanagedTarget,
-                        printDiff: false,
+                        false,
+                        state,
                         cancellationToken)
                     .ConfigureAwait(false);
+            case SkillInstalledTargetStateKind.NameCollision:
+            case SkillInstalledTargetStateKind.HostConflict:
+                return SkillOperationResult<SkillUpdateActionPlan>.FailureResult(
+                    ResolveStateFailureCode(state),
+                    state.Failure?.Message ?? $"Target skill directory cannot be updated: {skillDirectory}");
             default:
                 throw new ArgumentOutOfRangeException(nameof(state), state.Kind, "Unsupported target state.");
         }
@@ -234,6 +243,7 @@ public sealed class SkillUpdateService
         string host,
         string skillDirectory,
         SkillInstallIdentity identity,
+        SkillInstalledTargetState state,
         SkillUpdateInput input,
         CancellationToken cancellationToken)
     {
@@ -245,6 +255,7 @@ public sealed class SkillUpdateService
                     skillDirectory,
                     identity,
                     SkillUpdateActionKind.Updated,
+                    state,
                     input,
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -260,12 +271,13 @@ public sealed class SkillUpdateService
                     SkillUpdateActionKind.BlockedLocalModification,
                     SkillBlockedReason.LocalModificationRequiresForce,
                     input.PrintDiff,
+                    state,
                     cancellationToken)
                 .ConfigureAwait(false);
         }
 
         return SkillOperationResult<SkillUpdateActionPlan>.FailureResult(
-            SkillFailureCodes.InstallTargetDigestMismatch,
+            ResolveStateFailureCode(state),
             $"Target skill directory contains local modifications. Use --force to overwrite: {skillDirectory}");
     }
 
@@ -275,6 +287,7 @@ public sealed class SkillUpdateService
         string skillDirectory,
         SkillInstallIdentity identity,
         SkillUpdateActionKind actionKind,
+        SkillInstalledTargetState state,
         SkillUpdateInput input,
         CancellationToken cancellationToken)
     {
@@ -290,7 +303,8 @@ public sealed class SkillUpdateService
                 identity,
                 actionKind,
                 null,
-                packagePlan.Diffs),
+                packagePlan.Diffs,
+                SkillActionTargetStateProjection.Create(state)),
             skillDirectory,
             package,
             packagePlan.MaterializedPackage));
@@ -304,12 +318,13 @@ public sealed class SkillUpdateService
         SkillUpdateActionKind actionKind,
         SkillBlockedReason blockedReason,
         bool printDiff,
+        SkillInstalledTargetState state,
         CancellationToken cancellationToken)
     {
         var packagePlanResult = await CreateMaterializedPackagePlanAsync(package, host, skillDirectory, printDiff, cancellationToken).ConfigureAwait(false);
         return packagePlanResult.IsSuccess
             ? SkillOperationResult<SkillUpdateActionPlan>.Success(new SkillUpdateActionPlan(
-                new SkillUpdateAction(identity, actionKind, blockedReason, packagePlanResult.Value!.Diffs),
+                new SkillUpdateAction(identity, actionKind, blockedReason, packagePlanResult.Value!.Diffs, SkillActionTargetStateProjection.Create(state)),
                 skillDirectory,
                 package,
                 null))
@@ -330,12 +345,12 @@ public sealed class SkillUpdateService
             return SkillOperationResult<bool>.FailureResult(stateResult.Failure!.Code, stateResult.Failure.Message);
         }
 
-        var state = stateResult.Value!.Kind;
+        var state = stateResult.Value!;
         var isValid = actionKind switch
         {
-            SkillUpdateActionKind.Created => state == SkillInstalledTargetStateKind.Missing,
-            SkillUpdateActionKind.Updated when force => state == SkillInstalledTargetStateKind.CleanOutdated || state == SkillInstalledTargetStateKind.LocalModified,
-            SkillUpdateActionKind.Updated => state == SkillInstalledTargetStateKind.CleanOutdated,
+            SkillUpdateActionKind.Created => state.Kind == SkillInstalledTargetStateKind.Missing,
+            SkillUpdateActionKind.Updated when force => state.Kind == SkillInstalledTargetStateKind.CleanOutdated || state.Kind.IsLocalModificationDrift(),
+            SkillUpdateActionKind.Updated => state.Kind == SkillInstalledTargetStateKind.CleanOutdated,
             _ => true,
         };
         if (isValid)
@@ -358,11 +373,16 @@ public sealed class SkillUpdateService
         };
     }
 
-    private static SkillFailureCode ResolveChangedTargetFailureCode (SkillInstalledTargetStateKind state)
+    private static SkillFailureCode ResolveChangedTargetFailureCode (SkillInstalledTargetState state)
     {
-        return state == SkillInstalledTargetStateKind.Unmanaged
+        return state.Kind == SkillInstalledTargetStateKind.Unmanaged
             ? SkillFailureCodes.InstallTargetUnmanaged
-            : SkillFailureCodes.InstallTargetDigestMismatch;
+            : ResolveStateFailureCode(state);
+    }
+
+    private static SkillFailureCode ResolveStateFailureCode (SkillInstalledTargetState state)
+    {
+        return state.Failure?.Code ?? SkillFailureCodes.InstallTargetDigestMismatch;
     }
 
     private async ValueTask<SkillOperationResult<SkillMaterializedPackagePlan>> CreateMaterializedPackagePlanAsync (

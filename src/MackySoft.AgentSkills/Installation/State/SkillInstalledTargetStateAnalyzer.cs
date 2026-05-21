@@ -49,24 +49,174 @@ public sealed class SkillInstalledTargetStateAnalyzer
             return SkillOperationResult<SkillInstalledTargetState>.Success(new SkillInstalledTargetState(SkillInstalledTargetStateKind.Current));
         }
 
-        if (currentResult.Failure!.Code == SkillFailureCodes.InstallTargetUnmanaged)
+        var currentFailure = currentResult.Failure!;
+        if (TryResolveNonDriftStateKind(currentFailure.Code, out var currentNonDriftKind))
         {
-            return SkillOperationResult<SkillInstalledTargetState>.Success(new SkillInstalledTargetState(SkillInstalledTargetStateKind.Unmanaged));
+            return Success(currentNonDriftKind, currentFailure);
         }
 
-        if (currentResult.Failure.Code != SkillFailureCodes.InstallTargetDigestMismatch)
+        if (!SkillInstalledTargetStateKindExtensions.TryResolveDriftKind(currentFailure.Code, out _))
         {
-            return SkillOperationResult<SkillInstalledTargetState>.FailureResult(currentResult.Failure.Code, currentResult.Failure.Message);
+            return SkillOperationResult<SkillInstalledTargetState>.FailureResult(currentFailure.Code, currentFailure.Message);
         }
 
         var integrityResult = await installedPackageIntegrityVerifier.VerifyAsync(skillDirectory, host, cancellationToken).ConfigureAwait(false);
         if (integrityResult.IsSuccess)
         {
-            return SkillOperationResult<SkillInstalledTargetState>.Success(new SkillInstalledTargetState(SkillInstalledTargetStateKind.CleanOutdated));
+            return Success(
+                SkillInstalledTargetStateKind.CleanOutdated,
+                SkillFailure.Create(
+                    SkillFailureCodes.InstallTargetOutdated,
+                    $"Installed SKILL package is clean but older than the canonical package: {package.Manifest.SkillName}"));
         }
 
-        return integrityResult.Failure!.Code == SkillFailureCodes.InstallTargetDigestMismatch
-            ? SkillOperationResult<SkillInstalledTargetState>.Success(new SkillInstalledTargetState(SkillInstalledTargetStateKind.LocalModified))
-            : SkillOperationResult<SkillInstalledTargetState>.FailureResult(integrityResult.Failure.Code, integrityResult.Failure.Message);
+        var integrityFailure = integrityResult.Failure!;
+        if (TryResolveNonDriftStateKind(integrityFailure.Code, out var integrityNonDriftKind))
+        {
+            return Success(integrityNonDriftKind, integrityFailure);
+        }
+
+        if (!SkillInstalledTargetStateKindExtensions.TryResolveDriftKind(integrityFailure.Code, out _))
+        {
+            return SkillOperationResult<SkillInstalledTargetState>.FailureResult(integrityFailure.Code, integrityFailure.Message);
+        }
+
+        return await CreateDriftStateAsync(
+                package,
+                skillDirectory,
+                host,
+                currentFailure,
+                integrityFailure,
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private static async ValueTask<SkillOperationResult<SkillInstalledTargetState>> CreateDriftStateAsync (
+        CanonicalSkillPackage package,
+        string skillDirectory,
+        string host,
+        SkillFailure currentFailure,
+        SkillFailure integrityFailure,
+        CancellationToken cancellationToken)
+    {
+        var selectedFailure = SelectDriftFailure(currentFailure, integrityFailure);
+        if (!SkillInstalledTargetStateKindExtensions.TryResolveDriftKind(selectedFailure.Code, out var stateKind))
+        {
+            return SkillOperationResult<SkillInstalledTargetState>.FailureResult(selectedFailure.Code, selectedFailure.Message);
+        }
+
+        if (stateKind == SkillInstalledTargetStateKind.FileSetDrift)
+        {
+            var fileSetResult = await ReadCurrentFileSetDriftAsync(package, skillDirectory, host, cancellationToken).ConfigureAwait(false);
+            if (!fileSetResult.IsSuccess)
+            {
+                return SkillOperationResult<SkillInstalledTargetState>.FailureResult(fileSetResult.Failure!.Code, fileSetResult.Failure.Message);
+            }
+
+            return Success(stateKind, selectedFailure, fileSetResult.Value);
+        }
+
+        return Success(stateKind, selectedFailure);
+    }
+
+    private static SkillFailure SelectDriftFailure (
+        SkillFailure currentFailure,
+        SkillFailure integrityFailure)
+    {
+        var normalizedIntegrityFailure = integrityFailure.Code == SkillFailureCodes.InstallTargetDigestMismatch
+            ? SkillFailure.Create(SkillFailureCodes.InstallTargetLocalModification, integrityFailure.Message)
+            : integrityFailure;
+        if (!SkillInstalledTargetStateKindExtensions.TryResolveDriftKind(currentFailure.Code, out var currentKind))
+        {
+            return normalizedIntegrityFailure;
+        }
+
+        if (!SkillInstalledTargetStateKindExtensions.TryResolveDriftKind(normalizedIntegrityFailure.Code, out var integrityKind))
+        {
+            return currentFailure;
+        }
+
+        return currentKind.GetDriftPriority() <= integrityKind.GetDriftPriority()
+            ? currentFailure
+            : normalizedIntegrityFailure;
+    }
+
+    private static bool TryResolveNonDriftStateKind (
+        SkillFailureCode code,
+        out SkillInstalledTargetStateKind kind)
+    {
+        if (code == SkillFailureCodes.InstallTargetUnmanaged)
+        {
+            kind = SkillInstalledTargetStateKind.Unmanaged;
+            return true;
+        }
+
+        if (code == SkillFailureCodes.InstallTargetNameCollision)
+        {
+            kind = SkillInstalledTargetStateKind.NameCollision;
+            return true;
+        }
+
+        if (code == SkillFailureCodes.InstallTargetHostConflict)
+        {
+            kind = SkillInstalledTargetStateKind.HostConflict;
+            return true;
+        }
+
+        kind = default;
+        return false;
+    }
+
+    private static ValueTask<SkillOperationResult<SkillInstalledTargetFileSet>> ReadCurrentFileSetDriftAsync (
+        CanonicalSkillPackage package,
+        string skillDirectory,
+        string host,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(package);
+
+        var entriesResult = SkillInstalledFileSetVerifier.ReadInstalledEntries(skillDirectory, cancellationToken);
+        if (!entriesResult.IsSuccess)
+        {
+            return ValueTask.FromResult(SkillOperationResult<SkillInstalledTargetFileSet>.FailureResult(
+                entriesResult.Failure!.Code,
+                entriesResult.Failure.Message));
+        }
+
+        var requiredPathsResult = SkillManagedFileSetPaths.CreateMaterializedRequiredPaths(package, host);
+        if (!requiredPathsResult.IsSuccess)
+        {
+            return ValueTask.FromResult(SkillOperationResult<SkillInstalledTargetFileSet>.FailureResult(
+                requiredPathsResult.Failure!.Code,
+                requiredPathsResult.Failure.Message));
+        }
+
+        var fileSetResult = SkillInstalledFileSetVerifier.VerifyInstalledEntries(
+            skillDirectory,
+            requiredPathsResult.Value!,
+            Array.Empty<string>(),
+            entriesResult.Value!,
+            cancellationToken);
+        if (!fileSetResult.IsSuccess)
+        {
+            return ValueTask.FromResult(SkillOperationResult<SkillInstalledTargetFileSet>.FailureResult(
+                fileSetResult.Failure!.Code,
+                fileSetResult.Failure.Message));
+        }
+
+        var fileSet = fileSetResult.Value!;
+        return ValueTask.FromResult(SkillOperationResult<SkillInstalledTargetFileSet>.Success(new SkillInstalledTargetFileSet(
+            fileSet.MissingFiles,
+            fileSet.ExtraFiles,
+            fileSet.ExtraDirectories)));
+    }
+
+    private static SkillOperationResult<SkillInstalledTargetState> Success (
+        SkillInstalledTargetStateKind kind,
+        SkillFailure? failure = null,
+        SkillInstalledTargetFileSet? fileSet = null)
+    {
+        return SkillOperationResult<SkillInstalledTargetState>.Success(new SkillInstalledTargetState(kind, failure, fileSet));
     }
 }

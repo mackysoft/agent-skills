@@ -27,6 +27,9 @@ public static class SkillFailureCodes
     /// <summary> Gets the code emitted when the target directory contains different SKILL content. </summary>
     public static readonly SkillFailureCode InstallTargetDigestMismatch = new("SKILL_INSTALL_TARGET_DIGEST_MISMATCH");
 
+    /// <summary> Gets the code emitted when installed manifest metadata drifted. </summary>
+    public static readonly SkillFailureCode InstallTargetManifestDigestMismatch = new("SKILL_INSTALL_TARGET_MANIFEST_DIGEST_MISMATCH");
+
     /// <summary> Gets the code emitted when installed host-independent SKILL content drifted. </summary>
     public static readonly SkillFailureCode InstallTargetContentDigestMismatch = new("SKILL_INSTALL_TARGET_CONTENT_DIGEST_MISMATCH");
 
@@ -42,8 +45,14 @@ public static class SkillFailureCodes
     /// <summary> Gets the code emitted when the installed package is clean but older than the bundled package. </summary>
     public static readonly SkillFailureCode InstallTargetOutdated = new("SKILL_INSTALL_TARGET_OUTDATED");
 
+    /// <summary> Gets the code emitted when a managed target identifies a different SKILL name. </summary>
+    public static readonly SkillFailureCode InstallTargetNameCollision = new("SKILL_INSTALL_TARGET_NAME_COLLISION");
+
     /// <summary> Gets the code emitted when the target root appears to contain materialized output for another host. </summary>
     public static readonly SkillFailureCode InstallTargetHostConflict = new("SKILL_INSTALL_TARGET_HOST_CONFLICT");
+
+    /// <summary> Gets the code emitted when an installed package contains local modifications. </summary>
+    public static readonly SkillFailureCode InstallTargetLocalModification = new("SKILL_INSTALL_TARGET_LOCAL_MODIFICATION");
 
     /// <summary> Gets the code emitted when the target directory could not be read for planning. </summary>
     public static readonly SkillFailureCode InstallTargetReadFailed = new("SKILL_INSTALL_TARGET_READ_FAILED");

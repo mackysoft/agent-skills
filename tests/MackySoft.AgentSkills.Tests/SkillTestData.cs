@@ -1,7 +1,6 @@
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Doctor;
-using MackySoft.AgentSkills.Doctor.Diagnostics;
 using MackySoft.AgentSkills.Generation;
 using MackySoft.AgentSkills.Hosts.Claude;
 using MackySoft.AgentSkills.Hosts.Contracts;
@@ -187,12 +186,13 @@ internal static class SkillTestData
         var hostAdapters = CreateDefaultHostAdapterSet();
         return new SkillDoctorService(
             hostAdapters,
-            new SkillInstalledTargetStateAnalyzer(CreateInstalledPackageValidator(hostAdapters), CreateInstalledPackageIntegrityVerifier(hostAdapters)),
-            new SkillInstalledPackageDriftAnalyzer(
-                CreateInstalledManifestReader(hostAdapters),
-                new SkillMaterializationService(hostAdapters),
-                new SkillInstalledFileSetVerifier(),
-                new SkillDigestCalculator()));
+            CreateTargetStateAnalyzer(hostAdapters));
+    }
+
+    internal static SkillInstalledTargetStateAnalyzer CreateTargetStateAnalyzer (SkillHostAdapterSet? hostAdapters = null)
+    {
+        hostAdapters ??= CreateDefaultHostAdapterSet();
+        return new SkillInstalledTargetStateAnalyzer(CreateInstalledPackageValidator(hostAdapters), CreateInstalledPackageIntegrityVerifier(hostAdapters));
     }
 
     internal static IReadOnlyList<CanonicalSkillPackage> ReplacePackage (
@@ -387,7 +387,6 @@ internal static class SkillTestData
         var manifestSerializer = new SkillManifestJsonSerializer();
         return new SkillInstalledPackageIntegrityVerifier(
             CreateInstalledManifestReader(hostAdapters),
-            hostAdapters,
             manifestSerializer,
             new SkillManifestDigestCalculator(manifestSerializer),
             new SkillHostMaterializationInspector(hostAdapters, new SkillDigestCalculator()),
@@ -410,6 +409,17 @@ internal static class SkillTestData
             ? "sha256:" + new string('0', 64)
             : "sha256:" + new string('f', 64);
         File.WriteAllText(manifestPath, manifestText.Replace(manifest.ManifestDigest, replacementDigest, StringComparison.Ordinal));
+    }
+
+    internal static void WriteNameCollisionManifest (string targetRoot, CanonicalSkillPackage package)
+    {
+        var skillDirectory = Path.Combine(targetRoot, package.Manifest.SkillName);
+        Directory.CreateDirectory(skillDirectory);
+        var manifest = WithComputedManifestDigest(package.Manifest with
+        {
+            SkillName = package.Manifest.SkillName + "-collision",
+        });
+        File.WriteAllText(Path.Combine(skillDirectory, "agent-skill.json"), new SkillManifestJsonSerializer().Serialize(manifest));
     }
 
     internal static SkillManifest WithComputedManifestDigest (SkillManifest manifest)

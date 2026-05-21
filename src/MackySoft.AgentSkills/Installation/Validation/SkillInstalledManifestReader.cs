@@ -77,7 +77,7 @@ public sealed class SkillInstalledManifestReader
         if (!string.Equals(Path.GetFileName(skillDirectory), manifest.SkillName, StringComparison.Ordinal))
         {
             return SkillOperationResult<SkillInstalledManifest>.FailureResult(
-                SkillFailureCodes.ManifestInvalid,
+                SkillFailureCodes.InstallTargetNameCollision,
                 $"agent-skill.json skillName must match installed directory name: {manifestPath}");
         }
 

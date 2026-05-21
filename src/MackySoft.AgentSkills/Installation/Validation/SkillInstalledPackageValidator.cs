@@ -61,13 +61,6 @@ public sealed class SkillInstalledPackageValidator
 
         var installedManifest = installedManifestResult.Value!;
         var manifest = installedManifest.Manifest;
-        if (!string.Equals(manifest.ContentDigest, package.Manifest.ContentDigest, StringComparison.Ordinal))
-        {
-            return SkillOperationResult<SkillManifest>.FailureResult(
-                SkillFailureCodes.InstallTargetDigestMismatch,
-                $"Installed SKILL contentDigest does not match canonical package: {package.Manifest.SkillName}");
-        }
-
         var materializedResult = materializationService.Materialize(package, host);
         if (!materializedResult.IsSuccess)
         {
@@ -85,22 +78,6 @@ public sealed class SkillInstalledPackageValidator
             return SkillOperationResult<SkillManifest>.FailureResult(
                 SkillFailureCodes.InstallTargetHostConflict,
                 $"Installed skill directory is materialized for another host: {skillDirectory}");
-        }
-
-        var installedDigestResult = await contentDigestVerifier.MatchesContentDigestAsync(
-            skillDirectory,
-            package,
-            cancellationToken).ConfigureAwait(false);
-        if (!installedDigestResult.IsSuccess)
-        {
-            return SkillOperationResult<SkillManifest>.FailureResult(installedDigestResult.Failure!.Code, installedDigestResult.Failure.Message);
-        }
-
-        if (!installedDigestResult.Value)
-        {
-            return SkillOperationResult<SkillManifest>.FailureResult(
-                SkillFailureCodes.InstallTargetDigestMismatch,
-                $"Installed SKILL files do not match canonical package contentDigest: {package.Manifest.SkillName}");
         }
 
         var hostMatchResult = await hostInspector.MatchesHostAsync(skillDirectory, package.Manifest, host, cancellationToken).ConfigureAwait(false);
@@ -124,9 +101,42 @@ public sealed class SkillInstalledPackageValidator
 
         return fileSetResult.Value!.HasFileSetDrift
             ? SkillOperationResult<SkillManifest>.FailureResult(
-                SkillFailureCodes.InstallTargetDigestMismatch,
+                SkillFailureCodes.InstallTargetFileSetMismatch,
                 $"Installed SKILL file set does not match materialized package: {package.Manifest.SkillName}")
-            : ValidateCanonicalManifestText(package, installedManifest.ManifestText, manifest);
+            : await ValidateInstalledContentAsync(package, skillDirectory, installedManifest.ManifestText, manifest, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask<SkillOperationResult<SkillManifest>> ValidateInstalledContentAsync (
+        CanonicalSkillPackage package,
+        string skillDirectory,
+        string installedManifestText,
+        SkillManifest manifest,
+        CancellationToken cancellationToken)
+    {
+        if (!string.Equals(manifest.ContentDigest, package.Manifest.ContentDigest, StringComparison.Ordinal))
+        {
+            return SkillOperationResult<SkillManifest>.FailureResult(
+                SkillFailureCodes.InstallTargetContentDigestMismatch,
+                $"Installed SKILL contentDigest does not match canonical package: {package.Manifest.SkillName}");
+        }
+
+        var installedDigestResult = await contentDigestVerifier.MatchesContentDigestAsync(
+            skillDirectory,
+            package,
+            cancellationToken).ConfigureAwait(false);
+        if (!installedDigestResult.IsSuccess)
+        {
+            return SkillOperationResult<SkillManifest>.FailureResult(installedDigestResult.Failure!.Code, installedDigestResult.Failure.Message);
+        }
+
+        if (!installedDigestResult.Value)
+        {
+            return SkillOperationResult<SkillManifest>.FailureResult(
+                SkillFailureCodes.InstallTargetContentDigestMismatch,
+                $"Installed SKILL files do not match canonical package contentDigest: {package.Manifest.SkillName}");
+        }
+
+        return ValidateCanonicalManifestText(package, installedManifestText, manifest);
     }
 
     private static SkillOperationResult<SkillManifest> ValidateCanonicalManifestText (
@@ -138,7 +148,7 @@ public sealed class SkillInstalledPackageValidator
         return string.Equals(installedManifestText, canonicalManifestText, StringComparison.Ordinal)
             ? SkillOperationResult<SkillManifest>.Success(manifest)
             : SkillOperationResult<SkillManifest>.FailureResult(
-                SkillFailureCodes.InstallTargetDigestMismatch,
+                SkillFailureCodes.InstallTargetManifestDigestMismatch,
                 $"Installed SKILL manifest does not match canonical package: {package.Manifest.SkillName}");
     }
 }

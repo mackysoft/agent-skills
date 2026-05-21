@@ -2,6 +2,7 @@ using MackySoft.AgentSkills.Hosts.Claude;
 using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Installation.Requests;
 using MackySoft.AgentSkills.Installation.Results;
+using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
@@ -52,6 +53,7 @@ public sealed class SkillUninstallServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.True(result.Value!.DryRun);
         Assert.All(result.Value.Actions, static action => Assert.Equal(SkillUninstallActionKind.Deleted, action.ActionKind));
+        Assert.All(result.Value.Actions, static action => Assert.Equal(nameof(SkillInstalledTargetStateKind.Current), action.TargetState!.Kind));
         foreach (var package in packages)
         {
             Assert.True(Directory.Exists(Path.Combine(result.Value.TargetRoot, package.Manifest.SkillName)), package.Manifest.SkillName);
@@ -117,6 +119,26 @@ public sealed class SkillUninstallServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task UninstallAsync_RejectsNameCollision ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "uninstall-name-collision");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var service = SkillTestData.CreateUninstallService();
+        var targetRoot = scope.CreateDirectory(".agents/skills");
+        SkillTestData.WriteNameCollisionManifest(targetRoot, packages[0]);
+
+        var result = await service.UninstallAsync(
+            new SkillUninstallInput(
+                [packages[0]],
+                new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath)),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InstallTargetNameCollision, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task UninstallAsync_RejectsLocalModification ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "uninstall-local-modification");
@@ -131,7 +153,7 @@ public sealed class SkillUninstallServiceTests
         var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
     }
 
     [Fact]
@@ -152,7 +174,7 @@ public sealed class SkillUninstallServiceTests
         var result = await uninstallService.UninstallAsync(new SkillUninstallInput([packages[0], packages[1]], request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
         Assert.True(Directory.Exists(firstSkillDirectory));
         Assert.True(Directory.Exists(modifiedSkillDirectory));
     }
@@ -176,7 +198,7 @@ public sealed class SkillUninstallServiceTests
         var result = await uninstallService.UninstallAsync(new SkillUninstallInput([packages[0], secondPackage], request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
         Assert.True(Directory.Exists(skillDirectory));
         Assert.Contains("Injected after planning.", File.ReadAllText(skillPath), StringComparison.Ordinal);
     }
@@ -201,6 +223,8 @@ public sealed class SkillUninstallServiceTests
         var action = result.Value!.Actions.Single(action => action.Identity.SkillName == packages[0].Manifest.SkillName);
         Assert.Equal(SkillUninstallActionKind.BlockedLocalModification, action.ActionKind);
         Assert.Equal(SkillBlockedReason.LocalModificationRequiresForce, action.BlockedReason);
+        Assert.Equal(nameof(SkillInstalledTargetStateKind.CommonContentDrift), action.TargetState!.Kind);
+        Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, action.TargetState.Code);
         Assert.True(Directory.Exists(skillDirectory));
     }
 
@@ -242,7 +266,7 @@ public sealed class SkillUninstallServiceTests
         var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, result.Failure!.Code);
         Assert.True(Directory.Exists(localDirectory));
     }
 

@@ -3,6 +3,7 @@ using MackySoft.AgentSkills.Hosts.Claude;
 using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Installation.Requests;
 using MackySoft.AgentSkills.Installation.Results;
+using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
@@ -51,6 +52,7 @@ public sealed class SkillInstallServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.True(result.Value!.DryRun);
         Assert.All(result.Value.Actions, static action => Assert.Equal(SkillInstallActionKind.Created, action.ActionKind));
+        Assert.All(result.Value.Actions, static action => Assert.Equal(nameof(SkillInstalledTargetStateKind.Missing), action.TargetState!.Kind));
         Assert.All(result.Value.Actions, static action => Assert.NotEmpty(action.Diffs!));
         Assert.False(Directory.Exists(result.Value.TargetRoot));
     }
@@ -77,6 +79,8 @@ public sealed class SkillInstallServiceTests
         var action = result.Value!.Actions.Single(action => action.Identity.SkillName == packages[0].Manifest.SkillName);
         Assert.Equal(SkillInstallActionKind.BlockedManagedOverwrite, action.ActionKind);
         Assert.Equal(SkillBlockedReason.ManagedOverwriteRequiresForce, action.BlockedReason);
+        Assert.Equal(nameof(SkillInstalledTargetStateKind.CleanOutdated), action.TargetState!.Kind);
+        Assert.Equal(SkillFailureCodes.InstallTargetOutdated, action.TargetState.Code);
         Assert.NotEmpty(action.Diffs!);
         Assert.Equal(originalSkill, File.ReadAllText(skillPath));
     }
@@ -221,6 +225,25 @@ public sealed class SkillInstallServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task InstallAsync_RejectsNameCollision ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "install-name-collision");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var service = SkillTestData.CreateInstallService();
+        var targetRoot = scope.CreateDirectory(".agents/skills");
+        SkillTestData.WriteNameCollisionManifest(targetRoot, packages[0]);
+
+        var result = await service.InstallAsync(
+            packages,
+            new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InstallTargetNameCollision, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task InstallAsync_RejectsExistingUnmanagedTarget ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "install-unmanaged");
@@ -301,7 +324,7 @@ public sealed class SkillInstallServiceTests
         var result = await service.InstallAsync(packages, request, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetManifestDigestMismatch, result.Failure!.Code);
     }
 
     [Fact]
@@ -325,7 +348,7 @@ public sealed class SkillInstallServiceTests
         var result = await service.InstallAsync(packages, request, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetManifestDigestMismatch, result.Failure!.Code);
     }
 
     [Fact]
@@ -351,6 +374,8 @@ public sealed class SkillInstallServiceTests
         var action = result.Value!.Actions.Single(action => action.Identity.SkillName == packages[0].Manifest.SkillName);
         Assert.Equal(SkillInstallActionKind.BlockedLocalModification, action.ActionKind);
         Assert.Equal(SkillBlockedReason.LocalModificationRequiresForce, action.BlockedReason);
+        Assert.Equal(nameof(SkillInstalledTargetStateKind.ManifestDrift), action.TargetState!.Kind);
+        Assert.Equal(SkillFailureCodes.InstallTargetManifestDigestMismatch, action.TargetState.Code);
         Assert.NotEmpty(action.Diffs!);
         Assert.Equal(tamperedManifest, File.ReadAllText(manifestPath));
     }
@@ -394,7 +419,46 @@ public sealed class SkillInstallServiceTests
         var result = await service.InstallAsync(packages, request, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task InstallAsync_RejectsModifiedInstalledFrontmatter ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "install-frontmatter-drift");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var service = SkillTestData.CreateInstallService();
+        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var created = await service.InstallAsync(packages, request, CancellationToken.None);
+        Assert.True(created.IsSuccess, created.Failure?.Message);
+
+        var skillPath = Path.Combine(created.Value!.TargetRoot, packages[0].Manifest.SkillName, "SKILL.md");
+        File.WriteAllText(skillPath, File.ReadAllText(skillPath).Replace("description:", "description: Drifted", StringComparison.Ordinal));
+
+        var result = await service.InstallAsync(packages, request, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InstallTargetFrontmatterDigestMismatch, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task InstallAsync_RejectsModifiedOpenAiMetadataArtifact ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "install-host-artifact-drift");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var service = SkillTestData.CreateInstallService();
+        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var created = await service.InstallAsync(packages, request, CancellationToken.None);
+        Assert.True(created.IsSuccess, created.Failure?.Message);
+
+        File.AppendAllText(Path.Combine(created.Value!.TargetRoot, packages[0].Manifest.SkillName, "agents", "openai.yaml"), "\n# Drifted metadata.\n");
+
+        var result = await service.InstallAsync(packages, request, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InstallTargetHostArtifactDigestMismatch, result.Failure!.Code);
     }
 
     [Fact]
@@ -413,7 +477,31 @@ public sealed class SkillInstallServiceTests
         var result = await service.InstallAsync(packages, request, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task InstallAsync_DryRunBlocksFileSetDriftWithTargetStateDetails ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "install-file-set-target-state");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var service = SkillTestData.CreateInstallService();
+        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var created = await service.InstallAsync(packages, request, CancellationToken.None);
+        Assert.True(created.IsSuccess, created.Failure?.Message);
+        var package = packages[0];
+        var referencePath = package.Files.First(static file => file.RelativePath.StartsWith("references/", StringComparison.Ordinal)).RelativePath;
+        File.Delete(Path.Combine(created.Value!.TargetRoot, package.Manifest.SkillName, referencePath));
+
+        var result = await service.InstallAsync(new SkillInstallInput(packages, request, DryRun: true), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        var action = result.Value!.Actions.Single(action => action.Identity.SkillName == package.Manifest.SkillName);
+        Assert.Equal(SkillInstallActionKind.BlockedLocalModification, action.ActionKind);
+        Assert.Equal(nameof(SkillInstalledTargetStateKind.FileSetDrift), action.TargetState!.Kind);
+        Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, action.TargetState.Code);
+        Assert.Contains(referencePath, action.TargetState.FileSet!.MissingFiles);
     }
 
     [Fact]
@@ -436,7 +524,7 @@ public sealed class SkillInstallServiceTests
         var result = await service.InstallAsync(packages, request, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
     }
 
     [Fact]
@@ -454,7 +542,7 @@ public sealed class SkillInstallServiceTests
         var result = await service.InstallAsync(packages, request, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, result.Failure!.Code);
     }
 
     [Fact]
