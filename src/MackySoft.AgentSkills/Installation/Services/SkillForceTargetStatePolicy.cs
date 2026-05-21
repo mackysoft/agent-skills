@@ -24,7 +24,8 @@ internal static class SkillForceTargetStatePolicy
         SkillInstalledTargetStateKind kind,
         bool force)
     {
-        return force && (kind == SkillInstalledTargetStateKind.CleanOutdated || kind.IsLocalModificationDrift());
+        return force
+            && (kind == SkillInstalledTargetStateKind.CleanOutdated || SkillInstalledTargetStateClassifier.IsLocalModificationDrift(kind));
     }
 
     /// <summary> Gets whether an update action may replace the target directory. </summary>
@@ -38,7 +39,8 @@ internal static class SkillForceTargetStatePolicy
         SkillInstalledTargetStateKind kind,
         bool force)
     {
-        return kind == SkillInstalledTargetStateKind.CleanOutdated || (force && kind.IsLocalModificationDrift());
+        return kind == SkillInstalledTargetStateKind.CleanOutdated
+            || (force && SkillInstalledTargetStateClassifier.IsLocalModificationDrift(kind));
     }
 
     /// <summary> Gets whether an uninstall action may delete the target directory. </summary>
@@ -53,6 +55,6 @@ internal static class SkillForceTargetStatePolicy
         bool force)
     {
         return kind is SkillInstalledTargetStateKind.Current or SkillInstalledTargetStateKind.CleanOutdated
-            || (force && kind.IsLocalModificationDrift());
+            || (force && SkillInstalledTargetStateClassifier.IsLocalModificationDrift(kind));
     }
 }

@@ -201,7 +201,7 @@ public sealed class SkillUpdateService
                         input,
                         cancellationToken)
                     .ConfigureAwait(false);
-            case var kind when kind.IsLocalModificationDrift():
+            case var kind when SkillInstalledTargetStateClassifier.IsLocalModificationDrift(kind):
                 return await CreateLocalModificationActionPlanAsync(
                         package,
                         host,

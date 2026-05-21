@@ -55,7 +55,7 @@ public sealed class SkillInstalledTargetStateAnalyzer
             return Success(currentNonDriftKind, currentFailure);
         }
 
-        if (!SkillInstalledTargetStateKindExtensions.TryResolveDriftKind(currentFailure.Code, out _))
+        if (!SkillInstalledTargetStateClassifier.TryResolveDriftKind(currentFailure.Code, out _))
         {
             return SkillOperationResult<SkillInstalledTargetState>.FailureResult(currentFailure.Code, currentFailure.Message);
         }
@@ -76,7 +76,7 @@ public sealed class SkillInstalledTargetStateAnalyzer
             return Success(integrityNonDriftKind, integrityFailure);
         }
 
-        if (!SkillInstalledTargetStateKindExtensions.TryResolveDriftKind(integrityFailure.Code, out _))
+        if (!SkillInstalledTargetStateClassifier.TryResolveDriftKind(integrityFailure.Code, out _))
         {
             return SkillOperationResult<SkillInstalledTargetState>.FailureResult(integrityFailure.Code, integrityFailure.Message);
         }
@@ -100,7 +100,7 @@ public sealed class SkillInstalledTargetStateAnalyzer
         CancellationToken cancellationToken)
     {
         var selectedFailure = SelectDriftFailure(currentFailure, integrityFailure);
-        if (!SkillInstalledTargetStateKindExtensions.TryResolveDriftKind(selectedFailure.Code, out var stateKind))
+        if (!SkillInstalledTargetStateClassifier.TryResolveDriftKind(selectedFailure.Code, out var stateKind))
         {
             return SkillOperationResult<SkillInstalledTargetState>.FailureResult(selectedFailure.Code, selectedFailure.Message);
         }
@@ -126,17 +126,17 @@ public sealed class SkillInstalledTargetStateAnalyzer
         var normalizedIntegrityFailure = integrityFailure.Code == SkillFailureCodes.InstallTargetDigestMismatch
             ? SkillFailure.Create(SkillFailureCodes.InstallTargetLocalModification, integrityFailure.Message)
             : integrityFailure;
-        if (!SkillInstalledTargetStateKindExtensions.TryResolveDriftKind(currentFailure.Code, out var currentKind))
+        if (!SkillInstalledTargetStateClassifier.TryResolveDriftKind(currentFailure.Code, out var currentKind))
         {
             return normalizedIntegrityFailure;
         }
 
-        if (!SkillInstalledTargetStateKindExtensions.TryResolveDriftKind(normalizedIntegrityFailure.Code, out var integrityKind))
+        if (!SkillInstalledTargetStateClassifier.TryResolveDriftKind(normalizedIntegrityFailure.Code, out var integrityKind))
         {
             return currentFailure;
         }
 
-        return currentKind.GetDriftPriority() <= integrityKind.GetDriftPriority()
+        return SkillInstalledTargetStateClassifier.GetDriftPriority(currentKind) <= SkillInstalledTargetStateClassifier.GetDriftPriority(integrityKind)
             ? currentFailure
             : normalizedIntegrityFailure;
     }
