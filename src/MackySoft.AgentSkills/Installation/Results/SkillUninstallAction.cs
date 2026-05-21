@@ -10,4 +10,8 @@ public sealed record SkillUninstallAction (
     SkillInstallIdentity Identity,
     SkillUninstallActionKind ActionKind,
     SkillBlockedReason? BlockedReason = null,
-    SkillActionTargetState? TargetState = null);
+    SkillActionTargetState? TargetState = null)
+{
+    /// <summary> Gets the deterministic file removal summary for delete actions. </summary>
+    public SkillActionFileChanges? FileChanges { get; init; }
+}

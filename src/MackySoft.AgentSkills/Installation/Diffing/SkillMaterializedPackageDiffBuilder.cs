@@ -31,11 +31,90 @@ public sealed class SkillMaterializedPackageDiffBuilder
         }
 
         var beforeFiles = beforeResult.Value!;
-        var afterFiles = materializedPackage.Files.ToDictionary(
-            static file => file.RelativePath,
-            static file => SkillTextNormalizer.NormalizeToLf(file.Content),
-            StringComparer.Ordinal);
+        var afterFiles = CreateNormalizedPackageFileMap(materializedPackage);
 
+        return SkillOperationResult<IReadOnlyList<SkillActionDiff>>.Success(BuildDiffs(beforeFiles, afterFiles));
+    }
+
+    /// <summary> Builds structured diffs when requested, or returns an empty diff list. </summary>
+    /// <param name="skillDirectory"> The target skill directory. </param>
+    /// <param name="materializedPackage"> The desired materialized package. </param>
+    /// <param name="printDiff"> Whether structured diffs should be included. </param>
+    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
+    /// <returns> Structured diffs, an empty list, or a path-safety/read failure. </returns>
+    public ValueTask<SkillOperationResult<IReadOnlyList<SkillActionDiff>>> BuildOptionalAsync (
+        string skillDirectory,
+        SkillMaterializedPackage materializedPackage,
+        bool printDiff,
+        CancellationToken cancellationToken = default)
+    {
+        return printDiff
+            ? BuildAsync(skillDirectory, materializedPackage, cancellationToken)
+            : ValueTask.FromResult(SkillOperationResult<IReadOnlyList<SkillActionDiff>>.Success(Array.Empty<SkillActionDiff>()));
+    }
+
+    /// <summary> Builds replacement file changes and optional structured diffs for one target directory. </summary>
+    /// <param name="skillDirectory"> The target skill directory. </param>
+    /// <param name="materializedPackage"> The desired materialized package. </param>
+    /// <param name="printDiff"> Whether structured diffs should be included. </param>
+    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
+    /// <returns> Replacement file changes and optional diffs, or a path-safety/read failure. </returns>
+    internal async ValueTask<SkillOperationResult<SkillMaterializedPackageChangePlan>> BuildReplacementPlanAsync (
+        string skillDirectory,
+        SkillMaterializedPackage materializedPackage,
+        bool printDiff,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+        ArgumentNullException.ThrowIfNull(materializedPackage);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var beforeResult = await ReadExistingFilesAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
+        if (!beforeResult.IsSuccess)
+        {
+            return SkillOperationResult<SkillMaterializedPackageChangePlan>.FailureResult(
+                beforeResult.Failure!.Code,
+                beforeResult.Failure.Message);
+        }
+
+        var beforeFiles = beforeResult.Value!;
+        var afterFiles = CreateNormalizedPackageFileMap(materializedPackage);
+        var diffs = printDiff ? BuildDiffs(beforeFiles, afterFiles) : Array.Empty<SkillActionDiff>();
+        var fileChanges = BuildReplacementFileChanges(beforeFiles, afterFiles);
+
+        return SkillOperationResult<SkillMaterializedPackageChangePlan>.Success(new SkillMaterializedPackageChangePlan(
+            diffs,
+            fileChanges));
+    }
+
+    /// <summary> Builds deterministic file changes for deleting one target directory. </summary>
+    /// <param name="skillDirectory"> The target skill directory. </param>
+    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
+    /// <returns> Deletion file changes or a path-safety/read failure. </returns>
+    internal async ValueTask<SkillOperationResult<SkillActionFileChanges>> BuildDeletionFileChangesAsync (
+        string skillDirectory,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var beforeResult = await ReadExistingFilesAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
+        if (!beforeResult.IsSuccess)
+        {
+            return SkillOperationResult<SkillActionFileChanges>.FailureResult(
+                beforeResult.Failure!.Code,
+                beforeResult.Failure.Message);
+        }
+
+        return SkillOperationResult<SkillActionFileChanges>.Success(new SkillActionFileChanges(
+            Array.Empty<string>(),
+            beforeResult.Value!.Keys.Order(StringComparer.Ordinal).ToArray()));
+    }
+
+    private static IReadOnlyList<SkillActionDiff> BuildDiffs (
+        IReadOnlyDictionary<string, string> beforeFiles,
+        IReadOnlyDictionary<string, string> afterFiles)
+    {
         var relativePaths = beforeFiles.Keys
             .Concat(afterFiles.Keys)
             .Distinct(StringComparer.Ordinal)
@@ -44,8 +123,6 @@ public sealed class SkillMaterializedPackageDiffBuilder
         var fileDiffs = new List<SkillFileDiff>();
         foreach (var relativePath in relativePaths)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
             var hasBefore = beforeFiles.TryGetValue(relativePath, out var beforeContent);
             var hasAfter = afterFiles.TryGetValue(relativePath, out var afterContent);
             if (hasBefore && hasAfter)
@@ -67,26 +144,42 @@ public sealed class SkillMaterializedPackageDiffBuilder
             fileDiffs.Add(new SkillFileDiff(relativePath, SkillDiffChangeKind.Deleted, beforeContent, null));
         }
 
-        return fileDiffs.Count == 0
-            ? SkillOperationResult<IReadOnlyList<SkillActionDiff>>.Success(Array.Empty<SkillActionDiff>())
-            : SkillOperationResult<IReadOnlyList<SkillActionDiff>>.Success([new SkillActionDiff(fileDiffs)]);
+        return fileDiffs.Count == 0 ? Array.Empty<SkillActionDiff>() : [new SkillActionDiff(fileDiffs)];
     }
 
-    /// <summary> Builds structured diffs when requested, or returns an empty diff list. </summary>
-    /// <param name="skillDirectory"> The target skill directory. </param>
-    /// <param name="materializedPackage"> The desired materialized package. </param>
-    /// <param name="printDiff"> Whether structured diffs should be included. </param>
-    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
-    /// <returns> Structured diffs, an empty list, or a path-safety/read failure. </returns>
-    public ValueTask<SkillOperationResult<IReadOnlyList<SkillActionDiff>>> BuildOptionalAsync (
-        string skillDirectory,
-        SkillMaterializedPackage materializedPackage,
-        bool printDiff,
-        CancellationToken cancellationToken = default)
+    private static SkillActionFileChanges BuildReplacementFileChanges (
+        IReadOnlyDictionary<string, string> beforeFiles,
+        IReadOnlyDictionary<string, string> afterFiles)
     {
-        return printDiff
-            ? BuildAsync(skillDirectory, materializedPackage, cancellationToken)
-            : ValueTask.FromResult(SkillOperationResult<IReadOnlyList<SkillActionDiff>>.Success(Array.Empty<SkillActionDiff>()));
+        var replacedFiles = new List<string>();
+        var removedFiles = new List<string>();
+
+        foreach (var relativePath in beforeFiles.Keys.Order(StringComparer.Ordinal))
+        {
+            var hasAfter = afterFiles.TryGetValue(relativePath, out var afterContent);
+            if (!hasAfter)
+            {
+                removedFiles.Add(relativePath);
+                continue;
+            }
+
+            if (!string.Equals(beforeFiles[relativePath], afterContent, StringComparison.Ordinal))
+            {
+                replacedFiles.Add(relativePath);
+            }
+        }
+
+        return new SkillActionFileChanges(
+            replacedFiles.ToArray(),
+            removedFiles.ToArray());
+    }
+
+    private static Dictionary<string, string> CreateNormalizedPackageFileMap (SkillMaterializedPackage materializedPackage)
+    {
+        return materializedPackage.Files.ToDictionary(
+            static file => file.RelativePath,
+            static file => SkillTextNormalizer.NormalizeToLf(file.Content),
+            StringComparer.Ordinal);
     }
 
     private static async ValueTask<SkillOperationResult<Dictionary<string, string>>> ReadExistingFilesAsync (
@@ -146,4 +239,8 @@ public sealed class SkillMaterializedPackageDiffBuilder
 
         return SkillOperationResult<Dictionary<string, string>>.Success(files);
     }
+
+    internal sealed record SkillMaterializedPackageChangePlan (
+        IReadOnlyList<SkillActionDiff> Diffs,
+        SkillActionFileChanges FileChanges);
 }

@@ -12,4 +12,8 @@ public sealed record SkillInstallAction (
     SkillInstallActionKind ActionKind,
     SkillBlockedReason? BlockedReason = null,
     IReadOnlyList<SkillActionDiff>? Diffs = null,
-    SkillActionTargetState? TargetState = null);
+    SkillActionTargetState? TargetState = null)
+{
+    /// <summary> Gets the deterministic file replacement/removal summary for writing actions. </summary>
+    public SkillActionFileChanges? FileChanges { get; init; }
+}
