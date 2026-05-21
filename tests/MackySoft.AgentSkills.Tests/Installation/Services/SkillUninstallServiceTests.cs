@@ -54,6 +54,13 @@ public sealed class SkillUninstallServiceTests
         Assert.True(result.Value!.DryRun);
         Assert.All(result.Value.Actions, static action => Assert.Equal(SkillUninstallActionKind.Deleted, action.ActionKind));
         Assert.All(result.Value.Actions, static action => Assert.Equal(nameof(SkillInstalledTargetStateKind.Current), action.TargetState!.Kind));
+        Assert.All(result.Value.Actions, static action =>
+        {
+            Assert.NotNull(action.FileChanges);
+            Assert.Empty(action.FileChanges!.ReplacedFiles);
+            Assert.Contains("SKILL.md", action.FileChanges!.RemovedFiles);
+            Assert.Contains("agent-skill.json", action.FileChanges!.RemovedFiles);
+        });
         foreach (var package in packages)
         {
             Assert.True(Directory.Exists(Path.Combine(result.Value.TargetRoot, package.Manifest.SkillName)), package.Manifest.SkillName);
@@ -109,11 +116,14 @@ public sealed class SkillUninstallServiceTests
         var result = await service.UninstallAsync(
             new SkillUninstallInput(
                 [packages[0]],
-                new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath)),
+                new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+                Force: true),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(SkillUninstallActionKind.SkippedUnmanaged, result.Value!.Actions.Single().ActionKind);
+        var action = result.Value!.Actions.Single();
+        Assert.Equal(SkillUninstallActionKind.SkippedUnmanaged, action.ActionKind);
+        Assert.Null(action.FileChanges);
         Assert.True(File.Exists(unmanagedPath));
     }
 
@@ -130,7 +140,8 @@ public sealed class SkillUninstallServiceTests
         var result = await service.UninstallAsync(
             new SkillUninstallInput(
                 [packages[0]],
-                new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath)),
+                new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+                Force: true),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -245,7 +256,11 @@ public sealed class SkillUninstallServiceTests
         var result = await uninstallService.UninstallAsync(new SkillUninstallInput([packages[0]], request, Force: true), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(SkillUninstallActionKind.Deleted, result.Value!.Actions.Single().ActionKind);
+        var action = result.Value!.Actions.Single();
+        Assert.Equal(SkillUninstallActionKind.Deleted, action.ActionKind);
+        Assert.Empty(action.FileChanges!.ReplacedFiles);
+        Assert.Contains("SKILL.md", action.FileChanges!.RemovedFiles);
+        Assert.Contains("agent-skill.json", action.FileChanges!.RemovedFiles);
         Assert.False(Directory.Exists(skillDirectory));
     }
 
@@ -327,7 +342,8 @@ public sealed class SkillUninstallServiceTests
         var result = await uninstallService.UninstallAsync(
             new SkillUninstallInput(
                 packages,
-                new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath, "shared-skills")),
+                new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath, "shared-skills"),
+                Force: true),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
