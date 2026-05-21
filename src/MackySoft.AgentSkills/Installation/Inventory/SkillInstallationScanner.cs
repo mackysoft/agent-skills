@@ -34,7 +34,7 @@ public sealed class SkillInstallationScanner
     /// <param name="host"> The host used for install identity. </param>
     /// <param name="scope"> The install scope used for install identity. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
-    /// <returns> The installed skill list or manifest failure. </returns>
+    /// <returns> The installed skill list, or a structured failure for invalid input, unsupported host, unsafe path use, manifest problems, or installed target drift. </returns>
     public async ValueTask<SkillOperationResult<IReadOnlyList<SkillInstalledSkill>>> ScanAsync (
         IReadOnlyList<CanonicalSkillPackage> packages,
         string targetRoot,
@@ -45,6 +45,13 @@ public sealed class SkillInstallationScanner
         ArgumentNullException.ThrowIfNull(packages);
         ArgumentException.ThrowIfNullOrWhiteSpace(targetRoot);
         cancellationToken.ThrowIfCancellationRequested();
+
+        if (scope is not SkillScopeKind.Project and not SkillScopeKind.User)
+        {
+            return SkillOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
+                SkillFailureCodes.InputInvalid,
+                $"Unsupported SKILL install scope: {scope}");
+        }
 
         var adapterResult = hostAdapters.GetAdapter(host);
         if (!adapterResult.IsSuccess)

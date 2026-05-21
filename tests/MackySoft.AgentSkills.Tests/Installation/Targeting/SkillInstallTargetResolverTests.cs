@@ -134,6 +134,20 @@ public sealed class SkillInstallTargetResolverTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public void ResolveTarget_UndefinedScope_ReturnsInputInvalid ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "target-undefined-scope");
+        var resolver = CreateResolver(scope.GetPath("home"));
+
+        var result = resolver.ResolveTarget(new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, (SkillScopeKind)42, scope.FullPath));
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(SkillFailureCategory.InvalidInput, SkillFailureClassifier.Classify(result.Failure));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public void ResolveTarget_ProjectScope_ReturnsScopeUnsupportedWhenHostDoesNotSupportProjectScope ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "target-project-unsupported");

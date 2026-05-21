@@ -59,7 +59,7 @@ public sealed class SkillExportService
             SkillExportFormat.Directory => await ExportDirectoryAsync(packages, host, outputRoot, cancellationToken).ConfigureAwait(false),
             SkillExportFormat.Zip => await ExportZipAsync(packages, host, outputRoot, cancellationToken).ConfigureAwait(false),
             _ => SkillOperationResult<string>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
+                SkillFailureCodes.InputInvalid,
                 $"Unsupported SKILL export format: {format}"),
         };
     }

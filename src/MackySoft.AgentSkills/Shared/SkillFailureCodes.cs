@@ -3,6 +3,9 @@ namespace MackySoft.AgentSkills.Shared;
 /// <summary> Defines machine-readable failure codes for SKILL library operations. </summary>
 public static class SkillFailureCodes
 {
+    /// <summary> Gets the code emitted when a product-independent SKILL command or request input value is invalid. </summary>
+    public static readonly SkillFailureCode InputInvalid = new("SKILL_INPUT_INVALID");
+
     /// <summary> Gets the code emitted when the requested host is not supported by the global host adapter set. </summary>
     public static readonly SkillFailureCode HostUnsupported = new("SKILL_HOST_UNSUPPORTED");
 

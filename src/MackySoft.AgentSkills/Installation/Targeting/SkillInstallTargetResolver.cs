@@ -24,7 +24,7 @@ public sealed class SkillInstallTargetResolver
 
     /// <summary> Resolves the target root for one install request. </summary>
     /// <param name="request"> The install request. </param>
-    /// <returns> The canonical host target or path-safety failure. </returns>
+    /// <returns> The canonical host target, or a structured failure for invalid input, unsupported host or scope, unavailable user target, or unsafe path use. </returns>
     public SkillOperationResult<SkillResolvedInstallTarget> ResolveTarget (SkillInstallRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -45,7 +45,7 @@ public sealed class SkillInstallTargetResolver
                 ? ResolveUserTarget(request, descriptor)
                 : UnsupportedScope(descriptor.HostKey, request.Scope),
             _ => SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
+                SkillFailureCodes.InputInvalid,
                 $"Unsupported SKILL install scope: {request.Scope}"),
         };
     }

@@ -18,6 +18,25 @@ public sealed class SkillExportServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task ExportAsync_RejectsUndefinedExportFormatAsInvalidInput ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "export-undefined-format");
+        var service = SkillTestData.CreateExportService();
+
+        var result = await service.ExportAsync(
+            [],
+            OpenAiSkillHostAdapter.HostKey,
+            scope.GetPath("exported"),
+            (SkillExportFormat)42,
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(SkillFailureCategory.InvalidInput, SkillFailureClassifier.Classify(result.Failure));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task ExportAsync_RejectsUnsafePackageName ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "export-unsafe-package");
