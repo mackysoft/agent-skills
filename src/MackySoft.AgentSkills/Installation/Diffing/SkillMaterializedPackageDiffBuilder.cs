@@ -58,12 +58,17 @@ public sealed class SkillMaterializedPackageDiffBuilder
             : ValueTask.FromResult(SkillOperationResult<IReadOnlyList<SkillActionDiff>>.Success(Array.Empty<SkillActionDiff>()));
     }
 
-    /// <summary> Builds replacement file changes and optional structured diffs for one target directory. </summary>
+    /// <summary>
+    /// Builds replacement file changes, a target snapshot, and optional structured diffs for one target directory.
+    /// </summary>
     /// <param name="skillDirectory"> The target skill directory. </param>
     /// <param name="materializedPackage"> The desired materialized package. </param>
     /// <param name="printDiff"> Whether structured diffs should be included. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
-    /// <returns> Replacement file changes and optional diffs, or a path-safety/read failure. </returns>
+    /// <returns>
+    /// Replacement file changes with the target snapshot and optional diffs, or a path-safety/read failure.
+    /// File changes are returned even when <paramref name="printDiff" /> is <see langword="false" />.
+    /// </returns>
     internal async ValueTask<SkillOperationResult<SkillMaterializedPackageChangePlan>> BuildReplacementPlanAsync (
         string skillDirectory,
         SkillMaterializedPackage materializedPackage,
@@ -95,10 +100,13 @@ public sealed class SkillMaterializedPackageDiffBuilder
             fileChanges));
     }
 
-    /// <summary> Builds deterministic file changes for deleting one target directory. </summary>
+    /// <summary> Builds deterministic file removals and a target snapshot for deleting one target directory. </summary>
     /// <param name="skillDirectory"> The target skill directory. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
-    /// <returns> Deletion file changes or a path-safety/read failure. </returns>
+    /// <returns>
+    /// Removal file changes for existing files with the target snapshot, or a path-safety/read failure.
+    /// Directories are represented only in the target snapshot.
+    /// </returns>
     internal async ValueTask<SkillOperationResult<SkillActionFileChangePlan>> BuildDeletionFileChangesAsync (
         string skillDirectory,
         CancellationToken cancellationToken = default)
@@ -126,7 +134,10 @@ public sealed class SkillMaterializedPackageDiffBuilder
     /// <summary> Builds the current target snapshot used by execution preconditions. </summary>
     /// <param name="skillDirectory"> The target skill directory. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
-    /// <returns> The current target snapshot or a path-safety/read failure. </returns>
+    /// <returns>
+    /// The current file-and-directory target snapshot, an empty snapshot when the target is missing, or a
+    /// path-safety/read failure.
+    /// </returns>
     internal async ValueTask<SkillOperationResult<SkillActionTargetSnapshot>> BuildTargetSnapshotAsync (
         string skillDirectory,
         CancellationToken cancellationToken = default)

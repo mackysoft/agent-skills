@@ -12,6 +12,13 @@ public sealed record SkillUninstallAction (
     SkillBlockedReason? BlockedReason = null,
     SkillActionTargetState? TargetState = null)
 {
-    /// <summary> Gets the deterministic file removal summary for delete actions. </summary>
+    /// <summary>
+    /// Gets the existing file removal summary for <see cref="SkillUninstallActionKind.Deleted" /> actions.
+    /// </summary>
+    /// <remarks>
+    /// The value contains every existing file under the deleted skill directory and an empty replacement list.
+    /// It is <see langword="null" /> for <see cref="SkillUninstallActionKind.NoOp" />,
+    /// <see cref="SkillUninstallActionKind.SkippedUnmanaged" />, and blocked local modification actions.
+    /// </remarks>
     public SkillActionFileChanges? FileChanges { get; init; }
 }

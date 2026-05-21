@@ -1,8 +1,16 @@
 namespace MackySoft.AgentSkills.Installation.Results;
 
-/// <summary> Represents deterministic file changes planned or performed by one SKILL action. </summary>
-/// <param name="ReplacedFiles"> Existing package-relative files whose content is replaced by the action. </param>
-/// <param name="RemovedFiles"> Existing package-relative files removed by the action. </param>
+/// <summary>
+/// Represents the existing target files that a create, replace, or delete action plans or performs.
+/// </summary>
+/// <param name="ReplacedFiles">
+/// Existing slash-separated paths, relative to the skill directory, whose file content differs from the
+/// materialized package file at the same path. Paths are ordinal sorted and do not include added files.
+/// </param>
+/// <param name="RemovedFiles">
+/// Existing slash-separated paths, relative to the skill directory, that the action removes.
+/// Paths are ordinal sorted and do not include directories.
+/// </param>
 public sealed record SkillActionFileChanges (
     IReadOnlyList<string> ReplacedFiles,
     IReadOnlyList<string> RemovedFiles);

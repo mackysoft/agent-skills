@@ -14,6 +14,15 @@ public sealed record SkillUpdateAction (
     IReadOnlyList<SkillActionDiff>? Diffs = null,
     SkillActionTargetState? TargetState = null)
 {
-    /// <summary> Gets the deterministic file replacement/removal summary for writing actions. </summary>
+    /// <summary>
+    /// Gets the existing file change summary for <see cref="SkillUpdateActionKind.Created" /> and
+    /// <see cref="SkillUpdateActionKind.Updated" /> actions.
+    /// </summary>
+    /// <remarks>
+    /// The value is an empty summary for <see cref="SkillUpdateActionKind.Created" /> and the planned or
+    /// performed replacement summary for <see cref="SkillUpdateActionKind.Updated" />. It is
+    /// <see langword="null" /> for <see cref="SkillUpdateActionKind.NoOp" />, blocked local modification,
+    /// and blocked unmanaged actions.
+    /// </remarks>
     public SkillActionFileChanges? FileChanges { get; init; }
 }
