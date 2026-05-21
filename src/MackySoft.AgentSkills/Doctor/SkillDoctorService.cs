@@ -23,19 +23,6 @@ public sealed class SkillDoctorService
         this.targetStateAnalyzer = targetStateAnalyzer ?? throw new ArgumentNullException(nameof(targetStateAnalyzer));
     }
 
-    /// <summary> Initializes a new instance of the <see cref="SkillDoctorService" /> class. </summary>
-    /// <param name="hostAdapters"> The supported host adapter set. </param>
-    /// <param name="targetStateAnalyzer"> The installed target state analyzer. </param>
-    /// <param name="driftAnalyzer"> The legacy local drift analyzer dependency. </param>
-    public SkillDoctorService (
-        SkillHostAdapterSet hostAdapters,
-        SkillInstalledTargetStateAnalyzer targetStateAnalyzer,
-        Diagnostics.SkillInstalledPackageDriftAnalyzer driftAnalyzer)
-        : this(hostAdapters, targetStateAnalyzer)
-    {
-        ArgumentNullException.ThrowIfNull(driftAnalyzer);
-    }
-
     /// <summary> Diagnoses one host target root against canonical packages. </summary>
     /// <param name="packages"> The canonical packages. </param>
     /// <param name="host"> The target host. </param>
