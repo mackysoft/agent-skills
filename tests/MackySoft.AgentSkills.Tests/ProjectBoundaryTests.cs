@@ -29,6 +29,20 @@ public sealed class ProjectBoundaryTests
     [InlineData("Packaging", "MackySoft.AgentSkills.Materialization")]
     [InlineData("Packaging", "MackySoft.AgentSkills.Distribution")]
     [InlineData("Packaging", "MackySoft.AgentSkills.Doctor")]
+    [InlineData("Commands", "MackySoft.AgentSkills.Doctor")]
+    [InlineData("Commands", "MackySoft.AgentSkills.Generation")]
+    [InlineData("Commands", "MackySoft.AgentSkills.Installation.Contracts")]
+    [InlineData("Commands", "MackySoft.AgentSkills.Installation.Diffing")]
+    [InlineData("Commands", "MackySoft.AgentSkills.Installation.Inventory")]
+    [InlineData("Commands", "MackySoft.AgentSkills.Installation.Requests")]
+    [InlineData("Commands", "MackySoft.AgentSkills.Installation.Results")]
+    [InlineData("Commands", "MackySoft.AgentSkills.Installation.Services")]
+    [InlineData("Commands", "MackySoft.AgentSkills.Installation.State")]
+    [InlineData("Commands", "MackySoft.AgentSkills.Installation.Transactions")]
+    [InlineData("Commands", "MackySoft.AgentSkills.Installation.Validation")]
+    [InlineData("Commands", "MackySoft.AgentSkills.Materialization")]
+    [InlineData("Commands", "MackySoft.AgentSkills.Packaging")]
+    [InlineData("Commands", "MackySoft.AgentSkills.Sources")]
     public void Directory_DoesNotReferenceForbiddenNamespace (
         string directoryName,
         string forbiddenNamespace)
@@ -43,6 +57,20 @@ public sealed class ProjectBoundaryTests
             .ToArray();
 
         Assert.Empty(offenders);
+    }
+
+    [Theory]
+    [Trait("Size", "Small")]
+    [MemberData(nameof(CommandReverseDependencyDirectoryCases))]
+    public void NonCommandDirectory_DoesNotReferenceCommandNamespace (string directoryName)
+    {
+        var sourceRoot = GetSourceRoot();
+        var directoryPath = Path.Combine(sourceRoot, directoryName);
+
+        AssertDirectoryDoesNotContainAny(
+            sourceRoot,
+            directoryPath,
+            ["MackySoft.AgentSkills.Commands", "Commands."]);
     }
 
     [Theory]
@@ -227,6 +255,17 @@ public sealed class ProjectBoundaryTests
         return data;
     }
 
+    public static TheoryData<string> CommandReverseDependencyDirectoryCases ()
+    {
+        var data = new TheoryData<string>();
+        foreach (var directoryName in GetSourceDirectoryNamesExcept("Commands"))
+        {
+            data.Add(directoryName);
+        }
+
+        return data;
+    }
+
     public static TheoryData<string, string[]> BoundaryRootDirectoryCases ()
     {
         var data = new TheoryData<string, string[]>
@@ -337,10 +376,14 @@ public sealed class ProjectBoundaryTests
 
     private static string[] GetHostAgnosticSourceDirectoryNames ()
     {
-        var excludedDirectoryNames = new HashSet<string>(StringComparer.Ordinal)
+        return GetSourceDirectoryNamesExcept("Hosts");
+    }
+
+    private static string[] GetSourceDirectoryNamesExcept (params string[] excludedDirectoryNames)
+    {
+        var excluded = new HashSet<string>(excludedDirectoryNames, StringComparer.Ordinal)
         {
             "bin",
-            "Hosts",
             "obj",
             "SkillDefinitions",
         };
@@ -350,7 +393,7 @@ public sealed class ProjectBoundaryTests
             .Select(Path.GetFileName)
             .Where(static directoryName => !string.IsNullOrWhiteSpace(directoryName))
             .Select(static directoryName => directoryName!)
-            .Where(directoryName => !excludedDirectoryNames.Contains(directoryName))
+            .Where(directoryName => !excluded.Contains(directoryName))
             .Where(directoryName => Directory.EnumerateFiles(Path.Combine(sourceRoot, directoryName), "*.cs", SearchOption.AllDirectories).Any())
             .Order(StringComparer.Ordinal)
             .ToArray();

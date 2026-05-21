@@ -75,6 +75,25 @@ public sealed class SkillInstallationScannerTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task ScanAsync_ReturnsInputInvalid_WhenScopeIsUndefined ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "scan-undefined-scope");
+        var scanner = SkillTestData.CreateInstallationScanner();
+
+        var result = await scanner.ScanAsync(
+            Array.Empty<CanonicalSkillPackage>(),
+            scope.FullPath,
+            OpenAiSkillHostAdapter.HostKey,
+            (SkillScopeKind)42,
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(SkillFailureCategory.InvalidInput, SkillFailureClassifier.Classify(result.Failure));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task ScanAsync_RejectsInvalidManifestWithoutThrowing ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "scan-invalid-manifest");
