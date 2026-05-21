@@ -10,8 +10,6 @@ namespace MackySoft.AgentSkills.Installation.Validation;
 /// <summary> Verifies an installed SKILL package against its own installed manifest. </summary>
 public sealed class SkillInstalledPackageIntegrityVerifier
 {
-    private const string SkillBodyPath = SkillManagedFileSetPaths.SkillBodyPath;
-
     private readonly SkillInstalledManifestReader installedManifestReader;
     private readonly SkillHostAdapterSet hostAdapters;
     private readonly SkillManifestJsonSerializer manifestSerializer;
@@ -281,7 +279,7 @@ public sealed class SkillInstalledPackageIntegrityVerifier
         string skillDirectory,
         CancellationToken cancellationToken)
     {
-        var skillPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, SkillBodyPath);
+        var skillPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, SkillManagedFileSetPaths.SkillBodyPath);
         if (!skillPathResult.IsSuccess)
         {
             return SkillOperationResult<string>.FailureResult(skillPathResult.Failure!.Code, skillPathResult.Failure.Message);
@@ -367,7 +365,7 @@ public sealed class SkillInstalledPackageIntegrityVerifier
 
         var digestInputs = new List<SkillDigestInputFile>
         {
-            new(SkillBodyPath, skillBodyResult.Value.Body),
+            new(SkillManagedFileSetPaths.SkillBodyPath, skillBodyResult.Value.Body),
         };
 
         foreach (var relativePath in installedEntries.Files
@@ -395,7 +393,7 @@ public sealed class SkillInstalledPackageIntegrityVerifier
         string skillDirectory,
         CancellationToken cancellationToken)
     {
-        var skillPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, SkillBodyPath);
+        var skillPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, SkillManagedFileSetPaths.SkillBodyPath);
         if (!skillPathResult.IsSuccess)
         {
             return SkillOperationResult<InstalledSkillBody>.FailureResult(skillPathResult.Failure!.Code, skillPathResult.Failure.Message);
