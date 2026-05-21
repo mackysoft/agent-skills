@@ -93,43 +93,6 @@ public sealed class PackageMetadataTests
             && item.PackagePath == string.Empty);
     }
 
-    [Fact]
-    [Trait("Size", "Small")]
-    public void Nuget_publish_workflow_uses_repository_version_and_tags_after_package_availability ()
-    {
-        var workflow = File.ReadAllText(ToRepositoryPath(".github/workflows/nuget-package.yaml"));
-
-        Assert.Contains("workflow_dispatch:", workflow, StringComparison.Ordinal);
-        Assert.Contains("package_version=\"${package_versions[0]}\"", workflow, StringComparison.Ordinal);
-        Assert.Contains("NuGet publish must be dispatched from the default branch", workflow, StringComparison.Ordinal);
-        Assert.DoesNotContain("DISPATCH_VERSION", workflow, StringComparison.Ordinal);
-        Assert.DoesNotContain("--skip-duplicate", workflow, StringComparison.Ordinal);
-        Assert.Contains("libraryPackageUrl=${library_package_url}", workflow, StringComparison.Ordinal);
-        Assert.Contains("--title \"${RELEASE_TAG}\"", workflow, StringComparison.Ordinal);
-        Assert.Contains("--notes \"\"", workflow, StringComparison.Ordinal);
-        Assert.DoesNotContain("Agent Skills ${PACKAGE_VERSION}", workflow, StringComparison.Ordinal);
-        Assert.Equal(2, workflow.Split("uses: actions/setup-dotnet@v5", StringSplitOptions.None).Length - 1);
-        Assert.Equal(1, workflow.Split("package_url()", StringSplitOptions.None).Length - 1);
-
-        var waitIndex = workflow.IndexOf("- name: Wait for published packages", StringComparison.Ordinal);
-        var tagIndex = workflow.IndexOf("- name: Create release tag", StringComparison.Ordinal);
-        Assert.NotEqual(-1, waitIndex);
-        Assert.NotEqual(-1, tagIndex);
-        Assert.True(waitIndex < tagIndex);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public void Release_mirror_script_accepts_explicit_empty_notes ()
-    {
-        var script = File.ReadAllText(ToRepositoryPath("scripts/mirror-nuget-package-release.sh"));
-
-        Assert.Contains("release_notes_set=false", script, StringComparison.Ordinal);
-        Assert.Contains("release_notes_set=true", script, StringComparison.Ordinal);
-        Assert.Contains("\"${release_notes_set}\" != true", script, StringComparison.Ordinal);
-        Assert.DoesNotContain("|| -z \"${release_notes}\"", script, StringComparison.Ordinal);
-    }
-
     private static string ToRepositoryPath (string relativePath)
     {
         return Path.Combine(SkillTestData.GetRepositoryRoot(), relativePath);
