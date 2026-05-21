@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 usage() {
   cat >&2 <<'EOF'
-Usage: scripts/mirror-nuget-package-release.sh --repository <owner/repo> --tag-name <tag> --package-glob <glob> --title <title> --notes <notes> [--expected-sha <sha>]
+Usage: scripts/mirror-nuget-package-release.sh --repository <owner/repo> --tag-name <tag> --package-glob <glob> --title <title> --notes <notes>
 
 Creates or updates the GitHub Release for a package tag and uploads matched nupkg artifacts.
 EOF
@@ -17,7 +15,6 @@ package_glob=""
 release_title=""
 release_notes=""
 release_notes_set=false
-expected_sha=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -47,11 +44,6 @@ while [[ $# -gt 0 ]]; do
       release_notes_set=true
       shift 2
       ;;
-    --expected-sha)
-      [[ $# -ge 2 ]] || { usage; exit 2; }
-      expected_sha="$2"
-      shift 2
-      ;;
     -h|--help)
       usage
       exit 0
@@ -66,10 +58,6 @@ done
 if [[ -z "${repository}" || -z "${tag_name}" || -z "${package_glob}" || -z "${release_title}" || "${release_notes_set}" != true ]]; then
   usage
   exit 2
-fi
-
-if [[ -n "${expected_sha}" ]]; then
-  bash "${script_dir}/validate-release-tag.sh" --tag-name "${tag_name}" --expected-sha "${expected_sha}"
 fi
 
 package_paths=()
