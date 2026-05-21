@@ -1,10 +1,15 @@
+using System.Globalization;
 using MackySoft.AgentSkills.Digests;
+using MackySoft.AgentSkills.Generation;
 using MackySoft.AgentSkills.Hosts.Claude;
+using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Copilot;
 using MackySoft.AgentSkills.Hosts.OpenAi;
+using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.AgentSkills.Sources;
 using MackySoft.Tests;
 
 namespace MackySoft.AgentSkills.Tests.Generation;
@@ -110,6 +115,54 @@ public sealed class SkillPackageGenerationServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public void Generate_UsesOrdinalFileOrdering_ForCultureSensitiveReferencesAndHostArtifacts ()
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
+            var manifestSerializer = new SkillManifestJsonSerializer();
+            var service = new SkillPackageGenerationService(
+                new SkillSourceDefinitionReader(),
+                new SkillHostAdapterSet(
+                [
+                    new TestSkillHostAdapter("host-b", "agents/B.yaml"),
+                    new TestSkillHostAdapter("host-a", "agents/a.yaml"),
+                ]),
+                new SkillDigestCalculator(),
+                manifestSerializer,
+                new SkillManifestDigestCalculator(manifestSerializer));
+            var package = service.Generate(new SkillSourceDefinition(
+                new SkillSourceMetadata(
+                    SkillSourceMetadata.CurrentSchemaVersion,
+                    "ordinal-culture-contract",
+                    "Ordinal Culture Contract",
+                    "Use this skill to verify ordinal package ordering.",
+                    ["a.md", "B.md"]),
+                "# Ordinal Culture Contract\n",
+                [
+                    new SkillSourceReference("a.md", "lowercase reference\n"),
+                    new SkillSourceReference("B.md", "uppercase reference\n"),
+                ]));
+
+            var paths = package.Files.Select(static file => file.RelativePath).ToArray();
+            var ordinalPaths = paths.Order(StringComparer.Ordinal).ToArray();
+
+            Assert.Contains("agents/a.yaml", paths);
+            Assert.Contains("agents/B.yaml", paths);
+            Assert.Contains("references/a.md", paths);
+            Assert.Contains("references/B.md", paths);
+            Assert.Equal(ordinalPaths, paths);
+            Assert.NotEqual(ordinalPaths, paths.Order(StringComparer.CurrentCulture).ToArray());
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task GenerateAllAsync_RejectsEmptyDefinitionsRoot ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "empty-definitions");
@@ -119,6 +172,38 @@ public sealed class SkillPackageGenerationServiceTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+    }
+
+    private sealed class TestSkillHostAdapter : ISkillHostAdapter
+    {
+        public TestSkillHostAdapter (
+            string hostKey,
+            string metadataArtifactPath)
+        {
+            MetadataArtifactPath = metadataArtifactPath;
+            Descriptor = new SkillHostDescriptor(
+                HostKey: hostKey,
+                SupportsProjectScope: true,
+                SupportsUserScope: true,
+                ProjectDefaultTargetPath: $".{hostKey}/skills",
+                UserDefaultTargetPath: "~/.test/skills",
+                UserTargetRootPolicy: new SkillUserTargetRootPolicy(null, null, ".test/skills"),
+                RequiresMetadataArtifact: true,
+                MetadataArtifactPath: metadataArtifactPath,
+                ReloadGuidance: "Reload test skills.");
+        }
+
+        public SkillHostDescriptor Descriptor { get; }
+
+        public string MetadataArtifactPath { get; }
+
+        public SkillHostArtifactSet BuildArtifacts (SkillHostMetadata metadata)
+        {
+            ArgumentNullException.ThrowIfNull(metadata);
+            return new SkillHostArtifactSet(
+                $"---\nname: \"{metadata.SkillName}\"\ndescription: \"{metadata.Description}\"\n---\n",
+                $"host: \"{Descriptor.HostKey}\"\nskill: \"{metadata.SkillName}\"\n");
+        }
     }
 
     private static string GetManifestContent (CanonicalSkillPackage package)

@@ -10,13 +10,6 @@ public sealed class SkillUserTargetRootResolver
     private readonly Func<string, string?> environmentVariableProvider;
 
     /// <summary> Initializes a new instance of the <see cref="SkillUserTargetRootResolver" /> class. </summary>
-    public SkillUserTargetRootResolver () : this(
-        static () => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-        Environment.GetEnvironmentVariable)
-    {
-    }
-
-    /// <summary> Initializes a new instance of the <see cref="SkillUserTargetRootResolver" /> class. </summary>
     /// <param name="homeDirectoryProvider"> Provides the current user's home directory. </param>
     /// <param name="environmentVariableProvider"> Provides process environment variables. </param>
     public SkillUserTargetRootResolver (
