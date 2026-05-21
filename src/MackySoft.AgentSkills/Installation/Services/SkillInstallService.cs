@@ -213,7 +213,7 @@ public sealed class SkillInstallService
                         state,
                         cancellationToken)
                     .ConfigureAwait(false);
-            case var kind when kind.IsLocalModificationDrift():
+            case var kind when SkillInstalledTargetStateClassifier.IsLocalModificationDrift(kind):
                 return await CreateManagedMismatchActionPlanAsync(
                         package,
                         host,

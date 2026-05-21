@@ -133,7 +133,7 @@ public sealed class SkillDoctorService
                     package.Manifest.SkillName));
                 return;
             default:
-                if (stateResult.Value.Kind.IsLocalModificationDrift())
+                if (SkillInstalledTargetStateClassifier.IsLocalModificationDrift(stateResult.Value.Kind))
                 {
                     var driftFailure = stateResult.Value.Failure ?? SkillFailure.Create(
                         SkillFailureCodes.InstallTargetLocalModification,
