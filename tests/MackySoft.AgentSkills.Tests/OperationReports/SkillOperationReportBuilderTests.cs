@@ -207,12 +207,15 @@ public sealed class SkillOperationReportBuilderTests
         var report = SkillOperationReportBuilder.CreateListReport(packages, hostAdapters);
 
         Assert.Equal(SkillTestData.ExpectedSkillNames, report.Skills.Select(static skill => skill.SkillName).ToArray());
-        Assert.Equal(["claude", "copilot", "openai"], report.SupportedHosts.Select(static host => host.HostKey).ToArray());
-        var openAi = report.SupportedHosts.Single(static host => host.HostKey == OpenAiSkillHostAdapter.HostKey);
+        Assert.Equal(["claude", "copilot", "openai"], report.SupportedHosts.Select(static host => host.Host).ToArray());
+        var openAi = report.SupportedHosts.Single(static host => host.Host == OpenAiSkillHostAdapter.HostKey);
         Assert.True(openAi.SupportsProjectScope);
         Assert.True(openAi.SupportsUserScope);
         Assert.True(openAi.RequiresMetadataArtifact);
         Assert.Equal("agents/openai.yaml", openAi.MetadataArtifactPath);
+        Assert.Equal(
+            ["claude", "copilot", "openai"],
+            report.Skills[0].HostArtifacts.Select(static artifact => artifact.Host).ToArray());
         AssertSerializesDeterministically(report);
     }
 
@@ -286,13 +289,7 @@ public sealed class SkillOperationReportBuilderTests
     public void OperationReportPublicContracts_DoNotExposeProductEnvelopeFields ()
     {
         var forbiddenTerms = new[] { "command", "exitCode", "repositoryRoot", "ucli", "dotmet" };
-        var reportTypes = typeof(SkillOperationReport).Assembly.GetTypes()
-            .Where(static type =>
-                type.IsPublic
-                && string.Equals(type.Namespace, "MackySoft.AgentSkills.OperationReports", StringComparison.Ordinal)
-                && type != typeof(SkillLiteralCodec))
-            .OrderBy(static type => type.Name, StringComparer.Ordinal)
-            .ToArray();
+        var reportTypes = GetPublicReportContractTypes();
 
         Assert.NotEmpty(reportTypes);
         foreach (var reportType in reportTypes)
@@ -303,6 +300,24 @@ public sealed class SkillOperationReportBuilderTests
                 Assert.DoesNotContain(forbiddenTerms, term => property.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
             }
         }
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void OperationReportPublicContracts_DoNotExposeSourceModelTypes ()
+    {
+        var reportTypes = GetPublicReportContractTypes();
+
+        Assert.NotEmpty(reportTypes);
+        var exposedSourceTypes = reportTypes
+            .SelectMany(static reportType => reportType
+                .GetProperties()
+                .SelectMany(property => GetUnsupportedPropertyTypes(property.PropertyType)
+                    .Select(type => $"{reportType.Name}.{property.Name}: {type.FullName}")))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Empty(exposedSourceTypes);
     }
 
     [Fact]
@@ -443,5 +458,38 @@ public sealed class SkillOperationReportBuilderTests
         var secondJson = JsonSerializer.Serialize(report);
 
         Assert.Equal(firstJson, secondJson);
+    }
+
+    private static Type[] GetPublicReportContractTypes ()
+    {
+        return typeof(SkillOperationReport).Assembly.GetTypes()
+            .Where(static type =>
+                type.IsPublic
+                && string.Equals(type.Namespace, "MackySoft.AgentSkills.OperationReports", StringComparison.Ordinal)
+                && type.Name.EndsWith("Report", StringComparison.Ordinal))
+            .OrderBy(static type => type.Name, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static IEnumerable<Type> GetUnsupportedPropertyTypes (Type type)
+    {
+        if (type.IsArray)
+        {
+            return GetUnsupportedPropertyTypes(type.GetElementType()!);
+        }
+
+        if (type.IsGenericType)
+        {
+            return type
+                .GetGenericArguments()
+                .SelectMany(GetUnsupportedPropertyTypes);
+        }
+
+        if (type.IsPrimitive || type == typeof(string) || type.Namespace == "MackySoft.AgentSkills.OperationReports")
+        {
+            return [];
+        }
+
+        return [type];
     }
 }

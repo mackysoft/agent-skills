@@ -5,7 +5,6 @@ using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
-using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 
@@ -36,11 +35,12 @@ public static class SkillOperationReportBuilder
 
         var skills = packages
             .OrderBy(static package => package.Manifest.SkillName, StringComparer.Ordinal)
-            .Select(static package => SortHostArtifacts(package.Manifest))
+            .Select(static package => CreateListSkillReport(package))
             .ToArray();
         var hosts = hostAdapters.Adapters
             .Select(static adapter => adapter.Descriptor)
             .OrderBy(static descriptor => descriptor.HostKey, StringComparer.Ordinal)
+            .Select(static descriptor => CreateHostReport(descriptor))
             .ToArray();
 
         return new SkillListReport(skills, hosts);
@@ -345,14 +345,14 @@ public static class SkillOperationReportBuilder
             SkillLiteralCodec.FormatTargetStateKind(stateKind),
             state.Code.HasValue ? SkillLiteralCodec.FormatFailureCode(state.Code.Value) : null,
             state.Message,
-            state.FileSet);
+            CreateTargetFileSetReport(state.FileSet));
     }
 
-    private static SkillActionFileChanges? CreateFileChangesReport (SkillActionFileChanges? fileChanges)
+    private static SkillOperationFileChangesReport? CreateFileChangesReport (SkillActionFileChanges? fileChanges)
     {
         return fileChanges is null
             ? null
-            : new SkillActionFileChanges(
+            : new SkillOperationFileChangesReport(
                 fileChanges.ReplacedFiles.Order(StringComparer.Ordinal).ToArray(),
                 fileChanges.RemovedFiles.Order(StringComparer.Ordinal).ToArray());
     }
@@ -391,14 +391,55 @@ public static class SkillOperationReportBuilder
                 : null;
     }
 
-    private static SkillManifest SortHostArtifacts (SkillManifest manifest)
+    private static SkillListSkillReport CreateListSkillReport (CanonicalSkillPackage package)
     {
-        return manifest with
-        {
-            HostArtifacts = manifest.HostArtifacts
+        var manifest = package.Manifest;
+        return new SkillListSkillReport(
+            manifest.SchemaVersion,
+            manifest.SkillName,
+            manifest.DisplayName,
+            manifest.Description,
+            manifest.ContentDigest,
+            manifest.ManifestDigest,
+            manifest.HostArtifacts
                 .OrderBy(static artifact => artifact.Host, StringComparer.Ordinal)
-                .ToArray(),
-        };
+                .Select(static artifact => new SkillHostArtifactReport(
+                    artifact.Host,
+                    artifact.Path,
+                    artifact.Digest,
+                    artifact.MaterializedFrontmatterDigest))
+                .ToArray());
+    }
+
+    private static SkillHostReport CreateHostReport (SkillHostDescriptor descriptor)
+    {
+        ValidateHostDescriptor(descriptor);
+
+        return new SkillHostReport(
+            descriptor.HostKey,
+            descriptor.SupportsProjectScope,
+            descriptor.SupportsUserScope,
+            descriptor.ProjectDefaultTargetPath,
+            descriptor.UserDefaultTargetPath,
+            descriptor.UserTargetRootPolicy is null
+                ? null
+                : new SkillUserTargetRootPolicyReport(
+                    descriptor.UserTargetRootPolicy.EnvironmentVariableName,
+                    descriptor.UserTargetRootPolicy.EnvironmentVariableChildDirectory,
+                    descriptor.UserTargetRootPolicy.HomeRelativeDirectory),
+            descriptor.RequiresMetadataArtifact,
+            descriptor.MetadataArtifactPath,
+            descriptor.ReloadGuidance);
+    }
+
+    private static SkillTargetFileSetReport? CreateTargetFileSetReport (SkillActionTargetFileSet? fileSet)
+    {
+        return fileSet is null
+            ? null
+            : new SkillTargetFileSetReport(
+                fileSet.MissingFiles.Order(StringComparer.Ordinal).ToArray(),
+                fileSet.ExtraFiles.Order(StringComparer.Ordinal).ToArray(),
+                fileSet.ExtraDirectories.Order(StringComparer.Ordinal).ToArray());
     }
 
     private static void ValidateIdentity (

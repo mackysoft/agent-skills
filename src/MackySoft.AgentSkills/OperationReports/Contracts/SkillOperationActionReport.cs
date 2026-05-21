@@ -1,5 +1,3 @@
-using MackySoft.AgentSkills.Installation.Results;
-
 namespace MackySoft.AgentSkills.OperationReports;
 
 /// <summary> Represents one per-skill operation action with stable action and status literals. </summary>
@@ -16,5 +14,5 @@ public sealed record SkillOperationActionReport (
     string Status,
     string? BlockedReason,
     SkillTargetStateReport? TargetState,
-    SkillActionFileChanges? FileChanges,
+    SkillOperationFileChangesReport? FileChanges,
     IReadOnlyList<SkillOperationFileDiffReport> FileDiffs);

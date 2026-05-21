@@ -1,5 +1,3 @@
-using MackySoft.AgentSkills.Installation.Results;
-
 namespace MackySoft.AgentSkills.OperationReports;
 
 /// <summary> Represents a target state with stable literals suitable for product CLI payloads. </summary>
@@ -11,4 +9,4 @@ public sealed record SkillTargetStateReport (
     string Kind,
     string? Code = null,
     string? Message = null,
-    SkillActionTargetFileSet? FileSet = null);
+    SkillTargetFileSetReport? FileSet = null);

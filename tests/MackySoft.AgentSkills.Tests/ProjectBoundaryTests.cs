@@ -247,6 +247,14 @@ public sealed class ProjectBoundaryTests
                 ]
             },
             {
+                "OperationReports",
+                [
+                    "Contracts",
+                    "Literals",
+                    "Projection",
+                ]
+            },
+            {
                 "Packaging",
                 [
                     "Canonical",
@@ -331,6 +339,19 @@ public sealed class ProjectBoundaryTests
             data,
             "Installation/Validation",
             GetInstallationSubnamespaceReferencesExcept("Validation"));
+
+        AddForbiddenNamespaceCases(
+            data,
+            "OperationReports/Contracts",
+            [
+                "MackySoft.AgentSkills.Distribution",
+                "MackySoft.AgentSkills.Doctor",
+                "MackySoft.AgentSkills.Hosts",
+                "MackySoft.AgentSkills.Installation",
+                "MackySoft.AgentSkills.Manifests",
+                "MackySoft.AgentSkills.Packaging",
+                "MackySoft.AgentSkills.Shared",
+            ]);
 
         return data;
     }
