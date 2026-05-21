@@ -116,6 +116,7 @@ public sealed class SkillUninstallService
                         actionPlan.Package,
                         target.Host,
                         actionPlan.SkillDirectory,
+                        actionPlan.TargetSnapshot,
                         input.Force,
                         cancellationToken)
                     .ConfigureAwait(false);
@@ -140,6 +141,7 @@ public sealed class SkillUninstallService
                             actionPlan.Package,
                             target.Host,
                             directory,
+                            actionPlan.TargetSnapshot,
                             input.Force,
                             token),
                         cancellationToken)
@@ -244,17 +246,19 @@ public sealed class SkillUninstallService
         return SkillOperationResult<SkillUninstallActionPlan>.Success(new SkillUninstallActionPlan(
             new SkillUninstallAction(identity, SkillUninstallActionKind.Deleted, TargetState: SkillActionTargetStateProjection.Create(state))
             {
-                FileChanges = fileChangesResult.Value!,
+                FileChanges = fileChangesResult.Value!.FileChanges,
             },
             skillDirectory,
             package,
-            ShouldDelete: true));
+            ShouldDelete: true,
+            TargetSnapshot: fileChangesResult.Value.TargetSnapshot));
     }
 
     private async ValueTask<SkillOperationResult<bool>> ValidateDeletePreconditionAsync (
         CanonicalSkillPackage package,
         string host,
         string skillDirectory,
+        SkillActionTargetSnapshot? targetSnapshot,
         bool force,
         CancellationToken cancellationToken)
     {
@@ -268,7 +272,9 @@ public sealed class SkillUninstallService
         var isValid = SkillForceTargetStatePolicy.CanDelete(state.Kind, force);
         if (isValid)
         {
-            return SkillOperationResult<bool>.Success(true);
+            return targetSnapshot is null
+                ? SkillOperationResult<bool>.Success(true)
+                : await ValidateTargetSnapshotAsync(skillDirectory, targetSnapshot, state, cancellationToken).ConfigureAwait(false);
         }
 
         return SkillOperationResult<bool>.FailureResult(
@@ -288,9 +294,32 @@ public sealed class SkillUninstallService
         return state.Failure?.Code ?? SkillFailureCodes.InstallTargetDigestMismatch;
     }
 
+    private async ValueTask<SkillOperationResult<bool>> ValidateTargetSnapshotAsync (
+        string skillDirectory,
+        SkillActionTargetSnapshot expectedSnapshot,
+        SkillInstalledTargetState state,
+        CancellationToken cancellationToken)
+    {
+        var snapshotResult = await diffBuilder.BuildTargetSnapshotAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
+        if (!snapshotResult.IsSuccess)
+        {
+            return SkillOperationResult<bool>.FailureResult(snapshotResult.Failure!.Code, snapshotResult.Failure.Message);
+        }
+
+        if (snapshotResult.Value == expectedSnapshot)
+        {
+            return SkillOperationResult<bool>.Success(true);
+        }
+
+        return SkillOperationResult<bool>.FailureResult(
+            ResolveChangedTargetFailureCode(state),
+            $"Target skill directory changed after planning; refusing to delete: {skillDirectory}");
+    }
+
     private sealed record SkillUninstallActionPlan (
         SkillUninstallAction Action,
         string SkillDirectory,
         CanonicalSkillPackage Package,
-        bool ShouldDelete);
+        bool ShouldDelete,
+        SkillActionTargetSnapshot? TargetSnapshot = null);
 }

@@ -54,6 +54,31 @@ public sealed class SkillInstalledPackageRemoverTests
         Assert.False(Directory.Exists(Path.Combine(targetRoot, ".agent-skills-skill-transactions")));
     }
 
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task DeleteAsync_WithPreconditionWhenTargetIsMissing_ReturnsChangedTargetFailure ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "remover-missing-precondition");
+        var targetRoot = scope.CreateDirectory(".agents/skills");
+        var skillDirectory = Path.Combine(targetRoot, "sample-skill");
+        var remover = SkillTestData.CreatePackageRemover();
+        var preconditionCallCount = 0;
+
+        var result = await remover.DeleteAsync(
+            targetRoot,
+            skillDirectory,
+            (_, _) =>
+            {
+                preconditionCallCount++;
+                return ValueTask.FromResult(SkillOperationResult<bool>.Success(true));
+            },
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(1, preconditionCallCount);
+    }
+
     private sealed class DeleteMovedDirectoryFailingOperations : ISkillPackageDirectoryOperations
     {
         public bool Exists (string path)

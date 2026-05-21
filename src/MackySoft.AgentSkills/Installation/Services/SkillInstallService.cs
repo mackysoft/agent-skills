@@ -125,6 +125,7 @@ public sealed class SkillInstallService
                         target.Host,
                         actionPlan.SkillDirectory,
                         actionPlan.Action.ActionKind,
+                        actionPlan.TargetSnapshot,
                         input.Force,
                         cancellationToken)
                     .ConfigureAwait(false);
@@ -152,6 +153,7 @@ public sealed class SkillInstallService
                             target.Host,
                             directory,
                             actionPlan.Action.ActionKind,
+                            actionPlan.TargetSnapshot,
                             input.Force,
                             token),
                         cancellationToken)
@@ -325,7 +327,8 @@ public sealed class SkillInstallService
                 },
             skillDirectory,
             package,
-            packagePlan.MaterializedPackage));
+            packagePlan.MaterializedPackage,
+            packagePlan.TargetSnapshot));
     }
 
     private async ValueTask<SkillOperationResult<SkillInstallActionPlan>> CreateBlockedActionPlanAsync (
@@ -354,6 +357,7 @@ public sealed class SkillInstallService
         string host,
         string skillDirectory,
         SkillInstallActionKind actionKind,
+        SkillActionTargetSnapshot? targetSnapshot,
         bool force,
         CancellationToken cancellationToken)
     {
@@ -372,7 +376,9 @@ public sealed class SkillInstallService
         };
         if (isValid)
         {
-            return SkillOperationResult<bool>.Success(true);
+            return targetSnapshot is null
+                ? SkillOperationResult<bool>.Success(true)
+                : await ValidateTargetSnapshotAsync(skillDirectory, targetSnapshot, state, cancellationToken).ConfigureAwait(false);
         }
 
         return SkillOperationResult<bool>.FailureResult(
@@ -400,6 +406,28 @@ public sealed class SkillInstallService
     private static SkillFailureCode ResolveStateFailureCode (SkillInstalledTargetState state)
     {
         return state.Failure?.Code ?? SkillFailureCodes.InstallTargetDigestMismatch;
+    }
+
+    private async ValueTask<SkillOperationResult<bool>> ValidateTargetSnapshotAsync (
+        string skillDirectory,
+        SkillActionTargetSnapshot expectedSnapshot,
+        SkillInstalledTargetState state,
+        CancellationToken cancellationToken)
+    {
+        var snapshotResult = await diffBuilder.BuildTargetSnapshotAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
+        if (!snapshotResult.IsSuccess)
+        {
+            return SkillOperationResult<bool>.FailureResult(snapshotResult.Failure!.Code, snapshotResult.Failure.Message);
+        }
+
+        if (snapshotResult.Value == expectedSnapshot)
+        {
+            return SkillOperationResult<bool>.Success(true);
+        }
+
+        return SkillOperationResult<bool>.FailureResult(
+            ResolveChangedTargetFailureCode(state),
+            $"Target skill directory changed after planning; refusing to write: {skillDirectory}");
     }
 
     private async ValueTask<SkillOperationResult<SkillMaterializedPackagePlan>> CreateMaterializedPackagePlanAsync (
@@ -444,7 +472,8 @@ public sealed class SkillInstallService
         return SkillOperationResult<SkillMaterializedPackageWritePlan>.Success(new SkillMaterializedPackageWritePlan(
             materializedResult.Value!,
             changePlan.Diffs,
-            changePlan.FileChanges));
+            changePlan.FileChanges.FileChanges,
+            changePlan.FileChanges.TargetSnapshot));
     }
 
     private sealed record SkillMaterializedPackagePlan (
@@ -454,11 +483,13 @@ public sealed class SkillInstallService
     private sealed record SkillMaterializedPackageWritePlan (
         SkillMaterializedPackage MaterializedPackage,
         IReadOnlyList<SkillActionDiff> Diffs,
-        SkillActionFileChanges FileChanges);
+        SkillActionFileChanges FileChanges,
+        SkillActionTargetSnapshot TargetSnapshot);
 
     private sealed record SkillInstallActionPlan (
         SkillInstallAction Action,
         string SkillDirectory,
         CanonicalSkillPackage Package,
-        SkillMaterializedPackage? MaterializedPackage);
+        SkillMaterializedPackage? MaterializedPackage,
+        SkillActionTargetSnapshot? TargetSnapshot = null);
 }
