@@ -3,22 +3,22 @@
   "skillName": "agent-skills-plan-apply",
   "displayName": "Agent Skills Plan Apply",
   "description": "Use when building, validating, planning, and applying a Agent Skills JSON request for Unity changes. Enforces read -> describe -> build request -> validate -> plan -> call -> verify.",
-  "contentDigest": "sha256:3fa85c99817a993495afdfde13ae1b089fc040170a5973d88fe4f27375954759",
-  "manifestDigest": "sha256:d4101affa196cd40940b415d1dac747cdff7edfaa233aa4035c80e3665525149",
+  "contentDigest": "3fa85c99817a993495afdfde13ae1b089fc040170a5973d88fe4f27375954759",
+  "manifestDigest": "be92c8d77c2c16a688403b620c4c97646d01be6fa3046fba5396498717d69225",
   "hostArtifacts": [
     {
       "host": "claude",
-      "materializedFrontmatterDigest": "sha256:f3ca8ddda342b3492d24603cb7f3ef2077e0a775a3802564ef01275b6e36bf50"
+      "materializedFrontmatterDigest": "f3ca8ddda342b3492d24603cb7f3ef2077e0a775a3802564ef01275b6e36bf50"
     },
     {
       "host": "copilot",
-      "materializedFrontmatterDigest": "sha256:1c1ef569f136b5741b4914ba49ad63554f9e921a4806cdb653550d8e17e2dfd5"
+      "materializedFrontmatterDigest": "1c1ef569f136b5741b4914ba49ad63554f9e921a4806cdb653550d8e17e2dfd5"
     },
     {
       "host": "openai",
       "path": "agents/openai.yaml",
-      "digest": "sha256:ac0f56316ec4bd4a834b8900b1c82cfcd770b06c74b4b63aabb9a4a3e5a80136",
-      "materializedFrontmatterDigest": "sha256:210a40a8d769fddfe76f0b0afa125ab61d1926e7aefd8e91dc622ef161b961ba"
+      "digest": "ac0f56316ec4bd4a834b8900b1c82cfcd770b06c74b4b63aabb9a4a3e5a80136",
+      "materializedFrontmatterDigest": "210a40a8d769fddfe76f0b0afa125ab61d1926e7aefd8e91dc622ef161b961ba"
     }
   ]
 }

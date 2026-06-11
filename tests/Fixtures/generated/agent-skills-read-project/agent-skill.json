@@ -3,22 +3,22 @@
   "skillName": "agent-skills-read-project",
   "displayName": "Agent Skills Read Project",
   "description": "Use when inspecting a Unity project with Agent Skills before choosing selectors, operation metadata, schemas, or readIndex freshness. Guides read-first discovery without hard-coding operation contracts.",
-  "contentDigest": "sha256:110906920b8cdc97628d59dd48d76617fcd5d060a1196bdb76bc1a28f58aa4b5",
-  "manifestDigest": "sha256:863097a5d69c94cf3ad742726573204cbe94ee6f800a8ef4687378406dd7e167",
+  "contentDigest": "110906920b8cdc97628d59dd48d76617fcd5d060a1196bdb76bc1a28f58aa4b5",
+  "manifestDigest": "23543cfadac5e14da5f28152d11c432bc738affb499a8e5289a2886dec8c69d2",
   "hostArtifacts": [
     {
       "host": "claude",
-      "materializedFrontmatterDigest": "sha256:9149577f1c28f16d2ae6b30168e77e2cb27698743aca857719ab82114e3fa4dd"
+      "materializedFrontmatterDigest": "9149577f1c28f16d2ae6b30168e77e2cb27698743aca857719ab82114e3fa4dd"
     },
     {
       "host": "copilot",
-      "materializedFrontmatterDigest": "sha256:f7ac137e3e241527a2e1f7417b386980cbd7311bc1ab966fd008a79a7029dae0"
+      "materializedFrontmatterDigest": "f7ac137e3e241527a2e1f7417b386980cbd7311bc1ab966fd008a79a7029dae0"
     },
     {
       "host": "openai",
       "path": "agents/openai.yaml",
-      "digest": "sha256:0c890be2be52e04e0ffd4373939679874ce285814a112396748e4dd8ba6c7e60",
-      "materializedFrontmatterDigest": "sha256:ffbbff8a18a54cfa24efa1c6089a32c75df912b4037e0db4bf2d36ee033b6f04"
+      "digest": "0c890be2be52e04e0ffd4373939679874ce285814a112396748e4dd8ba6c7e60",
+      "materializedFrontmatterDigest": "ffbbff8a18a54cfa24efa1c6089a32c75df912b4037e0db4bf2d36ee033b6f04"
     }
   ]
 }

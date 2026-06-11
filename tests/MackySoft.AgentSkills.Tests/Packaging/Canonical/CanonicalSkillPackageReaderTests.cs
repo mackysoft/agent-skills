@@ -89,7 +89,7 @@ public sealed class CanonicalSkillPackageReaderTests
         var manifest = serializer.Deserialize(await File.ReadAllTextAsync(manifestPath));
         var driftedManifest = manifest with
         {
-            ManifestDigest = "sha256:" + new string('f', 64),
+            ManifestDigest = new string('f', 64),
         };
         await File.WriteAllTextAsync(manifestPath, serializer.Serialize(driftedManifest));
         var reader = SkillTestData.CreatePackageReader();
@@ -183,7 +183,7 @@ public sealed class CanonicalSkillPackageReaderTests
         {
             HostArtifacts = manifest.HostArtifacts
                 .Select(static artifact => artifact.Host == "claude"
-                    ? artifact with { MaterializedFrontmatterDigest = "sha256:" + new string('0', 64) }
+                    ? artifact with { MaterializedFrontmatterDigest = new string('0', 64) }
                     : artifact)
                 .ToArray(),
         };

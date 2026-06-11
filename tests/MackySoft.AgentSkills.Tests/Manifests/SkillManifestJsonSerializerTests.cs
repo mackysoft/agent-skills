@@ -28,8 +28,8 @@ public sealed class SkillManifestJsonSerializerTests
 
         var json = serializer.Serialize(manifest);
 
-        Assert.Contains("\"manifestDigest\": \"sha256:", json, StringComparison.Ordinal);
         using var document = JsonDocument.Parse(json);
+        Assert.Equal(64, document.RootElement.GetProperty("manifestDigest").GetString()?.Length);
         Assert.Equal(
             new[] { "schemaVersion", "skillName", "displayName", "description", "contentDigest", "manifestDigest", "hostArtifacts" },
             document.RootElement.EnumerateObject().Select(static property => property.Name).ToArray());
@@ -51,7 +51,7 @@ public sealed class SkillManifestJsonSerializerTests
           "skillName": "sample-skill",
           "displayName": "Sample Skill",
           "description": "Use this sample skill for tests.",
-          "contentDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "contentDigest": "0000000000000000000000000000000000000000000000000000000000000000",
           "hostArtifacts": []
         }
         """)]
@@ -75,12 +75,12 @@ public sealed class SkillManifestJsonSerializerTests
             "sample-skill",
             "Sample Skill",
             "Use this sample skill for tests.",
-            "sha256:" + new string('0', 64),
+            new string('0', 64),
             string.Empty,
             [
-                new SkillHostArtifactManifest("openai", "agents/openai.yaml", "sha256:" + new string('1', 64), "sha256:" + new string('2', 64)),
-                new SkillHostArtifactManifest("claude", null, null, "sha256:" + new string('3', 64)),
-                new SkillHostArtifactManifest("copilot", null, null, "sha256:" + new string('4', 64)),
+                new SkillHostArtifactManifest("openai", "agents/openai.yaml", new string('1', 64), new string('2', 64)),
+                new SkillHostArtifactManifest("claude", null, null, new string('3', 64)),
+                new SkillHostArtifactManifest("copilot", null, null, new string('4', 64)),
             ]);
 
         return digestCalculator.WithComputedManifestDigest(manifest);

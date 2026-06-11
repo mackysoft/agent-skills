@@ -436,7 +436,7 @@ public sealed class SkillInstallServiceTests
         Assert.True(created.IsSuccess, created.Failure?.Message);
 
         var manifestPath = Path.Combine(created.Value!.TargetRoot, packages[0].Manifest.SkillName, "agent-skill.json");
-        var manifestText = File.ReadAllText(manifestPath).Replace(packages[0].Manifest.ContentDigest, "sha256:" + new string('0', 64), StringComparison.Ordinal);
+        var manifestText = File.ReadAllText(manifestPath).Replace(packages[0].Manifest.ContentDigest, new string('0', 64), StringComparison.Ordinal);
         File.WriteAllText(manifestPath, manifestText);
 
         var result = await service.InstallAsync(packages, request, CancellationToken.None);
@@ -460,7 +460,7 @@ public sealed class SkillInstallServiceTests
         var originalDigest = packages[0].Manifest.HostArtifacts
             .Single(static artifact => artifact.Host == OpenAiSkillHostAdapter.HostKey)
             .Digest!;
-        var manifestText = File.ReadAllText(manifestPath).Replace(originalDigest, "sha256:" + new string('f', 64), StringComparison.Ordinal);
+        var manifestText = File.ReadAllText(manifestPath).Replace(originalDigest, new string('f', 64), StringComparison.Ordinal);
         File.WriteAllText(manifestPath, manifestText);
 
         var result = await service.InstallAsync(packages, request, CancellationToken.None);

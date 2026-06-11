@@ -41,7 +41,7 @@ Install the CLI through a .NET tool manifest in each product repository.
 
 ```bash
 dotnet new tool-manifest
-dotnet tool install MackySoft.AgentSkills.Cli --version 0.2.0
+dotnet tool install MackySoft.AgentSkills.Cli --version 0.3.0
 ```
 
 Generate canonical packages.
@@ -64,13 +64,13 @@ The CLI validates definition metadata, computes deterministic digests, writes `a
 Use the library from product CLI or application code that needs to list, export, install, update, uninstall, or diagnose generated agent skills.
 
 ```bash
-dotnet add <PROJECT>.csproj package MackySoft.AgentSkills --version 0.2.0
+dotnet add <PROJECT>.csproj package MackySoft.AgentSkills --version 0.3.0
 ```
 
 Equivalent project file reference:
 
 ```xml
-<PackageReference Include="MackySoft.AgentSkills" Version="0.2.0" />
+<PackageReference Include="MackySoft.AgentSkills" Version="0.3.0" />
 ```
 
 The canonical package manifest file is `agent-skill.json`. Generated package directories are canonical package inputs; runtime materialization converts those packages into host-specific install/export contents.

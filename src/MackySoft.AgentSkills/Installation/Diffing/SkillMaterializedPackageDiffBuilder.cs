@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
+using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Materialization;
 using MackySoft.AgentSkills.Packaging.FileSystem;
@@ -11,8 +12,6 @@ namespace MackySoft.AgentSkills.Installation.Diffing;
 /// <summary> Builds structured file diffs between an installed target and a materialized package. </summary>
 public sealed class SkillMaterializedPackageDiffBuilder
 {
-    private const string SnapshotDigestPrefix = "sha256:";
-
     /// <summary> Builds one structured diff for a target directory and desired materialized package. </summary>
     /// <param name="skillDirectory"> The target skill directory. </param>
     /// <param name="materializedPackage"> The desired materialized package. </param>
@@ -240,7 +239,7 @@ public sealed class SkillMaterializedPackageDiffBuilder
             AppendSnapshotEntry(hash, "F", file.Key, file.Value);
         }
 
-        return new SkillActionTargetSnapshot(SnapshotDigestPrefix + ToLowerHex(hash.GetHashAndReset()));
+        return new SkillActionTargetSnapshot(Sha256LowerHex.GetHashAndReset(hash));
     }
 
     private static void AppendSnapshotEntry (
@@ -266,23 +265,6 @@ public sealed class SkillMaterializedPackageDiffBuilder
         BinaryPrimitives.WriteInt32BigEndian(lengthBytes, bytes.Length);
         hash.AppendData(lengthBytes);
         hash.AppendData(bytes);
-    }
-
-    private static string ToLowerHex (byte[] bytes)
-    {
-        const string HexChars = "0123456789abcdef";
-
-        var chars = new char[bytes.Length * 2];
-        var index = 0;
-        for (var i = 0; i < bytes.Length; i++)
-        {
-            var value = bytes[i];
-            chars[index] = HexChars[value >> 4];
-            chars[index + 1] = HexChars[value & 0x0F];
-            index += 2;
-        }
-
-        return new string(chars);
     }
 
     private static async ValueTask<SkillOperationResult<SkillExistingTargetEntries>> ReadExistingTargetEntriesAsync (

@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Shared;
 
@@ -64,14 +65,14 @@ public sealed class SkillManifestValidator
             return Failure("agent-skill.json displayName and description must be valid.");
         }
 
-        if (!IsSha256Digest(manifest.ContentDigest))
+        if (!Sha256LowerHex.IsDigestText(manifest.ContentDigest))
         {
-            return Failure("agent-skill.json contentDigest must be a sha256 digest.");
+            return Failure("agent-skill.json contentDigest must be a lowercase SHA-256 hex digest.");
         }
 
-        if (!IsSha256Digest(manifest.ManifestDigest))
+        if (!Sha256LowerHex.IsDigestText(manifest.ManifestDigest))
         {
-            return Failure("agent-skill.json manifestDigest must be a sha256 digest.");
+            return Failure("agent-skill.json manifestDigest must be a lowercase SHA-256 hex digest.");
         }
 
         var expectedHosts = hostAdapters.Adapters.Select(static adapter => adapter.Descriptor.HostKey).Order(StringComparer.Ordinal).ToArray();
@@ -86,9 +87,9 @@ public sealed class SkillManifestValidator
         {
             var artifact = artifactByHost[adapter.Descriptor.HostKey];
             var metadataArtifactPath = adapter.Descriptor.MetadataArtifactPath;
-            if (!IsSha256Digest(artifact.MaterializedFrontmatterDigest))
+            if (!Sha256LowerHex.IsDigestText(artifact.MaterializedFrontmatterDigest))
             {
-                return Failure($"Host artifact '{artifact.Host}' frontmatter digest must be a sha256 digest.");
+                return Failure($"Host artifact '{artifact.Host}' frontmatter digest must be a lowercase SHA-256 hex digest.");
             }
 
             if (metadataArtifactPath is null)
@@ -101,7 +102,7 @@ public sealed class SkillManifestValidator
                 continue;
             }
 
-            if (!string.Equals(artifact.Path, metadataArtifactPath, StringComparison.Ordinal) || !IsSha256Digest(artifact.Digest))
+            if (!string.Equals(artifact.Path, metadataArtifactPath, StringComparison.Ordinal) || !Sha256LowerHex.IsDigestText(artifact.Digest))
             {
                 return Failure($"Host artifact '{artifact.Host}' must contain metadata artifact digest.");
             }
@@ -113,16 +114,6 @@ public sealed class SkillManifestValidator
     private static SkillOperationResult<SkillManifest> Failure (string message)
     {
         return SkillOperationResult<SkillManifest>.FailureResult(SkillFailureCodes.ManifestInvalid, message);
-    }
-
-    private static bool IsSha256Digest (string? value)
-    {
-        if (value is null || !value.StartsWith("sha256:", StringComparison.Ordinal) || value.Length != 71)
-        {
-            return false;
-        }
-
-        return value.AsSpan("sha256:".Length).IndexOfAnyExcept("0123456789abcdef") < 0;
     }
 
     private static bool IsSafeSkillName (string? skillName)

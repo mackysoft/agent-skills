@@ -3,22 +3,22 @@
   "skillName": "agent-skills-troubleshoot",
   "displayName": "Agent Skills Troubleshoot",
   "description": "Use when diagnosing Agent Skills daemon, lifecycle, readIndex freshness, timeout, compile or domain reload, logs, IPC, and Unity execution failures.",
-  "contentDigest": "sha256:b8b988d38d0ef44d1d701e575f4d64a7861751b69a03333179b3e89db3916748",
-  "manifestDigest": "sha256:6bd7dbc921c04bae818954e1e4214514c3cfa301c98118cd1c4ddb3128a0b610",
+  "contentDigest": "b8b988d38d0ef44d1d701e575f4d64a7861751b69a03333179b3e89db3916748",
+  "manifestDigest": "95525412c72d61eea055f040850c5ca652f19929bb7c5fed9d56d6d5afaf314a",
   "hostArtifacts": [
     {
       "host": "claude",
-      "materializedFrontmatterDigest": "sha256:c8976c41f8f1412a65d8f80be86be2e93c68dd1fdc2a6a4945c20ec272d12393"
+      "materializedFrontmatterDigest": "c8976c41f8f1412a65d8f80be86be2e93c68dd1fdc2a6a4945c20ec272d12393"
     },
     {
       "host": "copilot",
-      "materializedFrontmatterDigest": "sha256:f0ed6c20267a0299ab83e912be318c5d9ed367e79740a339679e16994bb99786"
+      "materializedFrontmatterDigest": "f0ed6c20267a0299ab83e912be318c5d9ed367e79740a339679e16994bb99786"
     },
     {
       "host": "openai",
       "path": "agents/openai.yaml",
-      "digest": "sha256:46a500f3956d3b123517c58fd12a4e4557cb20f1c398ac71b34c4492edb9c784",
-      "materializedFrontmatterDigest": "sha256:34c5c420a9d37585338a382fef19256911c4e7a5c866c7942d504e0da1e798e8"
+      "digest": "46a500f3956d3b123517c58fd12a4e4557cb20f1c398ac71b34c4492edb9c784",
+      "materializedFrontmatterDigest": "34c5c420a9d37585338a382fef19256911c4e7a5c866c7942d504e0da1e798e8"
     }
   ]
 }

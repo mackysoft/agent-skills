@@ -72,12 +72,12 @@ public sealed class SkillManifestValidatorTests
             WithComputedManifestDigest(valid with { SchemaVersion = 0 }),
             WithComputedManifestDigest(valid with { DisplayName = "" }),
             WithComputedManifestDigest(valid with { Description = "" }),
-            WithComputedManifestDigest(valid with { ContentDigest = "sha256:not-hex" }),
-            valid with { ManifestDigest = "sha256:not-hex" },
+            WithComputedManifestDigest(valid with { ContentDigest = "not-hex" }),
+            valid with { ManifestDigest = "not-hex" },
             WithComputedManifestDigest(valid with { HostArtifacts = valid.HostArtifacts.Where(static artifact => artifact.Host != "copilot").ToArray() }),
-            WithComputedManifestDigest(valid with { HostArtifacts = valid.HostArtifacts.Concat([new SkillHostArtifactManifest("generic", null, null, "sha256:" + new string('5', 64))]).ToArray() }),
-            WithComputedManifestDigest(valid with { HostArtifacts = valid.HostArtifacts.Select(static artifact => artifact.Host == "claude" ? artifact with { MaterializedFrontmatterDigest = "sha256:not-hex" } : artifact).ToArray() }),
-            WithComputedManifestDigest(valid with { HostArtifacts = valid.HostArtifacts.Select(static artifact => artifact.Host == "claude" ? artifact with { Path = "claude.yaml", Digest = "sha256:" + new string('6', 64) } : artifact).ToArray() }),
+            WithComputedManifestDigest(valid with { HostArtifacts = valid.HostArtifacts.Concat([new SkillHostArtifactManifest("generic", null, null, new string('5', 64))]).ToArray() }),
+            WithComputedManifestDigest(valid with { HostArtifacts = valid.HostArtifacts.Select(static artifact => artifact.Host == "claude" ? artifact with { MaterializedFrontmatterDigest = "not-hex" } : artifact).ToArray() }),
+            WithComputedManifestDigest(valid with { HostArtifacts = valid.HostArtifacts.Select(static artifact => artifact.Host == "claude" ? artifact with { Path = "claude.yaml", Digest = new string('6', 64) } : artifact).ToArray() }),
             WithComputedManifestDigest(valid with { HostArtifacts = valid.HostArtifacts.Select(static artifact => artifact.Host == "openai" ? artifact with { Path = "agents/other.yaml" } : artifact).ToArray() }),
             WithComputedManifestDigest(valid with { HostArtifacts = valid.HostArtifacts.Select(static artifact => artifact.Host == "openai" ? artifact with { Digest = null } : artifact).ToArray() }),
         };
@@ -91,12 +91,12 @@ public sealed class SkillManifestValidatorTests
             skillName,
             "Sample Skill",
             "Use this sample skill for tests.",
-            "sha256:" + new string('0', 64),
+            new string('0', 64),
             string.Empty,
             [
-                new SkillHostArtifactManifest("claude", null, null, "sha256:" + new string('1', 64)),
-                new SkillHostArtifactManifest("copilot", null, null, "sha256:" + new string('2', 64)),
-                new SkillHostArtifactManifest("openai", "agents/openai.yaml", "sha256:" + new string('3', 64), "sha256:" + new string('4', 64)),
+                new SkillHostArtifactManifest("claude", null, null, new string('1', 64)),
+                new SkillHostArtifactManifest("copilot", null, null, new string('2', 64)),
+                new SkillHostArtifactManifest("openai", "agents/openai.yaml", new string('3', 64), new string('4', 64)),
             ]);
 
         return WithComputedManifestDigest(manifest);

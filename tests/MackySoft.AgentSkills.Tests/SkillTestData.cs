@@ -405,9 +405,9 @@ internal static class SkillTestData
     {
         var manifestText = File.ReadAllText(manifestPath);
         var manifest = new SkillManifestJsonSerializer().Deserialize(manifestText);
-        var replacementDigest = string.Equals(manifest.ManifestDigest, "sha256:" + new string('f', 64), StringComparison.Ordinal)
-            ? "sha256:" + new string('0', 64)
-            : "sha256:" + new string('f', 64);
+        var replacementDigest = string.Equals(manifest.ManifestDigest, new string('f', 64), StringComparison.Ordinal)
+            ? new string('0', 64)
+            : new string('f', 64);
         File.WriteAllText(manifestPath, manifestText.Replace(manifest.ManifestDigest, replacementDigest, StringComparison.Ordinal));
     }
 

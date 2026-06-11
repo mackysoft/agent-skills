@@ -7,13 +7,11 @@ namespace MackySoft.AgentSkills.Digests;
 /// <summary> Computes deterministic SKILL content and host artifact digests. </summary>
 public sealed class SkillDigestCalculator
 {
-    private const string DigestPrefix = "sha256:";
-
     private static readonly byte[] Separator = [0];
 
     /// <summary> Computes one digest from normalized digest input files. </summary>
     /// <param name="files"> The files included in the digest input. </param>
-    /// <returns> The digest in <c>sha256:&lt;lowerhex&gt;</c> form. </returns>
+    /// <returns> The lowercase hexadecimal SHA-256 digest. </returns>
     public string ComputeDigest (IEnumerable<SkillDigestInputFile> files)
     {
         ArgumentNullException.ThrowIfNull(files);
@@ -27,13 +25,13 @@ public sealed class SkillDigestCalculator
             AppendUtf8(hash, SkillTextNormalizer.NormalizeToLf(file.Content));
         }
 
-        return DigestPrefix + ToLowerHex(hash.GetHashAndReset());
+        return Sha256LowerHex.GetHashAndReset(hash);
     }
 
     /// <summary> Computes one digest for a single text artifact. </summary>
     /// <param name="relativePath"> The artifact path. </param>
     /// <param name="content"> The artifact content. </param>
-    /// <returns> The digest in <c>sha256:&lt;lowerhex&gt;</c> form. </returns>
+    /// <returns> The lowercase hexadecimal SHA-256 digest. </returns>
     public string ComputeSingleFileDigest (
         string relativePath,
         string content)
@@ -61,20 +59,4 @@ public sealed class SkillDigestCalculator
         hash.AppendData(bytes);
     }
 
-    private static string ToLowerHex (byte[] bytes)
-    {
-        const string HexChars = "0123456789abcdef";
-
-        var chars = new char[bytes.Length * 2];
-        var index = 0;
-        for (var i = 0; i < bytes.Length; i++)
-        {
-            var value = bytes[i];
-            chars[index] = HexChars[value >> 4];
-            chars[index + 1] = HexChars[value & 0x0F];
-            index += 2;
-        }
-
-        return new string(chars);
-    }
 }
