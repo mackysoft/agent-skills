@@ -162,7 +162,7 @@ public sealed class SkillDoctorServiceTests
         var originalDigest = packages[0].Manifest.HostArtifacts
             .Single(static artifact => artifact.Host == OpenAiSkillHostAdapter.HostKey)
             .Digest!;
-        var manifestText = File.ReadAllText(manifestPath).Replace(originalDigest, "sha256:" + new string('f', 64), StringComparison.Ordinal);
+        var manifestText = File.ReadAllText(manifestPath).Replace(originalDigest, new string('f', 64), StringComparison.Ordinal);
         File.WriteAllText(manifestPath, manifestText);
         var doctor = SkillTestData.CreateDoctorService();
 

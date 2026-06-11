@@ -3,22 +3,22 @@
   "skillName": "agent-skills-verify-changes",
   "displayName": "Agent Skills Verify Changes",
   "description": "Use when verifying Agent Skills-driven Unity changes with agent-skills verify profiles, claim packets, follow-up reads, agent-skills test, logs, artifacts, and opResults evidence after validation, plan, or call execution.",
-  "contentDigest": "sha256:0349fe42c103d17bbee00788db576c2f8e6a5ff5e4a45e80c41ae6432c12d9f8",
-  "manifestDigest": "sha256:d4eab159290892f23b75ffacffe6a9b4734b8d65e78c284da3a63c723429f0c5",
+  "contentDigest": "0349fe42c103d17bbee00788db576c2f8e6a5ff5e4a45e80c41ae6432c12d9f8",
+  "manifestDigest": "383f62722ccf8401bdce2e2afc782f05453efcf2a3066ec58ce31370453d1e43",
   "hostArtifacts": [
     {
       "host": "claude",
-      "materializedFrontmatterDigest": "sha256:1f755c59717c081ff820761dfe0fb461102b1e594b22a6c4be47441ab3dc3167"
+      "materializedFrontmatterDigest": "1f755c59717c081ff820761dfe0fb461102b1e594b22a6c4be47441ab3dc3167"
     },
     {
       "host": "copilot",
-      "materializedFrontmatterDigest": "sha256:116a7d93cd0675b1bd47d37d10bad9cf99bc449a0d9d65201d6ed69200aa1aad"
+      "materializedFrontmatterDigest": "116a7d93cd0675b1bd47d37d10bad9cf99bc449a0d9d65201d6ed69200aa1aad"
     },
     {
       "host": "openai",
       "path": "agents/openai.yaml",
-      "digest": "sha256:f5ed8b267aef51c9814dcfa1a95628fa84a64e97634df05d440d11fdb8bce5b0",
-      "materializedFrontmatterDigest": "sha256:fbec63d8bbc7428acae9ed826c65d7cde4dd3a16fee1efe624968efc875f0d9b"
+      "digest": "f5ed8b267aef51c9814dcfa1a95628fa84a64e97634df05d440d11fdb8bce5b0",
+      "materializedFrontmatterDigest": "fbec63d8bbc7428acae9ed826c65d7cde4dd3a16fee1efe624968efc875f0d9b"
     }
   ]
 }

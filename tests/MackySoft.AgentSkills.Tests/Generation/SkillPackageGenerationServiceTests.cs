@@ -69,7 +69,7 @@ public sealed class SkillPackageGenerationServiceTests
             var expectedDigest = calculator.ComputeManifestDigest(package.Manifest);
             var selfDriftedManifest = package.Manifest with
             {
-                ManifestDigest = "sha256:" + new string('f', 64),
+                ManifestDigest = new string('f', 64),
             };
 
             Assert.Equal(expectedDigest, package.Manifest.ManifestDigest);
