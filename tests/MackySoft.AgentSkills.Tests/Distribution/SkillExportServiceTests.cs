@@ -37,6 +37,22 @@ public sealed class SkillExportServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task ExportAsync_DirectoryFormat_CreatesOutputRoot_WhenPackageSetIsEmpty ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "export-empty-directory");
+        var outputRoot = scope.GetPath("exported");
+        var service = SkillTestData.CreateExportService();
+
+        var result = await service.ExportAsync([], OpenAiSkillHostAdapter.HostKey, outputRoot, SkillExportFormat.Directory, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.Equal(Path.GetFullPath(outputRoot), result.Value);
+        Assert.True(Directory.Exists(outputRoot));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(outputRoot));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task ExportAsync_RejectsUnsafePackageName ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "export-unsafe-package");
