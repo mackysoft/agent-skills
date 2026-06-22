@@ -3,13 +3,13 @@ using MackySoft.AgentSkills.Tiers;
 
 namespace MackySoft.AgentSkills.Tests.Tiers;
 
-public sealed class SkillTierSelectionTests
+public sealed class SkillTierLiteralParserTests
 {
     [Fact]
     [Trait("Size", "Small")]
     public void ParseDefinedTiers_AcceptsProductLiteralArray ()
     {
-        var result = SkillTierSelection.ParseDefinedTiers(["basic", "advanced", "developer"]);
+        var result = SkillTierLiteralParser.ParseDefinedTiers(["basic", "advanced", "developer"]);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal(["basic", "advanced", "developer"], result.Value!.Select(static tier => tier.Value).ToArray());
@@ -19,7 +19,7 @@ public sealed class SkillTierSelectionTests
     [Trait("Size", "Small")]
     public void ParseDefinedTiers_RejectsEmptyDefinitionArray ()
     {
-        var result = SkillTierSelection.ParseDefinedTiers([]);
+        var result = SkillTierLiteralParser.ParseDefinedTiers([]);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
@@ -29,7 +29,7 @@ public sealed class SkillTierSelectionTests
     [Trait("Size", "Small")]
     public void ParseDefinedTiers_RejectsDuplicateLiteral ()
     {
-        var result = SkillTierSelection.ParseDefinedTiers(["basic", "basic"]);
+        var result = SkillTierLiteralParser.ParseDefinedTiers(["basic", "basic"]);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
@@ -42,7 +42,7 @@ public sealed class SkillTierSelectionTests
     [Trait("Size", "Small")]
     public void ParseDefinedTiers_RejectsInvalidLiteral (string literal)
     {
-        var result = SkillTierSelection.ParseDefinedTiers([literal]);
+        var result = SkillTierLiteralParser.ParseDefinedTiers([literal]);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
@@ -50,9 +50,9 @@ public sealed class SkillTierSelectionTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public void Parse_NormalizesExactTierLiterals ()
+    public void ParseSelectedTiers_NormalizesExactTierLiterals ()
     {
-        var result = SkillTierSelection.Parse(
+        var result = SkillTierLiteralParser.ParseSelectedTiers(
             ["basic", "advanced", "developer"],
             ["advanced", "basic", "advanced"]);
 
@@ -65,9 +65,9 @@ public sealed class SkillTierSelectionTests
     [InlineData("advanced ")]
     [InlineData("unknown")]
     [Trait("Size", "Small")]
-    public void Parse_ReturnsInputFailure_WhenSelectedLiteralIsNotExact (string literal)
+    public void ParseSelectedTiers_ReturnsInputFailure_WhenSelectedLiteralIsNotExact (string literal)
     {
-        var result = SkillTierSelection.Parse(["basic", "advanced", "developer"], [literal]);
+        var result = SkillTierLiteralParser.ParseSelectedTiers(["basic", "advanced", "developer"], [literal]);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
@@ -75,9 +75,9 @@ public sealed class SkillTierSelectionTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public void Parse_ReturnsInputFailure_WhenSelectionIsRequiredAndEmpty ()
+    public void ParseSelectedTiers_ReturnsInputFailure_WhenSelectionIsRequiredAndEmpty ()
     {
-        var result = SkillTierSelection.Parse(["basic"], []);
+        var result = SkillTierLiteralParser.ParseSelectedTiers(["basic"], []);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);

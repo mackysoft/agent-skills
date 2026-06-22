@@ -282,7 +282,7 @@ public static class SkillOperationReportBuilder
 
         return new SkillOperationReport(
             context.HostDescriptor.HostKey,
-            CreateTierLiterals(context.Tiers),
+            CreateTierLiterals(context.SelectedTiers),
             SkillLiteralCodec.FormatScope(context.Scope),
             targetRoot,
             dryRun,

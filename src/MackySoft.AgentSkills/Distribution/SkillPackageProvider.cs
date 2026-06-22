@@ -57,7 +57,7 @@ public sealed class SkillPackageProvider
         ArgumentNullException.ThrowIfNull(definedTierLiterals);
         ArgumentNullException.ThrowIfNull(selectedTierLiterals);
 
-        var selectionResult = SkillTierSelection.Parse(definedTierLiterals, selectedTierLiterals);
+        var selectionResult = SkillTierLiteralParser.ParseSelectedTiers(definedTierLiterals, selectedTierLiterals);
         if (!selectionResult.IsSuccess)
         {
             return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
@@ -82,7 +82,7 @@ public sealed class SkillPackageProvider
         ArgumentNullException.ThrowIfNull(selection);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var definedTiersResult = SkillTierSelection.ParseDefinedTiers(definedTierLiterals);
+        var definedTiersResult = SkillTierLiteralParser.ParseDefinedTiers(definedTierLiterals);
         if (!definedTiersResult.IsSuccess)
         {
             return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(

@@ -2,7 +2,7 @@ namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
 /// <summary> Represents a product-neutral install, update, or uninstall report. </summary>
 /// <param name="Host"> The canonical host key used for the operation. </param>
-/// <param name="Tiers"> The selected product-owned SKILL tier literals, or an empty list when the caller did not provide any. </param>
+/// <param name="Tiers"> The selected product-owned SKILL tier literals. </param>
 /// <param name="Scope"> The stable install scope literal used for the operation. </param>
 /// <param name="TargetRoot"> The canonical absolute host target root. </param>
 /// <param name="DryRun"> Whether the report represents a plan without writes. </param>

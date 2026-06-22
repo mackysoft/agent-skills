@@ -2,14 +2,14 @@ using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Tiers;
 
-/// <summary> Normalizes product-owned SKILL tier literal selections. </summary>
-public static class SkillTierSelection
+/// <summary> Parses product-owned SKILL tier literals. </summary>
+public static class SkillTierLiteralParser
 {
     /// <summary> Parses selected tier literals against product-owned defined tier literals. </summary>
     /// <param name="definedTierLiterals"> The complete product-owned tier literals. </param>
     /// <param name="selectedTierLiterals"> The selected tier literals. </param>
     /// <returns> The normalized selected tiers or an input failure. </returns>
-    public static SkillOperationResult<IReadOnlyList<SkillTier>> Parse (
+    public static SkillOperationResult<IReadOnlyList<SkillTier>> ParseSelectedTiers (
         IReadOnlyList<string> definedTierLiterals,
         IReadOnlyList<string> selectedTierLiterals)
     {
