@@ -46,7 +46,7 @@ public sealed class SkillPackageProvider
 
     /// <summary> Gets bundled SKILL packages that exactly match selected product-owned tier literals. </summary>
     /// <param name="definedTierLiterals"> The complete product-owned tier literals. </param>
-    /// <param name="selectedTierLiterals"> The selected product tier literals. </param>
+    /// <param name="selectedTierLiterals"> The selected product-owned SKILL tier literals. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The matching canonical packages, an empty list when the selected tiers are valid but have no packages, or a package-resolution failure. </returns>
     public async ValueTask<SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>> GetPackagesAsync (
@@ -68,18 +68,18 @@ public sealed class SkillPackageProvider
         return await GetPackagesAsync(definedTierLiterals, selectionResult.Value!, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary> Gets bundled SKILL packages that exactly match a normalized product tier selection. </summary>
+    /// <summary> Gets bundled SKILL packages that exactly match normalized selected product-owned SKILL tiers. </summary>
     /// <param name="definedTierLiterals"> The complete product-owned tier literals. </param>
-    /// <param name="selection"> The normalized tier selection. </param>
+    /// <param name="selectedTiers"> The normalized selected product-owned SKILL tiers. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The matching canonical packages, an empty list when the selected tiers are valid but have no packages, or a package-resolution failure. </returns>
     public async ValueTask<SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>> GetPackagesAsync (
         IReadOnlyList<string> definedTierLiterals,
-        IReadOnlyList<SkillTier> selection,
+        IReadOnlyList<SkillTier> selectedTiers,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(definedTierLiterals);
-        ArgumentNullException.ThrowIfNull(selection);
+        ArgumentNullException.ThrowIfNull(selectedTiers);
         cancellationToken.ThrowIfCancellationRequested();
 
         var definedTiersResult = SkillTierLiteralParser.ParseDefinedTiers(definedTierLiterals);
@@ -107,9 +107,9 @@ public sealed class SkillPackageProvider
             }
         }
 
-        var selectedTiers = selection.ToHashSet();
+        var selectedTierSet = selectedTiers.ToHashSet();
         var packages = packagesResult.Value!
-            .Where(package => selectedTiers.Contains(package.Manifest.Tier))
+            .Where(package => selectedTierSet.Contains(package.Manifest.Tier))
             .OrderBy(static package => package.Manifest.SkillName, StringComparer.Ordinal)
             .ToArray();
 
