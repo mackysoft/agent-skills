@@ -11,15 +11,17 @@ public static class SkillTierSelection
     /// <returns> The normalized selected tiers or an input failure. </returns>
     public static SkillOperationResult<IReadOnlyList<SkillTier>> Parse (
         IReadOnlyList<string> definedTierLiterals,
-        IReadOnlyList<string>? selectedTierLiterals)
+        IReadOnlyList<string> selectedTierLiterals)
     {
+        ArgumentNullException.ThrowIfNull(selectedTierLiterals);
+
         var definedTiersResult = ParseDefinedTiers(definedTierLiterals);
         if (!definedTiersResult.IsSuccess)
         {
             return definedTiersResult;
         }
 
-        if (selectedTierLiterals is null || selectedTierLiterals.Count == 0)
+        if (selectedTierLiterals.Count == 0)
         {
             return SkillOperationResult<IReadOnlyList<SkillTier>>.FailureResult(
                 SkillFailureCodes.InputInvalid,

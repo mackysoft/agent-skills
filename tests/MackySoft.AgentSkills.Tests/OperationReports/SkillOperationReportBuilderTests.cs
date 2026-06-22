@@ -20,7 +20,7 @@ public sealed class SkillOperationReportBuilderTests
     public void CreateInstallReport_ProjectsActionsCountsAndFileDetails ()
     {
         var targetRoot = Path.GetFullPath("install-report-target");
-        var context = CreateContext(tiers: [new SkillTier("basic"), new SkillTier("advanced")]);
+        var context = CreateContext([new SkillTier("basic"), new SkillTier("advanced")]);
         var result = new SkillInstallResult(
             targetRoot,
             [
@@ -539,7 +539,7 @@ public sealed class SkillOperationReportBuilderTests
 
         Assert.Throws<ArgumentException>(() => SkillOperationReportBuilder.CreateInstallReport(
             result,
-            new SkillOperationReportContext(new ClaudeSkillHostAdapter().Descriptor, SkillScopeKind.Project)));
+            new SkillOperationReportContext(new ClaudeSkillHostAdapter().Descriptor, SkillScopeKind.Project, [new SkillTier("basic")])));
     }
 
     [Fact]
@@ -602,7 +602,7 @@ public sealed class SkillOperationReportBuilderTests
 
         Assert.Throws<ArgumentException>(() => SkillOperationReportBuilder.CreateInstallReport(
             result,
-            new SkillOperationReportContext(descriptor, SkillScopeKind.Project)));
+            new SkillOperationReportContext(descriptor, SkillScopeKind.Project, [new SkillTier("basic")])));
     }
 
     [Fact]
@@ -616,7 +616,8 @@ public sealed class SkillOperationReportBuilderTests
             "/tmp/agent-skills.zip",
             packages,
             descriptor,
-            SkillExportFormat.Zip));
+            SkillExportFormat.Zip,
+            [new SkillTier("basic")]));
     }
 
     [Fact]
@@ -630,7 +631,8 @@ public sealed class SkillOperationReportBuilderTests
             "/tmp/agent-skills.zip",
             packages,
             descriptor,
-            SkillExportFormat.Zip));
+            SkillExportFormat.Zip,
+            [new SkillTier("basic")]));
     }
 
     private static SkillInstallIdentity CreateIdentity (
@@ -647,9 +649,24 @@ public sealed class SkillOperationReportBuilderTests
 
     private static SkillHostDescriptor OpenAiDescriptor => new OpenAiSkillHostAdapter().Descriptor;
 
+    private static SkillOperationReportContext CreateContext ()
+    {
+        return CreateContext([new SkillTier("basic")]);
+    }
+
+    private static SkillOperationReportContext CreateContext (SkillScopeKind scope)
+    {
+        return CreateContext(scope, [new SkillTier("basic")]);
+    }
+
+    private static SkillOperationReportContext CreateContext (IReadOnlyList<SkillTier> tiers)
+    {
+        return CreateContext(SkillScopeKind.Project, tiers);
+    }
+
     private static SkillOperationReportContext CreateContext (
-        SkillScopeKind scope = SkillScopeKind.Project,
-        IReadOnlyList<SkillTier>? tiers = null)
+        SkillScopeKind scope,
+        IReadOnlyList<SkillTier> tiers)
     {
         return new SkillOperationReportContext(OpenAiDescriptor, scope, tiers);
     }

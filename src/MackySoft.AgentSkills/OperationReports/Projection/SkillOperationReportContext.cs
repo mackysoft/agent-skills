@@ -11,8 +11,8 @@ namespace MackySoft.AgentSkills.OperationReports.Projection;
 public sealed record SkillOperationReportContext (
     SkillHostDescriptor HostDescriptor,
     SkillScopeKind Scope,
-    IReadOnlyList<SkillTier>? Tiers = null)
+    IReadOnlyList<SkillTier> Tiers)
 {
-    /// <summary> Gets selected product-owned SKILL tiers, or an empty list when the caller did not provide any. </summary>
-    public IReadOnlyList<SkillTier> Tiers { get; init; } = Tiers ?? Array.Empty<SkillTier>();
+    /// <summary> Gets selected product-owned SKILL tiers. </summary>
+    public IReadOnlyList<SkillTier> Tiers { get; init; } = Tiers ?? throw new ArgumentNullException(nameof(Tiers));
 }

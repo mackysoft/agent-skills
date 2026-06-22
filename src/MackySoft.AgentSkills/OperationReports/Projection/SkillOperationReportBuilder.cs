@@ -19,12 +19,13 @@ public static class SkillOperationReportBuilder
     /// <summary> Creates list report data from canonical packages and host descriptors. </summary>
     /// <param name="packages"> The canonical packages to list. Must not be <see langword="null" />. </param>
     /// <param name="hostAdapters"> The supported host adapter set. Must not be <see langword="null" />. </param>
+    /// <param name="tiers"> The selected product-owned SKILL tiers. Must not be <see langword="null" />. </param>
     /// <returns> A report whose skills and hosts are sorted using ordinal comparison. </returns>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="packages" /> or <paramref name="hostAdapters" /> is <see langword="null" />. </exception>
+    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="packages" />, <paramref name="hostAdapters" />, <paramref name="tiers" />, or an item in <paramref name="tiers" /> is <see langword="null" />. </exception>
     public static SkillListReport CreateListReport (
         IReadOnlyList<CanonicalSkillPackage> packages,
         SkillHostAdapterSet hostAdapters,
-        IReadOnlyList<SkillTier>? tiers = null)
+        IReadOnlyList<SkillTier> tiers)
     {
         ArgumentNullException.ThrowIfNull(packages);
         ArgumentNullException.ThrowIfNull(hostAdapters);
@@ -58,8 +59,9 @@ public static class SkillOperationReportBuilder
     /// <param name="packages"> The exported packages. Must not be <see langword="null" />. </param>
     /// <param name="hostDescriptor"> The descriptor for the host used for export. Must not be <see langword="null" />. </param>
     /// <param name="format"> The export format used for export. </param>
+    /// <param name="tiers"> The selected product-owned SKILL tiers. Must not be <see langword="null" />. </param>
     /// <returns> A report whose skill names are sorted using ordinal comparison. </returns>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="packages" /> or <paramref name="hostDescriptor" /> is <see langword="null" />. </exception>
+    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="packages" />, <paramref name="hostDescriptor" />, <paramref name="tiers" />, or an item in <paramref name="tiers" /> is <see langword="null" />. </exception>
     /// <exception cref="ArgumentException"> Thrown when <paramref name="outputPath" />, the host key, or reload guidance is null, empty, or whitespace. </exception>
     /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="format" /> is not a supported export format. </exception>
     public static SkillExportReport CreateExportReport (
@@ -67,7 +69,7 @@ public static class SkillOperationReportBuilder
         IReadOnlyList<CanonicalSkillPackage> packages,
         SkillHostDescriptor hostDescriptor,
         SkillExportFormat format,
-        IReadOnlyList<SkillTier>? tiers = null)
+        IReadOnlyList<SkillTier> tiers)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
         ArgumentNullException.ThrowIfNull(packages);
@@ -197,13 +199,14 @@ public static class SkillOperationReportBuilder
     /// <summary> Creates product-neutral report data from a doctor result. </summary>
     /// <param name="result"> The doctor result to report. Must not be <see langword="null" />. </param>
     /// <param name="scope"> The install scope used to resolve the diagnosed target root. </param>
+    /// <param name="tiers"> The selected product-owned SKILL tiers. Must not be <see langword="null" />. </param>
     /// <returns> A report whose diagnostics are sorted deterministically. </returns>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="result" /> is <see langword="null" />. </exception>
+    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="result" />, <paramref name="tiers" />, or an item in <paramref name="tiers" /> is <see langword="null" />. </exception>
     /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="scope" /> is not a supported install scope. </exception>
     public static SkillDoctorReport CreateDoctorReport (
         SkillDoctorResult result,
         SkillScopeKind scope,
-        IReadOnlyList<SkillTier>? tiers = null)
+        IReadOnlyList<SkillTier> tiers)
     {
         ArgumentNullException.ThrowIfNull(result);
 
@@ -293,10 +296,12 @@ public static class SkillOperationReportBuilder
                 static action => action.Status));
     }
 
-    private static IReadOnlyList<string> CreateTierLiterals (IReadOnlyList<SkillTier>? tiers)
+    private static IReadOnlyList<string> CreateTierLiterals (IReadOnlyList<SkillTier> tiers)
     {
+        ArgumentNullException.ThrowIfNull(tiers);
+
         var literals = new List<string>();
-        foreach (var tier in tiers ?? Array.Empty<SkillTier>())
+        foreach (var tier in tiers)
         {
             ArgumentNullException.ThrowIfNull(tier);
             literals.Add(tier.Value);
