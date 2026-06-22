@@ -8,12 +8,10 @@ public static class SkillTierSelection
     /// <summary> Parses selected tier literals against product-owned defined tier literals. </summary>
     /// <param name="definedTierLiterals"> The complete product-owned tier literals. </param>
     /// <param name="selectedTierLiterals"> The selected tier literals. </param>
-    /// <param name="requireAny"> Whether an empty selection is rejected. </param>
     /// <returns> The normalized selected tiers or an input failure. </returns>
     public static SkillOperationResult<IReadOnlyList<SkillTier>> Parse (
         IReadOnlyList<string> definedTierLiterals,
-        IReadOnlyList<string>? selectedTierLiterals,
-        bool requireAny = true)
+        IReadOnlyList<string>? selectedTierLiterals)
     {
         var definedTiersResult = ParseDefinedTiers(definedTierLiterals);
         if (!definedTiersResult.IsSuccess)
@@ -23,11 +21,9 @@ public static class SkillTierSelection
 
         if (selectedTierLiterals is null || selectedTierLiterals.Count == 0)
         {
-            return requireAny
-                ? SkillOperationResult<IReadOnlyList<SkillTier>>.FailureResult(
-                    SkillFailureCodes.InputInvalid,
-                    "At least one SKILL tier must be selected.")
-                : SkillOperationResult<IReadOnlyList<SkillTier>>.Success(Array.Empty<SkillTier>());
+            return SkillOperationResult<IReadOnlyList<SkillTier>>.FailureResult(
+                SkillFailureCodes.InputInvalid,
+                "At least one SKILL tier must be selected.");
         }
 
         var definedTiers = definedTiersResult.Value!;

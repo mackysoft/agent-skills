@@ -84,7 +84,7 @@ public sealed class SkillSourceDefinitionReaderTests
 
     [Theory]
     [InlineData("")]
-    [InlineData("Basic")]
+    [InlineData("Tier")]
     [InlineData("basic_tier")]
     [InlineData("-basic")]
     [Trait("Size", "Small")]

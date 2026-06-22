@@ -37,7 +37,7 @@ public sealed class SkillTierSelectionTests
 
     [Theory]
     [InlineData("")]
-    [InlineData("Advanced")]
+    [InlineData("Tier")]
     [InlineData("developer_tier")]
     [Trait("Size", "Small")]
     public void ParseDefinedTiers_RejectsInvalidLiteral (string literal)
@@ -61,7 +61,7 @@ public sealed class SkillTierSelectionTests
     }
 
     [Theory]
-    [InlineData("Basic")]
+    [InlineData("Tier")]
     [InlineData("advanced ")]
     [InlineData("unknown")]
     [Trait("Size", "Small")]
