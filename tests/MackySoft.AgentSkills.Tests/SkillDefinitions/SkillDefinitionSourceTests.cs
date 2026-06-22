@@ -21,6 +21,7 @@ public sealed class SkillDefinitionSourceTests
         "skillName",
         "displayName",
         "description",
+        "tier",
         "references",
     ];
 
@@ -72,6 +73,7 @@ public sealed class SkillDefinitionSourceTests
             var description = root.GetProperty("description").GetString();
             Assert.False(string.IsNullOrWhiteSpace(description));
             Assert.InRange(description.Length, 1, 1024);
+            Assert.Equal("basic", root.GetProperty("tier").GetString());
         }
     }
 

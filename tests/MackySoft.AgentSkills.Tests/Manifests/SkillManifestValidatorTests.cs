@@ -1,5 +1,6 @@
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.AgentSkills.Tiers;
 
 namespace MackySoft.AgentSkills.Tests.Manifests;
 
@@ -72,6 +73,7 @@ public sealed class SkillManifestValidatorTests
             WithComputedManifestDigest(valid with { SchemaVersion = 0 }),
             WithComputedManifestDigest(valid with { DisplayName = "" }),
             WithComputedManifestDigest(valid with { Description = "" }),
+            valid with { Tier = null! },
             WithComputedManifestDigest(valid with { ContentDigest = "not-hex" }),
             valid with { ManifestDigest = "not-hex" },
             WithComputedManifestDigest(valid with { HostArtifacts = valid.HostArtifacts.Where(static artifact => artifact.Host != "copilot").ToArray() }),
@@ -91,6 +93,7 @@ public sealed class SkillManifestValidatorTests
             skillName,
             "Sample Skill",
             "Use this sample skill for tests.",
+            new SkillTier("basic"),
             new string('0', 64),
             string.Empty,
             [

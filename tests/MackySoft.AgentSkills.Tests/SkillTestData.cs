@@ -20,6 +20,7 @@ using MackySoft.AgentSkills.Materialization;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.AgentSkills.Sources;
+using MackySoft.AgentSkills.Tiers;
 
 namespace MackySoft.AgentSkills.Tests;
 
@@ -282,6 +283,7 @@ internal static class SkillTestData
             SkillName,
             DisplayName,
             Description,
+            new SkillTier("basic"),
             contentDigest,
             string.Empty,
             hostArtifacts);

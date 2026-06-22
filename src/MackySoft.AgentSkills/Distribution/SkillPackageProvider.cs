@@ -1,5 +1,6 @@
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.AgentSkills.Tiers;
 
 namespace MackySoft.AgentSkills.Distribution;
 
@@ -41,5 +42,77 @@ public sealed class SkillPackageProvider
         }
 
         return await packageReader.ReadAllAsync(packageRoot, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary> Gets bundled SKILL packages that exactly match selected product-owned tier literals. </summary>
+    /// <param name="definedTierLiterals"> The complete product-owned tier literals. </param>
+    /// <param name="selectedTierLiterals"> The selected product tier literals. </param>
+    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
+    /// <returns> The matching canonical packages, an empty list when the selected tiers are valid but have no packages, or a package-resolution failure. </returns>
+    public async ValueTask<SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>> GetPackagesAsync (
+        IReadOnlyList<string> definedTierLiterals,
+        IReadOnlyList<string> selectedTierLiterals,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(definedTierLiterals);
+        ArgumentNullException.ThrowIfNull(selectedTierLiterals);
+
+        var selectionResult = SkillTierSelection.Parse(definedTierLiterals, selectedTierLiterals);
+        if (!selectionResult.IsSuccess)
+        {
+            return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
+                selectionResult.Failure!.Code,
+                selectionResult.Failure.Message);
+        }
+
+        return await GetPackagesAsync(definedTierLiterals, selectionResult.Value!, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary> Gets bundled SKILL packages that exactly match a normalized product tier selection. </summary>
+    /// <param name="definedTierLiterals"> The complete product-owned tier literals. </param>
+    /// <param name="selection"> The normalized tier selection. </param>
+    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
+    /// <returns> The matching canonical packages, an empty list when the selected tiers are valid but have no packages, or a package-resolution failure. </returns>
+    public async ValueTask<SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>> GetPackagesAsync (
+        IReadOnlyList<string> definedTierLiterals,
+        IReadOnlyList<SkillTier> selection,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(definedTierLiterals);
+        ArgumentNullException.ThrowIfNull(selection);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var definedTiersResult = SkillTierSelection.ParseDefinedTiers(definedTierLiterals);
+        if (!definedTiersResult.IsSuccess)
+        {
+            return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
+                definedTiersResult.Failure!.Code,
+                definedTiersResult.Failure.Message);
+        }
+
+        var packagesResult = await GetPackagesAsync(cancellationToken).ConfigureAwait(false);
+        if (!packagesResult.IsSuccess)
+        {
+            return packagesResult;
+        }
+
+        var definedTiers = definedTiersResult.Value!.ToHashSet();
+        foreach (var package in packagesResult.Value!)
+        {
+            if (!definedTiers.Contains(package.Manifest.Tier))
+            {
+                return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
+                    SkillFailureCodes.ManifestInvalid,
+                    $"Generated SKILL package has an undefined tier: {package.Manifest.SkillName}/{package.Manifest.Tier.Value}");
+            }
+        }
+
+        var selectedTiers = selection.ToHashSet();
+        var packages = packagesResult.Value!
+            .Where(package => selectedTiers.Contains(package.Manifest.Tier))
+            .OrderBy(static package => package.Manifest.SkillName, StringComparer.Ordinal)
+            .ToArray();
+
+        return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.Success(packages);
     }
 }

@@ -10,6 +10,7 @@ using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.AgentSkills.Sources;
+using MackySoft.AgentSkills.Tiers;
 using MackySoft.Tests;
 
 namespace MackySoft.AgentSkills.Tests.Generation;
@@ -32,6 +33,7 @@ public sealed class SkillPackageGenerationServiceTests
             Assert.True(validator.Validate(package.Manifest).IsSuccess);
             Assert.False(string.IsNullOrWhiteSpace(package.Manifest.DisplayName));
             Assert.False(string.IsNullOrWhiteSpace(package.Manifest.Description));
+            Assert.Equal("basic", package.Manifest.Tier.Value);
             Assert.Equal(
                 new[] { ClaudeSkillHostAdapter.HostKey, CopilotSkillHostAdapter.HostKey, OpenAiSkillHostAdapter.HostKey },
                 package.Manifest.HostArtifacts.Select(static artifact => artifact.Host).ToArray());
@@ -138,6 +140,7 @@ public sealed class SkillPackageGenerationServiceTests
                     "ordinal-culture-contract",
                     "Ordinal Culture Contract",
                     "Use this skill to verify ordinal package ordering.",
+                    new SkillTier("basic"),
                     ["a.md", "B.md"]),
                 "# Ordinal Culture Contract\n",
                 [
