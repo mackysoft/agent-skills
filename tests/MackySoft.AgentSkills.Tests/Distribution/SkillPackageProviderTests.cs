@@ -39,6 +39,34 @@ public sealed class SkillPackageProviderTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task GetPackagesAsync_Fails_WhenNormalizedSelectionIsEmptyAsync ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "empty-normalized-selection");
+        var provider = CreateProvider(scope.FullPath);
+
+        var result = await provider.GetPackagesAsync(DefinedTierLiterals, Array.Empty<SkillTier>(), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Contains("At least one SKILL tier", result.Failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task GetPackagesAsync_Fails_WhenNormalizedSelectionContainsUndefinedTierAsync ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "undefined-normalized-selection");
+        var provider = CreateProvider(scope.FullPath);
+
+        var result = await provider.GetPackagesAsync(DefinedTierLiterals, [new SkillTier("internal")], CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Contains("Unsupported SKILL tier: internal", result.Failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task GetPackagesAsync_Fails_WhenGeneratedPackageUsesUndefinedTierAsync ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "undefined-tier");

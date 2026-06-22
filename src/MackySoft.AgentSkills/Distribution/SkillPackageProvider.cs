@@ -73,6 +73,7 @@ public sealed class SkillPackageProvider
     /// <param name="selectedTiers"> The normalized selected product-owned SKILL tiers. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The matching canonical packages, an empty list when the selected tiers are valid but have no packages, or a package-resolution failure. </returns>
+    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="definedTierLiterals" />, <paramref name="selectedTiers" />, or an item in <paramref name="selectedTiers" /> is <see langword="null" />. </exception>
     public async ValueTask<SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>> GetPackagesAsync (
         IReadOnlyList<string> definedTierLiterals,
         IReadOnlyList<SkillTier> selectedTiers,
@@ -90,13 +91,35 @@ public sealed class SkillPackageProvider
                 definedTiersResult.Failure.Message);
         }
 
+        if (selectedTiers.Count == 0)
+        {
+            return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
+                SkillFailureCodes.InputInvalid,
+                "At least one SKILL tier must be selected.");
+        }
+
+        var definedTiers = definedTiersResult.Value!.ToHashSet();
+        var selectedTierSet = new HashSet<SkillTier>();
+        foreach (var selectedTier in selectedTiers)
+        {
+            ArgumentNullException.ThrowIfNull(selectedTier);
+
+            if (!definedTiers.Contains(selectedTier))
+            {
+                return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
+                    SkillFailureCodes.InputInvalid,
+                    $"Unsupported SKILL tier: {selectedTier.Value}. Supported tiers: {string.Join(", ", definedTiersResult.Value!.Select(static tier => tier.Value))}.");
+            }
+
+            selectedTierSet.Add(selectedTier);
+        }
+
         var packagesResult = await GetPackagesAsync(cancellationToken).ConfigureAwait(false);
         if (!packagesResult.IsSuccess)
         {
             return packagesResult;
         }
 
-        var definedTiers = definedTiersResult.Value!.ToHashSet();
         foreach (var package in packagesResult.Value!)
         {
             if (!definedTiers.Contains(package.Manifest.Tier))
@@ -107,7 +130,6 @@ public sealed class SkillPackageProvider
             }
         }
 
-        var selectedTierSet = selectedTiers.ToHashSet();
         var packages = packagesResult.Value!
             .Where(package => selectedTierSet.Contains(package.Manifest.Tier))
             .OrderBy(static package => package.Manifest.SkillName, StringComparer.Ordinal)

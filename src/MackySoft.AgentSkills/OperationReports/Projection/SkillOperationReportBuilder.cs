@@ -29,6 +29,7 @@ public static class SkillOperationReportBuilder
     {
         ArgumentNullException.ThrowIfNull(packages);
         ArgumentNullException.ThrowIfNull(hostAdapters);
+        ArgumentNullException.ThrowIfNull(selectedTiers);
 
         var skills = packages
             .OrderBy(static package => package.Manifest.SkillName, StringComparer.Ordinal)
@@ -73,6 +74,7 @@ public static class SkillOperationReportBuilder
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
         ArgumentNullException.ThrowIfNull(packages);
+        ArgumentNullException.ThrowIfNull(selectedTiers);
         ValidateHostDescriptor(hostDescriptor);
 
         var skills = packages
@@ -209,6 +211,7 @@ public static class SkillOperationReportBuilder
         IReadOnlyList<SkillTier> selectedTiers)
     {
         ArgumentNullException.ThrowIfNull(result);
+        ArgumentNullException.ThrowIfNull(selectedTiers);
 
         var diagnostics = result.Diagnostics
             .OrderBy(static diagnostic => diagnostic.SkillName is null ? 0 : 1)
