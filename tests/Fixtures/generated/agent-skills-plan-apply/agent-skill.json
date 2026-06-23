@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
+  "catalogId": "com.mackysoft.agent-skills",
+  "tier": "basic",
+  "contentDigest": "3fa85c99817a993495afdfde13ae1b089fc040170a5973d88fe4f27375954759",
+  "manifestDigest": "8d3f36ab3c4f5040f71d0ea4972a793ecc3e00ff207b15f919909e4a14108005",
   "skillName": "agent-skills-plan-apply",
   "displayName": "Agent Skills Plan Apply",
   "description": "Use when building, validating, planning, and applying a Agent Skills JSON request for Unity changes. Enforces read -> describe -> build request -> validate -> plan -> call -> verify.",
-  "tier": "basic",
-  "catalogId": "com.mackysoft.agent-skills",
-  "contentDigest": "3fa85c99817a993495afdfde13ae1b089fc040170a5973d88fe4f27375954759",
-  "manifestDigest": "73ac2843d1f3b207fe7288541f0fcc0dd4317cf4f344ff0bb3f7e609dd4ec3ea",
   "hostArtifacts": [
     {
       "host": "claude",

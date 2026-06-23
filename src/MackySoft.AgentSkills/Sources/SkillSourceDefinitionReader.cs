@@ -11,11 +11,11 @@ public sealed class SkillSourceDefinitionReader
     private static readonly string[] ExpectedJsonProperties =
     [
         "schemaVersion",
+        "catalogId",
+        "tier",
         "skillName",
         "displayName",
         "description",
-        "tier",
-        "catalogId",
         "references",
     ];
 
@@ -179,7 +179,7 @@ public sealed class SkillSourceDefinitionReader
         {
             return SkillOperationResult<SkillSourceMetadata>.FailureResult(
                 SkillFailureCodes.SourceInvalid,
-                "skill.json must contain only schemaVersion, skillName, displayName, description, tier, catalogId, and references in canonical order.");
+                "skill.json must contain only schemaVersion, catalogId, tier, skillName, displayName, description, and references in canonical order.");
         }
 
         var schemaVersion = root.GetProperty("schemaVersion").GetInt32();

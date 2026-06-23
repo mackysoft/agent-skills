@@ -18,11 +18,11 @@ public sealed class SkillDefinitionSourceTests
     private static readonly string[] ExpectedJsonProperties =
     [
         "schemaVersion",
+        "catalogId",
+        "tier",
         "skillName",
         "displayName",
         "description",
-        "tier",
-        "catalogId",
         "references",
     ];
 

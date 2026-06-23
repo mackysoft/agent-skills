@@ -100,17 +100,17 @@ public sealed class SkillManifestJsonSerializer
     {
         writer.WriteStartObject();
         writer.WriteNumber("schemaVersion", manifest.SchemaVersion);
-        writer.WriteString("skillName", manifest.SkillName);
-        writer.WriteString("displayName", manifest.DisplayName);
-        writer.WriteString("description", manifest.Description);
-        writer.WriteString("tier", manifest.Tier.Value);
         writer.WriteString("catalogId", manifest.CatalogId.Value);
+        writer.WriteString("tier", manifest.Tier.Value);
         writer.WriteString("contentDigest", manifest.ContentDigest);
         if (includeManifestDigest)
         {
             writer.WriteString("manifestDigest", manifest.ManifestDigest);
         }
 
+        writer.WriteString("skillName", manifest.SkillName);
+        writer.WriteString("displayName", manifest.DisplayName);
+        writer.WriteString("description", manifest.Description);
         writer.WritePropertyName("hostArtifacts");
         writer.WriteStartArray();
 

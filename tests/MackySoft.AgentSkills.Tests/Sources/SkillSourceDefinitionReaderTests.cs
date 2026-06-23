@@ -131,14 +131,14 @@ public sealed class SkillSourceDefinitionReaderTests
             """
             {
               "schemaVersion": 1,
+              "tier": "basic",
+              "catalogId": "com.mackysoft.agent-skills",
               "skillName": "sample-skill",
               "displayName": "Sample Skill",
               "description": "Use when testing source validation.",
               "references": [
                 "reference.md"
-              ],
-              "tier": "basic",
-              "catalogId": "com.mackysoft.agent-skills"
+              ]
             }
             """);
         scope.WriteFile("sample-skill/SKILL.md.template", "# Sample\n");
@@ -162,11 +162,11 @@ public sealed class SkillSourceDefinitionReaderTests
             """
             {
               "schemaVersion": 1,
+              "catalogId": "com.mackysoft.agent-skills",
+              "tier": "basic",
               "skillName": "sample-skill",
               "displayName": "Sample Skill",
               "description": "Use when testing source validation.",
-              "tier": "basic",
-              "catalogId": "com.mackysoft.agent-skills",
               "references": []
             }
             """);
@@ -191,11 +191,11 @@ public sealed class SkillSourceDefinitionReaderTests
             """
             {
               "schemaVersion": 1,
+              "catalogId": "com.mackysoft.agent-skills",
+              "tier": "basic",
               "skillName": "sample-skill",
               "displayName": "Sample Skill",
               "description": "Use when testing source validation.",
-              "tier": "basic",
-              "catalogId": "com.mackysoft.agent-skills",
               "references": [
                 "../escape.md"
               ]
@@ -235,11 +235,11 @@ public sealed class SkillSourceDefinitionReaderTests
             """
             {
               "schemaVersion": 1,
+              "catalogId": "com.mackysoft.agent-skills",
+              "tier": "basic",
               "skillName": "SampleSkill",
               "displayName": "Sample Skill",
               "description": "Use when testing source validation.",
-              "tier": "basic",
-              "catalogId": "com.mackysoft.agent-skills",
               "references": [
                 "reference.md"
               ]
@@ -338,11 +338,11 @@ public sealed class SkillSourceDefinitionReaderTests
             $$"""
             {
               "schemaVersion": 1,
+              "catalogId": "{{catalogId}}",
+              "tier": "{{tier}}",
               "skillName": "sample-skill",
               "displayName": "Sample Skill",
               "description": "Use when testing source validation.",
-              "tier": "{{tier}}",
-              "catalogId": "{{catalogId}}",
               "references": [
                 "reference.md"
               ]{{extraJsonProperty}}

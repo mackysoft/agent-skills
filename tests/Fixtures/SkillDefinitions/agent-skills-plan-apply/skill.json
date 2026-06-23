@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
+  "catalogId": "com.mackysoft.agent-skills",
+  "tier": "basic",
   "skillName": "agent-skills-plan-apply",
   "displayName": "Agent Skills Plan Apply",
   "description": "Use when building, validating, planning, and applying a Agent Skills JSON request for Unity changes. Enforces read -> describe -> build request -> validate -> plan -> call -> verify.",
-  "tier": "basic",
-  "catalogId": "com.mackysoft.agent-skills",
   "references": [
     "request-workflow.md"
   ]
