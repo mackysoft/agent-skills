@@ -16,43 +16,42 @@ namespace MackySoft.AgentSkills.OperationReports.Projection;
 /// <summary> Builds product-neutral reports from AgentSkills operation result models. </summary>
 public static class SkillOperationReportBuilder
 {
-    /// <summary> Creates list report data from canonical packages and host descriptors. </summary>
-    /// <param name="packages"> The canonical packages to list. Must not be <see langword="null" />. </param>
+    /// <summary> Creates list report data from a validated package catalog and host descriptors. </summary>
+    /// <param name="catalog"> The validated bundled package catalog. Must not be <see langword="null" />. </param>
     /// <param name="hostAdapters"> The supported host adapter set. Must not be <see langword="null" />. </param>
-    /// <param name="selectedTiers"> The selected product-owned SKILL tiers. Must not be <see langword="null" />. </param>
     /// <returns> A report whose skills and hosts are sorted using ordinal comparison. </returns>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="packages" />, <paramref name="hostAdapters" />, <paramref name="selectedTiers" />, or an item in <paramref name="selectedTiers" /> is <see langword="null" />. </exception>
     public static SkillListReport CreateListReport (
+        SkillPackageCatalog catalog,
+        SkillHostAdapterSet hostAdapters)
+    {
+        ArgumentNullException.ThrowIfNull(catalog);
+
+        return CreateListReport(catalog.Packages, hostAdapters, catalog.SelectedTiers, catalog.AvailableTiers);
+    }
+
+    private static SkillListReport CreateListReport (
         IReadOnlyList<CanonicalSkillPackage> packages,
         SkillHostAdapterSet hostAdapters,
-        IReadOnlyList<SkillTier> selectedTiers)
+        IReadOnlyList<SkillTier> selectedTiers,
+        IReadOnlyList<SkillTierPackageCount> availableTiers)
     {
         ArgumentNullException.ThrowIfNull(packages);
         ArgumentNullException.ThrowIfNull(hostAdapters);
         ArgumentNullException.ThrowIfNull(selectedTiers);
+        ArgumentNullException.ThrowIfNull(availableTiers);
 
         var skills = packages
             .OrderBy(static package => package.Manifest.SkillName, StringComparer.Ordinal)
             .Select(static package => CreateListSkillReport(package))
             .ToArray();
+        var tierReports = CreateAvailableTierReports(availableTiers);
         var hosts = hostAdapters.Adapters
             .Select(static adapter => adapter.Descriptor)
             .OrderBy(static descriptor => descriptor.HostKey, StringComparer.Ordinal)
             .Select(static descriptor => CreateHostReport(descriptor))
             .ToArray();
 
-        return new SkillListReport(CreateTierLiterals(selectedTiers), skills, hosts);
-    }
-
-    /// <summary> Creates list report data from canonical packages and host descriptors for one selected tier. </summary>
-    public static SkillListReport CreateListReport (
-        IReadOnlyList<CanonicalSkillPackage> packages,
-        SkillHostAdapterSet hostAdapters,
-        SkillTier tier)
-    {
-        ArgumentNullException.ThrowIfNull(tier);
-
-        return CreateListReport(packages, hostAdapters, [tier]);
+        return new SkillListReport(CreateTierLiterals(selectedTiers), tierReports, skills, hosts);
     }
 
     /// <summary> Creates export report data from a successful export operation. </summary>
@@ -311,6 +310,21 @@ public static class SkillOperationReportBuilder
         }
 
         return literals;
+    }
+
+    private static IReadOnlyList<SkillListTierReport> CreateAvailableTierReports (IReadOnlyList<SkillTierPackageCount> availableTiers)
+    {
+        ArgumentNullException.ThrowIfNull(availableTiers);
+
+        var reports = new List<SkillListTierReport>(availableTiers.Count);
+        foreach (var availableTier in availableTiers)
+        {
+            ArgumentNullException.ThrowIfNull(availableTier);
+            ArgumentNullException.ThrowIfNull(availableTier.Tier);
+            reports.Add(new SkillListTierReport(availableTier.Tier.Value, availableTier.PackageCount));
+        }
+
+        return reports;
     }
 
     private static SkillOperationActionReport CreateActionReport<TAction> (

@@ -199,10 +199,22 @@ public sealed class SkillOperationReportBuilderTests
     {
         var packages = (await SkillTestData.GenerateFixturePackagesAsync()).Reverse().ToArray();
         var hostAdapters = SkillTestData.CreateDefaultHostAdapterSet();
+        var catalog = new SkillPackageCatalog(
+            [new SkillTier("basic")],
+            [
+                new SkillTierPackageCount(new SkillTier("basic"), packages.Length),
+                new SkillTierPackageCount(new SkillTier("advanced"), 0),
+                new SkillTierPackageCount(new SkillTier("developer"), 0),
+            ],
+            packages);
 
-        var report = SkillOperationReportBuilder.CreateListReport(packages, hostAdapters, [new SkillTier("basic")]);
+        var report = SkillOperationReportBuilder.CreateListReport(
+            catalog,
+            hostAdapters);
 
         Assert.Equal(["basic"], report.Tiers);
+        Assert.Equal(["basic", "advanced", "developer"], report.AvailableTiers.Select(static tier => tier.Tier).ToArray());
+        Assert.Equal([packages.Length, 0, 0], report.AvailableTiers.Select(static tier => tier.SkillCount).ToArray());
         Assert.Equal(SkillTestData.ExpectedSkillNames, report.Skills.Select(static skill => skill.SkillName).ToArray());
         Assert.All(report.Skills, static skill => Assert.Equal("basic", skill.Tier));
         Assert.Equal(["claude", "copilot", "openai"], report.SupportedHosts.Select(static host => host.Host).ToArray());
@@ -331,6 +343,7 @@ public sealed class SkillOperationReportBuilderTests
             "MackySoft.AgentSkills.OperationReports.Contracts.SkillHostReport",
             "MackySoft.AgentSkills.OperationReports.Contracts.SkillListReport",
             "MackySoft.AgentSkills.OperationReports.Contracts.SkillListSkillReport",
+            "MackySoft.AgentSkills.OperationReports.Contracts.SkillListTierReport",
             "MackySoft.AgentSkills.OperationReports.Contracts.SkillOperationActionReport",
             "MackySoft.AgentSkills.OperationReports.Contracts.SkillOperationCountReport",
             "MackySoft.AgentSkills.OperationReports.Contracts.SkillOperationFileChangesReport",
@@ -394,6 +407,7 @@ public sealed class SkillOperationReportBuilderTests
             ("ReloadGuidance", typeof(string)));
         AssertProperties<SkillListReport>(
             ("Tiers", typeof(IReadOnlyList<string>)),
+            ("AvailableTiers", typeof(IReadOnlyList<SkillListTierReport>)),
             ("Skills", typeof(IReadOnlyList<SkillListSkillReport>)),
             ("SupportedHosts", typeof(IReadOnlyList<SkillHostReport>)));
         AssertProperties<SkillListSkillReport>(
@@ -405,6 +419,9 @@ public sealed class SkillOperationReportBuilderTests
             ("ContentDigest", typeof(string)),
             ("ManifestDigest", typeof(string)),
             ("HostArtifacts", typeof(IReadOnlyList<SkillHostArtifactReport>)));
+        AssertProperties<SkillListTierReport>(
+            ("Tier", typeof(string)),
+            ("SkillCount", typeof(int)));
         AssertProperties<SkillOperationActionReport>(
             ("SkillName", typeof(string)),
             ("Action", typeof(string)),
