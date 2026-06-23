@@ -80,7 +80,7 @@ Agent Skills does not define a fixed tier set. Each product owns the complete se
 
 Tier literals are stable machine-readable contract values stored in `skill.json` and `agent-skill.json`. They must be lowercase ASCII letters or digits, may contain `-` after the first character, and are matched exactly. The framework does not trim, case-fold, or map labels.
 
-Product CLIs should treat tier selection as required user input and pass the product-owned tier definitions into the runtime package provider:
+Product CLIs should require tier selection for operations that materialize, update, uninstall, export, or diagnose skills. Discovery commands can omit selection by using the full defined tier set:
 
 ```csharp
 string[] definedTiers = ["basic", "advanced", "developer"];
@@ -93,6 +93,8 @@ var packagesResult = await packageProvider.GetPackagesAsync(
 ```
 
 `SkillTierLiteralParser.ParseSelectedTiers` validates and normalizes raw CLI literals when a product wants to parse once and pass `IReadOnlyList<SkillTier>` onward. `SkillPackageProvider.GetPackagesAsync` verifies the product definitions, rejects unsupported selected tiers, rejects generated packages whose manifest tier is not defined by the product, and returns an empty package list when the selected tiers are valid but no bundled package belongs to them.
+
+Use `SkillPackageProvider.GetPackageCatalogAsync` for list-style discovery. The catalog records the normalized selected tiers, returns only matching packages, and includes every product-defined tier with its bundled package count, including valid tiers that currently contain no skills. Report builders consume the catalog directly so `tiers`, `availableTiers`, and `skills` come from one validated provider result.
 
 ## Runtime Library
 
