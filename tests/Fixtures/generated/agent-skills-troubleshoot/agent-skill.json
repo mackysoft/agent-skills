@@ -3,8 +3,9 @@
   "skillName": "agent-skills-troubleshoot",
   "displayName": "Agent Skills Troubleshoot",
   "description": "Use when diagnosing Agent Skills daemon, lifecycle, readIndex freshness, timeout, compile or domain reload, logs, IPC, and Unity execution failures.",
+  "tier": "basic",
   "contentDigest": "b8b988d38d0ef44d1d701e575f4d64a7861751b69a03333179b3e89db3916748",
-  "manifestDigest": "95525412c72d61eea055f040850c5ca652f19929bb7c5fed9d56d6d5afaf314a",
+  "manifestDigest": "a061a7c37c8ab291243ee08c71a976bb6182f6e69e948c03d220991f7dbc3cc2",
   "hostArtifacts": [
     {
       "host": "claude",

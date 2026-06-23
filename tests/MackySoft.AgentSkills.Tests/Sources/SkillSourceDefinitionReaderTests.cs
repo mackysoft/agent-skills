@@ -55,6 +55,83 @@ public sealed class SkillSourceDefinitionReaderTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task ReadOneAsync_Fails_WhenTierIsMissing ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "missing-tier");
+        var skillDirectory = scope.CreateDirectory("sample-skill");
+        scope.WriteFile(
+            "sample-skill/skill.json",
+            """
+            {
+              "schemaVersion": 1,
+              "skillName": "sample-skill",
+              "displayName": "Sample Skill",
+              "description": "Use when testing source validation.",
+              "references": [
+                "reference.md"
+              ]
+            }
+            """);
+        scope.WriteFile("sample-skill/SKILL.md.template", "# Sample\n");
+        scope.WriteFile("sample-skill/references/reference.md.template", "# Reference\n");
+        var reader = new SkillSourceDefinitionReader();
+
+        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("Tier")]
+    [InlineData("basic_tier")]
+    [InlineData("-basic")]
+    [Trait("Size", "Small")]
+    public async Task ReadOneAsync_Fails_WhenTierLiteralIsInvalid (string tier)
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "invalid-tier");
+        var skillDirectory = WriteMinimalDefinition(scope, tier: tier);
+        var reader = new SkillSourceDefinitionReader();
+
+        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task ReadOneAsync_Fails_WhenTierPropertyOrderIsNotCanonical ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "tier-order");
+        var skillDirectory = scope.CreateDirectory("sample-skill");
+        scope.WriteFile(
+            "sample-skill/skill.json",
+            """
+            {
+              "schemaVersion": 1,
+              "skillName": "sample-skill",
+              "displayName": "Sample Skill",
+              "description": "Use when testing source validation.",
+              "references": [
+                "reference.md"
+              ],
+              "tier": "basic"
+            }
+            """);
+        scope.WriteFile("sample-skill/SKILL.md.template", "# Sample\n");
+        scope.WriteFile("sample-skill/references/reference.md.template", "# Reference\n");
+        var reader = new SkillSourceDefinitionReader();
+
+        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task ReadOneAsync_Fails_WhenReferenceEscapesDirectory ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "reference-traversal");
@@ -67,6 +144,7 @@ public sealed class SkillSourceDefinitionReaderTests
               "skillName": "sample-skill",
               "displayName": "Sample Skill",
               "description": "Use when testing source validation.",
+              "tier": "basic",
               "references": [
                 "../escape.md"
               ]
@@ -109,6 +187,7 @@ public sealed class SkillSourceDefinitionReaderTests
               "skillName": "SampleSkill",
               "displayName": "Sample Skill",
               "description": "Use when testing source validation.",
+              "tier": "basic",
               "references": [
                 "reference.md"
               ]
@@ -196,6 +275,7 @@ public sealed class SkillSourceDefinitionReaderTests
     private static string WriteMinimalDefinition (
         TestDirectoryScope scope,
         string extraJsonProperty = "",
+        string tier = "basic",
         bool writeSkillTemplate = true,
         bool writeReferenceTemplate = true)
     {
@@ -208,6 +288,7 @@ public sealed class SkillSourceDefinitionReaderTests
               "skillName": "sample-skill",
               "displayName": "Sample Skill",
               "description": "Use when testing source validation.",
+              "tier": "{{tier}}",
               "references": [
                 "reference.md"
               ]{{extraJsonProperty}}

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.AgentSkills.Tiers;
 
 namespace MackySoft.AgentSkills.Sources;
 
@@ -12,6 +13,7 @@ public sealed class SkillSourceDefinitionReader
         "skillName",
         "displayName",
         "description",
+        "tier",
         "references",
     ];
 
@@ -175,7 +177,7 @@ public sealed class SkillSourceDefinitionReader
         {
             return SkillOperationResult<SkillSourceMetadata>.FailureResult(
                 SkillFailureCodes.SourceInvalid,
-                "skill.json must contain only schemaVersion, skillName, displayName, description, and references in canonical order.");
+                "skill.json must contain only schemaVersion, skillName, displayName, description, tier, and references in canonical order.");
         }
 
         var schemaVersion = root.GetProperty("schemaVersion").GetInt32();
@@ -206,6 +208,11 @@ public sealed class SkillSourceDefinitionReader
             return SkillOperationResult<SkillSourceMetadata>.FailureResult(SkillFailureCodes.SourceInvalid, $"skill.json displayName and description are invalid for '{skillName}'.");
         }
 
+        if (!SkillTier.TryCreate(root.GetProperty("tier").GetString(), out var tier))
+        {
+            return SkillOperationResult<SkillSourceMetadata>.FailureResult(SkillFailureCodes.SourceInvalid, $"skill.json tier is invalid for '{skillName}'.");
+        }
+
         var references = root.GetProperty("references").EnumerateArray().Select(static element => element.GetString() ?? string.Empty).ToArray();
         if (references.Length == 0 || references.Distinct(StringComparer.Ordinal).Count() != references.Length)
         {
@@ -221,7 +228,7 @@ public sealed class SkillSourceDefinitionReader
             }
         }
 
-        return SkillOperationResult<SkillSourceMetadata>.Success(new SkillSourceMetadata(schemaVersion, skillName, displayName, description, references));
+        return SkillOperationResult<SkillSourceMetadata>.Success(new SkillSourceMetadata(schemaVersion, skillName, displayName, description, tier!, references));
     }
 
     private static SkillOperationResult<IReadOnlyList<SkillSourceDefinition>> Failure (string message)

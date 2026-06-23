@@ -71,6 +71,11 @@ public sealed class SkillExportService
         CancellationToken cancellationToken)
     {
         var fullOutputRoot = Path.GetFullPath(outputRoot);
+        if (packages.Count == 0)
+        {
+            Directory.CreateDirectory(fullOutputRoot);
+        }
+
         foreach (var package in packages.OrderBy(static package => package.Manifest.SkillName, StringComparer.Ordinal))
         {
             var materializedResult = materializationService.Materialize(package, host);

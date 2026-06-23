@@ -65,6 +65,11 @@ public sealed class SkillManifestValidator
             return Failure("agent-skill.json displayName and description must be valid.");
         }
 
+        if (manifest.Tier is null)
+        {
+            return Failure("agent-skill.json tier must be valid.");
+        }
+
         if (!Sha256LowerHex.IsDigestText(manifest.ContentDigest))
         {
             return Failure("agent-skill.json contentDigest must be a lowercase SHA-256 hex digest.");

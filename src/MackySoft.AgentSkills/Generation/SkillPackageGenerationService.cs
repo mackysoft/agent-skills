@@ -100,6 +100,7 @@ public sealed class SkillPackageGenerationService
             definition.Metadata.SkillName,
             definition.Metadata.DisplayName,
             definition.Metadata.Description,
+            definition.Metadata.Tier,
             contentDigest,
             string.Empty,
             hostArtifacts);

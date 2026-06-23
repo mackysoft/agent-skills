@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using MackySoft.AgentSkills.Manifests;
+using MackySoft.AgentSkills.Tiers;
 
 namespace MackySoft.AgentSkills.Tests.Manifests;
 
@@ -16,6 +17,7 @@ public sealed class SkillManifestDigestCalculatorTests
             "  \"skillName\": \"sample-skill\",",
             "  \"displayName\": \"Sample Skill\",",
             "  \"description\": \"Use this sample skill for tests.\",",
+            "  \"tier\": \"basic\",",
             "  \"contentDigest\": \"0000000000000000000000000000000000000000000000000000000000000000\",",
             "  \"hostArtifacts\": [",
             "    {",
@@ -40,6 +42,7 @@ public sealed class SkillManifestDigestCalculatorTests
             "sample-skill",
             "Sample Skill",
             "Use this sample skill for tests.",
+            new SkillTier("basic"),
             new string('0', 64),
             new string('f', 64),
             [

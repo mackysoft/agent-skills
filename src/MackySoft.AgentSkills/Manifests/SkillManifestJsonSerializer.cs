@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.AgentSkills.Tiers;
 
 namespace MackySoft.AgentSkills.Manifests;
 
@@ -67,6 +68,7 @@ public sealed class SkillManifestJsonSerializer
             SkillName: root.GetProperty("skillName").GetString() ?? string.Empty,
             DisplayName: root.GetProperty("displayName").GetString() ?? string.Empty,
             Description: root.GetProperty("description").GetString() ?? string.Empty,
+            Tier: new SkillTier(root.GetProperty("tier").GetString() ?? string.Empty),
             ContentDigest: root.GetProperty("contentDigest").GetString() ?? string.Empty,
             ManifestDigest: root.GetProperty("manifestDigest").GetString() ?? string.Empty,
             HostArtifacts: artifacts);
@@ -99,6 +101,7 @@ public sealed class SkillManifestJsonSerializer
         writer.WriteString("skillName", manifest.SkillName);
         writer.WriteString("displayName", manifest.DisplayName);
         writer.WriteString("description", manifest.Description);
+        writer.WriteString("tier", manifest.Tier.Value);
         writer.WriteString("contentDigest", manifest.ContentDigest);
         if (includeManifestDigest)
         {
