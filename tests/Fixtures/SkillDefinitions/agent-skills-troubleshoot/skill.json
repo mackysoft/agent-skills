@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
+  "catalogId": "com.mackysoft.agent-skills",
+  "tier": "basic",
   "skillName": "agent-skills-troubleshoot",
   "displayName": "Agent Skills Troubleshoot",
   "description": "Use when diagnosing Agent Skills daemon, lifecycle, readIndex freshness, timeout, compile or domain reload, logs, IPC, and Unity execution failures.",
-  "tier": "basic",
-  "catalogId": "com.mackysoft.agent-skills",
   "references": [
     "troubleshooting-workflow.md"
   ]

@@ -33,7 +33,7 @@ public sealed class SkillManifestJsonSerializerTests
         using var document = JsonDocument.Parse(json);
         Assert.Equal(64, document.RootElement.GetProperty("manifestDigest").GetString()?.Length);
         Assert.Equal(
-            new[] { "schemaVersion", "skillName", "displayName", "description", "tier", "catalogId", "contentDigest", "manifestDigest", "hostArtifacts" },
+            new[] { "schemaVersion", "catalogId", "tier", "contentDigest", "manifestDigest", "skillName", "displayName", "description", "hostArtifacts" },
             document.RootElement.EnumerateObject().Select(static property => property.Name).ToArray());
         Assert.Equal(
             new[] { "claude", "copilot", "openai" },
