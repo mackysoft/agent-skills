@@ -20,7 +20,10 @@ public sealed class SkillOperationReportBuilderTests
     public void CreateInstallReport_ProjectsActionsCountsAndFileDetails ()
     {
         var targetRoot = Path.GetFullPath("install-report-target");
-        var context = CreateContext([new SkillTier("basic"), new SkillTier("advanced")]);
+        var context = CreateContext([new SkillTier("basic"), new SkillTier("advanced")]) with
+        {
+            SelectedSkillNames = ["skill-a", "skill-c"],
+        };
         var result = new SkillInstallResult(
             targetRoot,
             [
@@ -64,6 +67,7 @@ public sealed class SkillOperationReportBuilderTests
 
         Assert.Equal(OpenAiSkillHostAdapter.HostKey, report.Host);
         Assert.Equal(["basic", "advanced"], report.Tiers);
+        Assert.Equal(["skill-a", "skill-c"], report.SkillNames);
         Assert.Equal("project", report.Scope);
         Assert.Equal(targetRoot, report.TargetRoot);
         Assert.True(report.DryRun);
@@ -201,6 +205,7 @@ public sealed class SkillOperationReportBuilderTests
         var hostAdapters = SkillTestData.CreateDefaultHostAdapterSet();
         var catalog = new SkillPackageCatalog(
             [new SkillTier("basic")],
+            [packages[0].Manifest.SkillName],
             [
                 new SkillTierPackageCount(new SkillTier("basic"), packages.Length),
                 new SkillTierPackageCount(new SkillTier("advanced"), 0),
@@ -213,6 +218,7 @@ public sealed class SkillOperationReportBuilderTests
             hostAdapters);
 
         Assert.Equal(["basic"], report.Tiers);
+        Assert.Equal([packages[0].Manifest.SkillName], report.SkillNames);
         Assert.Equal(["basic", "advanced", "developer"], report.AvailableTiers.Select(static tier => tier.Tier).ToArray());
         Assert.Equal([packages.Length, 0, 0], report.AvailableTiers.Select(static tier => tier.SkillCount).ToArray());
         Assert.Equal(SkillTestData.ExpectedSkillNames, report.Skills.Select(static skill => skill.SkillName).ToArray());
@@ -240,10 +246,12 @@ public sealed class SkillOperationReportBuilderTests
             packages,
             OpenAiDescriptor,
             SkillExportFormat.Zip,
-            [new SkillTier("basic"), new SkillTier("advanced")]);
+            [new SkillTier("basic"), new SkillTier("advanced")],
+            [packages[0].Manifest.SkillName]);
 
         Assert.Equal(OpenAiSkillHostAdapter.HostKey, report.Host);
         Assert.Equal(["basic", "advanced"], report.Tiers);
+        Assert.Equal([packages[0].Manifest.SkillName], report.SkillNames);
         Assert.Equal("zip", report.Format);
         Assert.Equal("/tmp/agent-skills.zip", report.OutputPath);
         Assert.Equal(SkillTestData.ExpectedSkillNames, report.Skills);
@@ -280,10 +288,15 @@ public sealed class SkillOperationReportBuilderTests
                     "skill-a"),
             ]);
 
-        var report = SkillOperationReportBuilder.CreateDoctorReport(result, SkillScopeKind.Project, new SkillTier("developer"));
+        var report = SkillOperationReportBuilder.CreateDoctorReport(
+            result,
+            SkillScopeKind.Project,
+            [new SkillTier("developer")],
+            ["skill-a"]);
 
         Assert.False(report.IsHealthy);
         Assert.Equal(["developer"], report.Tiers);
+        Assert.Equal(["skill-a"], report.SkillNames);
         Assert.Equal("project", report.Scope);
         Assert.Equal(new string?[] { null, "skill-a", "skill-a", "skill-a", "skill-b" }, report.Diagnostics.Select(static diagnostic => diagnostic.SkillName).ToArray());
         Assert.Equal("error", report.Diagnostics[0].Severity);
@@ -379,6 +392,7 @@ public sealed class SkillOperationReportBuilderTests
         AssertProperties<SkillDoctorReport>(
             ("Host", typeof(string)),
             ("Tiers", typeof(IReadOnlyList<string>)),
+            ("SkillNames", typeof(IReadOnlyList<string>)),
             ("Scope", typeof(string)),
             ("TargetRoot", typeof(string)),
             ("IsHealthy", typeof(bool)),
@@ -386,6 +400,7 @@ public sealed class SkillOperationReportBuilderTests
         AssertProperties<SkillExportReport>(
             ("Host", typeof(string)),
             ("Tiers", typeof(IReadOnlyList<string>)),
+            ("SkillNames", typeof(IReadOnlyList<string>)),
             ("Format", typeof(string)),
             ("OutputPath", typeof(string)),
             ("Skills", typeof(IReadOnlyList<string>)),
@@ -408,6 +423,7 @@ public sealed class SkillOperationReportBuilderTests
             ("ReloadGuidance", typeof(string)));
         AssertProperties<SkillListReport>(
             ("Tiers", typeof(IReadOnlyList<string>)),
+            ("SkillNames", typeof(IReadOnlyList<string>)),
             ("AvailableTiers", typeof(IReadOnlyList<SkillListTierReport>)),
             ("Skills", typeof(IReadOnlyList<SkillListSkillReport>)),
             ("SupportedHosts", typeof(IReadOnlyList<SkillHostReport>)));
@@ -446,6 +462,7 @@ public sealed class SkillOperationReportBuilderTests
         AssertProperties<SkillOperationReport>(
             ("Host", typeof(string)),
             ("Tiers", typeof(IReadOnlyList<string>)),
+            ("SkillNames", typeof(IReadOnlyList<string>)),
             ("Scope", typeof(string)),
             ("TargetRoot", typeof(string)),
             ("DryRun", typeof(bool)),

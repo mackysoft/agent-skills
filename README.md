@@ -40,10 +40,11 @@ Source definition metadata includes a product-owned `tier` literal:
 ```json
 {
   "schemaVersion": 1,
+  "catalogId": "com.example.skills",
+  "tier": "basic",
   "skillName": "example-review",
   "displayName": "Example Review",
   "description": "Review the example product.",
-  "tier": "basic",
   "references": []
 }
 ```
@@ -56,7 +57,7 @@ Install the CLI through a .NET tool manifest in each product repository.
 
 ```bash
 dotnet new tool-manifest
-dotnet tool install MackySoft.AgentSkills.Cli --version 0.5.0
+dotnet tool install MackySoft.AgentSkills.Cli --version 0.6.0
 ```
 
 Generate canonical packages.
@@ -80,7 +81,7 @@ Agent Skills does not define a fixed tier set. Each product owns the complete se
 
 Tier literals are stable machine-readable contract values stored in `skill.json` and `agent-skill.json`. They must be lowercase ASCII letters or digits, may contain `-` after the first character, and are matched exactly. The framework does not trim, case-fold, or map labels.
 
-Product CLIs should require tier selection for operations that materialize, update, uninstall, export, or diagnose skills. Discovery commands can omit selection by using the full defined tier set:
+Product CLIs should require at least one explicit selector for operations that materialize, update, uninstall, export, or diagnose skills. A selector can be a tier selection, an exact SKILL name selection, or both. Discovery commands can omit selection by using the full defined tier set:
 
 ```csharp
 string[] definedTiers = ["basic", "advanced", "developer"];
@@ -94,20 +95,33 @@ var packagesResult = await packageProvider.GetPackagesAsync(
 
 `SkillTierLiteralParser.ParseSelectedTiers` validates and normalizes raw CLI literals when a product wants to parse once and pass `IReadOnlyList<SkillTier>` onward. `SkillPackageProvider.GetPackagesAsync` verifies the product definitions, rejects unsupported selected tiers, rejects generated packages whose manifest tier is not defined by the product, and returns an empty package list when the selected tiers are valid but no bundled package belongs to them.
 
-Use `SkillPackageProvider.GetPackageCatalogAsync` for list-style discovery. The catalog records the normalized selected tiers, returns only matching packages, and includes every product-defined tier with its bundled package count, including valid tiers that currently contain no skills. Report builders consume the catalog directly so `tiers`, `availableTiers`, and `skills` come from one validated provider result.
+Use exact SKILL names when a command must target specific packages rather than a whole tier:
+
+```csharp
+string[] selectedSkillNames = ["example-review", "example-docs"];
+
+var packagesResult = await packageProvider.GetPackagesBySkillNamesAsync(
+    definedTiers,
+    selectedSkillNames,
+    cancellationToken);
+```
+
+`SkillNameLiteralParser.ParseSelectedSkillNames` validates and normalizes raw CLI literals when a product wants to parse name selections before resolving packages. Name filters match `skillName` exactly using ordinal comparison. The provider rejects unknown names and rejects a selected name when it exists but does not belong to the selected tiers.
+
+Use `SkillPackageProvider.GetPackageCatalogAsync` for list-style discovery. The catalog records the normalized selected tiers and selected skill names, returns only matching packages, and includes every product-defined tier with its bundled package count, including valid tiers that currently contain no skills. Report builders consume the catalog directly so `tiers`, `skillNames`, `availableTiers`, and `skills` come from one validated provider result.
 
 ## Runtime Library
 
 Use the library from product CLI or application code that needs to list, export, install, update, uninstall, or diagnose generated agent skills.
 
 ```bash
-dotnet add <PROJECT>.csproj package MackySoft.AgentSkills --version 0.5.0
+dotnet add <PROJECT>.csproj package MackySoft.AgentSkills --version 0.6.0
 ```
 
 Equivalent project file reference:
 
 ```xml
-<PackageReference Include="MackySoft.AgentSkills" Version="0.5.0" />
+<PackageReference Include="MackySoft.AgentSkills" Version="0.6.0" />
 ```
 
 The canonical package manifest file is `agent-skill.json`. Generated package directories are canonical package inputs; runtime materialization converts those packages into host-specific install/export contents.

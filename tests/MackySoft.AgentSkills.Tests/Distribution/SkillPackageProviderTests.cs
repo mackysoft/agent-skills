@@ -35,6 +35,7 @@ public sealed class SkillPackageProviderTests
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal(["basic", "advanced", "developer"], result.Value!.SelectedTiers.Select(static item => item.Value).ToArray());
+        Assert.Empty(result.Value!.SelectedSkillNames);
         Assert.Equal(["basic", "advanced", "developer"], result.Value!.AvailableTiers.Select(static item => item.Tier.Value).ToArray());
         Assert.Equal([SkillTestData.ExpectedSkillNames.Length, 0, 0], result.Value!.AvailableTiers.Select(static item => item.PackageCount).ToArray());
         Assert.Equal(SkillTestData.ExpectedSkillNames, result.Value!.Packages.Select(static package => package.Manifest.SkillName).ToArray());
@@ -52,6 +53,7 @@ public sealed class SkillPackageProviderTests
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal(["advanced", "developer"], result.Value!.SelectedTiers.Select(static item => item.Value).ToArray());
+        Assert.Empty(result.Value!.SelectedSkillNames);
         Assert.Equal(["basic", "advanced", "developer"], result.Value!.AvailableTiers.Select(static item => item.Tier.Value).ToArray());
         Assert.Equal([SkillTestData.ExpectedSkillNames.Length, 0, 0], result.Value!.AvailableTiers.Select(static item => item.PackageCount).ToArray());
         Assert.Empty(result.Value!.Packages);
@@ -79,6 +81,7 @@ public sealed class SkillPackageProviderTests
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal(["advanced", "developer"], result.Value!.SelectedTiers.Select(static item => item.Value).ToArray());
+        Assert.Empty(result.Value!.SelectedSkillNames);
         Assert.Equal(["basic", "advanced", "developer"], result.Value!.AvailableTiers.Select(static item => item.Tier.Value).ToArray());
         Assert.Equal([2, 1, 1], result.Value!.AvailableTiers.Select(static item => item.PackageCount).ToArray());
         Assert.Equal(
@@ -98,6 +101,82 @@ public sealed class SkillPackageProviderTests
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Empty(result.Value!);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task GetPackagesBySkillNamesAsync_FiltersByExactSkillNamesAsync ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "filter-skill-name");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        await WritePackagesAsync(scope.FullPath, packages.Reverse().ToArray());
+        var provider = CreateProvider(scope.FullPath);
+        var selectedSkillNames = new[]
+        {
+            packages[2].Manifest.SkillName,
+            packages[0].Manifest.SkillName,
+            packages[2].Manifest.SkillName,
+        };
+
+        var result = await provider.GetPackagesBySkillNamesAsync(DefinedTierLiterals, selectedSkillNames, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.Equal(
+            new[] { packages[0].Manifest.SkillName, packages[2].Manifest.SkillName }.Order(StringComparer.Ordinal).ToArray(),
+            result.Value!.Select(static package => package.Manifest.SkillName).ToArray());
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task GetPackageCatalogBySkillNamesAsync_ReportsSelectedSkillNamesAndTierCountsAsync ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "catalog-skill-name");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        await WritePackagesAsync(scope.FullPath, packages.Reverse().ToArray());
+        var provider = CreateProvider(scope.FullPath);
+
+        var result = await provider.GetPackageCatalogBySkillNamesAsync(DefinedTierLiterals, [packages[1].Manifest.SkillName], CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.Equal(["basic", "advanced", "developer"], result.Value!.SelectedTiers.Select(static item => item.Value).ToArray());
+        Assert.Equal([packages[1].Manifest.SkillName], result.Value.SelectedSkillNames);
+        Assert.Equal([SkillTestData.ExpectedSkillNames.Length, 0, 0], result.Value.AvailableTiers.Select(static item => item.PackageCount).ToArray());
+        Assert.Equal([packages[1].Manifest.SkillName], result.Value.Packages.Select(static package => package.Manifest.SkillName).ToArray());
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task GetPackagesAsync_Fails_WhenSelectedSkillNameDoesNotExistAsync ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "missing-skill-name");
+        await WritePackagesAsync(scope.FullPath, await SkillTestData.GenerateFixturePackagesAsync());
+        var provider = CreateProvider(scope.FullPath);
+
+        var result = await provider.GetPackagesBySkillNamesAsync(DefinedTierLiterals, ["missing-skill"], CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Contains("Selected SKILL name was not found: missing-skill", result.Failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task GetPackagesAsync_Fails_WhenSelectedSkillNameDoesNotMatchSelectedTierAsync ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "skill-name-tier-mismatch");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        await WritePackagesAsync(scope.FullPath, packages);
+        var provider = CreateProvider(scope.FullPath);
+
+        var result = await provider.GetPackagesAsync(
+            DefinedTierLiterals,
+            [new SkillTier("advanced")],
+            [packages[0].Manifest.SkillName],
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Contains("does not match selected tiers", result.Failure.Message, StringComparison.Ordinal);
     }
 
     [Fact]

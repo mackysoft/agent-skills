@@ -3,6 +3,7 @@ namespace MackySoft.AgentSkills.OperationReports.Contracts;
 /// <summary> Represents product-neutral export result data. </summary>
 /// <param name="Host"> The canonical host key used for export. </param>
 /// <param name="Tiers"> The selected product-owned SKILL tier literals. </param>
+/// <param name="SkillNames"> The exact SKILL name selection. Empty means no name filter. </param>
 /// <param name="Format"> The stable export format literal. </param>
 /// <param name="OutputPath"> The canonical output directory or zip file path returned by export. </param>
 /// <param name="Skills"> The exported skill names sorted using ordinal comparison. </param>
@@ -11,6 +12,7 @@ namespace MackySoft.AgentSkills.OperationReports.Contracts;
 public sealed record SkillExportReport (
     string Host,
     IReadOnlyList<string> Tiers,
+    IReadOnlyList<string> SkillNames,
     string Format,
     string OutputPath,
     IReadOnlyList<string> Skills,
