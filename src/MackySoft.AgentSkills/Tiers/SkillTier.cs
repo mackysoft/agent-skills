@@ -1,3 +1,5 @@
+using MackySoft.AgentSkills.Shared;
+
 namespace MackySoft.AgentSkills.Tiers;
 
 /// <summary> Represents a stable product-owned SKILL tier literal. </summary>
@@ -45,25 +47,6 @@ public sealed record SkillTier
 
     private static bool IsSafeLiteral (string? value)
     {
-        if (string.IsNullOrWhiteSpace(value) || !IsAsciiLowercaseLetterOrDigit(value[0]))
-        {
-            return false;
-        }
-
-        for (var i = 1; i < value.Length; i++)
-        {
-            var character = value[i];
-            if (character != '-' && !IsAsciiLowercaseLetterOrDigit(character))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static bool IsAsciiLowercaseLetterOrDigit (char character)
-    {
-        return character is (>= 'a' and <= 'z') or (>= '0' and <= '9');
+        return SkillIdentifierValidator.IsSafeLowercaseHyphenLiteral(value);
     }
 }

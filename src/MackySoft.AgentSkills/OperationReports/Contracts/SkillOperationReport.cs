@@ -3,6 +3,7 @@ namespace MackySoft.AgentSkills.OperationReports.Contracts;
 /// <summary> Represents a product-neutral install, update, or uninstall report. </summary>
 /// <param name="Host"> The canonical host key used for the operation. </param>
 /// <param name="Tiers"> The selected product-owned SKILL tier literals. </param>
+/// <param name="SkillNames"> The exact SKILL name selection. Empty means no name filter. </param>
 /// <param name="Scope"> The stable install scope literal used for the operation. </param>
 /// <param name="TargetRoot"> The canonical absolute host target root. </param>
 /// <param name="DryRun"> Whether the report represents a plan without writes. </param>
@@ -14,6 +15,7 @@ namespace MackySoft.AgentSkills.OperationReports.Contracts;
 public sealed record SkillOperationReport (
     string Host,
     IReadOnlyList<string> Tiers,
+    IReadOnlyList<string> SkillNames,
     string Scope,
     string TargetRoot,
     bool DryRun,

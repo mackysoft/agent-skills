@@ -8,6 +8,7 @@ using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.OperationReports.Contracts;
 using MackySoft.AgentSkills.OperationReports.Literals;
 using MackySoft.AgentSkills.Packaging.Canonical;
+using MackySoft.AgentSkills.Selection;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.AgentSkills.Tiers;
 
@@ -26,18 +27,20 @@ public static class SkillOperationReportBuilder
     {
         ArgumentNullException.ThrowIfNull(catalog);
 
-        return CreateListReport(catalog.Packages, hostAdapters, catalog.SelectedTiers, catalog.AvailableTiers);
+        return CreateListReport(catalog.Packages, hostAdapters, catalog.SelectedTiers, catalog.SelectedSkillNames, catalog.AvailableTiers);
     }
 
     private static SkillListReport CreateListReport (
         IReadOnlyList<CanonicalSkillPackage> packages,
         SkillHostAdapterSet hostAdapters,
         IReadOnlyList<SkillTier> selectedTiers,
+        IReadOnlyList<string> selectedSkillNames,
         IReadOnlyList<SkillTierPackageCount> availableTiers)
     {
         ArgumentNullException.ThrowIfNull(packages);
         ArgumentNullException.ThrowIfNull(hostAdapters);
         ArgumentNullException.ThrowIfNull(selectedTiers);
+        ArgumentNullException.ThrowIfNull(selectedSkillNames);
         ArgumentNullException.ThrowIfNull(availableTiers);
 
         var skills = packages
@@ -51,7 +54,7 @@ public static class SkillOperationReportBuilder
             .Select(static descriptor => CreateHostReport(descriptor))
             .ToArray();
 
-        return new SkillListReport(CreateTierLiterals(selectedTiers), tierReports, skills, hosts);
+        return new SkillListReport(CreateTierLiterals(selectedTiers), CreateSkillNameLiterals(selectedSkillNames), tierReports, skills, hosts);
     }
 
     /// <summary> Creates export report data from a successful export operation. </summary>
@@ -71,9 +74,32 @@ public static class SkillOperationReportBuilder
         SkillExportFormat format,
         IReadOnlyList<SkillTier> selectedTiers)
     {
+        return CreateExportReport(outputPath, packages, hostDescriptor, format, selectedTiers, []);
+    }
+
+    /// <summary> Creates export report data from a successful export operation. </summary>
+    /// <param name="outputPath"> The output directory or zip file path returned by export. Must not be null, empty, or whitespace. </param>
+    /// <param name="packages"> The exported packages. Must not be <see langword="null" />. </param>
+    /// <param name="hostDescriptor"> The descriptor for the host used for export. Must not be <see langword="null" />. </param>
+    /// <param name="format"> The export format used for export. </param>
+    /// <param name="selectedTiers"> The selected product-owned SKILL tiers. Must not be <see langword="null" />. </param>
+    /// <param name="selectedSkillNames"> The exact selected SKILL names. Empty means no name filter. </param>
+    /// <returns> A report whose skill names are sorted using ordinal comparison. </returns>
+    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="packages" />, <paramref name="hostDescriptor" />, <paramref name="selectedTiers" />, <paramref name="selectedSkillNames" />, or an item in <paramref name="selectedTiers" /> is <see langword="null" />. </exception>
+    /// <exception cref="ArgumentException"> Thrown when <paramref name="outputPath" />, the host key, reload guidance, or a selected SKILL name is invalid. </exception>
+    /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="format" /> is not a supported export format. </exception>
+    public static SkillExportReport CreateExportReport (
+        string outputPath,
+        IReadOnlyList<CanonicalSkillPackage> packages,
+        SkillHostDescriptor hostDescriptor,
+        SkillExportFormat format,
+        IReadOnlyList<SkillTier> selectedTiers,
+        IReadOnlyList<string> selectedSkillNames)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
         ArgumentNullException.ThrowIfNull(packages);
         ArgumentNullException.ThrowIfNull(selectedTiers);
+        ArgumentNullException.ThrowIfNull(selectedSkillNames);
         ValidateHostDescriptor(hostDescriptor);
 
         var skills = packages
@@ -84,6 +110,7 @@ public static class SkillOperationReportBuilder
         return new SkillExportReport(
             hostDescriptor.HostKey,
             CreateTierLiterals(selectedTiers),
+            CreateSkillNameLiterals(selectedSkillNames),
             SkillLiteralCodec.FormatExportFormat(format),
             outputPath,
             skills,
@@ -101,7 +128,7 @@ public static class SkillOperationReportBuilder
     {
         ArgumentNullException.ThrowIfNull(tier);
 
-        return CreateExportReport(outputPath, packages, hostDescriptor, format, [tier]);
+        return CreateExportReport(outputPath, packages, hostDescriptor, format, [tier], []);
     }
 
     /// <summary> Creates product-neutral report data from a successful install operation. </summary>
@@ -229,10 +256,38 @@ public static class SkillOperationReportBuilder
         return new SkillDoctorReport(
             result.Host,
             CreateTierLiterals(selectedTiers),
+            [],
             SkillLiteralCodec.FormatScope(scope),
             result.TargetRoot,
             result.IsHealthy,
             diagnostics);
+    }
+
+    /// <summary> Creates product-neutral report data from a doctor result. </summary>
+    /// <param name="result"> The doctor result to report. Must not be <see langword="null" />. </param>
+    /// <param name="scope"> The install scope used to resolve the diagnosed target root. </param>
+    /// <param name="selectedTiers"> The selected product-owned SKILL tiers. Must not be <see langword="null" />. </param>
+    /// <param name="selectedSkillNames"> The exact selected SKILL names. Empty means no name filter. </param>
+    /// <returns> A report whose diagnostics are sorted deterministically. </returns>
+    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="result" />, <paramref name="selectedTiers" />, <paramref name="selectedSkillNames" />, or an item in <paramref name="selectedTiers" /> is <see langword="null" />. </exception>
+    /// <exception cref="ArgumentException"> Thrown when a selected SKILL name is invalid. </exception>
+    /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="scope" /> is not a supported install scope. </exception>
+    public static SkillDoctorReport CreateDoctorReport (
+        SkillDoctorResult result,
+        SkillScopeKind scope,
+        IReadOnlyList<SkillTier> selectedTiers,
+        IReadOnlyList<string> selectedSkillNames)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        ArgumentNullException.ThrowIfNull(selectedTiers);
+        ArgumentNullException.ThrowIfNull(selectedSkillNames);
+
+        var report = CreateDoctorReport(result, scope, selectedTiers);
+
+        return report with
+        {
+            SkillNames = CreateSkillNameLiterals(selectedSkillNames),
+        };
     }
 
     /// <summary> Creates product-neutral report data from a doctor result for one selected tier. </summary>
@@ -285,6 +340,7 @@ public static class SkillOperationReportBuilder
         return new SkillOperationReport(
             context.HostDescriptor.HostKey,
             CreateTierLiterals(context.SelectedTiers),
+            CreateSkillNameLiterals(context.SelectedSkillNames),
             SkillLiteralCodec.FormatScope(context.Scope),
             targetRoot,
             dryRun,
@@ -310,6 +366,19 @@ public static class SkillOperationReportBuilder
         }
 
         return literals;
+    }
+
+    private static IReadOnlyList<string> CreateSkillNameLiterals (IReadOnlyList<string> skillNames)
+    {
+        ArgumentNullException.ThrowIfNull(skillNames);
+
+        var result = SkillNameLiteralParser.ParseOptionalSkillNames(skillNames);
+        if (!result.IsSuccess)
+        {
+            throw new ArgumentException(result.Failure!.Message, nameof(skillNames));
+        }
+
+        return result.Value!;
     }
 
     private static IReadOnlyList<SkillListTierReport> CreateAvailableTierReports (IReadOnlyList<SkillTierPackageCount> availableTiers)

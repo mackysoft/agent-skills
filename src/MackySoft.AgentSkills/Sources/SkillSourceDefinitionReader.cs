@@ -245,25 +245,6 @@ public sealed class SkillSourceDefinitionReader
 
     private static bool IsSafeSkillName (string skillName)
     {
-        if (string.IsNullOrWhiteSpace(skillName) || !IsAsciiLowercaseLetterOrDigit(skillName[0]))
-        {
-            return false;
-        }
-
-        for (var i = 1; i < skillName.Length; i++)
-        {
-            var character = skillName[i];
-            if (character != '-' && !IsAsciiLowercaseLetterOrDigit(character))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static bool IsAsciiLowercaseLetterOrDigit (char character)
-    {
-        return character is (>= 'a' and <= 'z') or (>= '0' and <= '9');
+        return SkillIdentifierValidator.IsSafeLowercaseHyphenLiteral(skillName);
     }
 }

@@ -15,4 +15,7 @@ public sealed record SkillOperationReportContext (
 {
     /// <summary> Gets selected product-owned SKILL tiers. </summary>
     public IReadOnlyList<SkillTier> SelectedTiers { get; init; } = SelectedTiers ?? throw new ArgumentNullException(nameof(SelectedTiers));
+
+    /// <summary> Gets exact selected SKILL names. Empty means no name filter. </summary>
+    public IReadOnlyList<string> SelectedSkillNames { get; init; } = Array.Empty<string>();
 }
