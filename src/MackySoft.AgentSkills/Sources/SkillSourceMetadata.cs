@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Tiers;
 
 namespace MackySoft.AgentSkills.Sources;
@@ -8,6 +9,7 @@ namespace MackySoft.AgentSkills.Sources;
 /// <param name="DisplayName"> The display name. </param>
 /// <param name="Description"> The skill description. </param>
 /// <param name="Tier"> The product-owned SKILL tier. </param>
+/// <param name="CatalogId"> The stable SKILL catalog ID. </param>
 /// <param name="References"> The reference file names. </param>
 public sealed record SkillSourceMetadata (
     int SchemaVersion,
@@ -15,6 +17,7 @@ public sealed record SkillSourceMetadata (
     string DisplayName,
     string Description,
     SkillTier Tier,
+    SkillCatalogId CatalogId,
     IReadOnlyList<string> References)
 {
     /// <summary> Gets the current source metadata schema version. </summary>

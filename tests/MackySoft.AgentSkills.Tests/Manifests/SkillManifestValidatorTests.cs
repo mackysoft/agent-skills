@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.AgentSkills.Tiers;
@@ -74,6 +75,7 @@ public sealed class SkillManifestValidatorTests
             WithComputedManifestDigest(valid with { DisplayName = "" }),
             WithComputedManifestDigest(valid with { Description = "" }),
             valid with { Tier = null! },
+            valid with { CatalogId = null! },
             WithComputedManifestDigest(valid with { ContentDigest = "not-hex" }),
             valid with { ManifestDigest = "not-hex" },
             WithComputedManifestDigest(valid with { HostArtifacts = valid.HostArtifacts.Where(static artifact => artifact.Host != "copilot").ToArray() }),
@@ -94,6 +96,7 @@ public sealed class SkillManifestValidatorTests
             "Sample Skill",
             "Use this sample skill for tests.",
             new SkillTier("basic"),
+            new SkillCatalogId("com.mackysoft.agent-skills"),
             new string('0', 64),
             string.Empty,
             [

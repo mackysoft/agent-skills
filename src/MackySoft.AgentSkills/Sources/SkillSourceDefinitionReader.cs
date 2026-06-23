@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.AgentSkills.Tiers;
 
@@ -14,6 +15,7 @@ public sealed class SkillSourceDefinitionReader
         "displayName",
         "description",
         "tier",
+        "catalogId",
         "references",
     ];
 
@@ -177,7 +179,7 @@ public sealed class SkillSourceDefinitionReader
         {
             return SkillOperationResult<SkillSourceMetadata>.FailureResult(
                 SkillFailureCodes.SourceInvalid,
-                "skill.json must contain only schemaVersion, skillName, displayName, description, tier, and references in canonical order.");
+                "skill.json must contain only schemaVersion, skillName, displayName, description, tier, catalogId, and references in canonical order.");
         }
 
         var schemaVersion = root.GetProperty("schemaVersion").GetInt32();
@@ -213,8 +215,13 @@ public sealed class SkillSourceDefinitionReader
             return SkillOperationResult<SkillSourceMetadata>.FailureResult(SkillFailureCodes.SourceInvalid, $"skill.json tier is invalid for '{skillName}'.");
         }
 
+        if (!SkillCatalogId.TryCreate(root.GetProperty("catalogId").GetString(), out var catalogId))
+        {
+            return SkillOperationResult<SkillSourceMetadata>.FailureResult(SkillFailureCodes.SourceInvalid, $"skill.json catalogId is invalid for '{skillName}'.");
+        }
+
         var references = root.GetProperty("references").EnumerateArray().Select(static element => element.GetString() ?? string.Empty).ToArray();
-        if (references.Length == 0 || references.Distinct(StringComparer.Ordinal).Count() != references.Length)
+        if (references.Distinct(StringComparer.Ordinal).Count() != references.Length)
         {
             return SkillOperationResult<SkillSourceMetadata>.FailureResult(SkillFailureCodes.SourceInvalid, $"skill.json references are invalid for '{skillName}'.");
         }
@@ -228,7 +235,7 @@ public sealed class SkillSourceDefinitionReader
             }
         }
 
-        return SkillOperationResult<SkillSourceMetadata>.Success(new SkillSourceMetadata(schemaVersion, skillName, displayName, description, tier!, references));
+        return SkillOperationResult<SkillSourceMetadata>.Success(new SkillSourceMetadata(schemaVersion, skillName, displayName, description, tier!, catalogId!, references));
     }
 
     private static SkillOperationResult<IReadOnlyList<SkillSourceDefinition>> Failure (string message)

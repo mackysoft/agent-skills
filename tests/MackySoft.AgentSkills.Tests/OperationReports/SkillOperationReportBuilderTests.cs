@@ -217,6 +217,7 @@ public sealed class SkillOperationReportBuilderTests
         Assert.Equal([packages.Length, 0, 0], report.AvailableTiers.Select(static tier => tier.SkillCount).ToArray());
         Assert.Equal(SkillTestData.ExpectedSkillNames, report.Skills.Select(static skill => skill.SkillName).ToArray());
         Assert.All(report.Skills, static skill => Assert.Equal("basic", skill.Tier));
+        Assert.All(report.Skills, static skill => Assert.Equal("com.mackysoft.agent-skills", skill.CatalogId));
         Assert.Equal(["claude", "copilot", "openai"], report.SupportedHosts.Select(static host => host.Host).ToArray());
         var openAi = report.SupportedHosts.Single(static host => host.Host == OpenAiSkillHostAdapter.HostKey);
         Assert.True(openAi.SupportsProjectScope);
@@ -416,6 +417,7 @@ public sealed class SkillOperationReportBuilderTests
             ("DisplayName", typeof(string)),
             ("Description", typeof(string)),
             ("Tier", typeof(string)),
+            ("CatalogId", typeof(string)),
             ("ContentDigest", typeof(string)),
             ("ManifestDigest", typeof(string)),
             ("HostArtifacts", typeof(IReadOnlyList<SkillHostArtifactReport>)));

@@ -100,6 +100,26 @@ public sealed class SkillSourceDefinitionReaderTests
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("Com.MackySoft.AgentSkills")]
+    [InlineData("com..mackysoft")]
+    [InlineData("com.mackysoft.")]
+    [InlineData("com.-mackysoft")]
+    [InlineData("com.mackysoft-")]
+    [Trait("Size", "Small")]
+    public async Task ReadOneAsync_Fails_WhenCatalogIdLiteralIsInvalid (string catalogId)
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "invalid-catalog-id");
+        var skillDirectory = WriteMinimalDefinition(scope, catalogId: catalogId);
+        var reader = new SkillSourceDefinitionReader();
+
+        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+    }
+
     [Fact]
     [Trait("Size", "Small")]
     public async Task ReadOneAsync_Fails_WhenTierPropertyOrderIsNotCanonical ()
@@ -117,7 +137,8 @@ public sealed class SkillSourceDefinitionReaderTests
               "references": [
                 "reference.md"
               ],
-              "tier": "basic"
+              "tier": "basic",
+              "catalogId": "com.mackysoft.agent-skills"
             }
             """);
         scope.WriteFile("sample-skill/SKILL.md.template", "# Sample\n");
@@ -128,6 +149,35 @@ public sealed class SkillSourceDefinitionReaderTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task ReadOneAsync_ReadsDefinitionWithoutReferences ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "no-references");
+        var skillDirectory = scope.CreateDirectory("sample-skill");
+        scope.WriteFile(
+            "sample-skill/skill.json",
+            """
+            {
+              "schemaVersion": 1,
+              "skillName": "sample-skill",
+              "displayName": "Sample Skill",
+              "description": "Use when testing source validation.",
+              "tier": "basic",
+              "catalogId": "com.mackysoft.agent-skills",
+              "references": []
+            }
+            """);
+        scope.WriteFile("sample-skill/SKILL.md.template", "# Sample\n");
+        var reader = new SkillSourceDefinitionReader();
+
+        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.Empty(result.Value!.Metadata.References);
+        Assert.Empty(result.Value.References);
     }
 
     [Fact]
@@ -145,6 +195,7 @@ public sealed class SkillSourceDefinitionReaderTests
               "displayName": "Sample Skill",
               "description": "Use when testing source validation.",
               "tier": "basic",
+              "catalogId": "com.mackysoft.agent-skills",
               "references": [
                 "../escape.md"
               ]
@@ -188,6 +239,7 @@ public sealed class SkillSourceDefinitionReaderTests
               "displayName": "Sample Skill",
               "description": "Use when testing source validation.",
               "tier": "basic",
+              "catalogId": "com.mackysoft.agent-skills",
               "references": [
                 "reference.md"
               ]
@@ -276,6 +328,7 @@ public sealed class SkillSourceDefinitionReaderTests
         TestDirectoryScope scope,
         string extraJsonProperty = "",
         string tier = "basic",
+        string catalogId = "com.mackysoft.agent-skills",
         bool writeSkillTemplate = true,
         bool writeReferenceTemplate = true)
     {
@@ -289,6 +342,7 @@ public sealed class SkillSourceDefinitionReaderTests
               "displayName": "Sample Skill",
               "description": "Use when testing source validation.",
               "tier": "{{tier}}",
+              "catalogId": "{{catalogId}}",
               "references": [
                 "reference.md"
               ]{{extraJsonProperty}}
