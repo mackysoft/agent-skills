@@ -1,4 +1,5 @@
 using System.Globalization;
+using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Generation;
 using MackySoft.AgentSkills.Hosts.Claude;
@@ -141,6 +142,7 @@ public sealed class SkillPackageGenerationServiceTests
                     "Ordinal Culture Contract",
                     "Use this skill to verify ordinal package ordering.",
                     new SkillTier("basic"),
+                    new SkillCatalogId("com.mackysoft.agent-skills"),
                     ["a.md", "B.md"]),
                 "# Ordinal Culture Contract\n",
                 [
@@ -162,6 +164,31 @@ public sealed class SkillPackageGenerationServiceTests
         {
             CultureInfo.CurrentCulture = originalCulture;
         }
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void Generate_SupportsDefinitionsWithoutReferences ()
+    {
+        var service = SkillTestData.CreatePackageGenerationService();
+        var package = service.Generate(new SkillSourceDefinition(
+            new SkillSourceMetadata(
+                SkillSourceMetadata.CurrentSchemaVersion,
+                "reference-free-skill",
+                "Reference Free Skill",
+                "Use this skill to verify reference-free package generation.",
+                new SkillTier("basic"),
+                new SkillCatalogId("com.mackysoft.agent-skills"),
+                []),
+            "# Reference Free Skill\n",
+            []));
+
+        var paths = package.Files.Select(static file => file.RelativePath).ToArray();
+
+        Assert.Contains("SKILL.md", paths);
+        Assert.Contains("agent-skill.json", paths);
+        Assert.Contains("agents/openai.yaml", paths);
+        Assert.DoesNotContain(paths, static path => path.StartsWith("references/", StringComparison.Ordinal));
     }
 
     [Fact]

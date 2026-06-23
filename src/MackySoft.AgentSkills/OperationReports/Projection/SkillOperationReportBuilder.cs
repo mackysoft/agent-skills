@@ -438,6 +438,7 @@ public static class SkillOperationReportBuilder
             manifest.DisplayName,
             manifest.Description,
             manifest.Tier.Value,
+            manifest.CatalogId.Value,
             manifest.ContentDigest,
             manifest.ManifestDigest,
             manifest.HostArtifacts

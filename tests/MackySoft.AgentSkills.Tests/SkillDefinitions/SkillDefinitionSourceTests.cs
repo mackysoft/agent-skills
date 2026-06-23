@@ -22,6 +22,7 @@ public sealed class SkillDefinitionSourceTests
         "displayName",
         "description",
         "tier",
+        "catalogId",
         "references",
     ];
 
@@ -74,6 +75,7 @@ public sealed class SkillDefinitionSourceTests
             Assert.False(string.IsNullOrWhiteSpace(description));
             Assert.InRange(description.Length, 1, 1024);
             Assert.Equal("basic", root.GetProperty("tier").GetString());
+            Assert.Equal("com.mackysoft.agent-skills", root.GetProperty("catalogId").GetString());
         }
     }
 

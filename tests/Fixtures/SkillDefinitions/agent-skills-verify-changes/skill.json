@@ -4,6 +4,7 @@
   "displayName": "Agent Skills Verify Changes",
   "description": "Use when verifying Agent Skills-driven Unity changes with agent-skills verify profiles, claim packets, follow-up reads, agent-skills test, logs, artifacts, and opResults evidence after validation, plan, or call execution.",
   "tier": "basic",
+  "catalogId": "com.mackysoft.agent-skills",
   "references": [
     "verification-workflow.md"
   ]

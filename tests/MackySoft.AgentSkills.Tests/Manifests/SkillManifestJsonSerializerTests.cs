@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.AgentSkills.Tiers;
@@ -32,7 +33,7 @@ public sealed class SkillManifestJsonSerializerTests
         using var document = JsonDocument.Parse(json);
         Assert.Equal(64, document.RootElement.GetProperty("manifestDigest").GetString()?.Length);
         Assert.Equal(
-            new[] { "schemaVersion", "skillName", "displayName", "description", "tier", "contentDigest", "manifestDigest", "hostArtifacts" },
+            new[] { "schemaVersion", "skillName", "displayName", "description", "tier", "catalogId", "contentDigest", "manifestDigest", "hostArtifacts" },
             document.RootElement.EnumerateObject().Select(static property => property.Name).ToArray());
         Assert.Equal(
             new[] { "claude", "copilot", "openai" },
@@ -53,6 +54,7 @@ public sealed class SkillManifestJsonSerializerTests
           "displayName": "Sample Skill",
           "description": "Use this sample skill for tests.",
           "tier": "basic",
+          "catalogId": "com.mackysoft.agent-skills",
           "contentDigest": "0000000000000000000000000000000000000000000000000000000000000000",
           "hostArtifacts": []
         }
@@ -78,6 +80,7 @@ public sealed class SkillManifestJsonSerializerTests
             "Sample Skill",
             "Use this sample skill for tests.",
             new SkillTier("basic"),
+            new SkillCatalogId("com.mackysoft.agent-skills"),
             new string('0', 64),
             string.Empty,
             [

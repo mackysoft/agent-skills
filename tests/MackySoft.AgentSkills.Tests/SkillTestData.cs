@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Doctor;
@@ -284,6 +285,7 @@ internal static class SkillTestData
             DisplayName,
             Description,
             new SkillTier("basic"),
+            new SkillCatalogId("com.mackysoft.agent-skills"),
             contentDigest,
             string.Empty,
             hostArtifacts);
