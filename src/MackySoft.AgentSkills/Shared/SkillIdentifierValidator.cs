@@ -21,7 +21,7 @@ internal static class SkillIdentifierValidator
         return true;
     }
 
-    private static bool IsAsciiLowercaseLetterOrDigit (char character)
+    public static bool IsAsciiLowercaseLetterOrDigit (char character)
     {
         return character is (>= 'a' and <= 'z') or (>= '0' and <= '9');
     }

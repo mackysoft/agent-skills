@@ -196,7 +196,7 @@ public sealed class SkillSourceDefinitionReader
                 $"skill.json skillName '{skillName}' must match directory name '{expectedSkillName}'.");
         }
 
-        if (!IsSafeSkillName(skillName))
+        if (!SkillIdentifierValidator.IsSafeLowercaseHyphenLiteral(skillName))
         {
             return SkillOperationResult<SkillSourceMetadata>.FailureResult(
                 SkillFailureCodes.SourceInvalid,
@@ -241,10 +241,5 @@ public sealed class SkillSourceDefinitionReader
     private static SkillOperationResult<IReadOnlyList<SkillSourceDefinition>> Failure (string message)
     {
         return SkillOperationResult<IReadOnlyList<SkillSourceDefinition>>.FailureResult(SkillFailureCodes.SourceInvalid, message);
-    }
-
-    private static bool IsSafeSkillName (string skillName)
-    {
-        return SkillIdentifierValidator.IsSafeLowercaseHyphenLiteral(skillName);
     }
 }
