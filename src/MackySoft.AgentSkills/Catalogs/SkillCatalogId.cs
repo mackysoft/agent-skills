@@ -1,3 +1,5 @@
+using MackySoft.AgentSkills.Shared;
+
 namespace MackySoft.AgentSkills.Catalogs;
 
 /// <summary> Represents a stable SKILL catalog ID. </summary>
@@ -68,7 +70,7 @@ public sealed record SkillCatalogId
 
             if (segmentStart)
             {
-                if (!IsAsciiLowercaseLetterOrDigit(character))
+                if (!SkillIdentifierValidator.IsAsciiLowercaseLetterOrDigit(character))
                 {
                     return false;
                 }
@@ -78,7 +80,7 @@ public sealed record SkillCatalogId
                 continue;
             }
 
-            if (character != '-' && !IsAsciiLowercaseLetterOrDigit(character))
+            if (character != '-' && !SkillIdentifierValidator.IsAsciiLowercaseLetterOrDigit(character))
             {
                 return false;
             }
@@ -87,10 +89,5 @@ public sealed record SkillCatalogId
         }
 
         return !segmentStart && previous != '-';
-    }
-
-    private static bool IsAsciiLowercaseLetterOrDigit (char character)
-    {
-        return character is (>= 'a' and <= 'z') or (>= '0' and <= '9');
     }
 }

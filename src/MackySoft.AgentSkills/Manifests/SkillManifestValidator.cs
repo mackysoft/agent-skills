@@ -53,7 +53,7 @@ public sealed class SkillManifestValidator
             return Failure($"Unsupported agent-skill.json schemaVersion: {manifest.SchemaVersion}");
         }
 
-        if (!IsSafeSkillName(manifest.SkillName))
+        if (!SkillIdentifierValidator.IsSafeLowercaseHyphenLiteral(manifest.SkillName))
         {
             return Failure("agent-skill.json skillName must be a safe SKILL identifier.");
         }
@@ -124,10 +124,5 @@ public sealed class SkillManifestValidator
     private static SkillOperationResult<SkillManifest> Failure (string message)
     {
         return SkillOperationResult<SkillManifest>.FailureResult(SkillFailureCodes.ManifestInvalid, message);
-    }
-
-    private static bool IsSafeSkillName (string? skillName)
-    {
-        return SkillIdentifierValidator.IsSafeLowercaseHyphenLiteral(skillName);
     }
 }

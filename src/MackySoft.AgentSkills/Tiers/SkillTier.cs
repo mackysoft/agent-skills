@@ -10,7 +10,7 @@ public sealed record SkillTier
     /// <exception cref="ArgumentException"> Thrown when <paramref name="value" /> is not a safe tier literal. </exception>
     public SkillTier (string value)
     {
-        if (!IsSafeLiteral(value))
+        if (!SkillIdentifierValidator.IsSafeLowercaseHyphenLiteral(value))
         {
             throw new ArgumentException($"SKILL tier literal is invalid: {value}", nameof(value));
         }
@@ -29,9 +29,9 @@ public sealed record SkillTier
         string? value,
         out SkillTier? tier)
     {
-        if (value is not null && IsSafeLiteral(value))
+        if (SkillIdentifierValidator.IsSafeLowercaseHyphenLiteral(value))
         {
-            tier = new SkillTier(value);
+            tier = new SkillTier(value!);
             return true;
         }
 
@@ -43,10 +43,5 @@ public sealed record SkillTier
     public override string ToString ()
     {
         return Value;
-    }
-
-    private static bool IsSafeLiteral (string? value)
-    {
-        return SkillIdentifierValidator.IsSafeLowercaseHyphenLiteral(value);
     }
 }
