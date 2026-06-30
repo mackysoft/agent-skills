@@ -462,7 +462,7 @@ internal static class SkillTestData
 
         builder.AppendLine("  ]");
         builder.AppendLine("}");
-        return builder.ToString();
+        return builder.ToString().Replace("\r\n", "\n", StringComparison.Ordinal);
     }
 
     private static string JsonString (string value)
