@@ -239,6 +239,32 @@ public sealed class SkillOperationReportBuilderTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task CreateListReport_ProjectsSkillDependencies ()
+    {
+        var packages = (await SkillTestData.GenerateFixturePackagesAsync()).ToArray();
+        packages[0] = packages[0] with
+        {
+            Manifest = packages[0].Manifest with
+            {
+                Dependencies = [packages[1].Manifest.SkillName],
+            },
+        };
+        var catalog = new SkillPackageCatalog(
+            [new SkillTier("basic")],
+            [],
+            [new SkillTierPackageCount(new SkillTier("basic"), packages.Length)],
+            packages);
+
+        var report = SkillOperationReportBuilder.CreateListReport(
+            catalog,
+            SkillTestData.CreateDefaultHostAdapterSet());
+
+        var skill = report.Skills.Single(skill => string.Equals(skill.SkillName, packages[0].Manifest.SkillName.Value, StringComparison.Ordinal));
+        Assert.Equal([packages[1].Manifest.SkillName.Value], skill.Dependencies);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task CreateExportReport_ProjectsFormatAndSortedSkillNames ()
     {
         var packages = (await SkillTestData.GenerateFixturePackagesAsync()).Reverse().ToArray();

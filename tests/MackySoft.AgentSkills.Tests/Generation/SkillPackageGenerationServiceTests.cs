@@ -293,6 +293,20 @@ public sealed class SkillPackageGenerationServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task GenerateAllAsync_IgnoresUnknownSkillReferenceWhenMatchingDependenciesAsync ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "dependency-unknown-source-reference");
+        WriteDefinition(scope, "source-skill", skillTemplate: "Use $unknown-skill when it is available elsewhere.\n");
+        var service = SkillTestData.CreatePackageGenerationService();
+
+        var result = await service.GenerateAllAsync(scope.FullPath, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.Empty(result.Value!.Single().Manifest.Dependencies);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task GenerateAllAsync_IgnoresSelfReferenceWhenMatchingDependenciesAsync ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "dependency-self-reference");

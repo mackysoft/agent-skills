@@ -11,6 +11,7 @@ public sealed class SkillInstalledPackageIntegrityVerifier
     private readonly SkillInstalledManifestReader installedManifestReader;
     private readonly SkillManifestJsonSerializer manifestSerializer;
     private readonly SkillManifestDigestCalculator manifestDigestCalculator;
+    private readonly SkillInstalledManifestLegacyCompatibilitySerializer legacyManifestSerializer = new();
     private readonly SkillHostMaterializationInspector hostInspector;
     private readonly SkillDigestCalculator digestCalculator;
 
@@ -136,16 +137,43 @@ public sealed class SkillInstalledPackageIntegrityVerifier
 
     private SkillOperationResult<IntegrityCheckResult> VerifyInstalledManifestIntegrity (SkillInstalledManifest installedManifest)
     {
-        if (!string.Equals(installedManifest.ManifestText, manifestSerializer.Serialize(installedManifest.Manifest), StringComparison.Ordinal))
+        if (IsCanonicalManifestText(installedManifest))
         {
-            return SkillOperationResult<IntegrityCheckResult>.Success(IntegrityCheckResult.Mismatch(
-                SkillFailureCodes.InstallTargetManifestDigestMismatch,
-                $"Installed SKILL manifest text is not canonical: {installedManifest.Manifest.SkillName}"));
+            return VerifyManifestDigest(installedManifest.Manifest, manifestDigestCalculator.ComputeManifestDigest(installedManifest.Manifest));
         }
 
-        var manifest = installedManifest.Manifest;
-        var manifestDigest = manifestDigestCalculator.ComputeManifestDigest(manifest);
-        if (!string.Equals(manifestDigest, manifest.ManifestDigest, StringComparison.Ordinal))
+        if (IsSchemaVersionOneWithoutDependenciesManifestText(installedManifest))
+        {
+            return VerifyManifestDigest(
+                installedManifest.Manifest,
+                legacyManifestSerializer.ComputeSchemaVersionOneWithoutDependenciesManifestDigest(installedManifest.Manifest));
+        }
+
+        return SkillOperationResult<IntegrityCheckResult>.Success(IntegrityCheckResult.Mismatch(
+            SkillFailureCodes.InstallTargetManifestDigestMismatch,
+            $"Installed SKILL manifest text is not canonical: {installedManifest.Manifest.SkillName}"));
+    }
+
+    private bool IsCanonicalManifestText (SkillInstalledManifest installedManifest)
+    {
+        return string.Equals(installedManifest.ManifestText, manifestSerializer.Serialize(installedManifest.Manifest), StringComparison.Ordinal);
+    }
+
+    private bool IsSchemaVersionOneWithoutDependenciesManifestText (SkillInstalledManifest installedManifest)
+    {
+        return installedManifest.Manifest.SchemaVersion == 1
+            && installedManifest.Manifest.Dependencies.Count == 0
+            && string.Equals(
+                installedManifest.ManifestText,
+                legacyManifestSerializer.SerializeSchemaVersionOneWithoutDependencies(installedManifest.Manifest),
+                StringComparison.Ordinal);
+    }
+
+    private static SkillOperationResult<IntegrityCheckResult> VerifyManifestDigest (
+        SkillManifest manifest,
+        string expectedDigest)
+    {
+        if (!string.Equals(expectedDigest, manifest.ManifestDigest, StringComparison.Ordinal))
         {
             return SkillOperationResult<IntegrityCheckResult>.Success(IntegrityCheckResult.Mismatch(
                 SkillFailureCodes.InstallTargetManifestDigestMismatch,

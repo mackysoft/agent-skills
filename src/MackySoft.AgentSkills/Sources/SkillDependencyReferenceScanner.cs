@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using MackySoft.AgentSkills.Names;
 
-namespace MackySoft.AgentSkills.Dependencies;
+namespace MackySoft.AgentSkills.Sources;
 
 internal static partial class SkillDependencyReferenceScanner
 {

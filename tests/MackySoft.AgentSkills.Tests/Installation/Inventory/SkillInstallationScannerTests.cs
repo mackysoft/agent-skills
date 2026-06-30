@@ -1,6 +1,7 @@
 using MackySoft.AgentSkills.Hosts.Claude;
 using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Installation.Targeting;
+using MackySoft.AgentSkills.Installation.Validation;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
@@ -34,6 +35,39 @@ public sealed class SkillInstallationScannerTests
             Assert.Equal(OpenAiSkillHostAdapter.HostKey, skill.Identity.Host);
             Assert.Equal(installResult.Value.TargetRoot, skill.Identity.TargetRoot);
         });
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task ScanAsync_RejectsSchemaVersionOneManifestWithoutDependenciesAsManifestDrift ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "scan-legacy-manifest-drift");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var installService = SkillTestData.CreateInstallService();
+        var installResult = await installService.InstallAsync(
+            packages,
+            new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+            CancellationToken.None);
+        Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
+        var package = packages[0];
+        var legacySerializer = new SkillInstalledManifestLegacyCompatibilitySerializer();
+        var legacyManifest = package.Manifest with
+        {
+            Dependencies = [],
+        };
+        legacyManifest = legacyManifest with
+        {
+            ManifestDigest = legacySerializer.ComputeSchemaVersionOneWithoutDependenciesManifestDigest(legacyManifest),
+        };
+        File.WriteAllText(
+            Path.Combine(installResult.Value!.TargetRoot, package.Manifest.SkillName.Value, "agent-skill.json"),
+            legacySerializer.SerializeSchemaVersionOneWithoutDependencies(legacyManifest));
+        var scanner = SkillTestData.CreateInstallationScanner();
+
+        var scanResult = await scanner.ScanAsync(packages, installResult.Value.TargetRoot, OpenAiSkillHostAdapter.HostKey, cancellationToken: CancellationToken.None);
+
+        Assert.False(scanResult.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InstallTargetManifestDigestMismatch, scanResult.Failure!.Code);
     }
 
     [Fact]

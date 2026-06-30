@@ -187,6 +187,32 @@ public sealed class SkillPackageProviderTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task GetPackageCatalogAsync_WithSelectedTiersAndSkillNames_IncludesDependencyOutsideSelectedTierAsync ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "tier-skill-name-external-dependency");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var dependency = WithTier(packages[1], new SkillTier("advanced"));
+        packages = SkillTestData.ReplacePackage(packages, WithDependencies(packages[0], [dependency.Manifest.SkillName.Value]));
+        packages = SkillTestData.ReplacePackage(packages, dependency);
+        await WritePackagesAsync(scope.FullPath, packages);
+        var provider = CreateProvider(scope.FullPath);
+
+        var result = await provider.GetPackageCatalogAsync(
+            DefinedTierLiterals,
+            [new SkillTier("basic")],
+            [packages[0].Manifest.SkillName.Value],
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.Equal(["basic"], result.Value!.SelectedTiers.Select(static tier => tier.Value).ToArray());
+        Assert.Equal([packages[0].Manifest.SkillName.Value], result.Value.SelectedSkillNames.Select(static skillName => skillName.Value).ToArray());
+        Assert.Equal(
+            new[] { packages[0].Manifest.SkillName.Value, dependency.Manifest.SkillName.Value }.Order(StringComparer.Ordinal).ToArray(),
+            result.Value.Packages.Select(static package => package.Manifest.SkillName.Value).ToArray());
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task GetPackagesAsync_Fails_WhenGeneratedDependencyIsMissingAsync ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "missing-dependency");
@@ -196,6 +222,23 @@ public sealed class SkillPackageProviderTests
         var provider = CreateProvider(scope.FullPath);
 
         var result = await provider.GetPackagesAsync(DefinedTierLiterals, ["basic"], CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Contains("dependency was not found", result.Failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task GetPackagesAsync_WithoutSelection_Fails_WhenGeneratedDependencyIsMissingAsync ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "raw-missing-dependency");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        packages = SkillTestData.ReplacePackage(packages, WithDependencies(packages[0], ["missing-skill"]));
+        await WritePackagesAsync(scope.FullPath, packages);
+        var provider = CreateProvider(scope.FullPath);
+
+        var result = await provider.GetPackagesAsync(CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);

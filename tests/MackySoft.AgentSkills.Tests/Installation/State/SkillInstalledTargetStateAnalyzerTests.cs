@@ -2,6 +2,7 @@ using MackySoft.AgentSkills.Hosts.Claude;
 using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
+using MackySoft.AgentSkills.Installation.Validation;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
@@ -152,6 +153,31 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
         var updatedPackage = SkillTestData.CreatePackageWithUpdatedBody(packages[0]);
 
         var state = await AnalyzeOpenAiAsync(updatedPackage, GetSkillDirectory(targetRoot, packages[0]));
+
+        Assert.Equal(SkillInstalledTargetStateKind.CleanOutdated, state.Kind);
+        Assert.Equal(SkillFailureCodes.InstallTargetOutdated, state.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task AnalyzeAsync_ClassifiesSchemaVersionOneManifestWithoutDependenciesAsCleanOutdatedPackage ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "state-legacy-manifest-clean-outdated");
+        var (packages, targetRoot) = await InstallOpenAiAsync(scope);
+        var package = packages[0];
+        var skillDirectory = GetSkillDirectory(targetRoot, package);
+        var legacySerializer = new SkillInstalledManifestLegacyCompatibilitySerializer();
+        var legacyManifest = package.Manifest with
+        {
+            Dependencies = [],
+        };
+        legacyManifest = legacyManifest with
+        {
+            ManifestDigest = legacySerializer.ComputeSchemaVersionOneWithoutDependenciesManifestDigest(legacyManifest),
+        };
+        File.WriteAllText(Path.Combine(skillDirectory, "agent-skill.json"), legacySerializer.SerializeSchemaVersionOneWithoutDependencies(legacyManifest));
+
+        var state = await AnalyzeOpenAiAsync(package, skillDirectory);
 
         Assert.Equal(SkillInstalledTargetStateKind.CleanOutdated, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetOutdated, state.Failure!.Code);

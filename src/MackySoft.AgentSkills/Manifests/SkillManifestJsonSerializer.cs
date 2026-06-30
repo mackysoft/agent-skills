@@ -70,7 +70,7 @@ public sealed class SkillManifestJsonSerializer
             SkillName: new SkillName(root.GetProperty("skillName").GetString() ?? string.Empty),
             DisplayName: root.GetProperty("displayName").GetString() ?? string.Empty,
             Description: root.GetProperty("description").GetString() ?? string.Empty,
-            Dependencies: root.GetProperty("dependencies").EnumerateArray().Select(static element => new SkillName(element.GetString() ?? string.Empty)).ToArray(),
+            Dependencies: ReadDependencies(root),
             Tier: new SkillTier(root.GetProperty("tier").GetString() ?? string.Empty),
             CatalogId: new SkillCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty),
             ContentDigest: root.GetProperty("contentDigest").GetString() ?? string.Empty,
@@ -144,5 +144,18 @@ public sealed class SkillManifestJsonSerializer
 
         writer.WriteEndArray();
         writer.WriteEndObject();
+    }
+
+    private static IReadOnlyList<SkillName> ReadDependencies (JsonElement root)
+    {
+        if (!root.TryGetProperty("dependencies", out var dependenciesElement))
+        {
+            return [];
+        }
+
+        return dependenciesElement
+            .EnumerateArray()
+            .Select(static element => new SkillName(element.GetString() ?? string.Empty))
+            .ToArray();
     }
 }
