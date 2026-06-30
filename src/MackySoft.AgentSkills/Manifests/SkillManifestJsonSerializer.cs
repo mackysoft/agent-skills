@@ -29,6 +29,16 @@ public sealed class SkillManifestJsonSerializer
         return Serialize(manifest, includeManifestDigest: false);
     }
 
+    internal string SerializeLegacyWithoutSkillBundleVersion (SkillManifest manifest)
+    {
+        return SerializeLegacyWithoutSkillBundleVersion(manifest, includeManifestDigest: true);
+    }
+
+    internal string SerializeLegacyWithoutSkillBundleVersionWithoutManifestDigest (SkillManifest manifest)
+    {
+        return SerializeLegacyWithoutSkillBundleVersion(manifest, includeManifestDigest: false);
+    }
+
     private static string Serialize (
         SkillManifest manifest,
         bool includeManifestDigest)
@@ -39,6 +49,22 @@ public sealed class SkillManifestJsonSerializer
         using (var writer = new Utf8JsonWriter(stream, WriterOptions))
         {
             WriteManifest(writer, manifest, includeManifestDigest);
+        }
+
+        var json = SkillTextNormalizer.NormalizeToLf(Encoding.UTF8.GetString(stream.ToArray()));
+        return json.EndsWith('\n') ? json : json + "\n";
+    }
+
+    private static string SerializeLegacyWithoutSkillBundleVersion (
+        SkillManifest manifest,
+        bool includeManifestDigest)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream, WriterOptions))
+        {
+            WriteLegacyManifestWithoutSkillBundleVersion(writer, manifest, includeManifestDigest);
         }
 
         var json = SkillTextNormalizer.NormalizeToLf(Encoding.UTF8.GetString(stream.ToArray()));
@@ -118,9 +144,40 @@ public sealed class SkillManifestJsonSerializer
         }
 
         writer.WritePropertyName("hostArtifacts");
+        WriteHostArtifacts(writer, manifest.HostArtifacts);
+        writer.WriteEndObject();
+    }
+
+    private static void WriteLegacyManifestWithoutSkillBundleVersion (
+        Utf8JsonWriter writer,
+        SkillManifest manifest,
+        bool includeManifestDigest)
+    {
+        writer.WriteStartObject();
+        writer.WriteNumber("schemaVersion", manifest.SchemaVersion);
+        writer.WriteString("catalogId", manifest.CatalogId.Value);
+        writer.WriteString("tier", manifest.Tier.Value);
+        writer.WriteString("contentDigest", manifest.ContentDigest);
+        if (includeManifestDigest)
+        {
+            writer.WriteString("manifestDigest", manifest.ManifestDigest);
+        }
+
+        writer.WriteString("skillName", manifest.SkillName);
+        writer.WriteString("displayName", manifest.DisplayName);
+        writer.WriteString("description", manifest.Description);
+        writer.WritePropertyName("hostArtifacts");
+        WriteHostArtifacts(writer, manifest.HostArtifacts);
+        writer.WriteEndObject();
+    }
+
+    private static void WriteHostArtifacts (
+        Utf8JsonWriter writer,
+        IReadOnlyList<SkillHostArtifactManifest> hostArtifacts)
+    {
         writer.WriteStartArray();
 
-        foreach (var artifact in manifest.HostArtifacts.OrderBy(static artifact => artifact.Host, StringComparer.Ordinal))
+        foreach (var artifact in hostArtifacts.OrderBy(static artifact => artifact.Host, StringComparer.Ordinal))
         {
             writer.WriteStartObject();
             writer.WriteString("host", artifact.Host);
@@ -139,6 +196,5 @@ public sealed class SkillManifestJsonSerializer
         }
 
         writer.WriteEndArray();
-        writer.WriteEndObject();
     }
 }

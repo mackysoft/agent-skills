@@ -136,16 +136,32 @@ public sealed class SkillInstalledPackageIntegrityVerifier
 
     private SkillOperationResult<IntegrityCheckResult> VerifyInstalledManifestIntegrity (SkillInstalledManifest installedManifest)
     {
-        if (!string.Equals(installedManifest.ManifestText, manifestSerializer.Serialize(installedManifest.Manifest), StringComparison.Ordinal))
+        if (string.Equals(installedManifest.ManifestText, manifestSerializer.Serialize(installedManifest.Manifest), StringComparison.Ordinal))
         {
-            return SkillOperationResult<IntegrityCheckResult>.Success(IntegrityCheckResult.Mismatch(
-                SkillFailureCodes.InstallTargetManifestDigestMismatch,
-                $"Installed SKILL manifest text is not canonical: {installedManifest.Manifest.SkillName}"));
+            return VerifyManifestDigest(
+                installedManifest.Manifest,
+                manifestDigestCalculator.ComputeManifestDigest(installedManifest.Manifest));
         }
 
-        var manifest = installedManifest.Manifest;
-        var manifestDigest = manifestDigestCalculator.ComputeManifestDigest(manifest);
-        if (!string.Equals(manifestDigest, manifest.ManifestDigest, StringComparison.Ordinal))
+        if (installedManifest.Manifest.SkillBundleVersion == 0
+            && string.Equals(installedManifest.ManifestText, manifestSerializer.SerializeLegacyWithoutSkillBundleVersion(installedManifest.Manifest), StringComparison.Ordinal))
+        {
+            // NOTE: Installed packages generated before skillBundleVersion existed must remain clean so update can replace them normally.
+            return VerifyManifestDigest(
+                installedManifest.Manifest,
+                manifestDigestCalculator.ComputeLegacyManifestDigestWithoutSkillBundleVersion(installedManifest.Manifest));
+        }
+
+        return SkillOperationResult<IntegrityCheckResult>.Success(IntegrityCheckResult.Mismatch(
+            SkillFailureCodes.InstallTargetManifestDigestMismatch,
+            $"Installed SKILL manifest text is not canonical: {installedManifest.Manifest.SkillName}"));
+    }
+
+    private static SkillOperationResult<IntegrityCheckResult> VerifyManifestDigest (
+        SkillManifest manifest,
+        string expectedManifestDigest)
+    {
+        if (!string.Equals(expectedManifestDigest, manifest.ManifestDigest, StringComparison.Ordinal))
         {
             return SkillOperationResult<IntegrityCheckResult>.Success(IntegrityCheckResult.Mismatch(
                 SkillFailureCodes.InstallTargetManifestDigestMismatch,

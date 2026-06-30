@@ -1,3 +1,7 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Distribution;
@@ -389,6 +393,89 @@ internal static class SkillTestData
             Manifest = manifest,
             Files = files,
         };
+    }
+
+    internal static string CreateLegacyManifestTextWithoutSkillBundleVersion (CanonicalSkillPackage package)
+    {
+        var manifest = package.Manifest with
+        {
+            SkillBundleVersion = 0,
+            ManifestDigest = string.Empty,
+        };
+        var manifestWithoutDigest = CreateLegacyManifestJsonWithoutSkillBundleVersion(manifest, includeManifestDigest: false);
+        manifest = manifest with
+        {
+            ManifestDigest = ComputeTestSha256LowerHex(manifestWithoutDigest),
+        };
+
+        return CreateLegacyManifestJsonWithoutSkillBundleVersion(manifest, includeManifestDigest: true);
+    }
+
+    internal static void WriteLegacyManifestTextWithoutSkillBundleVersion (
+        string skillDirectory,
+        CanonicalSkillPackage package)
+    {
+        File.WriteAllText(
+            Path.Combine(skillDirectory, "agent-skill.json"),
+            CreateLegacyManifestTextWithoutSkillBundleVersion(package));
+    }
+
+    private static string CreateLegacyManifestJsonWithoutSkillBundleVersion (
+        SkillManifest manifest,
+        bool includeManifestDigest)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("{");
+        builder.AppendLine($"  \"schemaVersion\": {manifest.SchemaVersion},");
+        builder.AppendLine($"  \"catalogId\": {JsonString(manifest.CatalogId.Value)},");
+        builder.AppendLine($"  \"tier\": {JsonString(manifest.Tier.Value)},");
+        builder.AppendLine($"  \"contentDigest\": {JsonString(manifest.ContentDigest)},");
+        if (includeManifestDigest)
+        {
+            builder.AppendLine($"  \"manifestDigest\": {JsonString(manifest.ManifestDigest)},");
+        }
+
+        builder.AppendLine($"  \"skillName\": {JsonString(manifest.SkillName)},");
+        builder.AppendLine($"  \"displayName\": {JsonString(manifest.DisplayName)},");
+        builder.AppendLine($"  \"description\": {JsonString(manifest.Description)},");
+        builder.AppendLine("  \"hostArtifacts\": [");
+
+        var artifacts = manifest.HostArtifacts.OrderBy(static artifact => artifact.Host, StringComparer.Ordinal).ToArray();
+        for (var i = 0; i < artifacts.Length; i++)
+        {
+            var artifact = artifacts[i];
+            builder.AppendLine("    {");
+            builder.AppendLine($"      \"host\": {JsonString(artifact.Host)},");
+            if (!string.IsNullOrWhiteSpace(artifact.Path))
+            {
+                builder.AppendLine($"      \"path\": {JsonString(artifact.Path)},");
+            }
+
+            if (!string.IsNullOrWhiteSpace(artifact.Digest))
+            {
+                builder.AppendLine($"      \"digest\": {JsonString(artifact.Digest)},");
+            }
+
+            builder.AppendLine($"      \"materializedFrontmatterDigest\": {JsonString(artifact.MaterializedFrontmatterDigest)}");
+            builder.AppendLine(i == artifacts.Length - 1 ? "    }" : "    },");
+        }
+
+        builder.AppendLine("  ]");
+        builder.AppendLine("}");
+        return builder.ToString();
+    }
+
+    private static string JsonString (string value)
+    {
+        return JsonSerializer.Serialize(value, new JsonSerializerOptions
+        {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        });
+    }
+
+    private static string ComputeTestSha256LowerHex (string value)
+    {
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
     }
 
     internal static CanonicalSkillPackage WithFileEnumerationCallback (

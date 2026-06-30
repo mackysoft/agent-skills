@@ -21,4 +21,53 @@ public sealed record SkillListSkillReport (
     string CatalogId,
     string ContentDigest,
     string ManifestDigest,
-    IReadOnlyList<SkillHostArtifactReport> HostArtifacts);
+    IReadOnlyList<SkillHostArtifactReport> HostArtifacts)
+{
+    /// <summary> Initializes a report using the pre-skillBundleVersion constructor shape. </summary>
+    public SkillListSkillReport (
+        int SchemaVersion,
+        string SkillName,
+        string DisplayName,
+        string Description,
+        string Tier,
+        string CatalogId,
+        string ContentDigest,
+        string ManifestDigest,
+        IReadOnlyList<SkillHostArtifactReport> HostArtifacts)
+        : this(
+            SchemaVersion,
+            0,
+            SkillName,
+            DisplayName,
+            Description,
+            Tier,
+            CatalogId,
+            ContentDigest,
+            ManifestDigest,
+            HostArtifacts)
+    {
+    }
+
+    /// <summary> Deconstructs a report using the pre-skillBundleVersion tuple shape. </summary>
+    public void Deconstruct (
+        out int SchemaVersion,
+        out string SkillName,
+        out string DisplayName,
+        out string Description,
+        out string Tier,
+        out string CatalogId,
+        out string ContentDigest,
+        out string ManifestDigest,
+        out IReadOnlyList<SkillHostArtifactReport> HostArtifacts)
+    {
+        SchemaVersion = this.SchemaVersion;
+        SkillName = this.SkillName;
+        DisplayName = this.DisplayName;
+        Description = this.Description;
+        Tier = this.Tier;
+        CatalogId = this.CatalogId;
+        ContentDigest = this.ContentDigest;
+        ManifestDigest = this.ManifestDigest;
+        HostArtifacts = this.HostArtifacts;
+    }
+}

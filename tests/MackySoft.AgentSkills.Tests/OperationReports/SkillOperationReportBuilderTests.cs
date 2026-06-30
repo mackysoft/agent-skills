@@ -54,7 +54,9 @@ public sealed class SkillOperationReportBuilderTests
                     TargetState: new SkillActionTargetState(
                         nameof(SkillInstalledTargetStateKind.CommonContentDrift),
                         SkillFailureCodes.InstallTargetContentDigestMismatch,
-                        "Content drift."))
+                        "Content drift.",
+                        InstalledSkillBundleVersion: 1,
+                        BundledSkillBundleVersion: 2))
                 {
                     FileChanges = new SkillActionFileChanges(["z.txt", "a.txt"], ["local.md"]),
                 },
@@ -81,6 +83,8 @@ public sealed class SkillOperationReportBuilderTests
         Assert.Null(updated.BlockedReason);
         Assert.Equal("commonContentDrift", updated.TargetState!.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch.Value, updated.TargetState.Code);
+        Assert.Equal(1, updated.TargetState.InstalledSkillBundleVersion);
+        Assert.Equal(2, updated.TargetState.BundledSkillBundleVersion);
         Assert.Equal(["a.txt", "z.txt"], updated.FileChanges!.ReplacedFiles);
         Assert.Equal(["local.md"], updated.FileChanges.RemovedFiles);
         Assert.Equal(["a.txt", "z.txt"], updated.FileDiffs.Select(static diff => diff.RelativePath).ToArray());
@@ -280,6 +284,10 @@ public sealed class SkillOperationReportBuilderTests
                     "Version ahead.",
                     "skill-c"),
                 SkillDoctorDiagnostic.Error(
+                    SkillFailureCodes.InstallTargetOutdated,
+                    "Clean outdated.",
+                    "skill-d"),
+                SkillDoctorDiagnostic.Error(
                     "SKILL_DOCTOR_SHARED",
                     "Same diagnostic.",
                     "skill-a"),
@@ -303,7 +311,7 @@ public sealed class SkillOperationReportBuilderTests
         Assert.Equal(["developer"], report.Tiers);
         Assert.Equal(["skill-a"], report.SkillNames);
         Assert.Equal("project", report.Scope);
-        Assert.Equal(new string?[] { null, "skill-a", "skill-a", "skill-a", "skill-b", "skill-c" }, report.Diagnostics.Select(static diagnostic => diagnostic.SkillName).ToArray());
+        Assert.Equal(new string?[] { null, "skill-a", "skill-a", "skill-a", "skill-b", "skill-c", "skill-d" }, report.Diagnostics.Select(static diagnostic => diagnostic.SkillName).ToArray());
         Assert.Equal("error", report.Diagnostics[0].Severity);
         Assert.Null(report.Diagnostics[0].TargetState);
         Assert.Equal("info", report.Diagnostics[1].Severity);
@@ -312,6 +320,36 @@ public sealed class SkillOperationReportBuilderTests
         Assert.Equal("error", report.Diagnostics[3].Severity);
         Assert.Equal("hostArtifactDrift", report.Diagnostics[4].TargetState);
         Assert.Equal("versionAhead", report.Diagnostics[5].TargetState);
+        Assert.Equal("cleanOutdated", report.Diagnostics[6].TargetState);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void OperationReportPublicContracts_PreservePreSkillBundleVersionConstructors ()
+    {
+        var hostArtifacts = Array.Empty<SkillHostArtifactReport>();
+        var listReport = new SkillListSkillReport(
+            1,
+            "skill-a",
+            "Skill A",
+            "Description.",
+            "basic",
+            "com.example",
+            new string('0', 64),
+            new string('1', 64),
+            hostArtifacts);
+        var fileSet = new SkillTargetFileSetReport(["missing.md"], [], []);
+        var targetState = new SkillTargetStateReport(
+            "fileSetDrift",
+            SkillFailureCodes.InstallTargetFileSetMismatch.Value,
+            "File set drift.",
+            fileSet);
+
+        Assert.Equal(0, listReport.SkillBundleVersion);
+        Assert.Same(hostArtifacts, listReport.HostArtifacts);
+        Assert.Null(targetState.InstalledSkillBundleVersion);
+        Assert.Null(targetState.BundledSkillBundleVersion);
+        Assert.Same(fileSet, targetState.FileSet);
     }
 
     [Fact]

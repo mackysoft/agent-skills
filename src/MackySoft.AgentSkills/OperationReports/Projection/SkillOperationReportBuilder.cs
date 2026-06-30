@@ -494,13 +494,8 @@ public static class SkillOperationReportBuilder
 
     private static string? ResolveDiagnosticTargetState (string code)
     {
-        if (SkillFailureCode.TryCreate(code, out var versionFailureCode) && versionFailureCode == SkillFailureCodes.InstallTargetVersionAhead)
-        {
-            return SkillLiteralCodec.FormatTargetStateKind(SkillInstalledTargetStateKind.VersionAhead);
-        }
-
         return SkillFailureCode.TryCreate(code, out var failureCode)
-            && SkillInstalledTargetStateClassifier.TryResolveDriftKind(failureCode, out var stateKind)
+            && SkillInstalledTargetStateClassifier.TryResolveReportableKind(failureCode, out var stateKind)
                 ? SkillLiteralCodec.FormatTargetStateKind(stateKind)
                 : null;
     }

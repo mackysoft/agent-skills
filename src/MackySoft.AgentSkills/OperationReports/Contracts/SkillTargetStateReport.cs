@@ -13,4 +13,34 @@ public sealed record SkillTargetStateReport (
     string? Message = null,
     int? InstalledSkillBundleVersion = null,
     int? BundledSkillBundleVersion = null,
-    SkillTargetFileSetReport? FileSet = null);
+    SkillTargetFileSetReport? FileSet = null)
+{
+    /// <summary> Initializes a report using the pre-skillBundleVersion constructor shape. </summary>
+    public SkillTargetStateReport (
+        string Kind,
+        string? Code,
+        string? Message,
+        SkillTargetFileSetReport? FileSet)
+        : this(
+            Kind,
+            Code,
+            Message,
+            null,
+            null,
+            FileSet)
+    {
+    }
+
+    /// <summary> Deconstructs a report using the pre-skillBundleVersion tuple shape. </summary>
+    public void Deconstruct (
+        out string Kind,
+        out string? Code,
+        out string? Message,
+        out SkillTargetFileSetReport? FileSet)
+    {
+        Kind = this.Kind;
+        Code = this.Code;
+        Message = this.Message;
+        FileSet = this.FileSet;
+    }
+}
