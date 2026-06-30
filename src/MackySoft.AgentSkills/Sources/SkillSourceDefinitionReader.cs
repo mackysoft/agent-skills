@@ -123,6 +123,10 @@ public sealed class SkillSourceDefinitionReader
         {
             return SkillOperationResult<SkillSourceDefinition>.FailureResult(SkillFailureCodes.SourceInvalid, $"SKILL.md.template must not contain frontmatter: {skillName}");
         }
+        if (skillTemplate.TrimStart().StartsWith("# ", StringComparison.Ordinal))
+        {
+            return SkillOperationResult<SkillSourceDefinition>.FailureResult(SkillFailureCodes.SourceInvalid, $"SKILL.md.template must not contain a top-level heading: {skillName}");
+        }
 
         var references = new List<SkillSourceReference>();
         foreach (var reference in metadataResult.Value!.References)

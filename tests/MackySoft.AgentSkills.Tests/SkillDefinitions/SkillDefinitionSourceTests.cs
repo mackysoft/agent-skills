@@ -115,6 +115,7 @@ public sealed class SkillDefinitionSourceTests
             var template = File.ReadAllText(Path.Combine(definitionsRoot, skillName, "SKILL.md.template"));
 
             Assert.False(template.TrimStart().StartsWith("---", StringComparison.Ordinal));
+            Assert.False(template.TrimStart().StartsWith("# ", StringComparison.Ordinal));
             Assert.InRange(CountLogicalLines(template), 1, 499);
             Assert.Contains("agent-skills ops describe <opName>", template, StringComparison.Ordinal);
             Assert.Contains("read -> describe -> build request -> validate -> plan -> call -> verify", template, StringComparison.Ordinal);

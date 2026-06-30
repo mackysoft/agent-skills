@@ -193,6 +193,28 @@ public sealed class SkillPackageGenerationServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public void Generate_PrependsTopLevelHeadingToTemplateBody ()
+    {
+        var service = SkillTestData.CreatePackageGenerationService();
+        var package = service.Generate(new SkillSourceDefinition(
+            new SkillSourceMetadata(
+                SkillSourceMetadata.CurrentSchemaVersion,
+                "heading-free-skill",
+                "Heading Free Skill",
+                "Use this skill to verify generated heading insertion.",
+                new SkillTier("basic"),
+                new SkillCatalogId("com.mackysoft.agent-skills"),
+                []),
+            "Use this skill to verify generated heading insertion.\n",
+            []));
+
+        var body = package.Files.Single(static file => string.Equals(file.RelativePath, "SKILL.md", StringComparison.Ordinal)).Content;
+
+        Assert.StartsWith("# heading-free-skill\n\nUse this skill", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task GenerateAllAsync_RejectsEmptyDefinitionsRoot ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "empty-definitions");

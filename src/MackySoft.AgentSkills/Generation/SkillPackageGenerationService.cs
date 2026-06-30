@@ -78,7 +78,7 @@ public sealed class SkillPackageGenerationService
     {
         ArgumentNullException.ThrowIfNull(definition);
 
-        var bodyFile = SkillPackageFile.Create("SKILL.md", definition.SkillTemplate);
+        var bodyFile = SkillPackageFile.Create("SKILL.md", CreateSkillBody(definition));
         var referenceFiles = definition.References
             .OrderBy(static reference => reference.FileName, StringComparer.Ordinal)
             .Select(static reference => SkillPackageFile.Create($"references/{reference.FileName}", reference.Template))
@@ -121,6 +121,12 @@ public sealed class SkillPackageGenerationService
         return new CanonicalSkillPackage(
             Manifest: manifest,
             Files: files);
+    }
+
+    private static string CreateSkillBody (SkillSourceDefinition definition)
+    {
+        var body = SkillTextNormalizer.NormalizeToLf(definition.SkillTemplate).TrimStart('\n');
+        return $"# {definition.Metadata.SkillName}\n\n{body}";
     }
 
     private IEnumerable<GeneratedHostArtifactOutput> CreateHostArtifactOutputs (SkillSourceMetadata metadata)

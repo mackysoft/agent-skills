@@ -1,4 +1,4 @@
-# Agent Skills Verify Changes
+# agent-skills-verify-changes
 
 Use this skill to verify whether a Agent Skills-backed Unity change actually reached the intended state.
 

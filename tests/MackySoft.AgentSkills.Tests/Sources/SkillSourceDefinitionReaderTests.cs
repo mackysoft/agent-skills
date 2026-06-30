@@ -19,6 +19,7 @@ public sealed class SkillSourceDefinitionReaderTests
         Assert.All(result.Value!, static definition =>
         {
             Assert.DoesNotContain("---", definition.SkillTemplate.TrimStart().Split('\n')[0], StringComparison.Ordinal);
+            Assert.False(definition.SkillTemplate.TrimStart().StartsWith("# ", StringComparison.Ordinal));
             Assert.NotEmpty(definition.References);
         });
     }
@@ -44,7 +45,7 @@ public sealed class SkillSourceDefinitionReaderTests
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "malformed-json");
         var skillDirectory = scope.CreateDirectory("sample-skill");
         scope.WriteFile("sample-skill/skill.json", "{");
-        scope.WriteFile("sample-skill/SKILL.md.template", "# Sample\n");
+        scope.WriteFile("sample-skill/SKILL.md.template", "Use this skill when testing source validation.\n");
         var reader = new SkillSourceDefinitionReader();
 
         var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
@@ -72,7 +73,7 @@ public sealed class SkillSourceDefinitionReaderTests
               ]
             }
             """);
-        scope.WriteFile("sample-skill/SKILL.md.template", "# Sample\n");
+        scope.WriteFile("sample-skill/SKILL.md.template", "Use this skill when testing source validation.\n");
         scope.WriteFile("sample-skill/references/reference.md.template", "# Reference\n");
         var reader = new SkillSourceDefinitionReader();
 
@@ -141,7 +142,7 @@ public sealed class SkillSourceDefinitionReaderTests
               ]
             }
             """);
-        scope.WriteFile("sample-skill/SKILL.md.template", "# Sample\n");
+        scope.WriteFile("sample-skill/SKILL.md.template", "Use this skill when testing source validation.\n");
         scope.WriteFile("sample-skill/references/reference.md.template", "# Reference\n");
         var reader = new SkillSourceDefinitionReader();
 
@@ -170,7 +171,7 @@ public sealed class SkillSourceDefinitionReaderTests
               "references": []
             }
             """);
-        scope.WriteFile("sample-skill/SKILL.md.template", "# Sample\n");
+        scope.WriteFile("sample-skill/SKILL.md.template", "Use this skill when testing source validation.\n");
         var reader = new SkillSourceDefinitionReader();
 
         var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
@@ -178,6 +179,21 @@ public sealed class SkillSourceDefinitionReaderTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Empty(result.Value!.Metadata.References);
         Assert.Empty(result.Value.References);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task ReadOneAsync_Fails_WhenSkillTemplateContainsTopLevelHeading ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "template-heading");
+        var skillDirectory = WriteMinimalDefinition(scope, skillTemplate: "# Sample\n");
+        var reader = new SkillSourceDefinitionReader();
+
+        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Contains("top-level heading", result.Failure.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -201,7 +217,7 @@ public sealed class SkillSourceDefinitionReaderTests
               ]
             }
             """);
-        scope.WriteFile("sample-skill/SKILL.md.template", "# Sample\n");
+        scope.WriteFile("sample-skill/SKILL.md.template", "Use this skill when testing source validation.\n");
         var reader = new SkillSourceDefinitionReader();
 
         var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
@@ -245,7 +261,7 @@ public sealed class SkillSourceDefinitionReaderTests
               ]
             }
             """);
-        scope.WriteFile("SampleSkill/SKILL.md.template", "# Sample\n");
+        scope.WriteFile("SampleSkill/SKILL.md.template", "Use this skill when testing source validation.\n");
         scope.WriteFile("SampleSkill/references/reference.md.template", "# Reference\n");
         var reader = new SkillSourceDefinitionReader();
 
@@ -329,6 +345,7 @@ public sealed class SkillSourceDefinitionReaderTests
         string extraJsonProperty = "",
         string tier = "basic",
         string catalogId = "com.mackysoft.agent-skills",
+        string skillTemplate = "Use this skill when testing source validation.\n",
         bool writeSkillTemplate = true,
         bool writeReferenceTemplate = true)
     {
@@ -350,7 +367,7 @@ public sealed class SkillSourceDefinitionReaderTests
             """);
         if (writeSkillTemplate)
         {
-            scope.WriteFile("sample-skill/SKILL.md.template", "# Sample\n");
+            scope.WriteFile("sample-skill/SKILL.md.template", skillTemplate);
         }
 
         if (writeReferenceTemplate)

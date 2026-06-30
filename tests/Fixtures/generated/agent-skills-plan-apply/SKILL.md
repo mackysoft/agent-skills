@@ -1,4 +1,4 @@
-# Agent Skills Plan Apply
+# agent-skills-plan-apply
 
 Use this skill to turn an intended Unity change into a validated and reviewable Agent Skills request.
 
