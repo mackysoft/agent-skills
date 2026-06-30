@@ -15,11 +15,12 @@ public sealed class SkillSourceDefinitionReaderTests
         var result = await reader.ReadAllAsync(SkillTestData.GetDefinitionsRoot(), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(SkillTestData.ExpectedSkillNames, result.Value!.Select(static definition => definition.Metadata.SkillName).ToArray());
+        Assert.Equal(SkillTestData.ExpectedSkillNames, result.Value!.Select(static definition => definition.Metadata.SkillName.Value).ToArray());
         Assert.All(result.Value!, static definition =>
         {
             Assert.DoesNotContain("---", definition.SkillTemplate.TrimStart().Split('\n')[0], StringComparison.Ordinal);
             Assert.False(definition.SkillTemplate.TrimStart().StartsWith("# ", StringComparison.Ordinal));
+            Assert.Empty(definition.Metadata.Dependencies);
             Assert.NotEmpty(definition.References);
         });
     }
@@ -68,6 +69,7 @@ public sealed class SkillSourceDefinitionReaderTests
               "skillName": "sample-skill",
               "displayName": "Sample Skill",
               "description": "Use when testing source validation.",
+              "dependencies": [],
               "references": [
                 "reference.md"
               ]
@@ -137,6 +139,7 @@ public sealed class SkillSourceDefinitionReaderTests
               "skillName": "sample-skill",
               "displayName": "Sample Skill",
               "description": "Use when testing source validation.",
+              "dependencies": [],
               "references": [
                 "reference.md"
               ]
@@ -168,6 +171,7 @@ public sealed class SkillSourceDefinitionReaderTests
               "skillName": "sample-skill",
               "displayName": "Sample Skill",
               "description": "Use when testing source validation.",
+              "dependencies": [],
               "references": []
             }
             """);
@@ -198,6 +202,97 @@ public sealed class SkillSourceDefinitionReaderTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task ReadOneAsync_ReadsDefinitionWithSortedDependencies ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "with-dependencies");
+        var skillDirectory = WriteMinimalDefinition(scope, dependencies: ["z-helper", "a-helper"]);
+        var reader = new SkillSourceDefinitionReader();
+
+        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.Equal(["a-helper", "z-helper"], result.Value!.Metadata.Dependencies.Select(static dependency => dependency.Value).ToArray());
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("UnsafeSkill")]
+    [InlineData("../escape")]
+    [InlineData("-helper")]
+    [Trait("Size", "Small")]
+    public async Task ReadOneAsync_Fails_WhenDependencyLiteralIsInvalid (string dependency)
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "invalid-dependency");
+        var skillDirectory = WriteMinimalDefinition(scope, dependencies: [dependency]);
+        var reader = new SkillSourceDefinitionReader();
+
+        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task ReadOneAsync_Fails_WhenDependencyIsDuplicated ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "duplicate-dependency");
+        var skillDirectory = WriteMinimalDefinition(scope, dependencies: ["helper-skill", "helper-skill"]);
+        var reader = new SkillSourceDefinitionReader();
+
+        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task ReadOneAsync_Fails_WhenDependencyReferencesSelf ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "self-dependency");
+        var skillDirectory = WriteMinimalDefinition(scope, dependencies: ["sample-skill"]);
+        var reader = new SkillSourceDefinitionReader();
+
+        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task ReadAllAsync_Fails_WhenDependencyIsUndefined ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "undefined-dependency");
+        WriteMinimalDefinition(scope, dependencies: ["missing-helper"]);
+        var reader = new SkillSourceDefinitionReader();
+
+        var result = await reader.ReadAllAsync(scope.FullPath, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Contains("dependency was not found", result.Failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task ReadAllAsync_Fails_WhenDependencyCycleExists ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "dependency-cycle");
+        WriteMinimalDefinition(scope, skillName: "skill-a", dependencies: ["skill-b"]);
+        WriteMinimalDefinition(scope, skillName: "skill-b", dependencies: ["skill-a"]);
+        var reader = new SkillSourceDefinitionReader();
+
+        var result = await reader.ReadAllAsync(scope.FullPath, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Contains("dependency cycle", result.Failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task ReadOneAsync_Fails_WhenReferenceEscapesDirectory ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "reference-traversal");
@@ -212,6 +307,7 @@ public sealed class SkillSourceDefinitionReaderTests
               "skillName": "sample-skill",
               "displayName": "Sample Skill",
               "description": "Use when testing source validation.",
+              "dependencies": [],
               "references": [
                 "../escape.md"
               ]
@@ -256,6 +352,7 @@ public sealed class SkillSourceDefinitionReaderTests
               "skillName": "SampleSkill",
               "displayName": "Sample Skill",
               "description": "Use when testing source validation.",
+              "dependencies": [],
               "references": [
                 "reference.md"
               ]
@@ -345,21 +442,28 @@ public sealed class SkillSourceDefinitionReaderTests
         string extraJsonProperty = "",
         string tier = "basic",
         string catalogId = "com.mackysoft.agent-skills",
+        string skillName = "sample-skill",
+        IReadOnlyList<string>? dependencies = null,
         string skillTemplate = "Use this skill when testing source validation.\n",
         bool writeSkillTemplate = true,
         bool writeReferenceTemplate = true)
     {
-        var skillDirectory = scope.CreateDirectory("sample-skill");
+        dependencies ??= [];
+        var dependencyJson = dependencies.Count == 0
+            ? "[]"
+            : "[\n" + string.Join(",\n", dependencies.Select(static dependency => $"    \"{dependency}\"")) + "\n  ]";
+        var skillDirectory = scope.CreateDirectory(skillName);
         scope.WriteFile(
-            "sample-skill/skill.json",
+            $"{skillName}/skill.json",
             $$"""
             {
               "schemaVersion": 1,
               "catalogId": "{{catalogId}}",
               "tier": "{{tier}}",
-              "skillName": "sample-skill",
+              "skillName": "{{skillName}}",
               "displayName": "Sample Skill",
               "description": "Use when testing source validation.",
+              "dependencies": {{dependencyJson}},
               "references": [
                 "reference.md"
               ]{{extraJsonProperty}}
@@ -367,12 +471,12 @@ public sealed class SkillSourceDefinitionReaderTests
             """);
         if (writeSkillTemplate)
         {
-            scope.WriteFile("sample-skill/SKILL.md.template", skillTemplate);
+            scope.WriteFile($"{skillName}/SKILL.md.template", skillTemplate);
         }
 
         if (writeReferenceTemplate)
         {
-            scope.WriteFile("sample-skill/references/reference.md.template", "# Reference\n");
+            scope.WriteFile($"{skillName}/references/reference.md.template", "# Reference\n");
         }
 
         return skillDirectory;

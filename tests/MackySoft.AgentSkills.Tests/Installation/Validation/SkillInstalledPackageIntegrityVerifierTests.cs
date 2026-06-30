@@ -21,10 +21,10 @@ public sealed class SkillInstalledPackageIntegrityVerifierTests
         var package = (await SkillTestData.GenerateFixturePackagesAsync()).First();
         var materializedResult = SkillTestData.CreateMaterializationService().Materialize(package, OpenAiSkillHostAdapter.HostKey);
         Assert.True(materializedResult.IsSuccess, materializedResult.Failure?.Message);
-        var skillDirectory = scope.CreateDirectory(package.Manifest.SkillName);
+        var skillDirectory = scope.CreateDirectory(package.Manifest.SkillName.Value);
         foreach (var file in materializedResult.Value!.Files)
         {
-            scope.WriteFile(Path.Combine(package.Manifest.SkillName, file.RelativePath), file.Content);
+            scope.WriteFile(Path.Combine(package.Manifest.SkillName.Value, file.RelativePath), file.Content);
         }
 
         const string outsideFileName = "outside-secret.md";

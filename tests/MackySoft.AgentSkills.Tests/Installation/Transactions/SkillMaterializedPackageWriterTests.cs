@@ -2,6 +2,7 @@ using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Installation.Contracts;
 using MackySoft.AgentSkills.Installation.Transactions;
 using MackySoft.AgentSkills.Materialization;
+using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
 
@@ -19,7 +20,7 @@ public sealed class SkillMaterializedPackageWriterTests
         var skillPath = scope.WriteFile(Path.Combine(".agents", "skills", "sample-skill", "SKILL.md"), "# Existing\n");
         var writer = SkillTestData.CreatePackageWriter();
         var package = new SkillMaterializedPackage(
-            "sample-skill",
+            new SkillName("sample-skill"),
             OpenAiSkillHostAdapter.HostKey,
             [
                 SkillPackageFile.Create("nested", "file"),
@@ -45,7 +46,7 @@ public sealed class SkillMaterializedPackageWriterTests
         var skillPath = scope.WriteFile(Path.Combine(".agents", "skills", "sample-skill", "SKILL.md"), "# Existing\n");
         var writer = new SkillMaterializedPackageWriter(new CommitMoveFailingDirectoryOperations());
         var package = new SkillMaterializedPackage(
-            "sample-skill",
+            new SkillName("sample-skill"),
             OpenAiSkillHostAdapter.HostKey,
             [
                 SkillPackageFile.Create("SKILL.md", "# New\n"),
@@ -72,7 +73,7 @@ public sealed class SkillMaterializedPackageWriterTests
         var skillPath = scope.WriteFile(Path.Combine(".agents", "skills", "sample-skill", "SKILL.md"), "# Existing\n");
         var writer = SkillTestData.CreatePackageWriter();
         var package = new SkillMaterializedPackage(
-            "sample-skill",
+            new SkillName("sample-skill"),
             OpenAiSkillHostAdapter.HostKey,
             [
                 SkillPackageFile.Create("SKILL.md", "# New\n"),
@@ -109,7 +110,7 @@ public sealed class SkillMaterializedPackageWriterTests
         var result = await writer.WriteAsync(
             targetScope.FullPath,
             outsideSkillDirectory,
-            new SkillMaterializedPackage("skill", OpenAiSkillHostAdapter.HostKey, []),
+            new SkillMaterializedPackage(new SkillName("skill"), OpenAiSkillHostAdapter.HostKey, []),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);

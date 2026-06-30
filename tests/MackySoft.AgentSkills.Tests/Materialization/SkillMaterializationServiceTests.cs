@@ -26,7 +26,7 @@ public sealed class SkillMaterializationServiceTests
 
                 Assert.True(first.IsSuccess, first.Failure?.Message);
                 Assert.True(second.IsSuccess, second.Failure?.Message);
-                Assert.Equal(package.Manifest.SkillName, first.Value!.SkillName);
+                Assert.Equal(package.Manifest.SkillName.Value, first.Value!.SkillName.Value);
                 Assert.Equal(host, first.Value.Host);
                 Assert.Equal(first.Value!.Files, second.Value!.Files);
                 var materializedFiles = first.Value.Files;

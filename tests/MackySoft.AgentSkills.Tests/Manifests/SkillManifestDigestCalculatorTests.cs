@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Manifests;
+using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Tiers;
 
 namespace MackySoft.AgentSkills.Tests.Manifests;
@@ -21,6 +22,7 @@ public sealed class SkillManifestDigestCalculatorTests
             "  \"skillName\": \"sample-skill\",",
             "  \"displayName\": \"Sample Skill\",",
             "  \"description\": \"Use this sample skill for tests.\",",
+            "  \"dependencies\": [],",
             "  \"hostArtifacts\": [",
             "    {",
             "      \"host\": \"claude\",",
@@ -41,9 +43,10 @@ public sealed class SkillManifestDigestCalculatorTests
         ]) + "\n";
         var manifest = new SkillManifest(
             SkillManifest.CurrentSchemaVersion,
-            "sample-skill",
+            new SkillName("sample-skill"),
             "Sample Skill",
             "Use this sample skill for tests.",
+            [],
             new SkillTier("basic"),
             new SkillCatalogId("com.mackysoft.agent-skills"),
             new string('0', 64),

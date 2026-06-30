@@ -63,12 +63,12 @@ public sealed class SkillUpdateService
         var target = targetResult.Value!;
         var targetRoot = target.TargetRoot;
         var actionPlans = new List<SkillUpdateActionPlan>();
-        foreach (var package in input.Packages.OrderBy(static package => package.Manifest.SkillName, StringComparer.Ordinal))
+        foreach (var package in input.Packages.OrderBy(static package => package.Manifest.SkillName.Value, StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             var skillName = package.Manifest.SkillName;
-            var skillDirectoryResult = SkillPackagePathBoundary.ResolvePackageDirectory(targetRoot, skillName);
+            var skillDirectoryResult = SkillPackagePathBoundary.ResolvePackageDirectory(targetRoot, skillName.Value);
             if (!skillDirectoryResult.IsSuccess)
             {
                 return SkillOperationResult<SkillUpdateResult>.FailureResult(skillDirectoryResult.Failure!.Code, skillDirectoryResult.Failure.Message);

@@ -1,4 +1,5 @@
 using MackySoft.AgentSkills.Catalogs;
+using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Tiers;
 
 namespace MackySoft.AgentSkills.Manifests;
@@ -8,6 +9,7 @@ namespace MackySoft.AgentSkills.Manifests;
 /// <param name="SkillName"> The skill name. </param>
 /// <param name="DisplayName"> The display name shown by SKILL listing commands. </param>
 /// <param name="Description"> The host-independent SKILL description. </param>
+/// <param name="Dependencies"> The dependent skill names. </param>
 /// <param name="Tier"> The product-owned SKILL tier. </param>
 /// <param name="CatalogId"> The stable SKILL catalog ID. </param>
 /// <param name="ContentDigest"> The host-independent content digest. </param>
@@ -15,9 +17,10 @@ namespace MackySoft.AgentSkills.Manifests;
 /// <param name="HostArtifacts"> The host-specific artifact digests. </param>
 public sealed record SkillManifest (
     int SchemaVersion,
-    string SkillName,
+    SkillName SkillName,
     string DisplayName,
     string Description,
+    IReadOnlyList<SkillName> Dependencies,
     SkillTier Tier,
     SkillCatalogId CatalogId,
     string ContentDigest,

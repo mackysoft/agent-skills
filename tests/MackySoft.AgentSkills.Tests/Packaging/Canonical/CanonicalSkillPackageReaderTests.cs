@@ -19,10 +19,10 @@ public sealed class CanonicalSkillPackageReaderTests
 
         Assert.True(generatedPackages.IsSuccess, generatedPackages.Failure?.Message);
         var actualPackages = generatedPackages.Value!;
-        Assert.Equal(SkillTestData.ExpectedSkillNames, actualPackages.Select(static package => package.Manifest.SkillName).ToArray());
+        Assert.Equal(SkillTestData.ExpectedSkillNames, actualPackages.Select(static package => package.Manifest.SkillName.Value).ToArray());
         Assert.Equal(
-            sourcePackages.SelectMany(static package => package.Files.Select(file => $"{package.Manifest.SkillName}/{file.RelativePath}={file.Content}")).Order(StringComparer.Ordinal).ToArray(),
-            actualPackages.SelectMany(static package => package.Files.Select(file => $"{package.Manifest.SkillName}/{file.RelativePath}={file.Content}")).Order(StringComparer.Ordinal).ToArray());
+            sourcePackages.SelectMany(static package => package.Files.Select(file => $"{package.Manifest.SkillName.Value}/{file.RelativePath}={file.Content}")).Order(StringComparer.Ordinal).ToArray(),
+            actualPackages.SelectMany(static package => package.Files.Select(file => $"{package.Manifest.SkillName.Value}/{file.RelativePath}={file.Content}")).Order(StringComparer.Ordinal).ToArray());
     }
 
     [Fact]

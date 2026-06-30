@@ -1,5 +1,6 @@
 using MackySoft.AgentSkills.Hosts.Claude;
 using MackySoft.AgentSkills.Hosts.Contracts;
+using MackySoft.AgentSkills.Names;
 
 namespace MackySoft.AgentSkills.Tests.Hosts.Claude;
 
@@ -33,7 +34,7 @@ public sealed class ClaudeSkillHostAdapterTests
     {
         var adapter = new ClaudeSkillHostAdapter();
         var metadata = new SkillHostMetadata(
-            "agent-skills-sample",
+            new SkillName("agent-skills-sample"),
             "Sample Skill",
             "Use C:\\Unity\r\nNext"
         );

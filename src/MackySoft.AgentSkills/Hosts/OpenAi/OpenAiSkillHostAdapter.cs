@@ -28,7 +28,7 @@ public sealed class OpenAiSkillHostAdapter : ISkillHostAdapter
 
         var frontmatter = new DeterministicYamlBuilder()
             .DocumentMarker()
-            .Mapping("name", metadata.SkillName)
+            .Mapping("name", metadata.SkillName.Value)
             .Mapping("description", metadata.Description)
             .DocumentMarker()
             .Build();
@@ -37,7 +37,7 @@ public sealed class OpenAiSkillHostAdapter : ISkillHostAdapter
             .Section("interface")
             .Mapping("display_name", metadata.DisplayName, indentationLevel: 1)
             .Mapping("short_description", metadata.Description, indentationLevel: 1)
-            .Mapping("default_prompt", $"Use ${metadata.SkillName} to follow the {metadata.DisplayName} workflow.", indentationLevel: 1)
+            .Mapping("default_prompt", $"Use ${metadata.SkillName.Value} to follow the {metadata.DisplayName} workflow.", indentationLevel: 1)
             .BlankLine()
             .Section("policy")
             .Mapping("allow_implicit_invocation", true, indentationLevel: 1)

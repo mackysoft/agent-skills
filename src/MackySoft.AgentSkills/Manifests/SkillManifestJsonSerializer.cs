@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using MackySoft.AgentSkills.Catalogs;
+using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.AgentSkills.Tiers;
 
@@ -66,9 +67,10 @@ public sealed class SkillManifestJsonSerializer
 
         return new SkillManifest(
             SchemaVersion: root.GetProperty("schemaVersion").GetInt32(),
-            SkillName: root.GetProperty("skillName").GetString() ?? string.Empty,
+            SkillName: new SkillName(root.GetProperty("skillName").GetString() ?? string.Empty),
             DisplayName: root.GetProperty("displayName").GetString() ?? string.Empty,
             Description: root.GetProperty("description").GetString() ?? string.Empty,
+            Dependencies: root.GetProperty("dependencies").EnumerateArray().Select(static element => new SkillName(element.GetString() ?? string.Empty)).ToArray(),
             Tier: new SkillTier(root.GetProperty("tier").GetString() ?? string.Empty),
             CatalogId: new SkillCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty),
             ContentDigest: root.GetProperty("contentDigest").GetString() ?? string.Empty,
@@ -108,9 +110,17 @@ public sealed class SkillManifestJsonSerializer
             writer.WriteString("manifestDigest", manifest.ManifestDigest);
         }
 
-        writer.WriteString("skillName", manifest.SkillName);
+        writer.WriteString("skillName", manifest.SkillName.Value);
         writer.WriteString("displayName", manifest.DisplayName);
         writer.WriteString("description", manifest.Description);
+        writer.WritePropertyName("dependencies");
+        writer.WriteStartArray();
+        foreach (var dependency in manifest.Dependencies.OrderBy(static dependency => dependency.Value, StringComparer.Ordinal))
+        {
+            writer.WriteStringValue(dependency.Value);
+        }
+
+        writer.WriteEndArray();
         writer.WritePropertyName("hostArtifacts");
         writer.WriteStartArray();
 

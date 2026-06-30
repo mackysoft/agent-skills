@@ -1,3 +1,5 @@
+using MackySoft.AgentSkills.Dependencies;
+using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Selection;
 using MackySoft.AgentSkills.Shared;
@@ -333,21 +335,21 @@ public sealed class SkillPackageProvider
     private static SkillOperationResult<SkillPackageCatalog> CreatePackageCatalog (
         IReadOnlyList<SkillTier> definedTiers,
         IReadOnlyList<SkillTier> selectedTiers,
-        IReadOnlyList<string> selectedSkillNames,
+        IReadOnlyList<SkillName> selectedSkillNames,
         IReadOnlyList<CanonicalSkillPackage> packages)
     {
         var definedTierSet = definedTiers.ToHashSet();
         var selectedTierSet = selectedTiers.ToHashSet();
-        var selectedSkillNameSet = selectedSkillNames.ToHashSet(StringComparer.Ordinal);
+        var selectedSkillNameSet = selectedSkillNames.ToHashSet();
         var counts = definedTiers.ToDictionary(static tier => tier, static _ => 0);
-        var packagesBySkillName = new Dictionary<string, CanonicalSkillPackage>(StringComparer.Ordinal);
+        var packagesBySkillName = new Dictionary<SkillName, CanonicalSkillPackage>();
         foreach (var package in packages)
         {
             if (!definedTierSet.Contains(package.Manifest.Tier))
             {
                 return SkillOperationResult<SkillPackageCatalog>.FailureResult(
                     SkillFailureCodes.ManifestInvalid,
-                    $"Generated SKILL package has an undefined tier: {package.Manifest.SkillName}/{package.Manifest.Tier.Value}");
+                    $"Generated SKILL package has an undefined tier: {package.Manifest.SkillName.Value}/{package.Manifest.Tier.Value}");
             }
 
             counts[package.Manifest.Tier]++;
@@ -355,8 +357,21 @@ public sealed class SkillPackageProvider
             {
                 return SkillOperationResult<SkillPackageCatalog>.FailureResult(
                     SkillFailureCodes.ManifestInvalid,
-                    $"Generated SKILL package has a duplicate skillName: {package.Manifest.SkillName}");
+                    $"Generated SKILL package has a duplicate skillName: {package.Manifest.SkillName.Value}");
             }
+        }
+
+        var dependencyGraphResult = SkillDependencyGraphValidator.Validate(
+            packagesBySkillName.ToDictionary(
+                static item => item.Key,
+                static item => item.Value.Manifest.Dependencies),
+            SkillFailureCodes.ManifestInvalid,
+            "Generated SKILL package");
+        if (!dependencyGraphResult.IsSuccess)
+        {
+            return SkillOperationResult<SkillPackageCatalog>.FailureResult(
+                dependencyGraphResult.Failure!.Code,
+                dependencyGraphResult.Failure.Message);
         }
 
         foreach (var skillName in selectedSkillNames)
@@ -365,27 +380,60 @@ public sealed class SkillPackageProvider
             {
                 return SkillOperationResult<SkillPackageCatalog>.FailureResult(
                     SkillFailureCodes.InputInvalid,
-                    $"Selected SKILL name was not found: {skillName}.");
+                    $"Selected SKILL name was not found: {skillName.Value}.");
             }
 
             if (!selectedTierSet.Contains(package.Manifest.Tier))
             {
                 return SkillOperationResult<SkillPackageCatalog>.FailureResult(
                     SkillFailureCodes.InputInvalid,
-                    $"Selected SKILL name '{skillName}' does not match selected tiers: {string.Join(", ", selectedTiers.Select(static tier => tier.Value))}. Its tier is: {package.Manifest.Tier.Value}.");
+                    $"Selected SKILL name '{skillName.Value}' does not match selected tiers: {string.Join(", ", selectedTiers.Select(static tier => tier.Value))}. Its tier is: {package.Manifest.Tier.Value}.");
             }
         }
 
+        var rootPackages = packages
+            .Where(package => selectedTierSet.Contains(package.Manifest.Tier))
+            .Where(package => selectedSkillNameSet.Count == 0 || selectedSkillNameSet.Contains(package.Manifest.SkillName))
+            .OrderBy(static package => package.Manifest.SkillName.Value, StringComparer.Ordinal)
+            .ToArray();
+        var resolvedPackages = ResolveDependencyClosure(rootPackages, packagesBySkillName);
         var availableTiers = definedTiers
             .Select(tier => new SkillTierPackageCount(tier, counts[tier]))
             .ToArray();
-        var orderedPackages = packages
-            .Where(package => selectedTierSet.Contains(package.Manifest.Tier))
-            .Where(package => selectedSkillNameSet.Count == 0 || selectedSkillNameSet.Contains(package.Manifest.SkillName))
-            .OrderBy(static package => package.Manifest.SkillName, StringComparer.Ordinal)
-            .ToArray();
 
-        return SkillOperationResult<SkillPackageCatalog>.Success(new SkillPackageCatalog(selectedTiers, selectedSkillNames, availableTiers, orderedPackages));
+        return SkillOperationResult<SkillPackageCatalog>.Success(new SkillPackageCatalog(selectedTiers, selectedSkillNames, availableTiers, resolvedPackages));
+    }
+
+    private static IReadOnlyList<CanonicalSkillPackage> ResolveDependencyClosure (
+        IReadOnlyList<CanonicalSkillPackage> rootPackages,
+        IReadOnlyDictionary<SkillName, CanonicalSkillPackage> packagesBySkillName)
+    {
+        var resolvedSkillNames = new HashSet<SkillName>();
+        foreach (var package in rootPackages)
+        {
+            AddPackageAndDependencies(package.Manifest.SkillName, packagesBySkillName, resolvedSkillNames);
+        }
+
+        return resolvedSkillNames
+            .OrderBy(static skillName => skillName.Value, StringComparer.Ordinal)
+            .Select(skillName => packagesBySkillName[skillName])
+            .ToArray();
+    }
+
+    private static void AddPackageAndDependencies (
+        SkillName skillName,
+        IReadOnlyDictionary<SkillName, CanonicalSkillPackage> packagesBySkillName,
+        HashSet<SkillName> resolvedSkillNames)
+    {
+        if (!resolvedSkillNames.Add(skillName))
+        {
+            return;
+        }
+
+        foreach (var dependency in packagesBySkillName[skillName].Manifest.Dependencies.OrderBy(static dependency => dependency.Value, StringComparer.Ordinal))
+        {
+            AddPackageAndDependencies(dependency, packagesBySkillName, resolvedSkillNames);
+        }
     }
 
     private static SkillOperationResult<IReadOnlyList<SkillTier>> ValidateSelectedTiers (

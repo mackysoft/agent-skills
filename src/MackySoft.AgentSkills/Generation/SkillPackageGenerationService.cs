@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Dependencies;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Registration;
@@ -63,9 +64,17 @@ public sealed class SkillPackageGenerationService
                 $"SkillDefinitions directory does not contain any definitions: {definitionsRoot}");
         }
 
+        var dependencyReferenceResult = ValidateDependencyReferences(sourceResult.Value);
+        if (!dependencyReferenceResult.IsSuccess)
+        {
+            return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
+                dependencyReferenceResult.Failure!.Code,
+                dependencyReferenceResult.Failure.Message);
+        }
+
         var packages = sourceResult.Value!
             .Select(Generate)
-            .OrderBy(static package => package.Manifest.SkillName, StringComparer.Ordinal)
+            .OrderBy(static package => package.Manifest.SkillName.Value, StringComparer.Ordinal)
             .ToArray();
 
         return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.Success(packages);
@@ -100,6 +109,7 @@ public sealed class SkillPackageGenerationService
             definition.Metadata.SkillName,
             definition.Metadata.DisplayName,
             definition.Metadata.Description,
+            definition.Metadata.Dependencies.OrderBy(static dependency => dependency.Value, StringComparer.Ordinal).ToArray(),
             definition.Metadata.Tier,
             definition.Metadata.CatalogId,
             contentDigest,
@@ -126,7 +136,7 @@ public sealed class SkillPackageGenerationService
     private static string CreateSkillBody (SkillSourceDefinition definition)
     {
         var body = SkillTextNormalizer.NormalizeToLf(definition.SkillTemplate).TrimStart('\n');
-        return $"# {definition.Metadata.SkillName}\n\n{body}";
+        return $"# {definition.Metadata.SkillName.Value}\n\n{body}";
     }
 
     private IEnumerable<GeneratedHostArtifactOutput> CreateHostArtifactOutputs (SkillSourceMetadata metadata)
@@ -169,4 +179,48 @@ public sealed class SkillPackageGenerationService
     private sealed record GeneratedHostArtifactOutput (
         SkillHostArtifactManifest Manifest,
         IReadOnlyList<SkillPackageFile> Files);
+
+    private static SkillOperationResult<bool> ValidateDependencyReferences (IReadOnlyList<SkillSourceDefinition> definitions)
+    {
+        var knownSkillNames = definitions
+            .Select(static definition => definition.Metadata.SkillName)
+            .ToHashSet();
+
+        foreach (var definition in definitions.OrderBy(static definition => definition.Metadata.SkillName.Value, StringComparer.Ordinal))
+        {
+            var sourceTexts = new[] { definition.Metadata.Description, definition.SkillTemplate }
+                .Concat(definition.References.Select(static reference => reference.Template));
+            var referencedSkillNames = SkillDependencyReferenceScanner.FindReferences(sourceTexts)
+                .Where(knownSkillNames.Contains)
+                .Where(skillName => !string.Equals(skillName.Value, definition.Metadata.SkillName.Value, StringComparison.Ordinal))
+                .ToHashSet();
+            var declaredSkillNames = definition.Metadata.Dependencies.ToHashSet();
+
+            var missingReferences = declaredSkillNames
+                .Except(referencedSkillNames)
+                .OrderBy(static skillName => skillName.Value, StringComparer.Ordinal)
+                .Select(static skillName => skillName.Value)
+                .ToArray();
+            if (missingReferences.Length != 0)
+            {
+                return SkillOperationResult<bool>.FailureResult(
+                    SkillFailureCodes.SourceInvalid,
+                    $"skill.json dependencies are not referenced in source text for '{definition.Metadata.SkillName.Value}': {string.Join(", ", missingReferences)}.");
+            }
+
+            var missingDeclarations = referencedSkillNames
+                .Except(declaredSkillNames)
+                .OrderBy(static skillName => skillName.Value, StringComparer.Ordinal)
+                .Select(static skillName => skillName.Value)
+                .ToArray();
+            if (missingDeclarations.Length != 0)
+            {
+                return SkillOperationResult<bool>.FailureResult(
+                    SkillFailureCodes.SourceInvalid,
+                    $"Source text references undeclared skill dependencies for '{definition.Metadata.SkillName.Value}': {string.Join(", ", missingDeclarations)}.");
+            }
+        }
+
+        return SkillOperationResult<bool>.Success(true);
+    }
 }

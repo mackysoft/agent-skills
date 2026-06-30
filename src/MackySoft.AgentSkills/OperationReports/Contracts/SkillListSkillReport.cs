@@ -5,6 +5,7 @@ namespace MackySoft.AgentSkills.OperationReports.Contracts;
 /// <param name="SkillName"> The skill name. </param>
 /// <param name="DisplayName"> The display name shown by SKILL listing commands. </param>
 /// <param name="Description"> The host-independent SKILL description. </param>
+/// <param name="Dependencies"> The dependent skill name literals. </param>
 /// <param name="Tier"> The product-owned SKILL tier literal. </param>
 /// <param name="CatalogId"> The stable SKILL catalog ID literal. </param>
 /// <param name="ContentDigest"> The host-independent content digest. </param>
@@ -15,6 +16,7 @@ public sealed record SkillListSkillReport (
     string SkillName,
     string DisplayName,
     string Description,
+    IReadOnlyList<string> Dependencies,
     string Tier,
     string CatalogId,
     string ContentDigest,

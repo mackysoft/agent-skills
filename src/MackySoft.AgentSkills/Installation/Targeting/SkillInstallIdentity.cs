@@ -1,3 +1,5 @@
+using MackySoft.AgentSkills.Names;
+
 namespace MackySoft.AgentSkills.Installation.Targeting;
 
 /// <summary> Identifies one installed SKILL instance. </summary>
@@ -9,4 +11,4 @@ public sealed record SkillInstallIdentity (
     string Host,
     SkillScopeKind Scope,
     string TargetRoot,
-    string SkillName);
+    SkillName SkillName);

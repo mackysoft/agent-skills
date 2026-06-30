@@ -6,6 +6,7 @@ using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
+using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.OperationReports.Contracts;
 using MackySoft.AgentSkills.OperationReports.Projection;
 using MackySoft.AgentSkills.Shared;
@@ -218,10 +219,11 @@ public sealed class SkillOperationReportBuilderTests
             hostAdapters);
 
         Assert.Equal(["basic"], report.Tiers);
-        Assert.Equal([packages[0].Manifest.SkillName], report.SkillNames);
+        Assert.Equal([packages[0].Manifest.SkillName.Value], report.SkillNames);
         Assert.Equal(["basic", "advanced", "developer"], report.AvailableTiers.Select(static tier => tier.Tier).ToArray());
         Assert.Equal([packages.Length, 0, 0], report.AvailableTiers.Select(static tier => tier.SkillCount).ToArray());
         Assert.Equal(SkillTestData.ExpectedSkillNames, report.Skills.Select(static skill => skill.SkillName).ToArray());
+        Assert.All(report.Skills, static skill => Assert.Empty(skill.Dependencies));
         Assert.All(report.Skills, static skill => Assert.Equal("basic", skill.Tier));
         Assert.All(report.Skills, static skill => Assert.Equal("com.mackysoft.agent-skills", skill.CatalogId));
         Assert.Equal(["claude", "copilot", "openai"], report.SupportedHosts.Select(static host => host.Host).ToArray());
@@ -247,11 +249,11 @@ public sealed class SkillOperationReportBuilderTests
             OpenAiDescriptor,
             SkillExportFormat.Zip,
             [new SkillTier("basic"), new SkillTier("advanced")],
-            [packages[0].Manifest.SkillName]);
+            [packages[0].Manifest.SkillName.Value]);
 
         Assert.Equal(OpenAiSkillHostAdapter.HostKey, report.Host);
         Assert.Equal(["basic", "advanced"], report.Tiers);
-        Assert.Equal([packages[0].Manifest.SkillName], report.SkillNames);
+        Assert.Equal([packages[0].Manifest.SkillName.Value], report.SkillNames);
         Assert.Equal("zip", report.Format);
         Assert.Equal("/tmp/agent-skills.zip", report.OutputPath);
         Assert.Equal(SkillTestData.ExpectedSkillNames, report.Skills);
@@ -432,6 +434,7 @@ public sealed class SkillOperationReportBuilderTests
             ("SkillName", typeof(string)),
             ("DisplayName", typeof(string)),
             ("Description", typeof(string)),
+            ("Dependencies", typeof(IReadOnlyList<string>)),
             ("Tier", typeof(string)),
             ("CatalogId", typeof(string)),
             ("ContentDigest", typeof(string)),
@@ -680,7 +683,7 @@ public sealed class SkillOperationReportBuilderTests
             OpenAiSkillHostAdapter.HostKey,
             scope,
             targetRoot,
-            skillName);
+            new SkillName(skillName));
     }
 
     private static SkillHostDescriptor OpenAiDescriptor => new OpenAiSkillHostAdapter().Descriptor;

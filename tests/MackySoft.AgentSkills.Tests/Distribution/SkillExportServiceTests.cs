@@ -53,51 +53,6 @@ public sealed class SkillExportServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task ExportAsync_RejectsUnsafePackageName ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "export-unsafe-package");
-        var generatedPackage = (await SkillTestData.GenerateFixturePackagesAsync()).First();
-        var package = generatedPackage with
-        {
-            Manifest = generatedPackage.Manifest with
-            {
-                SkillName = "../escape",
-            },
-        };
-        var service = SkillTestData.CreateExportService();
-
-        var result = await service.ExportAsync([package], OpenAiSkillHostAdapter.HostKey, scope.FullPath, CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task ExportAsync_ZipFormat_RejectsUnsafePackageName ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "export-zip-unsafe-package");
-        var generatedPackage = (await SkillTestData.GenerateFixturePackagesAsync()).First();
-        var package = generatedPackage with
-        {
-            Manifest = generatedPackage.Manifest with
-            {
-                SkillName = "../escape",
-            },
-        };
-        var outputPath = scope.GetPath("release.zip");
-        var service = SkillTestData.CreateExportService();
-
-        var result = await service.ExportAsync([package], OpenAiSkillHostAdapter.HostKey, outputPath, SkillExportFormat.Zip, CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
-        Assert.False(File.Exists(outputPath));
-        Assert.Empty(Directory.EnumerateFiles(scope.FullPath, ".release.zip.*.tmp"));
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
     public async Task ExportAsync_RejectsExistingSkillDirectoryThatEscapesThroughSymlink ()
     {
         if (OperatingSystem.IsWindows())
@@ -108,7 +63,7 @@ public sealed class SkillExportServiceTests
         using var outputScope = TestDirectories.CreateTempScope("agent-skills-skills", "export-skill-symlink");
         using var outsideScope = TestDirectories.CreateTempScope("agent-skills-skills", "export-skill-symlink-outside");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        var symlinkPath = Path.Combine(outputScope.FullPath, packages[0].Manifest.SkillName);
+        var symlinkPath = Path.Combine(outputScope.FullPath, packages[0].Manifest.SkillName.Value);
         try
         {
             Directory.CreateSymbolicLink(symlinkPath, outsideScope.FullPath);
@@ -244,14 +199,14 @@ public sealed class SkillExportServiceTests
         var service = SkillTestData.CreateMaterializationService();
         var files = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        foreach (var package in packages.OrderBy(static package => package.Manifest.SkillName, StringComparer.Ordinal))
+        foreach (var package in packages.OrderBy(static package => package.Manifest.SkillName.Value, StringComparer.Ordinal))
         {
             var result = service.Materialize(package, host);
             Assert.True(result.IsSuccess, result.Failure?.Message);
 
             foreach (var file in result.Value!.Files.OrderBy(static file => file.RelativePath, StringComparer.Ordinal))
             {
-                files.Add($"{package.Manifest.SkillName}/{file.RelativePath}", file.Content);
+                files.Add($"{package.Manifest.SkillName.Value}/{file.RelativePath}", file.Content);
             }
         }
 

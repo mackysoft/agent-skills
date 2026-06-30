@@ -1,5 +1,6 @@
 using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Copilot;
+using MackySoft.AgentSkills.Names;
 
 namespace MackySoft.AgentSkills.Tests.Hosts.Copilot;
 
@@ -33,7 +34,7 @@ public sealed class CopilotSkillHostAdapterTests
     {
         var adapter = new CopilotSkillHostAdapter();
         var metadata = new SkillHostMetadata(
-            "agent-skills-sample",
+            new SkillName("agent-skills-sample"),
             "Sample Skill",
             "Use C:\\Unity\r\nNext"
         );

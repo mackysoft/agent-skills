@@ -74,7 +74,7 @@ public sealed class SkillInstalledManifestReader
                 validationResult.Failure.Message);
         }
 
-        if (!string.Equals(Path.GetFileName(skillDirectory), manifest.SkillName, StringComparison.Ordinal))
+        if (!string.Equals(Path.GetFileName(skillDirectory), manifest.SkillName.Value, StringComparison.Ordinal))
         {
             return SkillOperationResult<SkillInstalledManifest>.FailureResult(
                 SkillFailureCodes.InstallTargetNameCollision,

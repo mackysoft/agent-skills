@@ -71,7 +71,7 @@ public sealed class CanonicalSkillPackageReader
         }
 
         return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.Success(packages
-            .OrderBy(static package => package.Manifest.SkillName, StringComparer.Ordinal)
+            .OrderBy(static package => package.Manifest.SkillName.Value, StringComparer.Ordinal)
             .ToArray());
     }
 
@@ -121,7 +121,7 @@ public sealed class CanonicalSkillPackageReader
             return PackageFailure(validationResult.Failure!.Message);
         }
 
-        if (!string.Equals(Path.GetFileName(directoryResult.Value!), manifest.SkillName, StringComparison.Ordinal))
+        if (!string.Equals(Path.GetFileName(directoryResult.Value!), manifest.SkillName.Value, StringComparison.Ordinal))
         {
             return PackageFailure($"agent-skill.json skillName must match generated package directory name: {manifest.SkillName}");
         }

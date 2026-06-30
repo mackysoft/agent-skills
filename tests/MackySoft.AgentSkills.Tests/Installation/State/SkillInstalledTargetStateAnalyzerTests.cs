@@ -3,6 +3,7 @@ using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Manifests;
+using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
@@ -183,15 +184,15 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var package = packages[0];
         var targetRoot = scope.CreateDirectory(".agents/skills");
-        var skillDirectory = scope.CreateDirectory(Path.Combine(".agents", "skills", package.Manifest.SkillName));
+        var skillDirectory = scope.CreateDirectory(Path.Combine(".agents", "skills", package.Manifest.SkillName.Value));
         var serializer = new SkillManifestJsonSerializer();
         var manifest = SkillTestData.WithComputedManifestDigest(package.Manifest with
         {
-            SkillName = "different-skill",
+            SkillName = new SkillName("different-skill"),
         });
         File.WriteAllText(Path.Combine(skillDirectory, "agent-skill.json"), serializer.Serialize(manifest));
 
-        var state = await AnalyzeOpenAiAsync(package, Path.Combine(targetRoot, package.Manifest.SkillName));
+        var state = await AnalyzeOpenAiAsync(package, Path.Combine(targetRoot, package.Manifest.SkillName.Value));
 
         Assert.Equal(SkillInstalledTargetStateKind.NameCollision, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetNameCollision, state.Failure!.Code);
@@ -204,7 +205,7 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "state-unmanaged");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var package = packages[0];
-        var skillDirectory = scope.CreateDirectory(Path.Combine(".agents", "skills", package.Manifest.SkillName));
+        var skillDirectory = scope.CreateDirectory(Path.Combine(".agents", "skills", package.Manifest.SkillName.Value));
         File.WriteAllText(Path.Combine(skillDirectory, "SKILL.md"), "# Existing\n");
 
         var state = await AnalyzeOpenAiAsync(package, skillDirectory);
@@ -247,6 +248,6 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
         string targetRoot,
         CanonicalSkillPackage package)
     {
-        return Path.Combine(targetRoot, package.Manifest.SkillName);
+        return Path.Combine(targetRoot, package.Manifest.SkillName.Value);
     }
 }

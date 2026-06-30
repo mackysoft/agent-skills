@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Manifests;
+using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.AgentSkills.Tiers;
 
@@ -33,8 +34,11 @@ public sealed class SkillManifestJsonSerializerTests
         using var document = JsonDocument.Parse(json);
         Assert.Equal(64, document.RootElement.GetProperty("manifestDigest").GetString()?.Length);
         Assert.Equal(
-            new[] { "schemaVersion", "catalogId", "tier", "contentDigest", "manifestDigest", "skillName", "displayName", "description", "hostArtifacts" },
+            new[] { "schemaVersion", "catalogId", "tier", "contentDigest", "manifestDigest", "skillName", "displayName", "description", "dependencies", "hostArtifacts" },
             document.RootElement.EnumerateObject().Select(static property => property.Name).ToArray());
+        Assert.Equal(
+            new[] { "a-helper", "z-helper" },
+            document.RootElement.GetProperty("dependencies").EnumerateArray().Select(static dependency => dependency.GetString()).ToArray());
         Assert.Equal(
             new[] { "claude", "copilot", "openai" },
             document.RootElement.GetProperty("hostArtifacts").EnumerateArray().Select(static artifact => artifact.GetProperty("host").GetString()).ToArray());
@@ -76,9 +80,10 @@ public sealed class SkillManifestJsonSerializerTests
         var digestCalculator = new SkillManifestDigestCalculator(serializer);
         var manifest = new SkillManifest(
             SkillManifest.CurrentSchemaVersion,
-            "sample-skill",
+            new SkillName("sample-skill"),
             "Sample Skill",
             "Use this sample skill for tests.",
+            [new SkillName("z-helper"), new SkillName("a-helper")],
             new SkillTier("basic"),
             new SkillCatalogId("com.mackysoft.agent-skills"),
             new string('0', 64),

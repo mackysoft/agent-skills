@@ -2,6 +2,7 @@ using MackySoft.AgentSkills.Hosts.Claude;
 using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Manifests;
+using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
 
@@ -99,7 +100,7 @@ public sealed class SkillDoctorServiceTests
         var result = await doctor.DiagnoseAsync(packages, host, targetRoot, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
-        var diagnostic = Assert.Single(result.Diagnostics, diagnostic => diagnostic.SkillName == package.Manifest.SkillName);
+        var diagnostic = Assert.Single(result.Diagnostics, diagnostic => diagnostic.SkillName == package.Manifest.SkillName.Value);
         Assert.Equal(stateResult.Value!.Failure!.Code, diagnostic.Code);
         Assert.Equal(GetExpectedSharedDriftCode(driftCase), diagnostic.Code);
     }
@@ -116,7 +117,7 @@ public sealed class SkillDoctorServiceTests
             new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
-        File.AppendAllText(Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName, "SKILL.md"), "\nInjected instruction.\n");
+        File.AppendAllText(Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "SKILL.md"), "\nInjected instruction.\n");
         var doctor = SkillTestData.CreateDoctorService();
 
         var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, installResult.Value.TargetRoot, CancellationToken.None);
@@ -137,7 +138,7 @@ public sealed class SkillDoctorServiceTests
             new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
-        File.Delete(Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName, "SKILL.md"));
+        File.Delete(Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "SKILL.md"));
         var doctor = SkillTestData.CreateDoctorService();
 
         var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, installResult.Value.TargetRoot, CancellationToken.None);
@@ -158,7 +159,7 @@ public sealed class SkillDoctorServiceTests
             new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
-        var manifestPath = Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName, "agent-skill.json");
+        var manifestPath = Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "agent-skill.json");
         var originalDigest = packages[0].Manifest.HostArtifacts
             .Single(static artifact => artifact.Host == OpenAiSkillHostAdapter.HostKey)
             .Digest!;
@@ -184,7 +185,7 @@ public sealed class SkillDoctorServiceTests
             new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
-        var manifestPath = Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName, "agent-skill.json");
+        var manifestPath = Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "agent-skill.json");
         SkillTestData.TamperManifestDigest(manifestPath);
         var doctor = SkillTestData.CreateDoctorService();
 
@@ -208,7 +209,7 @@ public sealed class SkillDoctorServiceTests
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
         var referencePath = Path.Combine(
             installResult.Value!.TargetRoot,
-            packages[0].Manifest.SkillName,
+            packages[0].Manifest.SkillName.Value,
             packages[0].Files.First(static file => file.RelativePath.StartsWith("references/", StringComparison.Ordinal)).RelativePath);
         File.Delete(referencePath);
         var doctor = SkillTestData.CreateDoctorService();
@@ -231,7 +232,7 @@ public sealed class SkillDoctorServiceTests
             new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
-        Directory.CreateDirectory(Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName, "empty"));
+        Directory.CreateDirectory(Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "empty"));
         var doctor = SkillTestData.CreateDoctorService();
 
         var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, installResult.Value.TargetRoot, CancellationToken.None);
@@ -252,7 +253,7 @@ public sealed class SkillDoctorServiceTests
             new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
-        File.AppendAllText(Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName, "agents", "openai.yaml"), "\n# Drifted metadata.\n");
+        File.AppendAllText(Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "agents", "openai.yaml"), "\n# Drifted metadata.\n");
         var doctor = SkillTestData.CreateDoctorService();
 
         var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, installResult.Value.TargetRoot, CancellationToken.None);
@@ -273,7 +274,7 @@ public sealed class SkillDoctorServiceTests
             new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
-        File.Delete(Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName, "agents", "openai.yaml"));
+        File.Delete(Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "agents", "openai.yaml"));
         var doctor = SkillTestData.CreateDoctorService();
 
         var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, installResult.Value.TargetRoot, CancellationToken.None);
@@ -357,7 +358,7 @@ public sealed class SkillDoctorServiceTests
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "doctor-invalid-manifest");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var targetRoot = scope.CreateDirectory(".agents/skills");
-        scope.WriteFile(Path.Combine(".agents", "skills", packages[0].Manifest.SkillName, "agent-skill.json"), "{}");
+        scope.WriteFile(Path.Combine(".agents", "skills", packages[0].Manifest.SkillName.Value, "agent-skill.json"), "{}");
         var doctor = SkillTestData.CreateDoctorService();
 
         var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, targetRoot, CancellationToken.None);
@@ -379,11 +380,11 @@ public sealed class SkillDoctorServiceTests
         using var outsideScope = TestDirectories.CreateTempScope("agent-skills-skills", "doctor-manifest-symlink-outside");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var targetRoot = scope.CreateDirectory(".agents/skills");
-        scope.CreateDirectory(Path.Combine(".agents", "skills", packages[0].Manifest.SkillName));
+        scope.CreateDirectory(Path.Combine(".agents", "skills", packages[0].Manifest.SkillName.Value));
         var outsideManifest = outsideScope.WriteFile("agent-skill.json", packages[0].Files.Single(static file => file.RelativePath == "agent-skill.json").Content);
         try
         {
-            File.CreateSymbolicLink(Path.Combine(targetRoot, packages[0].Manifest.SkillName, "agent-skill.json"), outsideManifest);
+            File.CreateSymbolicLink(Path.Combine(targetRoot, packages[0].Manifest.SkillName.Value, "agent-skill.json"), outsideManifest);
         }
         catch (IOException)
         {
@@ -429,17 +430,17 @@ public sealed class SkillDoctorServiceTests
                 new SkillInstallRequest(ClaudeSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath, "shared-skills"),
                 CancellationToken.None);
             Assert.True(claudeInstall.IsSuccess, claudeInstall.Failure?.Message);
-            return (claudeInstall.Value!.TargetRoot, Path.Combine(claudeInstall.Value.TargetRoot, package.Manifest.SkillName));
+            return (claudeInstall.Value!.TargetRoot, Path.Combine(claudeInstall.Value.TargetRoot, package.Manifest.SkillName.Value));
         }
 
         var targetRoot = scope.CreateDirectory(".agents/skills");
-        var skillDirectory = Path.Combine(targetRoot, package.Manifest.SkillName);
+        var skillDirectory = Path.Combine(targetRoot, package.Manifest.SkillName.Value);
         if (driftCase == SharedDriftCase.NameCollision)
         {
             Directory.CreateDirectory(skillDirectory);
             var manifest = SkillTestData.WithComputedManifestDigest(package.Manifest with
             {
-                SkillName = "different-skill",
+                SkillName = new SkillName("different-skill"),
             });
             File.WriteAllText(Path.Combine(skillDirectory, "agent-skill.json"), new SkillManifestJsonSerializer().Serialize(manifest));
             return (targetRoot, skillDirectory);
@@ -451,7 +452,7 @@ public sealed class SkillDoctorServiceTests
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
         targetRoot = installResult.Value!.TargetRoot;
-        skillDirectory = Path.Combine(targetRoot, package.Manifest.SkillName);
+        skillDirectory = Path.Combine(targetRoot, package.Manifest.SkillName.Value);
 
         switch (driftCase)
         {

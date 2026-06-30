@@ -59,7 +59,7 @@ public sealed class SkillDoctorService
             return new SkillDoctorResult(hostKey, fullTargetRoot, diagnostics);
         }
 
-        foreach (var package in packages.OrderBy(static package => package.Manifest.SkillName, StringComparer.Ordinal))
+        foreach (var package in packages.OrderBy(static package => package.Manifest.SkillName.Value, StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
             await DiagnosePackageAsync(package, hostKey, fullTargetRoot, diagnostics, cancellationToken).ConfigureAwait(false);
@@ -82,24 +82,24 @@ public sealed class SkillDoctorService
         List<SkillDoctorDiagnostic> diagnostics,
         CancellationToken cancellationToken)
     {
-        var skillDirectoryResult = SkillPackagePathBoundary.ResolvePackageDirectory(targetRoot, package.Manifest.SkillName);
+        var skillDirectoryResult = SkillPackagePathBoundary.ResolvePackageDirectory(targetRoot, package.Manifest.SkillName.Value);
         if (!skillDirectoryResult.IsSuccess)
         {
-            diagnostics.Add(SkillDoctorDiagnostic.Error(skillDirectoryResult.Failure!.Code, skillDirectoryResult.Failure.Message, package.Manifest.SkillName));
+            diagnostics.Add(SkillDoctorDiagnostic.Error(skillDirectoryResult.Failure!.Code, skillDirectoryResult.Failure.Message, package.Manifest.SkillName.Value));
             return;
         }
 
         var skillDirectory = skillDirectoryResult.Value!;
         if (!Directory.Exists(skillDirectory))
         {
-            diagnostics.Add(SkillDoctorDiagnostic.Error(SkillFailureCodes.InstallTargetUnmanaged, "Skill directory is missing.", package.Manifest.SkillName));
+            diagnostics.Add(SkillDoctorDiagnostic.Error(SkillFailureCodes.InstallTargetUnmanaged, "Skill directory is missing.", package.Manifest.SkillName.Value));
             return;
         }
 
         var stateResult = await targetStateAnalyzer.AnalyzeAsync(package, skillDirectory, host, cancellationToken).ConfigureAwait(false);
         if (!stateResult.IsSuccess)
         {
-            diagnostics.Add(SkillDoctorDiagnostic.Error(stateResult.Failure!.Code, stateResult.Failure.Message, package.Manifest.SkillName));
+            diagnostics.Add(SkillDoctorDiagnostic.Error(stateResult.Failure!.Code, stateResult.Failure.Message, package.Manifest.SkillName.Value));
             return;
         }
 
@@ -108,19 +108,19 @@ public sealed class SkillDoctorService
             case SkillInstalledTargetStateKind.Current:
                 return;
             case SkillInstalledTargetStateKind.Missing:
-                diagnostics.Add(SkillDoctorDiagnostic.Error(SkillFailureCodes.InstallTargetUnmanaged, "Skill directory is missing.", package.Manifest.SkillName));
+                diagnostics.Add(SkillDoctorDiagnostic.Error(SkillFailureCodes.InstallTargetUnmanaged, "Skill directory is missing.", package.Manifest.SkillName.Value));
                 return;
             case SkillInstalledTargetStateKind.CleanOutdated:
                 diagnostics.Add(SkillDoctorDiagnostic.Error(
                     SkillFailureCodes.InstallTargetOutdated,
                     "Installed SKILL package is clean but older than the bundled package.",
-                    package.Manifest.SkillName));
+                    package.Manifest.SkillName.Value));
                 return;
             case SkillInstalledTargetStateKind.Unmanaged:
                 diagnostics.Add(SkillDoctorDiagnostic.Error(
                     SkillFailureCodes.InstallTargetUnmanaged,
                     "Skill directory is not managed by Agent Skills.",
-                    package.Manifest.SkillName));
+                    package.Manifest.SkillName.Value));
                 return;
             case SkillInstalledTargetStateKind.NameCollision:
             case SkillInstalledTargetStateKind.HostConflict:
@@ -130,7 +130,7 @@ public sealed class SkillDoctorService
                 diagnostics.Add(SkillDoctorDiagnostic.Error(
                     failure.Code,
                     failure.Message,
-                    package.Manifest.SkillName));
+                    package.Manifest.SkillName.Value));
                 return;
             default:
                 if (SkillInstalledTargetStateClassifier.IsLocalModificationDrift(stateResult.Value.Kind))
@@ -141,7 +141,7 @@ public sealed class SkillDoctorService
                     diagnostics.Add(SkillDoctorDiagnostic.Error(
                         driftFailure.Code,
                         driftFailure.Message,
-                        package.Manifest.SkillName));
+                        package.Manifest.SkillName.Value));
                     return;
                 }
 

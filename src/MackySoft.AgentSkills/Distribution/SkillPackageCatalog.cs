@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Tiers;
 
@@ -10,6 +11,6 @@ namespace MackySoft.AgentSkills.Distribution;
 /// <param name="Packages"> The bundled packages returned for the provider request, sorted by skill name using ordinal comparison. </param>
 public sealed record SkillPackageCatalog (
     IReadOnlyList<SkillTier> SelectedTiers,
-    IReadOnlyList<string> SelectedSkillNames,
+    IReadOnlyList<SkillName> SelectedSkillNames,
     IReadOnlyList<SkillTierPackageCount> AvailableTiers,
     IReadOnlyList<CanonicalSkillPackage> Packages);

@@ -23,6 +23,7 @@ public sealed class SkillDefinitionSourceTests
         "skillName",
         "displayName",
         "description",
+        "dependencies",
         "references",
     ];
 
@@ -70,6 +71,7 @@ public sealed class SkillDefinitionSourceTests
             Assert.Equal(1, root.GetProperty("schemaVersion").GetInt32());
             Assert.Equal(skillName, root.GetProperty("skillName").GetString());
             Assert.False(string.IsNullOrWhiteSpace(root.GetProperty("displayName").GetString()));
+            Assert.Empty(root.GetProperty("dependencies").EnumerateArray());
 
             var description = root.GetProperty("description").GetString();
             Assert.False(string.IsNullOrWhiteSpace(description));

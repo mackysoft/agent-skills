@@ -45,11 +45,12 @@ Source definition metadata includes a product-owned `tier` literal:
   "skillName": "example-review",
   "displayName": "Example Review",
   "description": "Review the example product.",
+  "dependencies": [],
   "references": []
 }
 ```
 
-Generated package manifests preserve that value in `agent-skill.json`. The manifest digest covers the canonical manifest content, including `tier`.
+Generated package manifests preserve `tier` and `dependencies` in `agent-skill.json`. The manifest digest covers the canonical manifest content, including both fields.
 
 ## CLI Tool
 
@@ -94,6 +95,29 @@ var packagesResult = await packageProvider.GetPackagesAsync(
 ```
 
 `SkillTierLiteralParser.ParseSelectedTiers` validates and normalizes raw CLI literals when a product wants to parse once and pass `IReadOnlyList<SkillTier>` onward. `SkillPackageProvider.GetPackagesAsync` verifies the product definitions, rejects unsupported selected tiers, rejects generated packages whose manifest tier is not defined by the product, and returns an empty package list when the selected tiers are valid but no bundled package belongs to them.
+
+## Dependencies
+
+Use `dependencies` when one skill intentionally invokes another skill. Dependencies are exact `skillName` literals from the same generated package set:
+
+```json
+{
+  "schemaVersion": 1,
+  "catalogId": "com.example.skills",
+  "tier": "basic",
+  "skillName": "example-plan",
+  "displayName": "Example Plan",
+  "description": "Plan the example workflow, then use $example-review for review.",
+  "dependencies": [
+    "example-review"
+  ],
+  "references": []
+}
+```
+
+The build validates dependency consistency before writing generated packages. Every dependency must appear as `$skill-name` in source-owned text (`description`, `SKILL.md.template`, or `references/*.md.template`), and every `$skill-name` reference to a known skill must be declared in `dependencies`. Self-dependencies, duplicate dependencies, missing dependency packages, and dependency cycles are rejected.
+
+Package selection APIs return the selected root packages plus their transitive dependencies. `SelectedTiers` and `SelectedSkillNames` still report the caller's root selection; dependency packages are added only to the returned package list. A dependency can belong to a different defined tier than the selected root package.
 
 Use exact SKILL names when a command must target specific packages rather than a whole tier:
 

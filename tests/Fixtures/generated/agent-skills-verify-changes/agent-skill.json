@@ -3,10 +3,11 @@
   "catalogId": "com.mackysoft.agent-skills",
   "tier": "basic",
   "contentDigest": "03ca4496389d78b21dcc6421e7b561b781f12e7be2180ba72740eeb405957f93",
-  "manifestDigest": "027e08658660707d1092ae7f4ff4f577a05d7b2d9e78c5d758e0ddcd51a4b078",
+  "manifestDigest": "3ab1f208841922596257a30e58bffde89806df732063ba5c50156e07e3967392",
   "skillName": "agent-skills-verify-changes",
   "displayName": "Agent Skills Verify Changes",
   "description": "Use when verifying Agent Skills-driven Unity changes with agent-skills verify profiles, claim packets, follow-up reads, agent-skills test, logs, artifacts, and opResults evidence after validation, plan, or call execution.",
+  "dependencies": [],
   "hostArtifacts": [
     {
       "host": "claude",
