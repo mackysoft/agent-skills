@@ -63,6 +63,18 @@ public sealed class SkillPackageGenerationService
                 $"SkillDefinitions directory does not contain any definitions: {definitionsRoot}");
         }
 
+        var skillBundleVersions = sourceResult.Value
+            .Select(static definition => definition.Metadata.SkillBundleVersion)
+            .Distinct()
+            .OrderBy(static version => version)
+            .ToArray();
+        if (skillBundleVersions.Length != 1)
+        {
+            return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
+                SkillFailureCodes.SourceInvalid,
+                $"SkillDefinitions must use one skillBundleVersion across all definitions: {string.Join(", ", skillBundleVersions)}");
+        }
+
         var packages = sourceResult.Value!
             .Select(Generate)
             .OrderBy(static package => package.Manifest.SkillName, StringComparer.Ordinal)
@@ -97,11 +109,12 @@ public sealed class SkillPackageGenerationService
 
         var manifest = new SkillManifest(
             SkillManifest.CurrentSchemaVersion,
+            definition.Metadata.SkillBundleVersion,
+            definition.Metadata.CatalogId,
+            definition.Metadata.Tier,
             definition.Metadata.SkillName,
             definition.Metadata.DisplayName,
             definition.Metadata.Description,
-            definition.Metadata.Tier,
-            definition.Metadata.CatalogId,
             contentDigest,
             string.Empty,
             hostArtifacts);

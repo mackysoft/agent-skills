@@ -201,6 +201,16 @@ public sealed class SkillUpdateService
                         input,
                         cancellationToken)
                     .ConfigureAwait(false);
+            case SkillInstalledTargetStateKind.VersionAhead:
+                return await CreateVersionAheadActionPlanAsync(
+                        package,
+                        host,
+                        skillDirectory,
+                        identity,
+                        state,
+                        input,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             case var kind when SkillInstalledTargetStateClassifier.IsLocalModificationDrift(kind):
                 return await CreateLocalModificationActionPlanAsync(
                         package,
@@ -238,6 +248,49 @@ public sealed class SkillUpdateService
             default:
                 throw new ArgumentOutOfRangeException(nameof(state), state.Kind, "Unsupported target state.");
         }
+    }
+
+    private async ValueTask<SkillOperationResult<SkillUpdateActionPlan>> CreateVersionAheadActionPlanAsync (
+        CanonicalSkillPackage package,
+        string host,
+        string skillDirectory,
+        SkillInstallIdentity identity,
+        SkillInstalledTargetState state,
+        SkillUpdateInput input,
+        CancellationToken cancellationToken)
+    {
+        if (input.Force)
+        {
+            return await CreateWriteActionPlanAsync(
+                    package,
+                    host,
+                    skillDirectory,
+                    identity,
+                    SkillUpdateActionKind.Updated,
+                    state,
+                    input,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        if (input.DryRun)
+        {
+            return await CreateBlockedActionPlanAsync(
+                    package,
+                    host,
+                    skillDirectory,
+                    identity,
+                    SkillUpdateActionKind.BlockedVersionAhead,
+                    SkillBlockedReason.InstalledVersionAhead,
+                    input.PrintDiff,
+                    state,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        return SkillOperationResult<SkillUpdateActionPlan>.FailureResult(
+            ResolveStateFailureCode(state),
+            $"Target skill directory was generated from a newer SKILL bundle. Use --force to overwrite: {skillDirectory}");
     }
 
     private async ValueTask<SkillOperationResult<SkillUpdateActionPlan>> CreateLocalModificationActionPlanAsync (

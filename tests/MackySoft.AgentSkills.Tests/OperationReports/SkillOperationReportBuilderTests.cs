@@ -149,7 +149,7 @@ public sealed class SkillOperationReportBuilderTests
         Assert.Equal("blocked", report.Actions[1].Status);
         Assert.Equal("unmanagedTarget", report.Actions[1].BlockedReason);
         Assert.Equal(
-            ["created", "updated", "noOp", "blockedLocalModification", "blockedUnmanaged"],
+            ["created", "updated", "noOp", "blockedLocalModification", "blockedUnmanaged", "blockedVersionAhead"],
             report.ActionCounts.Select(static count => count.Literal).ToArray());
         Assert.Equal(
             ["changed", "noOp", "skipped", "blocked"],
@@ -223,6 +223,7 @@ public sealed class SkillOperationReportBuilderTests
         Assert.Equal([packages.Length, 0, 0], report.AvailableTiers.Select(static tier => tier.SkillCount).ToArray());
         Assert.Equal(SkillTestData.ExpectedSkillNames, report.Skills.Select(static skill => skill.SkillName).ToArray());
         Assert.All(report.Skills, static skill => Assert.Equal("basic", skill.Tier));
+        Assert.All(report.Skills, static skill => Assert.Equal(1, skill.SkillBundleVersion));
         Assert.All(report.Skills, static skill => Assert.Equal("com.mackysoft.agent-skills", skill.CatalogId));
         Assert.Equal(["claude", "copilot", "openai"], report.SupportedHosts.Select(static host => host.Host).ToArray());
         var openAi = report.SupportedHosts.Single(static host => host.Host == OpenAiSkillHostAdapter.HostKey);
@@ -275,6 +276,10 @@ public sealed class SkillOperationReportBuilderTests
                     SkillFailureCodes.InstallTargetUnmanaged,
                     "Target root is missing."),
                 SkillDoctorDiagnostic.Error(
+                    SkillFailureCodes.InstallTargetVersionAhead,
+                    "Version ahead.",
+                    "skill-c"),
+                SkillDoctorDiagnostic.Error(
                     "SKILL_DOCTOR_SHARED",
                     "Same diagnostic.",
                     "skill-a"),
@@ -298,7 +303,7 @@ public sealed class SkillOperationReportBuilderTests
         Assert.Equal(["developer"], report.Tiers);
         Assert.Equal(["skill-a"], report.SkillNames);
         Assert.Equal("project", report.Scope);
-        Assert.Equal(new string?[] { null, "skill-a", "skill-a", "skill-a", "skill-b" }, report.Diagnostics.Select(static diagnostic => diagnostic.SkillName).ToArray());
+        Assert.Equal(new string?[] { null, "skill-a", "skill-a", "skill-a", "skill-b", "skill-c" }, report.Diagnostics.Select(static diagnostic => diagnostic.SkillName).ToArray());
         Assert.Equal("error", report.Diagnostics[0].Severity);
         Assert.Null(report.Diagnostics[0].TargetState);
         Assert.Equal("info", report.Diagnostics[1].Severity);
@@ -306,6 +311,7 @@ public sealed class SkillOperationReportBuilderTests
         Assert.Equal("info", report.Diagnostics[2].Severity);
         Assert.Equal("error", report.Diagnostics[3].Severity);
         Assert.Equal("hostArtifactDrift", report.Diagnostics[4].TargetState);
+        Assert.Equal("versionAhead", report.Diagnostics[5].TargetState);
     }
 
     [Fact]
@@ -429,6 +435,7 @@ public sealed class SkillOperationReportBuilderTests
             ("SupportedHosts", typeof(IReadOnlyList<SkillHostReport>)));
         AssertProperties<SkillListSkillReport>(
             ("SchemaVersion", typeof(int)),
+            ("SkillBundleVersion", typeof(int)),
             ("SkillName", typeof(string)),
             ("DisplayName", typeof(string)),
             ("Description", typeof(string)),
@@ -479,6 +486,8 @@ public sealed class SkillOperationReportBuilderTests
             ("Kind", typeof(string)),
             ("Code", typeof(string)),
             ("Message", typeof(string)),
+            ("InstalledSkillBundleVersion", typeof(int?)),
+            ("BundledSkillBundleVersion", typeof(int?)),
             ("FileSet", typeof(SkillTargetFileSetReport)));
         AssertProperties<SkillUserTargetRootPolicyReport>(
             ("EnvironmentVariableName", typeof(string)),

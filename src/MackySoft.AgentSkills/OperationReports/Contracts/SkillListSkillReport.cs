@@ -2,6 +2,7 @@ namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
 /// <summary> Represents product-neutral list data for one canonical skill package. </summary>
 /// <param name="SchemaVersion"> The manifest schema version. </param>
+/// <param name="SkillBundleVersion"> The product-owned SKILL bundle version. </param>
 /// <param name="SkillName"> The skill name. </param>
 /// <param name="DisplayName"> The display name shown by SKILL listing commands. </param>
 /// <param name="Description"> The host-independent SKILL description. </param>
@@ -12,6 +13,7 @@ namespace MackySoft.AgentSkills.OperationReports.Contracts;
 /// <param name="HostArtifacts"> The host-specific artifact reports sorted by host key using ordinal comparison. </param>
 public sealed record SkillListSkillReport (
     int SchemaVersion,
+    int SkillBundleVersion,
     string SkillName,
     string DisplayName,
     string Description,

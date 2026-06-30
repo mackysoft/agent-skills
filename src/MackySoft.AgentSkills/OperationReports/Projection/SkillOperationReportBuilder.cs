@@ -440,6 +440,8 @@ public static class SkillOperationReportBuilder
             SkillLiteralCodec.FormatTargetStateKind(stateKind),
             state.Code.HasValue ? SkillLiteralCodec.FormatFailureCode(state.Code.Value) : null,
             state.Message,
+            state.InstalledSkillBundleVersion,
+            state.BundledSkillBundleVersion,
             CreateTargetFileSetReport(state.FileSet));
     }
 
@@ -492,6 +494,11 @@ public static class SkillOperationReportBuilder
 
     private static string? ResolveDiagnosticTargetState (string code)
     {
+        if (SkillFailureCode.TryCreate(code, out var versionFailureCode) && versionFailureCode == SkillFailureCodes.InstallTargetVersionAhead)
+        {
+            return SkillLiteralCodec.FormatTargetStateKind(SkillInstalledTargetStateKind.VersionAhead);
+        }
+
         return SkillFailureCode.TryCreate(code, out var failureCode)
             && SkillInstalledTargetStateClassifier.TryResolveDriftKind(failureCode, out var stateKind)
                 ? SkillLiteralCodec.FormatTargetStateKind(stateKind)
@@ -503,6 +510,7 @@ public static class SkillOperationReportBuilder
         var manifest = package.Manifest;
         return new SkillListSkillReport(
             manifest.SchemaVersion,
+            manifest.SkillBundleVersion,
             manifest.SkillName,
             manifest.DisplayName,
             manifest.Description,

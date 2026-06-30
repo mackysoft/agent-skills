@@ -219,6 +219,7 @@ internal static class SkillTestData
             .Select(static file => new SkillDigestInputFile(file.RelativePath, file.Content)));
         var manifest = package.Manifest with
         {
+            SkillBundleVersion = package.Manifest.SkillBundleVersion + 1,
             ContentDigest = contentDigest,
         };
         manifest = WithComputedManifestDigest(manifest);
@@ -281,11 +282,12 @@ internal static class SkillTestData
 
         var manifest = new SkillManifest(
             SkillManifest.CurrentSchemaVersion,
+            1,
+            new SkillCatalogId("com.mackysoft.agent-skills"),
+            new SkillTier("basic"),
             SkillName,
             DisplayName,
             Description,
-            new SkillTier("basic"),
-            new SkillCatalogId("com.mackysoft.agent-skills"),
             contentDigest,
             string.Empty,
             hostArtifacts);
@@ -304,6 +306,7 @@ internal static class SkillTestData
     {
         var manifest = package.Manifest with
         {
+            SkillBundleVersion = package.Manifest.SkillBundleVersion + 1,
             DisplayName = package.Manifest.DisplayName + " Updated",
         };
         var metadata = new SkillHostMetadata(manifest.SkillName, manifest.DisplayName, manifest.Description);
@@ -357,6 +360,28 @@ internal static class SkillTestData
 
                 return file;
             })
+            .ToArray();
+
+        return package with
+        {
+            Manifest = manifest,
+            Files = files,
+        };
+    }
+
+    internal static CanonicalSkillPackage CreatePackageWithSkillBundleVersion (
+        CanonicalSkillPackage package,
+        int skillBundleVersion)
+    {
+        var manifest = WithComputedManifestDigest(package.Manifest with
+        {
+            SkillBundleVersion = skillBundleVersion,
+        });
+        var manifestText = new SkillManifestJsonSerializer().Serialize(manifest);
+        var files = package.Files
+            .Select(file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal)
+                ? SkillPackageFile.Create("agent-skill.json", manifestText)
+                : file)
             .ToArray();
 
         return package with

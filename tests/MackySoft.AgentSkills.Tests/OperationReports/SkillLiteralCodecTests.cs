@@ -119,6 +119,7 @@ public sealed class SkillLiteralCodecTests
     [InlineData(SkillUpdateActionKind.NoOp, "noOp")]
     [InlineData(SkillUpdateActionKind.BlockedLocalModification, "blockedLocalModification")]
     [InlineData(SkillUpdateActionKind.BlockedUnmanaged, "blockedUnmanaged")]
+    [InlineData(SkillUpdateActionKind.BlockedVersionAhead, "blockedVersionAhead")]
     public void FormatUpdateAction_ReturnsStableLiteral (
         SkillUpdateActionKind actionKind,
         string expected)
@@ -159,6 +160,7 @@ public sealed class SkillLiteralCodecTests
     [InlineData(SkillBlockedReason.ManagedOverwriteRequiresForce, "managedOverwriteRequiresForce")]
     [InlineData(SkillBlockedReason.LocalModificationRequiresForce, "localModificationRequiresForce")]
     [InlineData(SkillBlockedReason.UnmanagedTarget, "unmanagedTarget")]
+    [InlineData(SkillBlockedReason.InstalledVersionAhead, "installedVersionAhead")]
     public void FormatBlockedReason_ReturnsStableLiteral (
         SkillBlockedReason reason,
         string expected)
@@ -180,6 +182,7 @@ public sealed class SkillLiteralCodecTests
     [InlineData(SkillInstalledTargetStateKind.FileSetDrift, "fileSetDrift")]
     [InlineData(SkillInstalledTargetStateKind.NameCollision, "nameCollision")]
     [InlineData(SkillInstalledTargetStateKind.HostConflict, "hostConflict")]
+    [InlineData(SkillInstalledTargetStateKind.VersionAhead, "versionAhead")]
     public void FormatTargetStateKind_ReturnsStableLiteral (
         SkillInstalledTargetStateKind kind,
         string expected)

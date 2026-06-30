@@ -48,6 +48,9 @@ public static class SkillFailureCodes
     /// <summary> Gets the code emitted when the installed package is clean but older than the bundled package. </summary>
     public static readonly SkillFailureCode InstallTargetOutdated = new("SKILL_INSTALL_TARGET_OUTDATED");
 
+    /// <summary> Gets the code emitted when the installed package is clean but newer than the bundled package. </summary>
+    public static readonly SkillFailureCode InstallTargetVersionAhead = new("SKILL_INSTALL_TARGET_VERSION_AHEAD");
+
     /// <summary> Gets the code emitted when a managed target identifies a different SKILL name. </summary>
     public static readonly SkillFailureCode InstallTargetNameCollision = new("SKILL_INSTALL_TARGET_NAME_COLLISION");
 

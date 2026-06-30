@@ -18,6 +18,7 @@ public sealed class SkillDefinitionSourceTests
     private static readonly string[] ExpectedJsonProperties =
     [
         "schemaVersion",
+        "skillBundleVersion",
         "catalogId",
         "tier",
         "skillName",
@@ -68,6 +69,7 @@ public sealed class SkillDefinitionSourceTests
 
             Assert.Equal(ExpectedJsonProperties, root.EnumerateObject().Select(static property => property.Name).ToArray());
             Assert.Equal(1, root.GetProperty("schemaVersion").GetInt32());
+            Assert.Equal(1, root.GetProperty("skillBundleVersion").GetInt32());
             Assert.Equal(skillName, root.GetProperty("skillName").GetString());
             Assert.False(string.IsNullOrWhiteSpace(root.GetProperty("displayName").GetString()));
 

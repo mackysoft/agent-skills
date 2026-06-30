@@ -154,6 +154,28 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
         Assert.Equal(SkillInstalledTargetStateKind.CleanOutdated, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetOutdated, state.Failure!.Code);
+        Assert.Equal(packages[0].Manifest.SkillBundleVersion, state.InstalledSkillBundleVersion);
+        Assert.Equal(updatedPackage.Manifest.SkillBundleVersion, state.BundledSkillBundleVersion);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task AnalyzeAsync_ClassifiesVersionAheadPackage ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "state-version-ahead");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion + 1);
+        var installService = SkillTestData.CreateInstallService();
+        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var install = await installService.InstallAsync([aheadPackage], request, CancellationToken.None);
+        Assert.True(install.IsSuccess, install.Failure?.Message);
+
+        var state = await AnalyzeOpenAiAsync(packages[0], GetSkillDirectory(install.Value!.TargetRoot, packages[0]));
+
+        Assert.Equal(SkillInstalledTargetStateKind.VersionAhead, state.Kind);
+        Assert.Equal(SkillFailureCodes.InstallTargetVersionAhead, state.Failure!.Code);
+        Assert.Equal(aheadPackage.Manifest.SkillBundleVersion, state.InstalledSkillBundleVersion);
+        Assert.Equal(packages[0].Manifest.SkillBundleVersion, state.BundledSkillBundleVersion);
     }
 
     [Fact]

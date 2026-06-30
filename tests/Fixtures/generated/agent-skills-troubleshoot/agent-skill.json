@@ -1,12 +1,13 @@
 {
   "schemaVersion": 1,
+  "skillBundleVersion": 1,
   "catalogId": "com.mackysoft.agent-skills",
   "tier": "basic",
-  "contentDigest": "1b56c1fcd43c518b6b48e20a23e520707d8b4b0a160d6bc97e9f7dabf1f0e04a",
-  "manifestDigest": "6b082279ede3f15d63ea81dcfbf6689a24dc0a16c3ec57e2b12e0123e0fab5cf",
   "skillName": "agent-skills-troubleshoot",
   "displayName": "Agent Skills Troubleshoot",
   "description": "Use when diagnosing Agent Skills daemon, lifecycle, readIndex freshness, timeout, compile or domain reload, logs, IPC, and Unity execution failures.",
+  "contentDigest": "1b56c1fcd43c518b6b48e20a23e520707d8b4b0a160d6bc97e9f7dabf1f0e04a",
+  "manifestDigest": "571c89fec22666e72ac68b57856dda489bf67d1714daeceaa1dcbc2efdca75df",
   "hostArtifacts": [
     {
       "host": "claude",

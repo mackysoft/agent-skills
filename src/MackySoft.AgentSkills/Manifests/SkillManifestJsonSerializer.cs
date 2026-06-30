@@ -66,11 +66,12 @@ public sealed class SkillManifestJsonSerializer
 
         return new SkillManifest(
             SchemaVersion: root.GetProperty("schemaVersion").GetInt32(),
+            SkillBundleVersion: root.TryGetProperty("skillBundleVersion", out var skillBundleVersionElement) ? skillBundleVersionElement.GetInt32() : 0,
+            CatalogId: new SkillCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty),
+            Tier: new SkillTier(root.GetProperty("tier").GetString() ?? string.Empty),
             SkillName: root.GetProperty("skillName").GetString() ?? string.Empty,
             DisplayName: root.GetProperty("displayName").GetString() ?? string.Empty,
             Description: root.GetProperty("description").GetString() ?? string.Empty,
-            Tier: new SkillTier(root.GetProperty("tier").GetString() ?? string.Empty),
-            CatalogId: new SkillCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty),
             ContentDigest: root.GetProperty("contentDigest").GetString() ?? string.Empty,
             ManifestDigest: root.GetProperty("manifestDigest").GetString() ?? string.Empty,
             HostArtifacts: artifacts);
@@ -100,17 +101,22 @@ public sealed class SkillManifestJsonSerializer
     {
         writer.WriteStartObject();
         writer.WriteNumber("schemaVersion", manifest.SchemaVersion);
+        if (manifest.SkillBundleVersion > 0)
+        {
+            writer.WriteNumber("skillBundleVersion", manifest.SkillBundleVersion);
+        }
+
         writer.WriteString("catalogId", manifest.CatalogId.Value);
         writer.WriteString("tier", manifest.Tier.Value);
+        writer.WriteString("skillName", manifest.SkillName);
+        writer.WriteString("displayName", manifest.DisplayName);
+        writer.WriteString("description", manifest.Description);
         writer.WriteString("contentDigest", manifest.ContentDigest);
         if (includeManifestDigest)
         {
             writer.WriteString("manifestDigest", manifest.ManifestDigest);
         }
 
-        writer.WriteString("skillName", manifest.SkillName);
-        writer.WriteString("displayName", manifest.DisplayName);
-        writer.WriteString("description", manifest.Description);
         writer.WritePropertyName("hostArtifacts");
         writer.WriteStartArray();
 
