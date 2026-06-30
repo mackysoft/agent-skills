@@ -1,4 +1,4 @@
-# Agent Skills Troubleshoot
+# agent-skills-troubleshoot
 
 Use this skill to diagnose Agent Skills execution, daemon, lifecycle, readIndex, timeout, and log problems.
 

@@ -1,4 +1,4 @@
-# Agent Skills Read Project
+# agent-skills-read-project
 
 Use this skill to inspect a Unity project with Agent Skills before deciding what to edit or verify.
 
