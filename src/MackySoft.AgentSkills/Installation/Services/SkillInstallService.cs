@@ -213,6 +213,18 @@ public sealed class SkillInstallService
                         state,
                         cancellationToken)
                     .ConfigureAwait(false);
+            case SkillInstalledTargetStateKind.VersionAhead:
+                return await CreateManagedMismatchActionPlanAsync(
+                        package,
+                        host,
+                        skillDirectory,
+                        identity,
+                        input,
+                        SkillInstallActionKind.BlockedManagedOverwrite,
+                        SkillBlockedReason.InstalledVersionAhead,
+                        state,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             case var kind when SkillInstalledTargetStateClassifier.IsLocalModificationDrift(kind):
                 return await CreateManagedMismatchActionPlanAsync(
                         package,
@@ -294,9 +306,12 @@ public sealed class SkillInstallService
                 .ConfigureAwait(false);
         }
 
+        var message = state.Kind == SkillInstalledTargetStateKind.VersionAhead
+            ? $"Target skill directory was generated from a newer SKILL bundle. Use --force to overwrite: {skillDirectory}"
+            : $"Target skill directory differs from the canonical package. Use --force to overwrite: {skillDirectory}";
         return SkillOperationResult<SkillInstallActionPlan>.FailureResult(
             ResolveStateFailureCode(state),
-            $"Target skill directory differs from the canonical package. Use --force to overwrite: {skillDirectory}");
+            message);
     }
 
     private async ValueTask<SkillOperationResult<SkillInstallActionPlan>> CreateWriteActionPlanAsync (

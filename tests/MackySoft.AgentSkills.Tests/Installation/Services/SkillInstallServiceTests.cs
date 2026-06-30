@@ -93,6 +93,56 @@ public sealed class SkillInstallServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task InstallAsync_DryRunBlocksVersionAheadWithoutWriting ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "install-dry-run-version-ahead");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion + 1);
+        var service = SkillTestData.CreateInstallService();
+        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var install = await service.InstallAsync([aheadPackage], request, CancellationToken.None);
+        Assert.True(install.IsSuccess, install.Failure?.Message);
+        var manifestPath = Path.Combine(install.Value!.TargetRoot, aheadPackage.Manifest.SkillName, "agent-skill.json");
+        var aheadManifest = File.ReadAllText(manifestPath);
+
+        var result = await service.InstallAsync(new SkillInstallInput([packages[0]], request, DryRun: true, PrintDiff: true), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        var action = result.Value!.Actions.Single();
+        Assert.Equal(SkillInstallActionKind.BlockedManagedOverwrite, action.ActionKind);
+        Assert.Equal(SkillBlockedReason.InstalledVersionAhead, action.BlockedReason);
+        Assert.Equal(nameof(SkillInstalledTargetStateKind.VersionAhead), action.TargetState!.Kind);
+        Assert.Equal(SkillFailureCodes.InstallTargetVersionAhead, action.TargetState.Code);
+        Assert.Equal(aheadManifest, File.ReadAllText(manifestPath));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task InstallAsync_WithForceOverwritesVersionAheadPackage ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "install-force-version-ahead");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion + 1);
+        var service = SkillTestData.CreateInstallService();
+        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var install = await service.InstallAsync([aheadPackage], request, CancellationToken.None);
+        Assert.True(install.IsSuccess, install.Failure?.Message);
+        var manifestPath = Path.Combine(install.Value!.TargetRoot, aheadPackage.Manifest.SkillName, "agent-skill.json");
+
+        var result = await service.InstallAsync(new SkillInstallInput([packages[0]], request, Force: true), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        var action = result.Value!.Actions.Single();
+        Assert.Equal(SkillInstallActionKind.Updated, action.ActionKind);
+        Assert.Equal(nameof(SkillInstalledTargetStateKind.VersionAhead), action.TargetState!.Kind);
+        Assert.Equal(SkillFailureCodes.InstallTargetVersionAhead, action.TargetState.Code);
+        Assert.Equal(aheadPackage.Manifest.SkillBundleVersion, action.TargetState.InstalledSkillBundleVersion);
+        Assert.Equal(packages[0].Manifest.SkillBundleVersion, action.TargetState.BundledSkillBundleVersion);
+        Assert.Equal(packages[0].Files.Single(static file => file.RelativePath == "agent-skill.json").Content, File.ReadAllText(manifestPath));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task InstallAsync_WithForceOverwritesLocalModification ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "install-force-local-modification");

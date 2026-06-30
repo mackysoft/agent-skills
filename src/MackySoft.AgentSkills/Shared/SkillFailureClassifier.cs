@@ -95,6 +95,7 @@ public static class SkillFailureClassifier
             || code == SkillFailureCodes.InstallTargetHostArtifactDigestMismatch
             || code == SkillFailureCodes.InstallTargetFileSetMismatch
             || code == SkillFailureCodes.InstallTargetOutdated
+            || code == SkillFailureCodes.InstallTargetVersionAhead
             || code == SkillFailureCodes.InstallTargetLocalModification;
     }
 }

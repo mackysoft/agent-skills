@@ -26,6 +26,14 @@ public sealed class SkillManifestDigestCalculator
         return Sha256LowerHex.Compute(Encoding.UTF8.GetBytes(json));
     }
 
+    internal string ComputeLegacyManifestDigestWithoutSkillBundleVersion (SkillManifest manifest)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+
+        var json = manifestSerializer.SerializeLegacyWithoutSkillBundleVersionWithoutManifestDigest(manifest);
+        return Sha256LowerHex.Compute(Encoding.UTF8.GetBytes(json));
+    }
+
     /// <summary> Returns a manifest whose <c>manifestDigest</c> matches its canonical content. </summary>
     /// <param name="manifest"> The manifest without a trusted digest. </param>
     /// <returns> The manifest with the computed digest. </returns>

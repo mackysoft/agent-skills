@@ -66,7 +66,7 @@ public sealed class SkillInstalledManifestReader
         }
 
         var manifest = manifestResult.Value!;
-        var validationResult = manifestValidator.ValidateShape(manifest);
+        var validationResult = manifestValidator.ValidateInstalledShape(manifest);
         if (!validationResult.IsSuccess)
         {
             return SkillOperationResult<SkillInstalledManifest>.FailureResult(

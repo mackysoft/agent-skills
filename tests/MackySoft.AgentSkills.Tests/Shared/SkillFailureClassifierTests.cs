@@ -62,6 +62,7 @@ public sealed class SkillFailureClassifierTests
             [SkillFailureCodes.InstallTargetHostArtifactDigestMismatch] = SkillFailureCategory.DriftOrLocalModification,
             [SkillFailureCodes.InstallTargetFileSetMismatch] = SkillFailureCategory.DriftOrLocalModification,
             [SkillFailureCodes.InstallTargetOutdated] = SkillFailureCategory.DriftOrLocalModification,
+            [SkillFailureCodes.InstallTargetVersionAhead] = SkillFailureCategory.DriftOrLocalModification,
             [SkillFailureCodes.InstallTargetLocalModification] = SkillFailureCategory.DriftOrLocalModification,
             [SkillFailureCodes.InstallTargetUnmanaged] = SkillFailureCategory.UnmanagedTarget,
             [SkillFailureCodes.InstallTargetNameCollision] = SkillFailureCategory.NameCollision,

@@ -46,11 +46,31 @@ public sealed class SkillManifestValidator
     /// <returns> The valid manifest shape or validation failure. </returns>
     internal SkillOperationResult<SkillManifest> ValidateShape (SkillManifest manifest)
     {
+        return ValidateShape(manifest, allowLegacySkillBundleVersion: false);
+    }
+
+    /// <summary> Validates one installed manifest shape while allowing packages created before <c>skillBundleVersion</c> existed. </summary>
+    /// <param name="manifest"> The installed manifest. </param>
+    /// <returns> The valid installed manifest shape or validation failure. </returns>
+    internal SkillOperationResult<SkillManifest> ValidateInstalledShape (SkillManifest manifest)
+    {
+        return ValidateShape(manifest, allowLegacySkillBundleVersion: true);
+    }
+
+    private SkillOperationResult<SkillManifest> ValidateShape (
+        SkillManifest manifest,
+        bool allowLegacySkillBundleVersion)
+    {
         ArgumentNullException.ThrowIfNull(manifest);
 
         if (manifest.SchemaVersion != SkillManifest.CurrentSchemaVersion)
         {
             return Failure($"Unsupported agent-skill.json schemaVersion: {manifest.SchemaVersion}");
+        }
+
+        if (manifest.SkillBundleVersion <= 0 && (!allowLegacySkillBundleVersion || manifest.SkillBundleVersion != 0))
+        {
+            return Failure("agent-skill.json skillBundleVersion must be a positive integer.");
         }
 
         if (!SkillIdentifierValidator.IsSafeLowercaseHyphenLiteral(manifest.SkillName))

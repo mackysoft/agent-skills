@@ -11,6 +11,7 @@ public sealed class SkillSourceDefinitionReader
     private static readonly string[] ExpectedJsonProperties =
     [
         "schemaVersion",
+        "skillBundleVersion",
         "catalogId",
         "tier",
         "skillName",
@@ -183,13 +184,19 @@ public sealed class SkillSourceDefinitionReader
         {
             return SkillOperationResult<SkillSourceMetadata>.FailureResult(
                 SkillFailureCodes.SourceInvalid,
-                "skill.json must contain only schemaVersion, catalogId, tier, skillName, displayName, description, and references in canonical order.");
+                "skill.json must contain only schemaVersion, skillBundleVersion, catalogId, tier, skillName, displayName, description, and references in canonical order.");
         }
 
         var schemaVersion = root.GetProperty("schemaVersion").GetInt32();
         if (schemaVersion != SkillSourceMetadata.CurrentSchemaVersion)
         {
             return SkillOperationResult<SkillSourceMetadata>.FailureResult(SkillFailureCodes.SourceInvalid, $"Unsupported skill.json schemaVersion: {schemaVersion}");
+        }
+
+        var skillBundleVersion = root.GetProperty("skillBundleVersion").GetInt32();
+        if (skillBundleVersion <= 0)
+        {
+            return SkillOperationResult<SkillSourceMetadata>.FailureResult(SkillFailureCodes.SourceInvalid, $"skill.json skillBundleVersion must be a positive integer for '{expectedSkillName}'.");
         }
 
         var skillName = root.GetProperty("skillName").GetString() ?? string.Empty;
@@ -239,7 +246,7 @@ public sealed class SkillSourceDefinitionReader
             }
         }
 
-        return SkillOperationResult<SkillSourceMetadata>.Success(new SkillSourceMetadata(schemaVersion, skillName, displayName, description, tier!, catalogId!, references));
+        return SkillOperationResult<SkillSourceMetadata>.Success(new SkillSourceMetadata(schemaVersion, skillBundleVersion, catalogId!, tier!, skillName, displayName, description, references));
     }
 
     private static SkillOperationResult<IReadOnlyList<SkillSourceDefinition>> Failure (string message)

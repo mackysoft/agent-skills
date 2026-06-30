@@ -11,4 +11,7 @@ public enum SkillBlockedReason
 
     /// <summary> The target directory is not managed by Agent Skills. </summary>
     UnmanagedTarget = 2,
+
+    /// <summary> The operation would overwrite a managed target generated from a newer SKILL bundle without <c>--force</c>. </summary>
+    InstalledVersionAhead = 3,
 }

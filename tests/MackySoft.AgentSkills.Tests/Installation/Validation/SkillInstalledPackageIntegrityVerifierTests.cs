@@ -1,4 +1,5 @@
 using MackySoft.AgentSkills.Hosts.OpenAi;
+using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
 
@@ -6,6 +7,33 @@ namespace MackySoft.AgentSkills.Tests.Installation.Validation;
 
 public sealed class SkillInstalledPackageIntegrityVerifierTests
 {
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task VerifyAsync_AllowsLegacyManifestWithoutSkillBundleVersion ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "integrity-legacy-manifest");
+        var package = (await SkillTestData.GenerateFixturePackagesAsync()).First();
+        var installService = SkillTestData.CreateInstallService();
+        var install = await installService.InstallAsync(
+            [package],
+            new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+            CancellationToken.None);
+        Assert.True(install.IsSuccess, install.Failure?.Message);
+        var skillDirectory = Path.Combine(install.Value!.TargetRoot, package.Manifest.SkillName);
+        var legacyManifestText = SkillTestData.CreateLegacyManifestTextWithoutSkillBundleVersion(package);
+        Assert.DoesNotContain("skillBundleVersion", legacyManifestText, StringComparison.Ordinal);
+        Assert.Contains("\"schemaVersion\": 1,\n  \"catalogId\":", legacyManifestText, StringComparison.Ordinal);
+        Assert.Contains("\"contentDigest\":", legacyManifestText, StringComparison.Ordinal);
+        Assert.Contains("\"manifestDigest\":", legacyManifestText, StringComparison.Ordinal);
+        File.WriteAllText(Path.Combine(skillDirectory, "agent-skill.json"), legacyManifestText);
+        var verifier = SkillTestData.CreateInstalledPackageIntegrityVerifier(SkillTestData.CreateDefaultHostAdapterSet());
+
+        var result = await verifier.VerifyAsync(skillDirectory, OpenAiSkillHostAdapter.HostKey, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.Equal(0, result.Value!.SkillBundleVersion);
+    }
+
     [Fact]
     [Trait("Size", "Small")]
     public async Task VerifyAsync_RejectsReferenceDirectorySymlinkWithoutLeakingTargetFilePath ()
