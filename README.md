@@ -35,11 +35,12 @@ skills/
 
 `skills/definitions` is the source of truth. `skills/generated` is deterministic build output; do not edit it manually.
 
-Source definition metadata includes a product-owned `tier` literal:
+Source definition metadata includes a product-owned `skillBundleVersion`, a product-owned `tier` literal, and dependency metadata:
 
 ```json
 {
   "schemaVersion": 1,
+  "skillBundleVersion": 1,
   "catalogId": "com.example.skills",
   "tier": "basic",
   "skillName": "example-review",
@@ -50,7 +51,9 @@ Source definition metadata includes a product-owned `tier` literal:
 }
 ```
 
-Generated package manifests preserve `tier` and `dependencies` in `agent-skill.json`. The manifest digest covers the canonical manifest content, including both fields.
+Generated package manifests preserve `skillBundleVersion`, `tier`, and `dependencies` in `agent-skill.json`. The manifest digest covers the canonical manifest content, including these fields.
+
+The JSON property order shown above is canonical for `skill.json` and is validated during generation.
 
 ## CLI Tool
 
@@ -75,6 +78,14 @@ Build options:
 - `--generatedRoot`: canonical generated package root, normally `skills/generated`.
 
 The CLI validates definition metadata, computes deterministic digests, writes `agent-skill.json`, and emits host artifact metadata for every supported host.
+
+## Skill Bundle Versions
+
+`skillBundleVersion` is a product-owned positive integer stored in every source `skill.json` and stamped into every generated `agent-skill.json`. A single build must use one `skillBundleVersion` across all source definitions.
+
+`schemaVersion` remains the package format version and is currently `1`. `skillBundleVersion` is separate from `schemaVersion`; it is the product's bundled SKILL set version.
+
+Increase `skillBundleVersion` when a product ships a new bundled SKILL set and wants installed clean packages to be recognized as outdated. Runtime state and operation reports include the installed and bundled bundle versions when they are known. If an installed package has a newer `skillBundleVersion` than the bundled package, update/install flows report a version-ahead target state so callers can require an explicit force operation before overwriting it.
 
 ## Tiers
 
@@ -103,6 +114,7 @@ Use `dependencies` when one skill intentionally invokes another skill. Dependenc
 ```json
 {
   "schemaVersion": 1,
+  "skillBundleVersion": 1,
   "catalogId": "com.example.skills",
   "tier": "basic",
   "skillName": "example-plan",
@@ -116,6 +128,8 @@ Use `dependencies` when one skill intentionally invokes another skill. Dependenc
 ```
 
 The build validates dependency consistency before writing generated packages. Every dependency must appear as `$skill-name` in source-owned text (`description`, `SKILL.md.template`, or `references/*.md.template`), and every `$skill-name` reference to a known skill must be declared in `dependencies`. Self-dependencies, duplicate dependencies, missing dependency packages, and dependency cycles are rejected.
+
+The generated `agent-skill.json` order is `schemaVersion`, `skillBundleVersion`, `catalogId`, `tier`, `skillName`, `displayName`, `description`, `dependencies`, `contentDigest`, `manifestDigest`, and `hostArtifacts`.
 
 Package selection APIs return the selected root packages plus their transitive dependencies. `SelectedTiers` and `SelectedSkillNames` still report the caller's root selection; dependency packages are added only to the returned package list. A dependency can belong to a different defined tier than the selected root package.
 
