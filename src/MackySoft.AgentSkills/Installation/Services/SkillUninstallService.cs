@@ -178,6 +178,7 @@ public sealed class SkillUninstallService
                     ShouldDelete: false));
             case SkillInstalledTargetStateKind.Current:
             case SkillInstalledTargetStateKind.CleanOutdated:
+            case SkillInstalledTargetStateKind.VersionAhead:
                 return await CreateDeleteActionPlanAsync(package, skillDirectory, identity, state, cancellationToken).ConfigureAwait(false);
             case SkillInstalledTargetStateKind.Unmanaged:
                 return SkillOperationResult<SkillUninstallActionPlan>.Success(new SkillUninstallActionPlan(

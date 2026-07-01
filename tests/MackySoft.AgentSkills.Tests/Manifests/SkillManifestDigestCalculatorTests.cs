@@ -16,9 +16,9 @@ public sealed class SkillManifestDigestCalculatorTests
         var expectedDigestInput = string.Join('\n', [
             "{",
             "  \"schemaVersion\": 1,",
+            "  \"skillBundleVersion\": 1,",
             "  \"catalogId\": \"com.mackysoft.agent-skills\",",
             "  \"tier\": \"basic\",",
-            "  \"contentDigest\": \"0000000000000000000000000000000000000000000000000000000000000000\",",
             "  \"skillName\": \"sample-skill\",",
             "  \"displayName\": \"Sample Skill\",",
             "  \"description\": \"Use this sample skill for tests.\",",
@@ -26,6 +26,7 @@ public sealed class SkillManifestDigestCalculatorTests
             "    \"a-helper\",",
             "    \"z-helper\"",
             "  ],",
+            "  \"contentDigest\": \"0000000000000000000000000000000000000000000000000000000000000000\",",
             "  \"hostArtifacts\": [",
             "    {",
             "      \"host\": \"claude\",",
@@ -46,12 +47,13 @@ public sealed class SkillManifestDigestCalculatorTests
         ]) + "\n";
         var manifest = new SkillManifest(
             SkillManifest.CurrentSchemaVersion,
+            1,
+            new SkillCatalogId("com.mackysoft.agent-skills"),
+            new SkillTier("basic"),
             new SkillName("sample-skill"),
             "Sample Skill",
             "Use this sample skill for tests.",
             [new SkillName("z-helper"), new SkillName("a-helper")],
-            new SkillTier("basic"),
-            new SkillCatalogId("com.mackysoft.agent-skills"),
             new string('0', 64),
             new string('f', 64),
             [

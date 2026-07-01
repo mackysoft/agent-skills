@@ -40,13 +40,18 @@ public sealed class SkillInstalledTargetStateAnalyzer
 
         if (!Directory.Exists(skillDirectory))
         {
-            return SkillOperationResult<SkillInstalledTargetState>.Success(new SkillInstalledTargetState(SkillInstalledTargetStateKind.Missing));
+            return SkillOperationResult<SkillInstalledTargetState>.Success(new SkillInstalledTargetState(
+                SkillInstalledTargetStateKind.Missing,
+                BundledSkillBundleVersion: package.Manifest.SkillBundleVersion));
         }
 
         var currentResult = await installedPackageValidator.ValidateAsync(package, skillDirectory, host, cancellationToken).ConfigureAwait(false);
         if (currentResult.IsSuccess)
         {
-            return SkillOperationResult<SkillInstalledTargetState>.Success(new SkillInstalledTargetState(SkillInstalledTargetStateKind.Current));
+            return SkillOperationResult<SkillInstalledTargetState>.Success(new SkillInstalledTargetState(
+                SkillInstalledTargetStateKind.Current,
+                InstalledSkillBundleVersion: currentResult.Value!.SkillBundleVersion,
+                BundledSkillBundleVersion: package.Manifest.SkillBundleVersion));
         }
 
         var currentFailure = currentResult.Failure!;
@@ -63,11 +68,12 @@ public sealed class SkillInstalledTargetStateAnalyzer
         var integrityResult = await installedPackageIntegrityVerifier.VerifyAsync(skillDirectory, host, cancellationToken).ConfigureAwait(false);
         if (integrityResult.IsSuccess)
         {
+            var installedManifest = integrityResult.Value!;
             return Success(
-                SkillInstalledTargetStateKind.CleanOutdated,
-                SkillFailure.Create(
-                    SkillFailureCodes.InstallTargetOutdated,
-                    $"Installed SKILL package is clean but older than the canonical package: {package.Manifest.SkillName}"));
+                ResolveCleanManagedMismatchKind(installedManifest.SkillBundleVersion, package.Manifest.SkillBundleVersion),
+                CreateCleanManagedMismatchFailure(package.Manifest.SkillName.Value, installedManifest.SkillBundleVersion, package.Manifest.SkillBundleVersion),
+                installedSkillBundleVersion: installedManifest.SkillBundleVersion,
+                bundledSkillBundleVersion: package.Manifest.SkillBundleVersion);
         }
 
         var integrityFailure = integrityResult.Failure!;
@@ -113,10 +119,50 @@ public sealed class SkillInstalledTargetStateAnalyzer
                 return SkillOperationResult<SkillInstalledTargetState>.FailureResult(fileSetResult.Failure!.Code, fileSetResult.Failure.Message);
             }
 
-            return Success(stateKind, selectedFailure, fileSetResult.Value);
+            return Success(
+                stateKind,
+                selectedFailure,
+                fileSetResult.Value,
+                bundledSkillBundleVersion: package.Manifest.SkillBundleVersion);
         }
 
-        return Success(stateKind, selectedFailure);
+        return Success(
+            stateKind,
+            selectedFailure,
+            bundledSkillBundleVersion: package.Manifest.SkillBundleVersion);
+    }
+
+    private static SkillInstalledTargetStateKind ResolveCleanManagedMismatchKind (
+        int installedSkillBundleVersion,
+        int bundledSkillBundleVersion)
+    {
+        return installedSkillBundleVersion > bundledSkillBundleVersion
+            ? SkillInstalledTargetStateKind.VersionAhead
+            : SkillInstalledTargetStateKind.CleanOutdated;
+    }
+
+    private static SkillFailure CreateCleanManagedMismatchFailure (
+        string skillName,
+        int installedSkillBundleVersion,
+        int bundledSkillBundleVersion)
+    {
+        if (installedSkillBundleVersion > bundledSkillBundleVersion)
+        {
+            return SkillFailure.Create(
+                SkillFailureCodes.InstallTargetVersionAhead,
+                $"Installed SKILL package was generated from a newer skillBundleVersion for '{skillName}': installed {installedSkillBundleVersion}, bundled {bundledSkillBundleVersion}.");
+        }
+
+        if (installedSkillBundleVersion == bundledSkillBundleVersion)
+        {
+            return SkillFailure.Create(
+                SkillFailureCodes.InstallTargetOutdated,
+                $"Installed SKILL package is clean but differs from the bundled package at skillBundleVersion {bundledSkillBundleVersion}: {skillName}");
+        }
+
+        return SkillFailure.Create(
+            SkillFailureCodes.InstallTargetOutdated,
+            $"Installed SKILL package is clean but older than the bundled package for '{skillName}': installed {installedSkillBundleVersion}, bundled {bundledSkillBundleVersion}.");
     }
 
     private static SkillFailure SelectDriftFailure (
@@ -215,8 +261,15 @@ public sealed class SkillInstalledTargetStateAnalyzer
     private static SkillOperationResult<SkillInstalledTargetState> Success (
         SkillInstalledTargetStateKind kind,
         SkillFailure? failure = null,
-        SkillInstalledTargetFileSet? fileSet = null)
+        SkillInstalledTargetFileSet? fileSet = null,
+        int? installedSkillBundleVersion = null,
+        int? bundledSkillBundleVersion = null)
     {
-        return SkillOperationResult<SkillInstalledTargetState>.Success(new SkillInstalledTargetState(kind, failure, fileSet));
+        return SkillOperationResult<SkillInstalledTargetState>.Success(new SkillInstalledTargetState(
+            kind,
+            failure,
+            fileSet,
+            installedSkillBundleVersion,
+            bundledSkillBundleVersion));
     }
 }

@@ -68,6 +68,8 @@ public sealed class SkillManifestValidatorTests
         return new TheoryData<SkillManifest>
         {
             WithComputedManifestDigest(valid with { SchemaVersion = 0 }),
+            WithComputedManifestDigest(valid with { SkillBundleVersion = 0 }),
+            WithComputedManifestDigest(valid with { SkillBundleVersion = -1 }),
             WithComputedManifestDigest(valid with { DisplayName = "" }),
             WithComputedManifestDigest(valid with { Description = "" }),
             valid with { SkillName = default },
@@ -93,12 +95,13 @@ public sealed class SkillManifestValidatorTests
         var serializer = new SkillManifestJsonSerializer();
         var manifest = new SkillManifest(
             SkillManifest.CurrentSchemaVersion,
+            1,
+            new SkillCatalogId("com.mackysoft.agent-skills"),
+            new SkillTier("basic"),
             new SkillName(skillName),
             "Sample Skill",
             "Use this sample skill for tests.",
             [],
-            new SkillTier("basic"),
-            new SkillCatalogId("com.mackysoft.agent-skills"),
             new string('0', 64),
             string.Empty,
             [

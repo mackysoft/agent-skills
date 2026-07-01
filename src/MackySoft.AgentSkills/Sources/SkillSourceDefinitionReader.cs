@@ -13,6 +13,7 @@ public sealed class SkillSourceDefinitionReader
     private static readonly string[] ExpectedJsonProperties =
     [
         "schemaVersion",
+        "skillBundleVersion",
         "catalogId",
         "tier",
         "skillName",
@@ -192,13 +193,19 @@ public sealed class SkillSourceDefinitionReader
         {
             return SkillOperationResult<SkillSourceMetadata>.FailureResult(
                 SkillFailureCodes.SourceInvalid,
-                "skill.json must contain only schemaVersion, catalogId, tier, skillName, displayName, description, dependencies, and references in canonical order.");
+                "skill.json must contain only schemaVersion, skillBundleVersion, catalogId, tier, skillName, displayName, description, dependencies, and references in canonical order.");
         }
 
         var schemaVersion = root.GetProperty("schemaVersion").GetInt32();
         if (schemaVersion != SkillSourceMetadata.CurrentSchemaVersion)
         {
             return SkillOperationResult<SkillSourceMetadata>.FailureResult(SkillFailureCodes.SourceInvalid, $"Unsupported skill.json schemaVersion: {schemaVersion}");
+        }
+
+        var skillBundleVersion = root.GetProperty("skillBundleVersion").GetInt32();
+        if (skillBundleVersion <= 0)
+        {
+            return SkillOperationResult<SkillSourceMetadata>.FailureResult(SkillFailureCodes.SourceInvalid, $"skill.json skillBundleVersion must be a positive integer for '{expectedSkillName}'.");
         }
 
         var skillNameLiteral = root.GetProperty("skillName").GetString() ?? string.Empty;
@@ -233,16 +240,16 @@ public sealed class SkillSourceDefinitionReader
             return SkillOperationResult<SkillSourceMetadata>.FailureResult(SkillFailureCodes.SourceInvalid, $"skill.json catalogId is invalid for '{skillNameLiteral}'.");
         }
 
-        var references = root.GetProperty("references").EnumerateArray().Select(static element => element.GetString() ?? string.Empty).ToArray();
-        if (references.Distinct(StringComparer.Ordinal).Count() != references.Length)
-        {
-            return SkillOperationResult<SkillSourceMetadata>.FailureResult(SkillFailureCodes.SourceInvalid, $"skill.json references are invalid for '{skillNameLiteral}'.");
-        }
-
         var dependenciesResult = ReadDependencies(root, skillName);
         if (!dependenciesResult.IsSuccess)
         {
             return SkillOperationResult<SkillSourceMetadata>.FailureResult(SkillFailureCodes.SourceInvalid, dependenciesResult.Failure!.Message);
+        }
+
+        var references = root.GetProperty("references").EnumerateArray().Select(static element => element.GetString() ?? string.Empty).ToArray();
+        if (references.Distinct(StringComparer.Ordinal).Count() != references.Length)
+        {
+            return SkillOperationResult<SkillSourceMetadata>.FailureResult(SkillFailureCodes.SourceInvalid, $"skill.json references are invalid for '{skillNameLiteral}'.");
         }
 
         foreach (var reference in references)
@@ -256,12 +263,13 @@ public sealed class SkillSourceDefinitionReader
 
         return SkillOperationResult<SkillSourceMetadata>.Success(new SkillSourceMetadata(
             schemaVersion,
+            skillBundleVersion,
+            catalogId!,
+            tier!,
             skillName,
             displayName,
             description,
             dependenciesResult.Value!,
-            tier!,
-            catalogId!,
             references));
     }
 
@@ -306,8 +314,7 @@ public sealed class SkillSourceDefinitionReader
     {
         var dependenciesBySkillName = definitions.ToDictionary(
             static definition => definition.Metadata.SkillName,
-            static definition => definition.Metadata.Dependencies,
-            EqualityComparer<SkillName>.Default);
+            static definition => definition.Metadata.Dependencies);
 
         return SkillDependencyGraphValidator.Validate(
             dependenciesBySkillName,

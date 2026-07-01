@@ -116,6 +116,15 @@ public sealed class SkillDoctorService
                     "Installed SKILL package is clean but older than the bundled package.",
                     package.Manifest.SkillName.Value));
                 return;
+            case SkillInstalledTargetStateKind.VersionAhead:
+                var versionAheadFailure = stateResult.Value.Failure ?? SkillFailure.Create(
+                    SkillFailureCodes.InstallTargetVersionAhead,
+                    "Installed SKILL package was generated from a newer SKILL bundle.");
+                diagnostics.Add(SkillDoctorDiagnostic.Error(
+                    versionAheadFailure.Code,
+                    versionAheadFailure.Message,
+                    package.Manifest.SkillName.Value));
+                return;
             case SkillInstalledTargetStateKind.Unmanaged:
                 diagnostics.Add(SkillDoctorDiagnostic.Error(
                     SkillFailureCodes.InstallTargetUnmanaged,

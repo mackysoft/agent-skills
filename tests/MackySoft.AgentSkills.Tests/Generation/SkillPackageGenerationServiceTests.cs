@@ -33,6 +33,8 @@ public sealed class SkillPackageGenerationServiceTests
             Assert.Contains(package.Files, static file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal));
             Assert.Contains(package.Files, static file => string.Equals(file.RelativePath, "agents/openai.yaml", StringComparison.Ordinal));
             Assert.True(validator.Validate(package.Manifest).IsSuccess);
+            Assert.Equal(SkillManifest.CurrentSchemaVersion, package.Manifest.SchemaVersion);
+            Assert.Equal(1, package.Manifest.SkillBundleVersion);
             Assert.False(string.IsNullOrWhiteSpace(package.Manifest.DisplayName));
             Assert.False(string.IsNullOrWhiteSpace(package.Manifest.Description));
             Assert.Empty(package.Manifest.Dependencies);
@@ -108,7 +110,8 @@ public sealed class SkillPackageGenerationServiceTests
 
             Assert.Equal(SkillManifest.CurrentSchemaVersion, package.Manifest.SchemaVersion);
             Assert.Equal(SkillManifest.CurrentSchemaVersion, manifest.SchemaVersion);
-            Assert.Equal(package.Manifest.SkillName.Value, manifest.SkillName.Value);
+            Assert.Equal(package.Manifest.SkillBundleVersion, manifest.SkillBundleVersion);
+            Assert.Equal(package.Manifest.SkillName, manifest.SkillName);
             Assert.Equal(package.Manifest.DisplayName, manifest.DisplayName);
             Assert.Equal(package.Manifest.Description, manifest.Description);
             Assert.Equal(package.Manifest.Dependencies, manifest.Dependencies);
@@ -141,12 +144,13 @@ public sealed class SkillPackageGenerationServiceTests
             var package = service.Generate(new SkillSourceDefinition(
                 new SkillSourceMetadata(
                     SkillSourceMetadata.CurrentSchemaVersion,
+                    1,
+                    new SkillCatalogId("com.mackysoft.agent-skills"),
+                    new SkillTier("basic"),
                     new SkillName("ordinal-culture-contract"),
                     "Ordinal Culture Contract",
                     "Use this skill to verify ordinal package ordering.",
                     [],
-                    new SkillTier("basic"),
-                    new SkillCatalogId("com.mackysoft.agent-skills"),
                     ["a.md", "B.md"]),
                 "# Ordinal Culture Contract\n",
                 [
@@ -177,13 +181,14 @@ public sealed class SkillPackageGenerationServiceTests
         var service = SkillTestData.CreatePackageGenerationService();
         var package = service.Generate(new SkillSourceDefinition(
             new SkillSourceMetadata(
-                    SkillSourceMetadata.CurrentSchemaVersion,
+                SkillSourceMetadata.CurrentSchemaVersion,
+                1,
+                new SkillCatalogId("com.mackysoft.agent-skills"),
+                new SkillTier("basic"),
                 new SkillName("reference-free-skill"),
                 "Reference Free Skill",
                 "Use this skill to verify reference-free package generation.",
                 [],
-                new SkillTier("basic"),
-                new SkillCatalogId("com.mackysoft.agent-skills"),
                 []),
             "# Reference Free Skill\n",
             []));
@@ -203,13 +208,14 @@ public sealed class SkillPackageGenerationServiceTests
         var service = SkillTestData.CreatePackageGenerationService();
         var package = service.Generate(new SkillSourceDefinition(
             new SkillSourceMetadata(
-                    SkillSourceMetadata.CurrentSchemaVersion,
+                SkillSourceMetadata.CurrentSchemaVersion,
+                1,
+                new SkillCatalogId("com.mackysoft.agent-skills"),
+                new SkillTier("basic"),
                 new SkillName("heading-free-skill"),
                 "Heading Free Skill",
                 "Use this skill to verify generated heading insertion.",
                 [],
-                new SkillTier("basic"),
-                new SkillCatalogId("com.mackysoft.agent-skills"),
                 []),
             "Use this skill to verify generated heading insertion.\n",
             []));
@@ -243,10 +249,10 @@ public sealed class SkillPackageGenerationServiceTests
         WriteDefinition(
             scope,
             "source-skill",
-            ["target-reference", "target-body", "target-description"],
-            "Use when invoking $target-description before other helpers.",
-            "Use $target-body for body work.\n",
-            new Dictionary<string, string>(StringComparer.Ordinal)
+            dependencies: ["target-reference", "target-body", "target-description"],
+            description: "Use when invoking $target-description before other helpers.",
+            skillTemplate: "Use $target-body for body work.\n",
+            references: new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["workflow.md"] = "Use $target-reference for reference work.\n",
             });
@@ -265,7 +271,7 @@ public sealed class SkillPackageGenerationServiceTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "dependency-missing-source-reference");
         WriteDefinition(scope, "target-skill");
-        WriteDefinition(scope, "source-skill", ["target-skill"]);
+        WriteDefinition(scope, "source-skill", dependencies: ["target-skill"]);
         var service = SkillTestData.CreatePackageGenerationService();
 
         var result = await service.GenerateAllAsync(scope.FullPath, CancellationToken.None);
@@ -319,6 +325,23 @@ public sealed class SkillPackageGenerationServiceTests
         Assert.Empty(result.Value!.Single().Manifest.Dependencies);
     }
 
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task GenerateAllAsync_RejectsMixedSkillBundleVersions ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "mixed-skill-bundle-version");
+        var definitionsRoot = scope.CreateDirectory("SkillDefinitions");
+        WriteDefinition(scope, "SkillDefinitions/skill-a", skillBundleVersion: 1);
+        WriteDefinition(scope, "SkillDefinitions/skill-b", skillBundleVersion: 2);
+        var service = SkillTestData.CreatePackageGenerationService();
+
+        var result = await service.GenerateAllAsync(definitionsRoot, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Contains("skillBundleVersion", result.Failure.Message, StringComparison.Ordinal);
+    }
+
     private sealed class TestSkillHostAdapter : ISkillHostAdapter
     {
         public TestSkillHostAdapter (
@@ -358,7 +381,8 @@ public sealed class SkillPackageGenerationServiceTests
 
     private static string WriteDefinition (
         TestDirectoryScope scope,
-        string skillName,
+        string relativeDirectory,
+        int skillBundleVersion = 1,
         IReadOnlyList<string>? dependencies = null,
         string? description = null,
         string? skillTemplate = null,
@@ -366,18 +390,20 @@ public sealed class SkillPackageGenerationServiceTests
     {
         dependencies ??= [];
         references ??= new Dictionary<string, string>(StringComparer.Ordinal);
+        var skillName = Path.GetFileName(relativeDirectory);
         var dependencyJson = dependencies.Count == 0
             ? "[]"
             : "[\n" + string.Join(",\n", dependencies.Select(static dependency => $"    \"{dependency}\"")) + "\n  ]";
         var referenceJson = references.Count == 0
             ? "[]"
             : "[\n" + string.Join(",\n", references.Keys.Order(StringComparer.Ordinal).Select(static reference => $"    \"{reference}\"")) + "\n  ]";
-        var skillDirectory = scope.CreateDirectory(skillName);
+        var skillDirectory = scope.CreateDirectory(relativeDirectory);
         scope.WriteFile(
-            $"{skillName}/skill.json",
+            Path.Combine(relativeDirectory, "skill.json"),
             $$"""
             {
               "schemaVersion": 1,
+              "skillBundleVersion": {{skillBundleVersion}},
               "catalogId": "com.mackysoft.agent-skills",
               "tier": "basic",
               "skillName": "{{skillName}}",
@@ -387,10 +413,10 @@ public sealed class SkillPackageGenerationServiceTests
               "references": {{referenceJson}}
             }
             """);
-        scope.WriteFile($"{skillName}/SKILL.md.template", skillTemplate ?? $"Use {skillName} when testing dependency package generation.\n");
+        scope.WriteFile(Path.Combine(relativeDirectory, "SKILL.md.template"), skillTemplate ?? $"Use {skillName} when testing dependency package generation.\n");
         foreach (var reference in references.OrderBy(static item => item.Key, StringComparer.Ordinal))
         {
-            scope.WriteFile($"{skillName}/references/{reference.Key}.template", reference.Value);
+            scope.WriteFile(Path.Combine(relativeDirectory, "references", reference.Key + ".template"), reference.Value);
         }
 
         return skillDirectory;

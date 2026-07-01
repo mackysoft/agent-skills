@@ -27,6 +27,29 @@ internal static class SkillInstalledTargetStateClassifier
         return TryResolve(DriftClassifications, code, out kind);
     }
 
+    /// <summary> Resolves a failure code to the target state kind that should be exposed in operation reports. </summary>
+    /// <param name="code"> The failure code emitted by target analysis, validation, or doctor diagnostics. </param>
+    /// <param name="kind"> The resolved target state kind when this method returns <see langword="true" />. </param>
+    /// <returns> <see langword="true" /> when <paramref name="code" /> has a target state representation; otherwise <see langword="false" />. </returns>
+    public static bool TryResolveReportableKind (
+        SkillFailureCode code,
+        out SkillInstalledTargetStateKind kind)
+    {
+        if (code == SkillFailureCodes.InstallTargetOutdated)
+        {
+            kind = SkillInstalledTargetStateKind.CleanOutdated;
+            return true;
+        }
+
+        if (code == SkillFailureCodes.InstallTargetVersionAhead)
+        {
+            kind = SkillInstalledTargetStateKind.VersionAhead;
+            return true;
+        }
+
+        return TryResolveDriftKind(code, out kind);
+    }
+
     /// <summary> Gets the ordering priority used when multiple managed drift signals are present for the same target. </summary>
     /// <param name="kind"> The target state kind to classify. </param>
     /// <returns> The drift priority where lower values win; <see cref="int.MaxValue" /> when <paramref name="kind" /> is not a managed drift state. </returns>

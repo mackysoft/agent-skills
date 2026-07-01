@@ -18,20 +18,82 @@ internal sealed class SkillInstalledManifestLegacyCompatibilitySerializer
 
     public string SerializeSchemaVersionOneWithoutDependencies (SkillManifest manifest)
     {
-        return SerializeSchemaVersionOneWithoutDependencies(manifest, includeManifestDigest: true);
+        return SerializeWithoutDependencies(manifest, includeManifestDigest: true);
     }
 
     public string ComputeSchemaVersionOneWithoutDependenciesManifestDigest (SkillManifest manifest)
     {
         ArgumentNullException.ThrowIfNull(manifest);
 
-        var json = SerializeSchemaVersionOneWithoutDependencies(manifest, includeManifestDigest: false);
+        var json = SerializeWithoutDependencies(manifest, includeManifestDigest: false);
         return Sha256LowerHex.Compute(Encoding.UTF8.GetBytes(json));
     }
 
-    private static string SerializeSchemaVersionOneWithoutDependencies (
+    public string SerializeWithoutSkillBundleVersion (SkillManifest manifest)
+    {
+        return SerializeWithoutSkillBundleVersion(manifest, includeManifestDigest: true, includeDependencies: true);
+    }
+
+    public string ComputeWithoutSkillBundleVersionManifestDigest (SkillManifest manifest)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+
+        var json = SerializeWithoutSkillBundleVersion(manifest, includeManifestDigest: false, includeDependencies: true);
+        return Sha256LowerHex.Compute(Encoding.UTF8.GetBytes(json));
+    }
+
+    public string SerializeWithoutSkillBundleVersionAndDependencies (SkillManifest manifest)
+    {
+        return SerializeWithoutSkillBundleVersion(manifest, includeManifestDigest: true, includeDependencies: false);
+    }
+
+    public string ComputeWithoutSkillBundleVersionAndDependenciesManifestDigest (SkillManifest manifest)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+
+        var json = SerializeWithoutSkillBundleVersion(manifest, includeManifestDigest: false, includeDependencies: false);
+        return Sha256LowerHex.Compute(Encoding.UTF8.GetBytes(json));
+    }
+
+    private static string SerializeWithoutDependencies (
         SkillManifest manifest,
         bool includeManifestDigest)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream, WriterOptions))
+        {
+            writer.WriteStartObject();
+            writer.WriteNumber("schemaVersion", manifest.SchemaVersion);
+            if (manifest.SkillBundleVersion > 0)
+            {
+                writer.WriteNumber("skillBundleVersion", manifest.SkillBundleVersion);
+            }
+
+            writer.WriteString("catalogId", manifest.CatalogId.Value);
+            writer.WriteString("tier", manifest.Tier.Value);
+            writer.WriteString("skillName", manifest.SkillName.Value);
+            writer.WriteString("displayName", manifest.DisplayName);
+            writer.WriteString("description", manifest.Description);
+            writer.WriteString("contentDigest", manifest.ContentDigest);
+            if (includeManifestDigest)
+            {
+                writer.WriteString("manifestDigest", manifest.ManifestDigest);
+            }
+
+            writer.WritePropertyName("hostArtifacts");
+            WriteHostArtifacts(writer, manifest.HostArtifacts);
+            writer.WriteEndObject();
+        }
+
+        return NormalizeJson(stream);
+    }
+
+    private static string SerializeWithoutSkillBundleVersion (
+        SkillManifest manifest,
+        bool includeManifestDigest,
+        bool includeDependencies)
     {
         ArgumentNullException.ThrowIfNull(manifest);
 
@@ -51,31 +113,55 @@ internal sealed class SkillInstalledManifestLegacyCompatibilitySerializer
             writer.WriteString("skillName", manifest.SkillName.Value);
             writer.WriteString("displayName", manifest.DisplayName);
             writer.WriteString("description", manifest.Description);
-            writer.WritePropertyName("hostArtifacts");
-            writer.WriteStartArray();
-
-            foreach (var artifact in manifest.HostArtifacts.OrderBy(static artifact => artifact.Host, StringComparer.Ordinal))
+            if (includeDependencies)
             {
-                writer.WriteStartObject();
-                writer.WriteString("host", artifact.Host);
-                if (!string.IsNullOrWhiteSpace(artifact.Path))
+                writer.WritePropertyName("dependencies");
+                writer.WriteStartArray();
+                foreach (var dependency in manifest.Dependencies.OrderBy(static dependency => dependency.Value, StringComparer.Ordinal))
                 {
-                    writer.WriteString("path", artifact.Path);
+                    writer.WriteStringValue(dependency.Value);
                 }
 
-                if (!string.IsNullOrWhiteSpace(artifact.Digest))
-                {
-                    writer.WriteString("digest", artifact.Digest);
-                }
-
-                writer.WriteString("materializedFrontmatterDigest", artifact.MaterializedFrontmatterDigest);
-                writer.WriteEndObject();
+                writer.WriteEndArray();
             }
 
-            writer.WriteEndArray();
+            writer.WritePropertyName("hostArtifacts");
+            WriteHostArtifacts(writer, manifest.HostArtifacts);
             writer.WriteEndObject();
         }
 
+        return NormalizeJson(stream);
+    }
+
+    private static void WriteHostArtifacts (
+        Utf8JsonWriter writer,
+        IReadOnlyList<SkillHostArtifactManifest> hostArtifacts)
+    {
+        writer.WriteStartArray();
+
+        foreach (var artifact in hostArtifacts.OrderBy(static artifact => artifact.Host, StringComparer.Ordinal))
+        {
+            writer.WriteStartObject();
+            writer.WriteString("host", artifact.Host);
+            if (!string.IsNullOrWhiteSpace(artifact.Path))
+            {
+                writer.WriteString("path", artifact.Path);
+            }
+
+            if (!string.IsNullOrWhiteSpace(artifact.Digest))
+            {
+                writer.WriteString("digest", artifact.Digest);
+            }
+
+            writer.WriteString("materializedFrontmatterDigest", artifact.MaterializedFrontmatterDigest);
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static string NormalizeJson (MemoryStream stream)
+    {
         var json = SkillTextNormalizer.NormalizeToLf(Encoding.UTF8.GetString(stream.ToArray()));
         return json.EndsWith('\n') ? json : json + "\n";
     }

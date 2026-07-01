@@ -1,5 +1,6 @@
 {
   "schemaVersion": 1,
+  "skillBundleVersion": 1,
   "catalogId": "com.mackysoft.agent-skills",
   "tier": "basic",
   "skillName": "agent-skills-troubleshoot",

@@ -17,4 +17,7 @@ public enum SkillUpdateActionKind
 
     /// <summary> The target is unmanaged and cannot be overwritten. </summary>
     BlockedUnmanaged = 4,
+
+    /// <summary> The target was generated from a newer SKILL bundle and cannot be overwritten without force. </summary>
+    BlockedVersionAhead = 5,
 }

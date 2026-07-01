@@ -1,13 +1,14 @@
 {
   "schemaVersion": 1,
+  "skillBundleVersion": 1,
   "catalogId": "com.mackysoft.agent-skills",
   "tier": "basic",
-  "contentDigest": "7abc133f4cab76dc3c9177b9b86747a3400935dd89a4b3fe372959b705e35143",
-  "manifestDigest": "bfc30525de574cf1631eed3095f4216d5ce8db2149f911d674ac59f5ea67dc5b",
   "skillName": "agent-skills-read-project",
   "displayName": "Agent Skills Read Project",
   "description": "Use when inspecting a Unity project with Agent Skills before choosing selectors, operation metadata, schemas, or readIndex freshness. Guides read-first discovery without hard-coding operation contracts.",
   "dependencies": [],
+  "contentDigest": "7abc133f4cab76dc3c9177b9b86747a3400935dd89a4b3fe372959b705e35143",
+  "manifestDigest": "01830abb3c87d8278f6afafb9bcc29e728560b0cbe3c9cb81c32017995136c5d",
   "hostArtifacts": [
     {
       "host": "claude",

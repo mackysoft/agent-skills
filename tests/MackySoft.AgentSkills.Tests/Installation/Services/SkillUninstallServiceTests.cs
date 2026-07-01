@@ -69,6 +69,55 @@ public sealed class SkillUninstallServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task UninstallAsync_DryRunDeletesVersionAheadPlanWithoutDeleting ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "uninstall-dry-run-version-ahead");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion + 1);
+        var installService = SkillTestData.CreateInstallService();
+        var uninstallService = SkillTestData.CreateUninstallService();
+        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var install = await installService.InstallAsync([aheadPackage], request, CancellationToken.None);
+        Assert.True(install.IsSuccess, install.Failure?.Message);
+        var skillDirectory = Path.Combine(install.Value!.TargetRoot, aheadPackage.Manifest.SkillName.Value);
+
+        var result = await uninstallService.UninstallAsync(new SkillUninstallInput([packages[0]], request, DryRun: true), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        var action = result.Value!.Actions.Single();
+        Assert.Equal(SkillUninstallActionKind.Deleted, action.ActionKind);
+        Assert.Equal(nameof(SkillInstalledTargetStateKind.VersionAhead), action.TargetState!.Kind);
+        Assert.Equal(SkillFailureCodes.InstallTargetVersionAhead, action.TargetState.Code);
+        Assert.Equal(aheadPackage.Manifest.SkillBundleVersion, action.TargetState.InstalledSkillBundleVersion);
+        Assert.Equal(packages[0].Manifest.SkillBundleVersion, action.TargetState.BundledSkillBundleVersion);
+        Assert.True(Directory.Exists(skillDirectory));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task UninstallAsync_DeletesVersionAheadWithoutForce ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "uninstall-version-ahead");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion + 1);
+        var installService = SkillTestData.CreateInstallService();
+        var uninstallService = SkillTestData.CreateUninstallService();
+        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var install = await installService.InstallAsync([aheadPackage], request, CancellationToken.None);
+        Assert.True(install.IsSuccess, install.Failure?.Message);
+        var skillDirectory = Path.Combine(install.Value!.TargetRoot, aheadPackage.Manifest.SkillName.Value);
+
+        var result = await uninstallService.UninstallAsync(new SkillUninstallInput([packages[0]], request), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        var action = result.Value!.Actions.Single();
+        Assert.Equal(SkillUninstallActionKind.Deleted, action.ActionKind);
+        Assert.Equal(nameof(SkillInstalledTargetStateKind.VersionAhead), action.TargetState!.Kind);
+        Assert.False(Directory.Exists(skillDirectory));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task UninstallAsync_DryRunWithForceReportsChangesWithoutDeleting ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "uninstall-dry-run-force-changes");

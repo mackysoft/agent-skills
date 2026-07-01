@@ -18,6 +18,7 @@ public sealed class SkillSourceDefinitionReaderTests
         Assert.Equal(SkillTestData.ExpectedSkillNames, result.Value!.Select(static definition => definition.Metadata.SkillName.Value).ToArray());
         Assert.All(result.Value!, static definition =>
         {
+            Assert.Equal(1, definition.Metadata.SkillBundleVersion);
             Assert.DoesNotContain("---", definition.SkillTemplate.TrimStart().Split('\n')[0], StringComparison.Ordinal);
             Assert.False(definition.SkillTemplate.TrimStart().StartsWith("# ", StringComparison.Ordinal));
             Assert.Empty(definition.Metadata.Dependencies);
@@ -66,6 +67,7 @@ public sealed class SkillSourceDefinitionReaderTests
             """
             {
               "schemaVersion": 1,
+              "skillBundleVersion": 1,
               "skillName": "sample-skill",
               "displayName": "Sample Skill",
               "description": "Use when testing source validation.",
@@ -123,6 +125,22 @@ public sealed class SkillSourceDefinitionReaderTests
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [Trait("Size", "Small")]
+    public async Task ReadOneAsync_Fails_WhenSkillBundleVersionIsNotPositive (int skillBundleVersion)
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "invalid-skill-bundle-version");
+        var skillDirectory = WriteMinimalDefinition(scope, skillBundleVersion: skillBundleVersion);
+        var reader = new SkillSourceDefinitionReader();
+
+        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+    }
+
     [Fact]
     [Trait("Size", "Small")]
     public async Task ReadOneAsync_Fails_WhenTierPropertyOrderIsNotCanonical ()
@@ -134,6 +152,7 @@ public sealed class SkillSourceDefinitionReaderTests
             """
             {
               "schemaVersion": 1,
+              "skillBundleVersion": 1,
               "tier": "basic",
               "catalogId": "com.mackysoft.agent-skills",
               "skillName": "sample-skill",
@@ -166,6 +185,7 @@ public sealed class SkillSourceDefinitionReaderTests
             """
             {
               "schemaVersion": 1,
+              "skillBundleVersion": 1,
               "catalogId": "com.mackysoft.agent-skills",
               "tier": "basic",
               "skillName": "sample-skill",
@@ -302,6 +322,7 @@ public sealed class SkillSourceDefinitionReaderTests
             """
             {
               "schemaVersion": 1,
+              "skillBundleVersion": 1,
               "catalogId": "com.mackysoft.agent-skills",
               "tier": "basic",
               "skillName": "sample-skill",
@@ -347,6 +368,7 @@ public sealed class SkillSourceDefinitionReaderTests
             """
             {
               "schemaVersion": 1,
+              "skillBundleVersion": 1,
               "catalogId": "com.mackysoft.agent-skills",
               "tier": "basic",
               "skillName": "SampleSkill",
@@ -440,6 +462,7 @@ public sealed class SkillSourceDefinitionReaderTests
     private static string WriteMinimalDefinition (
         TestDirectoryScope scope,
         string extraJsonProperty = "",
+        int skillBundleVersion = 1,
         string tier = "basic",
         string catalogId = "com.mackysoft.agent-skills",
         string skillName = "sample-skill",
@@ -458,6 +481,7 @@ public sealed class SkillSourceDefinitionReaderTests
             $$"""
             {
               "schemaVersion": 1,
+              "skillBundleVersion": {{skillBundleVersion}},
               "catalogId": "{{catalogId}}",
               "tier": "{{tier}}",
               "skillName": "{{skillName}}",

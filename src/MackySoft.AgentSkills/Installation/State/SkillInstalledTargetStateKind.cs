@@ -38,4 +38,7 @@ public enum SkillInstalledTargetStateKind
 
     /// <summary> The target directory is materialized for a different host. </summary>
     HostConflict = 11,
+
+    /// <summary> The target is managed and clean, but was generated from a newer SKILL bundle. </summary>
+    VersionAhead = 12,
 }

@@ -55,7 +55,9 @@ public sealed class SkillOperationReportBuilderTests
                     TargetState: new SkillActionTargetState(
                         nameof(SkillInstalledTargetStateKind.CommonContentDrift),
                         SkillFailureCodes.InstallTargetContentDigestMismatch,
-                        "Content drift."))
+                        "Content drift.",
+                        InstalledSkillBundleVersion: 1,
+                        BundledSkillBundleVersion: 2))
                 {
                     FileChanges = new SkillActionFileChanges(["z.txt", "a.txt"], ["local.md"]),
                 },
@@ -82,6 +84,8 @@ public sealed class SkillOperationReportBuilderTests
         Assert.Null(updated.BlockedReason);
         Assert.Equal("commonContentDrift", updated.TargetState!.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch.Value, updated.TargetState.Code);
+        Assert.Equal(1, updated.TargetState.InstalledSkillBundleVersion);
+        Assert.Equal(2, updated.TargetState.BundledSkillBundleVersion);
         Assert.Equal(["a.txt", "z.txt"], updated.FileChanges!.ReplacedFiles);
         Assert.Equal(["local.md"], updated.FileChanges.RemovedFiles);
         Assert.Equal(["a.txt", "z.txt"], updated.FileDiffs.Select(static diff => diff.RelativePath).ToArray());
@@ -150,7 +154,7 @@ public sealed class SkillOperationReportBuilderTests
         Assert.Equal("blocked", report.Actions[1].Status);
         Assert.Equal("unmanagedTarget", report.Actions[1].BlockedReason);
         Assert.Equal(
-            ["created", "updated", "noOp", "blockedLocalModification", "blockedUnmanaged"],
+            ["created", "updated", "noOp", "blockedLocalModification", "blockedUnmanaged", "blockedVersionAhead"],
             report.ActionCounts.Select(static count => count.Literal).ToArray());
         Assert.Equal(
             ["changed", "noOp", "skipped", "blocked"],
@@ -225,6 +229,7 @@ public sealed class SkillOperationReportBuilderTests
         Assert.Equal(SkillTestData.ExpectedSkillNames, report.Skills.Select(static skill => skill.SkillName).ToArray());
         Assert.All(report.Skills, static skill => Assert.Empty(skill.Dependencies));
         Assert.All(report.Skills, static skill => Assert.Equal("basic", skill.Tier));
+        Assert.All(report.Skills, static skill => Assert.Equal(1, skill.SkillBundleVersion));
         Assert.All(report.Skills, static skill => Assert.Equal("com.mackysoft.agent-skills", skill.CatalogId));
         Assert.Equal(["claude", "copilot", "openai"], report.SupportedHosts.Select(static host => host.Host).ToArray());
         var openAi = report.SupportedHosts.Single(static host => host.Host == OpenAiSkillHostAdapter.HostKey);
@@ -303,6 +308,14 @@ public sealed class SkillOperationReportBuilderTests
                     SkillFailureCodes.InstallTargetUnmanaged,
                     "Target root is missing."),
                 SkillDoctorDiagnostic.Error(
+                    SkillFailureCodes.InstallTargetVersionAhead,
+                    "Version ahead.",
+                    "skill-c"),
+                SkillDoctorDiagnostic.Error(
+                    SkillFailureCodes.InstallTargetOutdated,
+                    "Clean outdated.",
+                    "skill-d"),
+                SkillDoctorDiagnostic.Error(
                     "SKILL_DOCTOR_SHARED",
                     "Same diagnostic.",
                     "skill-a"),
@@ -326,7 +339,7 @@ public sealed class SkillOperationReportBuilderTests
         Assert.Equal(["developer"], report.Tiers);
         Assert.Equal(["skill-a"], report.SkillNames);
         Assert.Equal("project", report.Scope);
-        Assert.Equal(new string?[] { null, "skill-a", "skill-a", "skill-a", "skill-b" }, report.Diagnostics.Select(static diagnostic => diagnostic.SkillName).ToArray());
+        Assert.Equal(new string?[] { null, "skill-a", "skill-a", "skill-a", "skill-b", "skill-c", "skill-d" }, report.Diagnostics.Select(static diagnostic => diagnostic.SkillName).ToArray());
         Assert.Equal("error", report.Diagnostics[0].Severity);
         Assert.Null(report.Diagnostics[0].TargetState);
         Assert.Equal("info", report.Diagnostics[1].Severity);
@@ -334,6 +347,37 @@ public sealed class SkillOperationReportBuilderTests
         Assert.Equal("info", report.Diagnostics[2].Severity);
         Assert.Equal("error", report.Diagnostics[3].Severity);
         Assert.Equal("hostArtifactDrift", report.Diagnostics[4].TargetState);
+        Assert.Equal("versionAhead", report.Diagnostics[5].TargetState);
+        Assert.Equal("cleanOutdated", report.Diagnostics[6].TargetState);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void OperationReportPublicContracts_PreservePreSkillBundleVersionConstructors ()
+    {
+        var hostArtifacts = Array.Empty<SkillHostArtifactReport>();
+        var listReport = new SkillListSkillReport(
+            1,
+            "skill-a",
+            "Skill A",
+            "Description.",
+            "basic",
+            "com.example",
+            new string('0', 64),
+            new string('1', 64),
+            hostArtifacts);
+        var fileSet = new SkillTargetFileSetReport(["missing.md"], [], []);
+        var targetState = new SkillTargetStateReport(
+            "fileSetDrift",
+            SkillFailureCodes.InstallTargetFileSetMismatch.Value,
+            "File set drift.",
+            fileSet);
+
+        Assert.Equal(0, listReport.SkillBundleVersion);
+        Assert.Same(hostArtifacts, listReport.HostArtifacts);
+        Assert.Null(targetState.InstalledSkillBundleVersion);
+        Assert.Null(targetState.BundledSkillBundleVersion);
+        Assert.Same(fileSet, targetState.FileSet);
     }
 
     [Fact]
@@ -457,6 +501,7 @@ public sealed class SkillOperationReportBuilderTests
             ("SupportedHosts", typeof(IReadOnlyList<SkillHostReport>)));
         AssertProperties<SkillListSkillReport>(
             ("SchemaVersion", typeof(int)),
+            ("SkillBundleVersion", typeof(int)),
             ("SkillName", typeof(string)),
             ("DisplayName", typeof(string)),
             ("Description", typeof(string)),
@@ -508,6 +553,8 @@ public sealed class SkillOperationReportBuilderTests
             ("Kind", typeof(string)),
             ("Code", typeof(string)),
             ("Message", typeof(string)),
+            ("InstalledSkillBundleVersion", typeof(int?)),
+            ("BundledSkillBundleVersion", typeof(int?)),
             ("FileSet", typeof(SkillTargetFileSetReport)));
         AssertProperties<SkillUserTargetRootPolicyReport>(
             ("EnvironmentVariableName", typeof(string)),

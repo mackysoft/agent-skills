@@ -28,6 +28,7 @@ public static class SkillLiteralCodec
         new(SkillUpdateActionKind.NoOp, "noOp", SkillOperationActionStatus.NoOp),
         new(SkillUpdateActionKind.BlockedLocalModification, "blockedLocalModification", SkillOperationActionStatus.Blocked),
         new(SkillUpdateActionKind.BlockedUnmanaged, "blockedUnmanaged", SkillOperationActionStatus.Blocked),
+        new(SkillUpdateActionKind.BlockedVersionAhead, "blockedVersionAhead", SkillOperationActionStatus.Blocked),
     ];
 
     private static readonly ActionLiteralDefinition<SkillUninstallActionKind>[] UninstallActionDefinitions =
@@ -193,6 +194,7 @@ public static class SkillLiteralCodec
             SkillBlockedReason.ManagedOverwriteRequiresForce => "managedOverwriteRequiresForce",
             SkillBlockedReason.LocalModificationRequiresForce => "localModificationRequiresForce",
             SkillBlockedReason.UnmanagedTarget => "unmanagedTarget",
+            SkillBlockedReason.InstalledVersionAhead => "installedVersionAhead",
             _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Unsupported SKILL blocked reason."),
         };
     }
@@ -217,6 +219,7 @@ public static class SkillLiteralCodec
             SkillInstalledTargetStateKind.FileSetDrift => "fileSetDrift",
             SkillInstalledTargetStateKind.NameCollision => "nameCollision",
             SkillInstalledTargetStateKind.HostConflict => "hostConflict",
+            SkillInstalledTargetStateKind.VersionAhead => "versionAhead",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported SKILL target state kind."),
         };
     }

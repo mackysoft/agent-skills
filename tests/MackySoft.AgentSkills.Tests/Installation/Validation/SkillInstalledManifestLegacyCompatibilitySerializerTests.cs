@@ -8,7 +8,7 @@ namespace MackySoft.AgentSkills.Tests.Installation.Validation;
 
 public sealed class SkillInstalledManifestLegacyCompatibilitySerializerTests
 {
-    private const string ExpectedDigest = "9b945765a48672f2e9ded748598bf13d186a0edcde024d673b0d79440228ff86";
+    private const string ExpectedDigest = "edf0447a445e2423ce13baf60215203d7a6634bbaa805b79339cdec1fd798d91";
 
     [Fact]
     [Trait("Size", "Small")]
@@ -25,13 +25,14 @@ public sealed class SkillInstalledManifestLegacyCompatibilitySerializerTests
         Assert.Equal(string.Join('\n', [
             "{",
             "  \"schemaVersion\": 1,",
+            "  \"skillBundleVersion\": 1,",
             "  \"catalogId\": \"com.mackysoft.agent-skills\",",
             "  \"tier\": \"basic\",",
-            "  \"contentDigest\": \"0000000000000000000000000000000000000000000000000000000000000000\",",
-            $"  \"manifestDigest\": \"{ExpectedDigest}\",",
             "  \"skillName\": \"sample-skill\",",
             "  \"displayName\": \"Sample Skill\",",
             "  \"description\": \"Use this sample skill for tests.\",",
+            "  \"contentDigest\": \"0000000000000000000000000000000000000000000000000000000000000000\",",
+            $"  \"manifestDigest\": \"{ExpectedDigest}\",",
             "  \"hostArtifacts\": [",
             "    {",
             "      \"host\": \"claude\",",
@@ -67,12 +68,13 @@ public sealed class SkillInstalledManifestLegacyCompatibilitySerializerTests
     {
         return new SkillManifest(
             SkillManifest.CurrentSchemaVersion,
+            1,
+            new SkillCatalogId("com.mackysoft.agent-skills"),
+            new SkillTier("basic"),
             new SkillName("sample-skill"),
             "Sample Skill",
             "Use this sample skill for tests.",
             [new SkillName("dependency-skill")],
-            new SkillTier("basic"),
-            new SkillCatalogId("com.mackysoft.agent-skills"),
             new string('0', 64),
             new string('f', 64),
             [
