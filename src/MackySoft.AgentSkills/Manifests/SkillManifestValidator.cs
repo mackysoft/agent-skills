@@ -73,9 +73,9 @@ public sealed class SkillManifestValidator
             return Failure("agent-skill.json skillBundleVersion must be a positive integer.");
         }
 
-        if (!SkillIdentifierValidator.IsSafeLowercaseHyphenLiteral(manifest.SkillName))
+        if (!manifest.SkillName.IsInitialized)
         {
-            return Failure("agent-skill.json skillName must be a safe SKILL identifier.");
+            return Failure("agent-skill.json skillName must be valid.");
         }
 
         if (string.IsNullOrWhiteSpace(manifest.DisplayName)
@@ -93,6 +93,11 @@ public sealed class SkillManifestValidator
         if (manifest.CatalogId is null)
         {
             return Failure("agent-skill.json catalogId must be valid.");
+        }
+
+        if (!ValidateDependencies(manifest))
+        {
+            return Failure("agent-skill.json dependencies must be valid safe SKILL identifiers and must not contain duplicates or self-dependencies.");
         }
 
         if (!Sha256LowerHex.IsDigestText(manifest.ContentDigest))
@@ -139,6 +144,27 @@ public sealed class SkillManifestValidator
         }
 
         return SkillOperationResult<SkillManifest>.Success(manifest);
+    }
+
+    private static bool ValidateDependencies (SkillManifest manifest)
+    {
+        if (manifest.Dependencies is null)
+        {
+            return false;
+        }
+
+        var dependencySet = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var dependency in manifest.Dependencies)
+        {
+            if (!dependency.IsInitialized
+                || string.Equals(manifest.SkillName.Value, dependency.Value, StringComparison.Ordinal)
+                || !dependencySet.Add(dependency.Value))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static SkillOperationResult<SkillManifest> Failure (string message)

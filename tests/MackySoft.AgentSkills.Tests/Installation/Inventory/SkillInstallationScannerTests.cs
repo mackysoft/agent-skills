@@ -1,7 +1,9 @@
 using MackySoft.AgentSkills.Hosts.Claude;
 using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Installation.Targeting;
+using MackySoft.AgentSkills.Installation.Validation;
 using MackySoft.AgentSkills.Manifests;
+using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
@@ -27,12 +29,45 @@ public sealed class SkillInstallationScannerTests
         var scanResult = await scanner.ScanAsync(packages, installResult.Value!.TargetRoot, OpenAiSkillHostAdapter.HostKey, cancellationToken: CancellationToken.None);
 
         Assert.True(scanResult.IsSuccess, scanResult.Failure?.Message);
-        Assert.Equal(SkillTestData.ExpectedSkillNames, scanResult.Value!.Select(static skill => skill.Identity.SkillName).Order(StringComparer.Ordinal).ToArray());
+        Assert.Equal(SkillTestData.ExpectedSkillNames, scanResult.Value!.Select(static skill => skill.Identity.SkillName.Value).Order(StringComparer.Ordinal).ToArray());
         Assert.All(scanResult.Value!, skill =>
         {
             Assert.Equal(OpenAiSkillHostAdapter.HostKey, skill.Identity.Host);
             Assert.Equal(installResult.Value.TargetRoot, skill.Identity.TargetRoot);
         });
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task ScanAsync_RejectsSchemaVersionOneManifestWithoutDependenciesAsManifestDrift ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "scan-legacy-manifest-drift");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var installService = SkillTestData.CreateInstallService();
+        var installResult = await installService.InstallAsync(
+            packages,
+            new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+            CancellationToken.None);
+        Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
+        var package = packages[0];
+        var legacySerializer = new SkillInstalledManifestLegacyCompatibilitySerializer();
+        var legacyManifest = package.Manifest with
+        {
+            Dependencies = [],
+        };
+        legacyManifest = legacyManifest with
+        {
+            ManifestDigest = legacySerializer.ComputeSchemaVersionOneWithoutDependenciesManifestDigest(legacyManifest),
+        };
+        File.WriteAllText(
+            Path.Combine(installResult.Value!.TargetRoot, package.Manifest.SkillName.Value, "agent-skill.json"),
+            legacySerializer.SerializeSchemaVersionOneWithoutDependencies(legacyManifest));
+        var scanner = SkillTestData.CreateInstallationScanner();
+
+        var scanResult = await scanner.ScanAsync(packages, installResult.Value.TargetRoot, OpenAiSkillHostAdapter.HostKey, cancellationToken: CancellationToken.None);
+
+        Assert.False(scanResult.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InstallTargetManifestDigestMismatch, scanResult.Failure!.Code);
     }
 
     [Fact]
@@ -157,7 +192,7 @@ public sealed class SkillInstallationScannerTests
             new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
-        File.AppendAllText(Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName, "SKILL.md"), "\nInjected instruction.\n");
+        File.AppendAllText(Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "SKILL.md"), "\nInjected instruction.\n");
         var scanner = SkillTestData.CreateInstallationScanner();
 
         var scanResult = await scanner.ScanAsync(packages, installResult.Value.TargetRoot, OpenAiSkillHostAdapter.HostKey, cancellationToken: CancellationToken.None);
@@ -178,7 +213,7 @@ public sealed class SkillInstallationScannerTests
             new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
-        File.WriteAllText(Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName, "references", "extra.md"), "# Extra\n");
+        File.WriteAllText(Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "references", "extra.md"), "# Extra\n");
         var scanner = SkillTestData.CreateInstallationScanner();
 
         var scanResult = await scanner.ScanAsync(packages, installResult.Value.TargetRoot, OpenAiSkillHostAdapter.HostKey, cancellationToken: CancellationToken.None);
@@ -197,7 +232,7 @@ public sealed class SkillInstallationScannerTests
         var serializer = new SkillManifestJsonSerializer();
         var externalManifest = packages[0].Manifest with
         {
-            SkillName = "external-skill",
+            SkillName = new SkillName("external-skill"),
         };
         externalManifest = SkillTestData.WithComputedManifestDigest(externalManifest);
         scope.WriteFile(".agents/skills/external-skill/agent-skill.json", serializer.Serialize(externalManifest));
@@ -219,7 +254,7 @@ public sealed class SkillInstallationScannerTests
         var serializer = new SkillManifestJsonSerializer();
         var externalManifest = packages[0].Manifest with
         {
-            SkillName = "external-skill",
+            SkillName = new SkillName("external-skill"),
             HostArtifacts = Array.Empty<SkillHostArtifactManifest>(),
         };
         externalManifest = SkillTestData.WithComputedManifestDigest(externalManifest);

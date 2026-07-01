@@ -11,6 +11,7 @@ public sealed class SkillInstalledPackageIntegrityVerifier
     private readonly SkillInstalledManifestReader installedManifestReader;
     private readonly SkillManifestJsonSerializer manifestSerializer;
     private readonly SkillManifestDigestCalculator manifestDigestCalculator;
+    private readonly SkillInstalledManifestLegacyCompatibilitySerializer legacyManifestSerializer = new();
     private readonly SkillHostMaterializationInspector hostInspector;
     private readonly SkillDigestCalculator digestCalculator;
 
@@ -136,25 +137,71 @@ public sealed class SkillInstalledPackageIntegrityVerifier
 
     private SkillOperationResult<IntegrityCheckResult> VerifyInstalledManifestIntegrity (SkillInstalledManifest installedManifest)
     {
-        if (string.Equals(installedManifest.ManifestText, manifestSerializer.Serialize(installedManifest.Manifest), StringComparison.Ordinal))
+        if (IsCanonicalManifestText(installedManifest))
+        {
+            return VerifyManifestDigest(installedManifest.Manifest, manifestDigestCalculator.ComputeManifestDigest(installedManifest.Manifest));
+        }
+
+        if (IsManifestTextWithoutSkillBundleVersionAndDependencies(installedManifest))
         {
             return VerifyManifestDigest(
                 installedManifest.Manifest,
-                manifestDigestCalculator.ComputeManifestDigest(installedManifest.Manifest));
+                legacyManifestSerializer.ComputeWithoutSkillBundleVersionAndDependenciesManifestDigest(installedManifest.Manifest));
         }
 
-        if (installedManifest.Manifest.SkillBundleVersion == 0
-            && string.Equals(installedManifest.ManifestText, manifestSerializer.SerializeLegacyWithoutSkillBundleVersion(installedManifest.Manifest), StringComparison.Ordinal))
+        if (IsManifestTextWithoutSkillBundleVersion(installedManifest))
         {
             // NOTE: Installed packages generated before skillBundleVersion existed must remain clean so update can replace them normally.
             return VerifyManifestDigest(
                 installedManifest.Manifest,
-                manifestDigestCalculator.ComputeLegacyManifestDigestWithoutSkillBundleVersion(installedManifest.Manifest));
+                legacyManifestSerializer.ComputeWithoutSkillBundleVersionManifestDigest(installedManifest.Manifest));
+        }
+
+        if (IsSchemaVersionOneWithoutDependenciesManifestText(installedManifest))
+        {
+            // NOTE: Installed packages generated before dependencies existed must remain clean so update can replace them normally.
+            return VerifyManifestDigest(
+                installedManifest.Manifest,
+                legacyManifestSerializer.ComputeSchemaVersionOneWithoutDependenciesManifestDigest(installedManifest.Manifest));
         }
 
         return SkillOperationResult<IntegrityCheckResult>.Success(IntegrityCheckResult.Mismatch(
             SkillFailureCodes.InstallTargetManifestDigestMismatch,
             $"Installed SKILL manifest text is not canonical: {installedManifest.Manifest.SkillName}"));
+    }
+
+    private bool IsCanonicalManifestText (SkillInstalledManifest installedManifest)
+    {
+        return string.Equals(installedManifest.ManifestText, manifestSerializer.Serialize(installedManifest.Manifest), StringComparison.Ordinal);
+    }
+
+    private bool IsManifestTextWithoutSkillBundleVersionAndDependencies (SkillInstalledManifest installedManifest)
+    {
+        return installedManifest.Manifest.SkillBundleVersion == 0
+            && installedManifest.Manifest.Dependencies.Count == 0
+            && string.Equals(
+                installedManifest.ManifestText,
+                legacyManifestSerializer.SerializeWithoutSkillBundleVersionAndDependencies(installedManifest.Manifest),
+                StringComparison.Ordinal);
+    }
+
+    private bool IsManifestTextWithoutSkillBundleVersion (SkillInstalledManifest installedManifest)
+    {
+        return installedManifest.Manifest.SkillBundleVersion == 0
+            && string.Equals(
+                installedManifest.ManifestText,
+                legacyManifestSerializer.SerializeWithoutSkillBundleVersion(installedManifest.Manifest),
+                StringComparison.Ordinal);
+    }
+
+    private bool IsSchemaVersionOneWithoutDependenciesManifestText (SkillInstalledManifest installedManifest)
+    {
+        return installedManifest.Manifest.SchemaVersion == 1
+            && installedManifest.Manifest.Dependencies.Count == 0
+            && string.Equals(
+                installedManifest.ManifestText,
+                legacyManifestSerializer.SerializeSchemaVersionOneWithoutDependencies(installedManifest.Manifest),
+                StringComparison.Ordinal);
     }
 
     private static SkillOperationResult<IntegrityCheckResult> VerifyManifestDigest (

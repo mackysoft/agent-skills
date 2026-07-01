@@ -6,8 +6,9 @@
   "skillName": "agent-skills-read-project",
   "displayName": "Agent Skills Read Project",
   "description": "Use when inspecting a Unity project with Agent Skills before choosing selectors, operation metadata, schemas, or readIndex freshness. Guides read-first discovery without hard-coding operation contracts.",
+  "dependencies": [],
   "contentDigest": "7abc133f4cab76dc3c9177b9b86747a3400935dd89a4b3fe372959b705e35143",
-  "manifestDigest": "9f4bcc6e10caab53eb80d1e269055a2b9d2fc93f6e81436b12eee44dd5e37c6b",
+  "manifestDigest": "01830abb3c87d8278f6afafb9bcc29e728560b0cbe3c9cb81c32017995136c5d",
   "hostArtifacts": [
     {
       "host": "claude",

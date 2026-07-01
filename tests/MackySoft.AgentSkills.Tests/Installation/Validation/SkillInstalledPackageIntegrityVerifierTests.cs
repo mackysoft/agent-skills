@@ -19,7 +19,7 @@ public sealed class SkillInstalledPackageIntegrityVerifierTests
             new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
-        var skillDirectory = Path.Combine(install.Value!.TargetRoot, package.Manifest.SkillName);
+        var skillDirectory = Path.Combine(install.Value!.TargetRoot, package.Manifest.SkillName.Value);
         var legacyManifestText = SkillTestData.CreateLegacyManifestTextWithoutSkillBundleVersion(package);
         Assert.DoesNotContain("skillBundleVersion", legacyManifestText, StringComparison.Ordinal);
         Assert.Contains("\"schemaVersion\": 1,\n  \"catalogId\":", legacyManifestText, StringComparison.Ordinal);
@@ -49,10 +49,10 @@ public sealed class SkillInstalledPackageIntegrityVerifierTests
         var package = (await SkillTestData.GenerateFixturePackagesAsync()).First();
         var materializedResult = SkillTestData.CreateMaterializationService().Materialize(package, OpenAiSkillHostAdapter.HostKey);
         Assert.True(materializedResult.IsSuccess, materializedResult.Failure?.Message);
-        var skillDirectory = scope.CreateDirectory(package.Manifest.SkillName);
+        var skillDirectory = scope.CreateDirectory(package.Manifest.SkillName.Value);
         foreach (var file in materializedResult.Value!.Files)
         {
-            scope.WriteFile(Path.Combine(package.Manifest.SkillName, file.RelativePath), file.Content);
+            scope.WriteFile(Path.Combine(package.Manifest.SkillName.Value, file.RelativePath), file.Content);
         }
 
         const string outsideFileName = "outside-secret.md";

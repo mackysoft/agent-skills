@@ -71,7 +71,7 @@ public sealed class SkillInstalledTargetStateAnalyzer
             var installedManifest = integrityResult.Value!;
             return Success(
                 ResolveCleanManagedMismatchKind(installedManifest.SkillBundleVersion, package.Manifest.SkillBundleVersion),
-                CreateCleanManagedMismatchFailure(package.Manifest.SkillName, installedManifest.SkillBundleVersion, package.Manifest.SkillBundleVersion),
+                CreateCleanManagedMismatchFailure(package.Manifest.SkillName.Value, installedManifest.SkillBundleVersion, package.Manifest.SkillBundleVersion),
                 installedSkillBundleVersion: installedManifest.SkillBundleVersion,
                 bundledSkillBundleVersion: package.Manifest.SkillBundleVersion);
         }

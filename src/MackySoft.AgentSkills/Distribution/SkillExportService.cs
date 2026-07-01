@@ -76,7 +76,7 @@ public sealed class SkillExportService
             Directory.CreateDirectory(fullOutputRoot);
         }
 
-        foreach (var package in packages.OrderBy(static package => package.Manifest.SkillName, StringComparer.Ordinal))
+        foreach (var package in packages.OrderBy(static package => package.Manifest.SkillName.Value, StringComparer.Ordinal))
         {
             var materializedResult = materializationService.Materialize(package, host);
             if (!materializedResult.IsSuccess)
@@ -84,7 +84,7 @@ public sealed class SkillExportService
                 return SkillOperationResult<string>.FailureResult(materializedResult.Failure!.Code, materializedResult.Failure.Message);
             }
 
-            var skillDirectoryResult = SkillPackagePathBoundary.ResolvePackageDirectory(fullOutputRoot, package.Manifest.SkillName);
+            var skillDirectoryResult = SkillPackagePathBoundary.ResolvePackageDirectory(fullOutputRoot, package.Manifest.SkillName.Value);
             if (!skillDirectoryResult.IsSuccess)
             {
                 return SkillOperationResult<string>.FailureResult(skillDirectoryResult.Failure!.Code, skillDirectoryResult.Failure.Message);
@@ -122,7 +122,7 @@ public sealed class SkillExportService
         }
 
         var zipEntries = new List<SkillZipEntry>();
-        foreach (var package in packages.OrderBy(static package => package.Manifest.SkillName, StringComparer.Ordinal))
+        foreach (var package in packages.OrderBy(static package => package.Manifest.SkillName.Value, StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -134,7 +134,7 @@ public sealed class SkillExportService
 
             foreach (var file in materializedResult.Value!.Files.OrderBy(static file => file.RelativePath, StringComparer.Ordinal))
             {
-                var entryPath = $"{package.Manifest.SkillName}/{file.RelativePath}";
+                var entryPath = $"{package.Manifest.SkillName.Value}/{file.RelativePath}";
                 if (!SkillRelativePath.IsSafeFilePath(entryPath))
                 {
                     return SkillOperationResult<string>.FailureResult(

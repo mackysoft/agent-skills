@@ -18,7 +18,7 @@ public sealed class CanonicalSkillPackageWriterTests
         var result = await writer.WriteAllAsync(packages, outputRoot, cleanOutputRoot: true, CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.True(Directory.Exists(Path.Combine(result.Value!, packages[0].Manifest.SkillName)));
+        Assert.True(Directory.Exists(Path.Combine(result.Value!, packages[0].Manifest.SkillName.Value)));
     }
 
     [Fact]

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Manifests;
+using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.AgentSkills.Tiers;
 
@@ -33,8 +34,11 @@ public sealed class SkillManifestJsonSerializerTests
         using var document = JsonDocument.Parse(json);
         Assert.Equal(64, document.RootElement.GetProperty("manifestDigest").GetString()?.Length);
         Assert.Equal(
-            new[] { "schemaVersion", "skillBundleVersion", "catalogId", "tier", "skillName", "displayName", "description", "contentDigest", "manifestDigest", "hostArtifacts" },
+            new[] { "schemaVersion", "skillBundleVersion", "catalogId", "tier", "skillName", "displayName", "description", "dependencies", "contentDigest", "manifestDigest", "hostArtifacts" },
             document.RootElement.EnumerateObject().Select(static property => property.Name).ToArray());
+        Assert.Equal(
+            new[] { "a-helper", "z-helper" },
+            document.RootElement.GetProperty("dependencies").EnumerateArray().Select(static dependency => dependency.GetString()).ToArray());
         Assert.Equal(
             new[] { "claude", "copilot", "openai" },
             document.RootElement.GetProperty("hostArtifacts").EnumerateArray().Select(static artifact => artifact.GetProperty("host").GetString()).ToArray());
@@ -70,6 +74,35 @@ public sealed class SkillManifestJsonSerializerTests
         Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
     }
 
+    [Fact]
+    [Trait("Size", "Small")]
+    public void TryDeserialize_ReadsMissingDependenciesAsEmptyForSchemaVersionOneCompatibility ()
+    {
+        var serializer = new SkillManifestJsonSerializer();
+
+        var result = serializer.TryDeserialize("""
+            {
+              "schemaVersion": 1,
+              "catalogId": "com.mackysoft.agent-skills",
+              "tier": "basic",
+              "contentDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+              "manifestDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+              "skillName": "sample-skill",
+              "displayName": "Sample Skill",
+              "description": "Use this sample skill for tests.",
+              "hostArtifacts": [
+                {
+                  "host": "claude",
+                  "materializedFrontmatterDigest": "2222222222222222222222222222222222222222222222222222222222222222"
+                }
+              ]
+            }
+            """);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.Empty(result.Value!.Dependencies);
+    }
+
     private static SkillManifest CreateManifest ()
     {
         var serializer = new SkillManifestJsonSerializer();
@@ -79,9 +112,10 @@ public sealed class SkillManifestJsonSerializerTests
             1,
             new SkillCatalogId("com.mackysoft.agent-skills"),
             new SkillTier("basic"),
-            "sample-skill",
+            new SkillName("sample-skill"),
             "Sample Skill",
             "Use this sample skill for tests.",
+            [new SkillName("z-helper"), new SkillName("a-helper")],
             new string('0', 64),
             string.Empty,
             [

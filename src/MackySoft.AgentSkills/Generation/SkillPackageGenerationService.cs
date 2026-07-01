@@ -75,9 +75,17 @@ public sealed class SkillPackageGenerationService
                 $"SkillDefinitions must use one skillBundleVersion across all definitions: {string.Join(", ", skillBundleVersions)}");
         }
 
+        var dependencyReferenceResult = SkillSourceDependencyReferenceValidator.Validate(sourceResult.Value);
+        if (!dependencyReferenceResult.IsSuccess)
+        {
+            return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
+                dependencyReferenceResult.Failure!.Code,
+                dependencyReferenceResult.Failure.Message);
+        }
+
         var packages = sourceResult.Value!
             .Select(Generate)
-            .OrderBy(static package => package.Manifest.SkillName, StringComparer.Ordinal)
+            .OrderBy(static package => package.Manifest.SkillName.Value, StringComparer.Ordinal)
             .ToArray();
 
         return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.Success(packages);
@@ -115,6 +123,7 @@ public sealed class SkillPackageGenerationService
             definition.Metadata.SkillName,
             definition.Metadata.DisplayName,
             definition.Metadata.Description,
+            definition.Metadata.Dependencies.OrderBy(static dependency => dependency.Value, StringComparer.Ordinal).ToArray(),
             contentDigest,
             string.Empty,
             hostArtifacts);
@@ -139,7 +148,7 @@ public sealed class SkillPackageGenerationService
     private static string CreateSkillBody (SkillSourceDefinition definition)
     {
         var body = SkillTextNormalizer.NormalizeToLf(definition.SkillTemplate).TrimStart('\n');
-        return $"# {definition.Metadata.SkillName}\n\n{body}";
+        return $"# {definition.Metadata.SkillName.Value}\n\n{body}";
     }
 
     private IEnumerable<GeneratedHostArtifactOutput> CreateHostArtifactOutputs (SkillSourceMetadata metadata)
@@ -182,4 +191,5 @@ public sealed class SkillPackageGenerationService
     private sealed record GeneratedHostArtifactOutput (
         SkillHostArtifactManifest Manifest,
         IReadOnlyList<SkillPackageFile> Files);
+
 }

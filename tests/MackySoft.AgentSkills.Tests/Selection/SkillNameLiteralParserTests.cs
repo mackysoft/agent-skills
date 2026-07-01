@@ -12,7 +12,7 @@ public sealed class SkillNameLiteralParserTests
         var result = SkillNameLiteralParser.ParseSelectedSkillNames(["skill-b", "skill-a", "skill-b"]);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(["skill-b", "skill-a"], result.Value!);
+        Assert.Equal(["skill-b", "skill-a"], result.Value!.Select(static skillName => skillName.Value).ToArray());
     }
 
     [Theory]

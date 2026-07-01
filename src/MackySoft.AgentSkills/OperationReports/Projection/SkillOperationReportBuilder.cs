@@ -5,6 +5,7 @@ using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
+using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.OperationReports.Contracts;
 using MackySoft.AgentSkills.OperationReports.Literals;
 using MackySoft.AgentSkills.Packaging.Canonical;
@@ -34,7 +35,7 @@ public static class SkillOperationReportBuilder
         IReadOnlyList<CanonicalSkillPackage> packages,
         SkillHostAdapterSet hostAdapters,
         IReadOnlyList<SkillTier> selectedTiers,
-        IReadOnlyList<string> selectedSkillNames,
+        IReadOnlyList<SkillName> selectedSkillNames,
         IReadOnlyList<SkillTierPackageCount> availableTiers)
     {
         ArgumentNullException.ThrowIfNull(packages);
@@ -44,7 +45,7 @@ public static class SkillOperationReportBuilder
         ArgumentNullException.ThrowIfNull(availableTiers);
 
         var skills = packages
-            .OrderBy(static package => package.Manifest.SkillName, StringComparer.Ordinal)
+            .OrderBy(static package => package.Manifest.SkillName.Value, StringComparer.Ordinal)
             .Select(static package => CreateListSkillReport(package))
             .ToArray();
         var tierReports = CreateAvailableTierReports(availableTiers);
@@ -104,7 +105,8 @@ public static class SkillOperationReportBuilder
 
         var skills = packages
             .Select(static package => package.Manifest.SkillName)
-            .Order(StringComparer.Ordinal)
+            .OrderBy(static skillName => skillName.Value, StringComparer.Ordinal)
+            .Select(static skillName => skillName.Value)
             .ToArray();
 
         return new SkillExportReport(
@@ -322,7 +324,7 @@ public static class SkillOperationReportBuilder
         ValidateHostDescriptor(context.HostDescriptor);
 
         var projectedActions = actions
-            .OrderBy(action => getIdentity(action).SkillName, StringComparer.Ordinal)
+            .OrderBy(action => getIdentity(action).SkillName.Value, StringComparer.Ordinal)
             .Select(action => CreateActionReport(
                 targetRoot,
                 context,
@@ -378,7 +380,21 @@ public static class SkillOperationReportBuilder
             throw new ArgumentException(result.Failure!.Message, nameof(skillNames));
         }
 
-        return result.Value!;
+        return CreateSkillNameLiterals(result.Value!);
+    }
+
+    private static IReadOnlyList<string> CreateSkillNameLiterals (IReadOnlyList<SkillName> skillNames)
+    {
+        ArgumentNullException.ThrowIfNull(skillNames);
+
+        var literals = new List<string>(skillNames.Count);
+        foreach (var skillName in skillNames)
+        {
+            ArgumentNullException.ThrowIfNull(skillName);
+            literals.Add(skillName.Value);
+        }
+
+        return literals;
     }
 
     private static IReadOnlyList<SkillListTierReport> CreateAvailableTierReports (IReadOnlyList<SkillTierPackageCount> availableTiers)
@@ -415,7 +431,7 @@ public static class SkillOperationReportBuilder
         var blockedReason = getBlockedReason(action);
         var status = getStatus(action);
         return new SkillOperationActionReport(
-            identity.SkillName,
+            identity.SkillName.Value,
             getActionLiteral(action),
             SkillLiteralCodec.FormatActionStatus(status),
             blockedReason.HasValue ? SkillLiteralCodec.FormatBlockedReason(blockedReason.Value) : null,
@@ -506,9 +522,10 @@ public static class SkillOperationReportBuilder
         return new SkillListSkillReport(
             manifest.SchemaVersion,
             manifest.SkillBundleVersion,
-            manifest.SkillName,
+            manifest.SkillName.Value,
             manifest.DisplayName,
             manifest.Description,
+            CreateSkillNameLiterals(manifest.Dependencies),
             manifest.Tier.Value,
             manifest.CatalogId.Value,
             manifest.ContentDigest,

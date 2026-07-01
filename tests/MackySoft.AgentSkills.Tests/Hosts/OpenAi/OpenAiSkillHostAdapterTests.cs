@@ -1,5 +1,6 @@
 using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.OpenAi;
+using MackySoft.AgentSkills.Names;
 
 namespace MackySoft.AgentSkills.Tests.Hosts.OpenAi;
 
@@ -33,7 +34,7 @@ public sealed class OpenAiSkillHostAdapterTests
     {
         var adapter = new OpenAiSkillHostAdapter();
         var metadata = new SkillHostMetadata(
-            "agent-skills-sample",
+            new SkillName("agent-skills-sample"),
             "Sample \"Skill\"\rName",
             "Use C:\\Unity\r\nNext"
         );

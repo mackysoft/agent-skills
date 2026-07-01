@@ -28,7 +28,7 @@ public sealed class ClaudeSkillHostAdapter : ISkillHostAdapter
 
         var frontmatter = new DeterministicYamlBuilder()
             .DocumentMarker()
-            .Mapping("name", metadata.SkillName)
+            .Mapping("name", metadata.SkillName.Value)
             .Mapping("description", metadata.Description)
             .Mapping("disable-model-invocation", false)
             .DocumentMarker()

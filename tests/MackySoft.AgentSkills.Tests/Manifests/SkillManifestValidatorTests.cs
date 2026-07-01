@@ -1,5 +1,6 @@
 using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Manifests;
+using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.AgentSkills.Tiers;
 
@@ -26,14 +27,9 @@ public sealed class SkillManifestValidatorTests
     [InlineData(".")]
     [InlineData("-sample")]
     [Trait("Size", "Small")]
-    public void Validate_RejectsUnsafeSkillName (string skillName)
+    public void SkillName_RejectsUnsafeLiteral (string skillName)
     {
-        var validator = SkillTestData.CreateManifestValidator();
-
-        var result = validator.Validate(CreateManifest(skillName));
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Throws<ArgumentException>(() => new SkillName(skillName));
     }
 
     [Fact]
@@ -76,8 +72,13 @@ public sealed class SkillManifestValidatorTests
             WithComputedManifestDigest(valid with { SkillBundleVersion = -1 }),
             WithComputedManifestDigest(valid with { DisplayName = "" }),
             WithComputedManifestDigest(valid with { Description = "" }),
+            valid with { SkillName = default },
             valid with { Tier = null! },
             valid with { CatalogId = null! },
+            valid with { Dependencies = null! },
+            valid with { Dependencies = [default] },
+            valid with { Dependencies = [new SkillName("sample-skill")] },
+            valid with { Dependencies = [new SkillName("sample-helper"), new SkillName("sample-helper")] },
             WithComputedManifestDigest(valid with { ContentDigest = "not-hex" }),
             valid with { ManifestDigest = "not-hex" },
             WithComputedManifestDigest(valid with { HostArtifacts = valid.HostArtifacts.Where(static artifact => artifact.Host != "copilot").ToArray() }),
@@ -97,9 +98,10 @@ public sealed class SkillManifestValidatorTests
             1,
             new SkillCatalogId("com.mackysoft.agent-skills"),
             new SkillTier("basic"),
-            skillName,
+            new SkillName(skillName),
             "Sample Skill",
             "Use this sample skill for tests.",
+            [],
             new string('0', 64),
             string.Empty,
             [

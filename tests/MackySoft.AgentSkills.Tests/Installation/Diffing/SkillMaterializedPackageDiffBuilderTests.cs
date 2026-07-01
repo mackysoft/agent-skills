@@ -2,6 +2,7 @@ using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Installation.Diffing;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Materialization;
+using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
 
@@ -18,7 +19,7 @@ public sealed class SkillMaterializedPackageDiffBuilderTests
         scope.WriteFile(Path.Combine("sample-skill", "SKILL.md"), "# Before\n");
         scope.WriteFile(Path.Combine("sample-skill", "obsolete.md"), "# Obsolete\n");
         var package = new SkillMaterializedPackage(
-            "sample-skill",
+            new SkillName("sample-skill"),
             OpenAiSkillHostAdapter.HostKey,
             [
                 SkillPackageFile.Create("SKILL.md", "# After\n"),
@@ -82,7 +83,7 @@ public sealed class SkillMaterializedPackageDiffBuilderTests
         }
 
         var package = new SkillMaterializedPackage(
-            "sample-skill",
+            new SkillName("sample-skill"),
             OpenAiSkillHostAdapter.HostKey,
             [SkillPackageFile.Create("SKILL.md", "# After\n")]);
         var builder = new SkillMaterializedPackageDiffBuilder();
@@ -126,7 +127,7 @@ public sealed class SkillMaterializedPackageDiffBuilderTests
         var skillDirectory = scope.CreateDirectory("sample-skill");
         scope.WriteFile(Path.Combine("sample-skill", "unsafe\\name.md"), "# Unsafe\n");
         var package = new SkillMaterializedPackage(
-            "sample-skill",
+            new SkillName("sample-skill"),
             OpenAiSkillHostAdapter.HostKey,
             [SkillPackageFile.Create("SKILL.md", "# After\n")]);
         var builder = new SkillMaterializedPackageDiffBuilder();

@@ -8,6 +8,7 @@ using MackySoft.AgentSkills.Hosts.Copilot;
 using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Manifests;
+using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.AgentSkills.Sources;
@@ -25,17 +26,18 @@ public sealed class SkillPackageGenerationServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var validator = SkillTestData.CreateManifestValidator();
 
-        Assert.Equal(SkillTestData.ExpectedSkillNames, packages.Select(static package => package.Manifest.SkillName).ToArray());
+        Assert.Equal(SkillTestData.ExpectedSkillNames, packages.Select(static package => package.Manifest.SkillName.Value).ToArray());
         foreach (var package in packages)
         {
             Assert.Contains(package.Files, static file => string.Equals(file.RelativePath, "SKILL.md", StringComparison.Ordinal));
             Assert.Contains(package.Files, static file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal));
             Assert.Contains(package.Files, static file => string.Equals(file.RelativePath, "agents/openai.yaml", StringComparison.Ordinal));
             Assert.True(validator.Validate(package.Manifest).IsSuccess);
-            Assert.False(string.IsNullOrWhiteSpace(package.Manifest.DisplayName));
-            Assert.False(string.IsNullOrWhiteSpace(package.Manifest.Description));
             Assert.Equal(SkillManifest.CurrentSchemaVersion, package.Manifest.SchemaVersion);
             Assert.Equal(1, package.Manifest.SkillBundleVersion);
+            Assert.False(string.IsNullOrWhiteSpace(package.Manifest.DisplayName));
+            Assert.False(string.IsNullOrWhiteSpace(package.Manifest.Description));
+            Assert.Empty(package.Manifest.Dependencies);
             Assert.Equal("basic", package.Manifest.Tier.Value);
             Assert.Equal(
                 new[] { ClaudeSkillHostAdapter.HostKey, CopilotSkillHostAdapter.HostKey, OpenAiSkillHostAdapter.HostKey },
@@ -112,6 +114,7 @@ public sealed class SkillPackageGenerationServiceTests
             Assert.Equal(package.Manifest.SkillName, manifest.SkillName);
             Assert.Equal(package.Manifest.DisplayName, manifest.DisplayName);
             Assert.Equal(package.Manifest.Description, manifest.Description);
+            Assert.Equal(package.Manifest.Dependencies, manifest.Dependencies);
             Assert.Equal(package.Manifest.ContentDigest, manifest.ContentDigest);
             Assert.Equal(package.Manifest.ManifestDigest, manifest.ManifestDigest);
             Assert.Equal(package.Manifest.HostArtifacts, manifest.HostArtifacts);
@@ -144,9 +147,10 @@ public sealed class SkillPackageGenerationServiceTests
                     1,
                     new SkillCatalogId("com.mackysoft.agent-skills"),
                     new SkillTier("basic"),
-                    "ordinal-culture-contract",
+                    new SkillName("ordinal-culture-contract"),
                     "Ordinal Culture Contract",
                     "Use this skill to verify ordinal package ordering.",
+                    [],
                     ["a.md", "B.md"]),
                 "# Ordinal Culture Contract\n",
                 [
@@ -181,9 +185,10 @@ public sealed class SkillPackageGenerationServiceTests
                 1,
                 new SkillCatalogId("com.mackysoft.agent-skills"),
                 new SkillTier("basic"),
-                "reference-free-skill",
+                new SkillName("reference-free-skill"),
                 "Reference Free Skill",
                 "Use this skill to verify reference-free package generation.",
+                [],
                 []),
             "# Reference Free Skill\n",
             []));
@@ -207,9 +212,10 @@ public sealed class SkillPackageGenerationServiceTests
                 1,
                 new SkillCatalogId("com.mackysoft.agent-skills"),
                 new SkillTier("basic"),
-                "heading-free-skill",
+                new SkillName("heading-free-skill"),
                 "Heading Free Skill",
                 "Use this skill to verify generated heading insertion.",
+                [],
                 []),
             "Use this skill to verify generated heading insertion.\n",
             []));
@@ -234,12 +240,99 @@ public sealed class SkillPackageGenerationServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task GenerateAllAsync_DetectsDependencyReferencesFromDescriptionBodyAndReferencesAsync ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "dependency-reference-sources");
+        WriteDefinition(scope, "target-description");
+        WriteDefinition(scope, "target-body");
+        WriteDefinition(scope, "target-reference");
+        WriteDefinition(
+            scope,
+            "source-skill",
+            dependencies: ["target-reference", "target-body", "target-description"],
+            description: "Use when invoking $target-description before other helpers.",
+            skillTemplate: "Use $target-body for body work.\n",
+            references: new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["workflow.md"] = "Use $target-reference for reference work.\n",
+            });
+        var service = SkillTestData.CreatePackageGenerationService();
+
+        var result = await service.GenerateAllAsync(scope.FullPath, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        var source = result.Value!.Single(static package => package.Manifest.SkillName.Value == "source-skill");
+        Assert.Equal(["target-body", "target-description", "target-reference"], source.Manifest.Dependencies.Select(static dependency => dependency.Value).ToArray());
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task GenerateAllAsync_RejectsDependencyMissingFromSourceTextAsync ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "dependency-missing-source-reference");
+        WriteDefinition(scope, "target-skill");
+        WriteDefinition(scope, "source-skill", dependencies: ["target-skill"]);
+        var service = SkillTestData.CreatePackageGenerationService();
+
+        var result = await service.GenerateAllAsync(scope.FullPath, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Contains("not referenced", result.Failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task GenerateAllAsync_RejectsUndeclaredKnownSkillReferenceAsync ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "dependency-undeclared-source-reference");
+        WriteDefinition(scope, "target-skill");
+        WriteDefinition(scope, "source-skill", skillTemplate: "Use $target-skill.\n");
+        var service = SkillTestData.CreatePackageGenerationService();
+
+        var result = await service.GenerateAllAsync(scope.FullPath, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Contains("undeclared", result.Failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task GenerateAllAsync_IgnoresUnknownSkillReferenceWhenMatchingDependenciesAsync ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "dependency-unknown-source-reference");
+        WriteDefinition(scope, "source-skill", skillTemplate: "Use $unknown-skill when it is available elsewhere.\n");
+        var service = SkillTestData.CreatePackageGenerationService();
+
+        var result = await service.GenerateAllAsync(scope.FullPath, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.Empty(result.Value!.Single().Manifest.Dependencies);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task GenerateAllAsync_IgnoresSelfReferenceWhenMatchingDependenciesAsync ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "dependency-self-reference");
+        WriteDefinition(scope, "source-skill", skillTemplate: "Use $source-skill to restart the workflow.\n");
+        var service = SkillTestData.CreatePackageGenerationService();
+
+        var result = await service.GenerateAllAsync(scope.FullPath, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.Empty(result.Value!.Single().Manifest.Dependencies);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task GenerateAllAsync_RejectsMixedSkillBundleVersions ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "mixed-skill-bundle-version");
         var definitionsRoot = scope.CreateDirectory("SkillDefinitions");
-        WriteDefinition(scope, "SkillDefinitions/skill-a", 1);
-        WriteDefinition(scope, "SkillDefinitions/skill-b", 2);
+        WriteDefinition(scope, "SkillDefinitions/skill-a", skillBundleVersion: 1);
+        WriteDefinition(scope, "SkillDefinitions/skill-b", skillBundleVersion: 2);
         var service = SkillTestData.CreatePackageGenerationService();
 
         var result = await service.GenerateAllAsync(definitionsRoot, CancellationToken.None);
@@ -286,12 +379,25 @@ public sealed class SkillPackageGenerationServiceTests
         return package.Files.Single(static file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal)).Content;
     }
 
-    private static void WriteDefinition (
+    private static string WriteDefinition (
         TestDirectoryScope scope,
         string relativeDirectory,
-        int skillBundleVersion)
+        int skillBundleVersion = 1,
+        IReadOnlyList<string>? dependencies = null,
+        string? description = null,
+        string? skillTemplate = null,
+        IReadOnlyDictionary<string, string>? references = null)
     {
+        dependencies ??= [];
+        references ??= new Dictionary<string, string>(StringComparer.Ordinal);
         var skillName = Path.GetFileName(relativeDirectory);
+        var dependencyJson = dependencies.Count == 0
+            ? "[]"
+            : "[\n" + string.Join(",\n", dependencies.Select(static dependency => $"    \"{dependency}\"")) + "\n  ]";
+        var referenceJson = references.Count == 0
+            ? "[]"
+            : "[\n" + string.Join(",\n", references.Keys.Order(StringComparer.Ordinal).Select(static reference => $"    \"{reference}\"")) + "\n  ]";
+        var skillDirectory = scope.CreateDirectory(relativeDirectory);
         scope.WriteFile(
             Path.Combine(relativeDirectory, "skill.json"),
             $$"""
@@ -302,10 +408,17 @@ public sealed class SkillPackageGenerationServiceTests
               "tier": "basic",
               "skillName": "{{skillName}}",
               "displayName": "{{skillName}}",
-              "description": "Use this skill when testing bundle version validation.",
-              "references": []
+              "description": "{{description ?? "Use when testing dependency package generation."}}",
+              "dependencies": {{dependencyJson}},
+              "references": {{referenceJson}}
             }
             """);
-        scope.WriteFile(Path.Combine(relativeDirectory, "SKILL.md.template"), "Use this skill when testing bundle version validation.\n");
+        scope.WriteFile(Path.Combine(relativeDirectory, "SKILL.md.template"), skillTemplate ?? $"Use {skillName} when testing dependency package generation.\n");
+        foreach (var reference in references.OrderBy(static item => item.Key, StringComparer.Ordinal))
+        {
+            scope.WriteFile(Path.Combine(relativeDirectory, "references", reference.Key + ".template"), reference.Value);
+        }
+
+        return skillDirectory;
     }
 }

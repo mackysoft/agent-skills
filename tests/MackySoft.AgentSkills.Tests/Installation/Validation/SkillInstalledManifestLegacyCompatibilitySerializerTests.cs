@@ -1,19 +1,28 @@
-using System.Security.Cryptography;
-using System.Text;
 using MackySoft.AgentSkills.Catalogs;
+using MackySoft.AgentSkills.Installation.Validation;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Tiers;
 
-namespace MackySoft.AgentSkills.Tests.Manifests;
+namespace MackySoft.AgentSkills.Tests.Installation.Validation;
 
-public sealed class SkillManifestDigestCalculatorTests
+public sealed class SkillInstalledManifestLegacyCompatibilitySerializerTests
 {
+    private const string ExpectedDigest = "edf0447a445e2423ce13baf60215203d7a6634bbaa805b79339cdec1fd798d91";
+
     [Fact]
     [Trait("Size", "Small")]
-    public void ComputeManifestDigest_UsesCanonicalManifestJsonUtf8BytesWithoutManifestDigest ()
+    public void SerializeSchemaVersionOneWithoutDependencies_WritesLegacyManifestShape ()
     {
-        var expectedDigestInput = string.Join('\n', [
+        var serializer = new SkillInstalledManifestLegacyCompatibilitySerializer();
+        var manifest = CreateManifest() with
+        {
+            ManifestDigest = ExpectedDigest,
+        };
+
+        var json = serializer.SerializeSchemaVersionOneWithoutDependencies(manifest);
+
+        Assert.Equal(string.Join('\n', [
             "{",
             "  \"schemaVersion\": 1,",
             "  \"skillBundleVersion\": 1,",
@@ -22,11 +31,8 @@ public sealed class SkillManifestDigestCalculatorTests
             "  \"skillName\": \"sample-skill\",",
             "  \"displayName\": \"Sample Skill\",",
             "  \"description\": \"Use this sample skill for tests.\",",
-            "  \"dependencies\": [",
-            "    \"a-helper\",",
-            "    \"z-helper\"",
-            "  ],",
             "  \"contentDigest\": \"0000000000000000000000000000000000000000000000000000000000000000\",",
+            $"  \"manifestDigest\": \"{ExpectedDigest}\",",
             "  \"hostArtifacts\": [",
             "    {",
             "      \"host\": \"claude\",",
@@ -44,8 +50,23 @@ public sealed class SkillManifestDigestCalculatorTests
             "    }",
             "  ]",
             "}",
-        ]) + "\n";
-        var manifest = new SkillManifest(
+        ]) + "\n", json);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void ComputeSchemaVersionOneWithoutDependenciesManifestDigest_UsesLegacyManifestShape ()
+    {
+        var serializer = new SkillInstalledManifestLegacyCompatibilitySerializer();
+
+        var digest = serializer.ComputeSchemaVersionOneWithoutDependenciesManifestDigest(CreateManifest());
+
+        Assert.Equal(ExpectedDigest, digest);
+    }
+
+    private static SkillManifest CreateManifest ()
+    {
+        return new SkillManifest(
             SkillManifest.CurrentSchemaVersion,
             1,
             new SkillCatalogId("com.mackysoft.agent-skills"),
@@ -53,7 +74,7 @@ public sealed class SkillManifestDigestCalculatorTests
             new SkillName("sample-skill"),
             "Sample Skill",
             "Use this sample skill for tests.",
-            [new SkillName("z-helper"), new SkillName("a-helper")],
+            [new SkillName("dependency-skill")],
             new string('0', 64),
             new string('f', 64),
             [
@@ -61,13 +82,5 @@ public sealed class SkillManifestDigestCalculatorTests
                 new SkillHostArtifactManifest("claude", null, null, new string('1', 64)),
                 new SkillHostArtifactManifest("copilot", null, null, new string('2', 64)),
             ]);
-        var calculator = new SkillManifestDigestCalculator(new SkillManifestJsonSerializer());
-        var expectedHash = SHA256.HashData(Encoding.UTF8.GetBytes(expectedDigestInput));
-        var expectedDigest = Convert.ToHexString(expectedHash).ToLowerInvariant();
-
-        var actualDigest = calculator.ComputeManifestDigest(manifest);
-
-        Assert.Equal(expectedDigest, actualDigest);
-        Assert.Equal(actualDigest.ToLowerInvariant(), actualDigest);
     }
 }

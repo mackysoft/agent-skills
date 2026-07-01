@@ -22,6 +22,7 @@ using MackySoft.AgentSkills.Installation.Transactions;
 using MackySoft.AgentSkills.Installation.Validation;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Materialization;
+using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.AgentSkills.Sources;
@@ -206,7 +207,7 @@ internal static class SkillTestData
         CanonicalSkillPackage replacement)
     {
         return packages
-            .Select(package => string.Equals(package.Manifest.SkillName, replacement.Manifest.SkillName, StringComparison.Ordinal) ? replacement : package)
+            .Select(package => string.Equals(package.Manifest.SkillName.Value, replacement.Manifest.SkillName.Value, StringComparison.Ordinal) ? replacement : package)
             .ToArray();
     }
 
@@ -257,7 +258,7 @@ internal static class SkillTestData
         var contentDigest = digestCalculator.ComputeDigest(
             new[] { new SkillDigestInputFile(bodyFile.RelativePath, bodyFile.Content) }
                 .Concat(referenceFiles.Select(static file => new SkillDigestInputFile(file.RelativePath, file.Content))));
-        var metadata = new SkillHostMetadata(SkillName, DisplayName, Description);
+        var metadata = new SkillHostMetadata(new SkillName(SkillName), DisplayName, Description);
         var hostArtifacts = new List<SkillHostArtifactManifest>();
         var hostArtifactFiles = new List<SkillPackageFile>();
 
@@ -289,9 +290,10 @@ internal static class SkillTestData
             1,
             new SkillCatalogId("com.mackysoft.agent-skills"),
             new SkillTier("basic"),
-            SkillName,
+            new SkillName(SkillName),
             DisplayName,
             Description,
+            [],
             contentDigest,
             string.Empty,
             hostArtifacts);
@@ -435,7 +437,7 @@ internal static class SkillTestData
             builder.AppendLine($"  \"manifestDigest\": {JsonString(manifest.ManifestDigest)},");
         }
 
-        builder.AppendLine($"  \"skillName\": {JsonString(manifest.SkillName)},");
+        builder.AppendLine($"  \"skillName\": {JsonString(manifest.SkillName.Value)},");
         builder.AppendLine($"  \"displayName\": {JsonString(manifest.DisplayName)},");
         builder.AppendLine($"  \"description\": {JsonString(manifest.Description)},");
         builder.AppendLine("  \"hostArtifacts\": [");
@@ -529,11 +531,11 @@ internal static class SkillTestData
 
     internal static void WriteNameCollisionManifest (string targetRoot, CanonicalSkillPackage package)
     {
-        var skillDirectory = Path.Combine(targetRoot, package.Manifest.SkillName);
+        var skillDirectory = Path.Combine(targetRoot, package.Manifest.SkillName.Value);
         Directory.CreateDirectory(skillDirectory);
         var manifest = WithComputedManifestDigest(package.Manifest with
         {
-            SkillName = package.Manifest.SkillName + "-collision",
+            SkillName = new SkillName(package.Manifest.SkillName.Value + "-collision"),
         });
         File.WriteAllText(Path.Combine(skillDirectory, "agent-skill.json"), new SkillManifestJsonSerializer().Serialize(manifest));
     }
