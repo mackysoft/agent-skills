@@ -14,7 +14,7 @@ internal static class SkillSourceDependencyReferenceValidator
 
         foreach (var definition in definitions.OrderBy(static definition => definition.Metadata.SkillName.Value, StringComparer.Ordinal))
         {
-            var sourceTexts = new[] { definition.Metadata.Description, definition.SkillTemplate }
+            var sourceTexts = new[] { definition.SkillTemplate }
                 .Concat(definition.References.Select(static reference => reference.Template));
             var referencedSkillNames = SkillDependencyReferenceScanner.FindReferences(sourceTexts)
                 .Where(knownSkillNames.Contains)

@@ -240,17 +240,15 @@ public sealed class SkillPackageGenerationServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task GenerateAllAsync_DetectsDependencyReferencesFromDescriptionBodyAndReferencesAsync ()
+    public async Task GenerateAllAsync_DetectsDependencyReferencesFromBodyAndReferencesAsync ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "dependency-reference-sources");
-        WriteDefinition(scope, "target-description");
         WriteDefinition(scope, "target-body");
         WriteDefinition(scope, "target-reference");
         WriteDefinition(
             scope,
             "source-skill",
-            dependencies: ["target-reference", "target-body", "target-description"],
-            description: "Use when invoking $target-description before other helpers.",
+            dependencies: ["target-reference", "target-body"],
             skillTemplate: "Use $target-body for body work.\n",
             references: new Dictionary<string, string>(StringComparer.Ordinal)
             {
@@ -262,7 +260,27 @@ public sealed class SkillPackageGenerationServiceTests
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var source = result.Value!.Single(static package => package.Manifest.SkillName.Value == "source-skill");
-        Assert.Equal(["target-body", "target-description", "target-reference"], source.Manifest.Dependencies.Select(static dependency => dependency.Value).ToArray());
+        Assert.Equal(["target-body", "target-reference"], source.Manifest.Dependencies.Select(static dependency => dependency.Value).ToArray());
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task GenerateAllAsync_IgnoresDependencyReferencesFromDescriptionAsync ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "dependency-description-reference");
+        WriteDefinition(scope, "target-skill");
+        WriteDefinition(
+            scope,
+            "source-skill",
+            description: "Use when invoking $target-skill is mentioned as metadata.",
+            skillTemplate: "Use this skill without another skill.\n");
+        var service = SkillTestData.CreatePackageGenerationService();
+
+        var result = await service.GenerateAllAsync(scope.FullPath, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        var source = result.Value!.Single(static package => package.Manifest.SkillName.Value == "source-skill");
+        Assert.Empty(source.Manifest.Dependencies);
     }
 
     [Fact]
