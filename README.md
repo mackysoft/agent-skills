@@ -61,7 +61,7 @@ Install the CLI through a .NET tool manifest in each product repository.
 
 ```bash
 dotnet new tool-manifest
-dotnet tool install MackySoft.AgentSkills.Cli --version 0.7.0
+dotnet tool install MackySoft.AgentSkills.Cli --version 0.7.1
 ```
 
 Generate canonical packages.
@@ -119,7 +119,7 @@ Use `dependencies` when one skill intentionally invokes another skill. Dependenc
   "tier": "basic",
   "skillName": "example-plan",
   "displayName": "Example Plan",
-  "description": "Plan the example workflow, then use $example-review for review.",
+  "description": "Plan the example workflow before review.",
   "dependencies": [
     "example-review"
   ],
@@ -127,7 +127,7 @@ Use `dependencies` when one skill intentionally invokes another skill. Dependenc
 }
 ```
 
-The build validates dependency consistency before writing generated packages. Every dependency must appear as `$skill-name` in source-owned text (`description`, `SKILL.md.template`, or `references/*.md.template`), and every `$skill-name` reference to a known skill must be declared in `dependencies`. Self-dependencies, duplicate dependencies, missing dependency packages, and dependency cycles are rejected.
+The build validates dependency consistency before writing generated packages. Every dependency must appear as `$skill-name` in source-authored body content (`SKILL.md.template` or `references/*.md.template`), and every `$skill-name` reference to a known skill in those files must be declared in `dependencies`. Source metadata such as `skill.json` `description` and generated host artifacts are not dependency-detection inputs. Self-dependencies, duplicate dependencies, missing dependency packages, and dependency cycles are rejected.
 
 The generated `agent-skill.json` order is `schemaVersion`, `skillBundleVersion`, `catalogId`, `tier`, `skillName`, `displayName`, `description`, `dependencies`, `contentDigest`, `manifestDigest`, and `hostArtifacts`.
 
@@ -153,13 +153,13 @@ Use `SkillPackageProvider.GetPackageCatalogAsync` for list-style discovery. The 
 Use the library from product CLI or application code that needs to list, export, install, update, uninstall, or diagnose generated agent skills.
 
 ```bash
-dotnet add <PROJECT>.csproj package MackySoft.AgentSkills --version 0.7.0
+dotnet add <PROJECT>.csproj package MackySoft.AgentSkills --version 0.7.1
 ```
 
 Equivalent project file reference:
 
 ```xml
-<PackageReference Include="MackySoft.AgentSkills" Version="0.7.0" />
+<PackageReference Include="MackySoft.AgentSkills" Version="0.7.1" />
 ```
 
 The canonical package manifest file is `agent-skill.json`. Generated package directories are canonical package inputs; runtime materialization converts those packages into host-specific install/export contents.
