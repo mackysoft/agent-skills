@@ -95,13 +95,13 @@ Prune must receive the complete current package set for the product catalog, not
 
 `SkillPruneService` only deletes top-level target directories that:
 
-- contain a valid Agent Skills `agent-skill.json`;
+- contain a valid, digest-matched Agent Skills `agent-skill.json`;
 - have the requested `catalogId`;
 - have a `skillName` that is absent from the complete current catalog package set;
 - are materialized for the requested host; and
 - are clean according to their own installed manifest.
 
-Prune skips unmanaged directories, foreign catalogs, and current catalog members. Invalid manifests, name collisions, host conflicts, and locally modified managed orphans are reported as blocked actions. `Force` allows deleting locally modified managed orphans, but does not allow deleting unmanaged directories, foreign catalogs, invalid manifests, name collisions, host conflicts, or path-safety failures.
+Prune skips unmanaged directories, foreign catalogs, and current catalog members. Invalid, noncanonical, or digest-mismatched manifests, name collisions, host conflicts, and locally modified managed orphans are reported as blocked actions. `Force` allows deleting locally modified managed orphans, but does not allow deleting unmanaged directories, foreign catalogs, invalid manifests, name collisions, host conflicts, or path-safety failures.
 
 ## Tiers
 
