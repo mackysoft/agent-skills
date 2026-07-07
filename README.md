@@ -87,6 +87,22 @@ The CLI validates definition metadata, computes deterministic digests, writes `a
 
 Increase `skillBundleVersion` when a product ships a new bundled SKILL set and wants installed clean packages to be recognized as outdated. Runtime state and operation reports include the installed and bundled bundle versions when they are known. If an installed package has a newer `skillBundleVersion` than the bundled package, update/install flows report a version-ahead target state so callers can require an explicit force operation before overwriting it.
 
+## Pruning Removed Managed Installs
+
+Use `SkillPruneService` when a product removes or renames a SKILL and wants previously installed managed output cleaned up. Prune is intentionally separate from install and update: product CLIs should expose it as an explicit option such as `update --prune` or as a standalone prune command.
+
+Prune must receive the complete current package set for the product catalog, not just the packages selected for the current install or update operation. This prevents `update --skill <name> --prune` from deleting valid SKILLs that were merely outside the user's selector.
+
+`SkillPruneService` only deletes top-level target directories that:
+
+- contain a valid Agent Skills `agent-skill.json`;
+- have the requested `catalogId`;
+- have a `skillName` that is absent from the complete current catalog package set;
+- are materialized for the requested host; and
+- are clean according to their own installed manifest.
+
+Prune skips unmanaged directories, foreign catalogs, and current catalog members. Invalid manifests, name collisions, host conflicts, and locally modified managed orphans are reported as blocked actions. `Force` allows deleting locally modified managed orphans, but does not allow deleting unmanaged directories, foreign catalogs, invalid manifests, name collisions, host conflicts, or path-safety failures.
+
 ## Tiers
 
 Agent Skills does not define a fixed tier set. Each product owns the complete set of accepted tier literals, such as `basic`, `advanced`, and `developer`.
