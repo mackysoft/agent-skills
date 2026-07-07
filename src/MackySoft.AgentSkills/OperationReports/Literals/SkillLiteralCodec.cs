@@ -223,27 +223,36 @@ public static class SkillLiteralCodec
     /// <summary> Formats a target state kind as a stable lower camel literal. </summary>
     /// <param name="kind"> The target state kind to format. </param>
     /// <returns> The stable literal for <paramref name="kind" />. </returns>
-    /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="kind" /> is not a defined <see cref="SkillInstalledTargetStateKind" /> value. </exception>
-    public static string FormatTargetStateKind (SkillInstalledTargetStateKind kind)
+    /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="kind" /> is not a defined <see cref="SkillActionTargetStateKind" /> value. </exception>
+    public static string FormatTargetStateKind (SkillActionTargetStateKind kind)
     {
         return kind switch
         {
-            SkillInstalledTargetStateKind.Missing => "missing",
-            SkillInstalledTargetStateKind.Current => "current",
-            SkillInstalledTargetStateKind.CleanOutdated => "cleanOutdated",
-            SkillInstalledTargetStateKind.LocalModified => "localModification",
-            SkillInstalledTargetStateKind.Unmanaged => "unmanagedTarget",
-            SkillInstalledTargetStateKind.ManifestDrift => "manifestDrift",
-            SkillInstalledTargetStateKind.CommonContentDrift => "commonContentDrift",
-            SkillInstalledTargetStateKind.FrontmatterDrift => "frontmatterDrift",
-            SkillInstalledTargetStateKind.HostArtifactDrift => "hostArtifactDrift",
-            SkillInstalledTargetStateKind.FileSetDrift => "fileSetDrift",
-            SkillInstalledTargetStateKind.NameCollision => "nameCollision",
-            SkillInstalledTargetStateKind.HostConflict => "hostConflict",
-            SkillInstalledTargetStateKind.VersionAhead => "versionAhead",
-            SkillInstalledTargetStateKind.RemovedFromCatalog => "removedFromCatalog",
+            SkillActionTargetStateKind.Missing => "missing",
+            SkillActionTargetStateKind.Current => "current",
+            SkillActionTargetStateKind.CleanOutdated => "cleanOutdated",
+            SkillActionTargetStateKind.LocalModified => "localModification",
+            SkillActionTargetStateKind.Unmanaged => "unmanagedTarget",
+            SkillActionTargetStateKind.ManifestDrift => "manifestDrift",
+            SkillActionTargetStateKind.CommonContentDrift => "commonContentDrift",
+            SkillActionTargetStateKind.FrontmatterDrift => "frontmatterDrift",
+            SkillActionTargetStateKind.HostArtifactDrift => "hostArtifactDrift",
+            SkillActionTargetStateKind.FileSetDrift => "fileSetDrift",
+            SkillActionTargetStateKind.NameCollision => "nameCollision",
+            SkillActionTargetStateKind.HostConflict => "hostConflict",
+            SkillActionTargetStateKind.VersionAhead => "versionAhead",
+            SkillActionTargetStateKind.RemovedFromCatalog => "removedFromCatalog",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported SKILL target state kind."),
         };
+    }
+
+    /// <summary> Formats an installed target state kind as a stable lower camel literal. </summary>
+    /// <param name="kind"> The installed target state kind to format. </param>
+    /// <returns> The stable literal for <paramref name="kind" />. </returns>
+    /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="kind" /> is not a defined <see cref="SkillInstalledTargetStateKind" /> value. </exception>
+    public static string FormatTargetStateKind (SkillInstalledTargetStateKind kind)
+    {
+        return FormatTargetStateKind(MapTargetStateKind(kind));
     }
 
     /// <summary> Formats a diff change kind as a stable lower camel literal. </summary>
@@ -287,6 +296,28 @@ public static class SkillLiteralCodec
         }
 
         return code.Value;
+    }
+
+    internal static SkillActionTargetStateKind MapTargetStateKind (SkillInstalledTargetStateKind kind)
+    {
+        return kind switch
+        {
+            SkillInstalledTargetStateKind.Missing => SkillActionTargetStateKind.Missing,
+            SkillInstalledTargetStateKind.Current => SkillActionTargetStateKind.Current,
+            SkillInstalledTargetStateKind.CleanOutdated => SkillActionTargetStateKind.CleanOutdated,
+            SkillInstalledTargetStateKind.LocalModified => SkillActionTargetStateKind.LocalModified,
+            SkillInstalledTargetStateKind.Unmanaged => SkillActionTargetStateKind.Unmanaged,
+            SkillInstalledTargetStateKind.ManifestDrift => SkillActionTargetStateKind.ManifestDrift,
+            SkillInstalledTargetStateKind.CommonContentDrift => SkillActionTargetStateKind.CommonContentDrift,
+            SkillInstalledTargetStateKind.FrontmatterDrift => SkillActionTargetStateKind.FrontmatterDrift,
+            SkillInstalledTargetStateKind.HostArtifactDrift => SkillActionTargetStateKind.HostArtifactDrift,
+            SkillInstalledTargetStateKind.FileSetDrift => SkillActionTargetStateKind.FileSetDrift,
+            SkillInstalledTargetStateKind.NameCollision => SkillActionTargetStateKind.NameCollision,
+            SkillInstalledTargetStateKind.HostConflict => SkillActionTargetStateKind.HostConflict,
+            SkillInstalledTargetStateKind.VersionAhead => SkillActionTargetStateKind.VersionAhead,
+            SkillInstalledTargetStateKind.RemovedFromCatalog => SkillActionTargetStateKind.RemovedFromCatalog,
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported SKILL installed target state kind."),
+        };
     }
 
     internal static IReadOnlyList<string> GetInstallActionLiterals ()

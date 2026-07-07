@@ -138,8 +138,8 @@ public static class SkillOperationReportBuilder
     /// <param name="context"> The normalized host and scope used for the install operation. Must not be <see langword="null" />. </param>
     /// <returns> A report whose actions and counts are deterministic. </returns>
     /// <exception cref="ArgumentNullException"> Thrown when <paramref name="result" /> or <paramref name="context" /> is <see langword="null" />. </exception>
-    /// <exception cref="ArgumentException"> Thrown when the result target root or context host descriptor is invalid, when <paramref name="context" /> does not match an action identity in <paramref name="result" />, or when an action target state contains an unsupported kind or invalid failure code. </exception>
-    /// <exception cref="ArgumentOutOfRangeException"> Thrown when the context scope, action kind, or diff change kind is unsupported. </exception>
+    /// <exception cref="ArgumentException"> Thrown when the result target root or context host descriptor is invalid, when <paramref name="context" /> does not match an action identity in <paramref name="result" />, or when an action target state contains an invalid failure code. </exception>
+    /// <exception cref="ArgumentOutOfRangeException"> Thrown when the context scope, action kind, target state kind, or diff change kind is unsupported. </exception>
     public static SkillOperationReport CreateInstallReport (
         SkillInstallResult result,
         SkillOperationReportContext context)
@@ -169,8 +169,8 @@ public static class SkillOperationReportBuilder
     /// <param name="context"> The normalized host and scope used for the update operation. Must not be <see langword="null" />. </param>
     /// <returns> A report whose actions and counts are deterministic. </returns>
     /// <exception cref="ArgumentNullException"> Thrown when <paramref name="result" /> or <paramref name="context" /> is <see langword="null" />. </exception>
-    /// <exception cref="ArgumentException"> Thrown when the result target root or context host descriptor is invalid, when <paramref name="context" /> does not match an action identity in <paramref name="result" />, or when an action target state contains an unsupported kind or invalid failure code. </exception>
-    /// <exception cref="ArgumentOutOfRangeException"> Thrown when the context scope, action kind, or diff change kind is unsupported. </exception>
+    /// <exception cref="ArgumentException"> Thrown when the result target root or context host descriptor is invalid, when <paramref name="context" /> does not match an action identity in <paramref name="result" />, or when an action target state contains an invalid failure code. </exception>
+    /// <exception cref="ArgumentOutOfRangeException"> Thrown when the context scope, action kind, target state kind, or diff change kind is unsupported. </exception>
     public static SkillOperationReport CreateUpdateReport (
         SkillUpdateResult result,
         SkillOperationReportContext context)
@@ -200,8 +200,8 @@ public static class SkillOperationReportBuilder
     /// <param name="context"> The normalized host and scope used for the uninstall operation. Must not be <see langword="null" />. </param>
     /// <returns> A report whose actions and counts are deterministic. </returns>
     /// <exception cref="ArgumentNullException"> Thrown when <paramref name="result" /> or <paramref name="context" /> is <see langword="null" />. </exception>
-    /// <exception cref="ArgumentException"> Thrown when the result target root or context host descriptor is invalid, when <paramref name="context" /> does not match an action identity in <paramref name="result" />, or when an action target state contains an unsupported kind or invalid failure code. </exception>
-    /// <exception cref="ArgumentOutOfRangeException"> Thrown when the context scope, action kind, or diff change kind is unsupported. </exception>
+    /// <exception cref="ArgumentException"> Thrown when the result target root or context host descriptor is invalid, when <paramref name="context" /> does not match an action identity in <paramref name="result" />, or when an action target state contains an invalid failure code. </exception>
+    /// <exception cref="ArgumentOutOfRangeException"> Thrown when the context scope, action kind, target state kind, or diff change kind is unsupported. </exception>
     public static SkillOperationReport CreateUninstallReport (
         SkillUninstallResult result,
         SkillOperationReportContext context)
@@ -231,7 +231,7 @@ public static class SkillOperationReportBuilder
     /// <param name="context"> The normalized host and scope used for the prune operation. Must not be <see langword="null" />. </param>
     /// <returns> A report whose actions and counts are deterministic. </returns>
     /// <exception cref="ArgumentNullException"> Thrown when <paramref name="result" /> or <paramref name="context" /> is <see langword="null" />. </exception>
-    /// <exception cref="ArgumentException"> Thrown when the result target root or context host descriptor is invalid, when <paramref name="context" /> does not match an action identity in <paramref name="result" />, or when an action target state contains an unsupported kind or invalid failure code. </exception>
+    /// <exception cref="ArgumentException"> Thrown when the result target root or context host descriptor is invalid, when <paramref name="context" /> does not match an action identity in <paramref name="result" />, or when an action target state contains an invalid failure code. </exception>
     /// <exception cref="ArgumentOutOfRangeException"> Thrown when the context scope, action kind, or target state kind is unsupported. </exception>
     public static SkillOperationReport CreatePruneReport (
         SkillPruneResult result,
@@ -478,13 +478,8 @@ public static class SkillOperationReportBuilder
             return null;
         }
 
-        if (!Enum.TryParse<SkillInstalledTargetStateKind>(state.Kind, ignoreCase: false, out var stateKind))
-        {
-            throw new ArgumentException($"Unsupported SKILL target state kind: {state.Kind}", nameof(state));
-        }
-
         return new SkillTargetStateReport(
-            SkillLiteralCodec.FormatTargetStateKind(stateKind),
+            SkillLiteralCodec.FormatTargetStateKind(state.Kind),
             state.Code.HasValue ? SkillLiteralCodec.FormatFailureCode(state.Code.Value) : null,
             state.Message,
             state.InstalledSkillBundleVersion,

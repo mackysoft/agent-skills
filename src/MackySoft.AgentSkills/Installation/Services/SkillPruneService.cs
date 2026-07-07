@@ -170,6 +170,36 @@ public sealed class SkillPruneService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            if (!SkillName.TryCreate(Path.GetFileName(skillDirectory), out var skillName))
+            {
+                var manifestPathResult = SkillPackagePathBoundary.ResolvePackageFilePathUnderRoot(
+                    targetRoot,
+                    skillDirectory,
+                    "agent-skill.json");
+                if (!manifestPathResult.IsSuccess)
+                {
+                    return SkillOperationResult<IReadOnlyList<SkillPruneActionPlan>>.FailureResult(
+                        manifestPathResult.Failure!.Code,
+                        manifestPathResult.Failure.Message);
+                }
+
+                if (File.Exists(manifestPathResult.Value!))
+                {
+                    return SkillOperationResult<IReadOnlyList<SkillPruneActionPlan>>.FailureResult(
+                        SkillFailureCodes.PathUnsafe,
+                        $"Skill directory name is unsafe: {skillDirectory}");
+                }
+
+                continue;
+            }
+
+            if (IsSymbolicLinkOrReparsePoint(skillDirectory))
+            {
+                return SkillOperationResult<IReadOnlyList<SkillPruneActionPlan>>.FailureResult(
+                    SkillFailureCodes.PathUnsafe,
+                    $"Skill directory must not be a symbolic link: {skillDirectory}");
+            }
+
             var skillDirectoryResult = SkillPackagePathBoundary.ResolveUnderRoot(targetRoot, skillDirectory);
             if (!skillDirectoryResult.IsSuccess)
             {
@@ -179,11 +209,6 @@ public sealed class SkillPruneService
             }
 
             var resolvedSkillDirectory = skillDirectoryResult.Value!;
-            if (!SkillName.TryCreate(Path.GetFileName(resolvedSkillDirectory), out var skillName))
-            {
-                continue;
-            }
-
             var identity = new SkillInstallIdentity(host, scope, targetRoot, skillName);
             var actionPlanResult = await CreateActionPlanAsync(
                     catalogId,
@@ -310,6 +335,17 @@ public sealed class SkillPruneService
         }
 
         if (failure.Code == SkillFailureCodes.ManifestInvalid)
+        {
+            return Success(new SkillPruneActionPlan(
+                new SkillPruneAction(
+                    identity,
+                    SkillPruneActionKind.BlockedManifestInvalid,
+                    TargetState: CreateTargetState(SkillInstalledTargetStateKind.ManifestDrift, failure)),
+                skillDirectory,
+                ShouldDelete: false));
+        }
+
+        if (failure.Code == SkillFailureCodes.InstallTargetManifestDigestMismatch)
         {
             return Success(new SkillPruneActionPlan(
                 new SkillPruneAction(
@@ -498,7 +534,7 @@ public sealed class SkillPruneService
         SkillFailureCode code,
         string message)
     {
-        return new SkillActionTargetState(kind.ToString(), code, message);
+        return new SkillActionTargetState(SkillActionTargetStateProjection.MapKind(kind), code, message);
     }
 
     private static SkillActionTargetState CreateTargetState (
@@ -507,7 +543,7 @@ public sealed class SkillPruneService
         int? installedSkillBundleVersion = null)
     {
         return new SkillActionTargetState(
-            kind.ToString(),
+            SkillActionTargetStateProjection.MapKind(kind),
             failure.Code,
             failure.Message,
             InstalledSkillBundleVersion: installedSkillBundleVersion);
@@ -542,6 +578,13 @@ public sealed class SkillPruneService
     private static SkillFailureCode ResolveChangedTargetFailureCode (SkillActionTargetState? targetState)
     {
         return targetState?.Code ?? SkillFailureCodes.InstallTargetDigestMismatch;
+    }
+
+    private static bool IsSymbolicLinkOrReparsePoint (string path)
+    {
+        var directory = new DirectoryInfo(path);
+        return directory.LinkTarget is not null
+            || (directory.Attributes & FileAttributes.ReparsePoint) != 0;
     }
 
     private static SkillOperationResult<SkillPruneActionPlan?> Success (SkillPruneActionPlan actionPlan)
