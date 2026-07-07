@@ -41,4 +41,7 @@ public enum SkillInstalledTargetStateKind
 
     /// <summary> The target is managed and clean, but was generated from a newer SKILL bundle. </summary>
     VersionAhead = 12,
+
+    /// <summary> The target is managed and clean, but no longer exists in the current catalog. </summary>
+    RemovedFromCatalog = 13,
 }

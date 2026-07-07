@@ -69,6 +69,10 @@ public sealed class SkillInstallationScanner
         }
 
         var packageByName = packages.ToDictionary(static package => package.Manifest.SkillName);
+        var catalogIds = packages
+            .Select(static package => package.Manifest.CatalogId)
+            .Distinct()
+            .ToArray();
         var installedSkills = new List<SkillInstalledSkill>();
         foreach (var skillDirectory in Directory.EnumerateDirectories(fullTargetRoot).Order(StringComparer.Ordinal))
         {
@@ -107,6 +111,13 @@ public sealed class SkillInstallationScanner
             var manifest = installedManifestResult.Value!.Manifest;
             if (!packageByName.TryGetValue(manifest.SkillName, out var package))
             {
+                if (catalogIds.Contains(manifest.CatalogId))
+                {
+                    return SkillOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
+                        SkillFailureCodes.InstallTargetRemovedFromCatalog,
+                        $"Installed SKILL is managed by the catalog but is not part of the canonical package set: {manifest.SkillName}");
+                }
+
                 return SkillOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
                     SkillFailureCodes.InstallTargetUnmanaged,
                     $"Installed SKILL is not part of the canonical package set: {manifest.SkillName}");

@@ -47,6 +47,12 @@ internal static class SkillInstalledTargetStateClassifier
             return true;
         }
 
+        if (code == SkillFailureCodes.InstallTargetRemovedFromCatalog)
+        {
+            kind = SkillInstalledTargetStateKind.RemovedFromCatalog;
+            return true;
+        }
+
         return TryResolveDriftKind(code, out kind);
     }
 

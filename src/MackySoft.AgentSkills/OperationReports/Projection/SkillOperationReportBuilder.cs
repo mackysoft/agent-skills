@@ -226,6 +226,37 @@ public static class SkillOperationReportBuilder
             SkillLiteralCodec.GetUninstallActionLiterals());
     }
 
+    /// <summary> Creates product-neutral report data from a successful prune operation. </summary>
+    /// <param name="result"> The successful prune result to report. Must not be <see langword="null" />. </param>
+    /// <param name="context"> The normalized host and scope used for the prune operation. Must not be <see langword="null" />. </param>
+    /// <returns> A report whose actions and counts are deterministic. </returns>
+    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="result" /> or <paramref name="context" /> is <see langword="null" />. </exception>
+    /// <exception cref="ArgumentException"> Thrown when the result target root or context host descriptor is invalid, when <paramref name="context" /> does not match an action identity in <paramref name="result" />, or when an action target state contains an unsupported kind or invalid failure code. </exception>
+    /// <exception cref="ArgumentOutOfRangeException"> Thrown when the context scope, action kind, or target state kind is unsupported. </exception>
+    public static SkillOperationReport CreatePruneReport (
+        SkillPruneResult result,
+        SkillOperationReportContext context)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        ArgumentNullException.ThrowIfNull(context);
+
+        return CreateOperationReport(
+            result.TargetRoot,
+            result.Actions,
+            result.DryRun,
+            result.Force,
+            printDiff: false,
+            context,
+            static action => action.Identity,
+            static action => SkillLiteralCodec.FormatPruneAction(action.ActionKind),
+            static action => SkillLiteralCodec.GetPruneActionStatus(action.ActionKind),
+            static action => action.BlockedReason,
+            static action => action.TargetState,
+            static action => action.FileChanges,
+            static _ => null,
+            SkillLiteralCodec.GetPruneActionLiterals());
+    }
+
     /// <summary> Creates product-neutral report data from a doctor result. </summary>
     /// <param name="result"> The doctor result to report. Must not be <see langword="null" />. </param>
     /// <param name="scope"> The install scope used to resolve the diagnosed target root. </param>

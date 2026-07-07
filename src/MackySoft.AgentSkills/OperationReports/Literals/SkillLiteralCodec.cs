@@ -39,6 +39,18 @@ public static class SkillLiteralCodec
         new(SkillUninstallActionKind.BlockedLocalModification, "blockedLocalModification", SkillOperationActionStatus.Blocked),
     ];
 
+    private static readonly ActionLiteralDefinition<SkillPruneActionKind>[] PruneActionDefinitions =
+    [
+        new(SkillPruneActionKind.Deleted, "deleted", SkillOperationActionStatus.Changed),
+        new(SkillPruneActionKind.SkippedCurrent, "skippedCurrent", SkillOperationActionStatus.NoOp),
+        new(SkillPruneActionKind.SkippedForeignCatalog, "skippedForeignCatalog", SkillOperationActionStatus.Skipped),
+        new(SkillPruneActionKind.SkippedUnmanaged, "skippedUnmanaged", SkillOperationActionStatus.Skipped),
+        new(SkillPruneActionKind.BlockedLocalModification, "blockedLocalModification", SkillOperationActionStatus.Blocked),
+        new(SkillPruneActionKind.BlockedManifestInvalid, "blockedManifestInvalid", SkillOperationActionStatus.Blocked),
+        new(SkillPruneActionKind.BlockedNameCollision, "blockedNameCollision", SkillOperationActionStatus.Blocked),
+        new(SkillPruneActionKind.BlockedHostConflict, "blockedHostConflict", SkillOperationActionStatus.Blocked),
+    ];
+
     private static readonly SkillOperationActionStatus[] ActionStatusOrder =
     [
         SkillOperationActionStatus.Changed,
@@ -167,6 +179,15 @@ public static class SkillLiteralCodec
         return FormatAction(UninstallActionDefinitions, actionKind, nameof(actionKind), "Unsupported SKILL uninstall action kind.");
     }
 
+    /// <summary> Formats a prune action as a stable lower camel literal. </summary>
+    /// <param name="actionKind"> The prune action kind to format. </param>
+    /// <returns> The stable literal for <paramref name="actionKind" />. </returns>
+    /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="actionKind" /> is not a defined <see cref="SkillPruneActionKind" /> value. </exception>
+    public static string FormatPruneAction (SkillPruneActionKind actionKind)
+    {
+        return FormatAction(PruneActionDefinitions, actionKind, nameof(actionKind), "Unsupported SKILL prune action kind.");
+    }
+
     /// <summary> Formats a coarse action status as a stable lower camel literal. </summary>
     /// <param name="status"> The operation action status to format. </param>
     /// <returns> The stable literal for <paramref name="status" />. </returns>
@@ -220,6 +241,7 @@ public static class SkillLiteralCodec
             SkillInstalledTargetStateKind.NameCollision => "nameCollision",
             SkillInstalledTargetStateKind.HostConflict => "hostConflict",
             SkillInstalledTargetStateKind.VersionAhead => "versionAhead",
+            SkillInstalledTargetStateKind.RemovedFromCatalog => "removedFromCatalog",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported SKILL target state kind."),
         };
     }
@@ -282,6 +304,11 @@ public static class SkillLiteralCodec
         return GetActionLiterals(UninstallActionDefinitions);
     }
 
+    internal static IReadOnlyList<string> GetPruneActionLiterals ()
+    {
+        return GetActionLiterals(PruneActionDefinitions);
+    }
+
     internal static IReadOnlyList<string> GetActionStatusLiterals ()
     {
         return ActionStatusOrder
@@ -302,6 +329,11 @@ public static class SkillLiteralCodec
     internal static SkillOperationActionStatus GetUninstallActionStatus (SkillUninstallActionKind actionKind)
     {
         return GetActionStatus(UninstallActionDefinitions, actionKind, nameof(actionKind), "Unsupported SKILL uninstall action kind.");
+    }
+
+    internal static SkillOperationActionStatus GetPruneActionStatus (SkillPruneActionKind actionKind)
+    {
+        return GetActionStatus(PruneActionDefinitions, actionKind, nameof(actionKind), "Unsupported SKILL prune action kind.");
     }
 
     private static IReadOnlyList<string> GetActionLiterals<TActionKind> (IReadOnlyList<ActionLiteralDefinition<TActionKind>> definitions)

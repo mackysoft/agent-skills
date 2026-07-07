@@ -58,6 +58,11 @@ public static class SkillFailureClassifier
             return SkillFailureCategory.DriftOrLocalModification;
         }
 
+        if (code == SkillFailureCodes.InstallTargetRemovedFromCatalog)
+        {
+            return SkillFailureCategory.RemovedFromCatalog;
+        }
+
         if (code == SkillFailureCodes.InstallTargetUnmanaged)
         {
             return SkillFailureCategory.UnmanagedTarget;
