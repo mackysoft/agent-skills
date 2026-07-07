@@ -204,6 +204,79 @@ public sealed class SkillOperationReportBuilderTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public void CreatePruneReport_ProjectsActionsCountsAndFileDetails ()
+    {
+        var targetRoot = Path.GetFullPath("prune-report-target");
+        var context = CreateContext();
+        var result = new SkillPruneResult(
+            targetRoot,
+            [
+                new SkillPruneAction(CreateIdentity(targetRoot, "skill-c"), SkillPruneActionKind.SkippedCurrent),
+                new SkillPruneAction(CreateIdentity(targetRoot, "skill-d"), SkillPruneActionKind.SkippedForeignCatalog),
+                new SkillPruneAction(
+                    CreateIdentity(targetRoot, "skill-b"),
+                    SkillPruneActionKind.BlockedLocalModification,
+                    SkillBlockedReason.LocalModificationRequiresForce,
+                    new SkillActionTargetState(
+                        nameof(SkillInstalledTargetStateKind.CommonContentDrift),
+                        SkillFailureCodes.InstallTargetContentDigestMismatch,
+                        "Content drift.")),
+                new SkillPruneAction(
+                    CreateIdentity(targetRoot, "skill-a"),
+                    SkillPruneActionKind.Deleted,
+                    TargetState: new SkillActionTargetState(
+                        nameof(SkillInstalledTargetStateKind.RemovedFromCatalog),
+                        SkillFailureCodes.InstallTargetRemovedFromCatalog,
+                        "Removed from catalog."))
+                {
+                    FileChanges = new SkillActionFileChanges([], ["SKILL.md", "agent-skill.json"]),
+                },
+            ],
+            DryRun: true,
+            Force: false);
+
+        var report = SkillOperationReportBuilder.CreatePruneReport(result, context);
+
+        Assert.True(report.DryRun);
+        Assert.False(report.Force);
+        Assert.Equal(["skill-a", "skill-b", "skill-c", "skill-d"], report.Actions.Select(static action => action.SkillName).ToArray());
+        Assert.Equal("deleted", report.Actions[0].Action);
+        Assert.Equal("changed", report.Actions[0].Status);
+        var deletedTargetState = report.Actions[0].TargetState!;
+        Assert.Equal("removedFromCatalog", deletedTargetState.Kind);
+        Assert.Equal(SkillFailureCodes.InstallTargetRemovedFromCatalog.Value, deletedTargetState.Code);
+        Assert.Equal(["SKILL.md", "agent-skill.json"], report.Actions[0].FileChanges!.RemovedFiles);
+        Assert.Equal("blockedLocalModification", report.Actions[1].Action);
+        Assert.Equal("blocked", report.Actions[1].Status);
+        Assert.Equal("localModificationRequiresForce", report.Actions[1].BlockedReason);
+        Assert.Equal("skippedCurrent", report.Actions[2].Action);
+        Assert.Equal("noOp", report.Actions[2].Status);
+        Assert.Equal("skippedForeignCatalog", report.Actions[3].Action);
+        Assert.Equal("skipped", report.Actions[3].Status);
+        Assert.Equal(
+            [
+                "deleted",
+                "skippedCurrent",
+                "skippedForeignCatalog",
+                "skippedUnmanaged",
+                "blockedLocalModification",
+                "blockedManifestInvalid",
+                "blockedNameCollision",
+                "blockedHostConflict",
+            ],
+            report.ActionCounts.Select(static count => count.Literal).ToArray());
+        AssertCount(report.ActionCounts, "deleted", 1);
+        AssertCount(report.ActionCounts, "skippedCurrent", 1);
+        AssertCount(report.ActionCounts, "skippedForeignCatalog", 1);
+        AssertCount(report.ActionCounts, "blockedLocalModification", 1);
+        AssertCount(report.StatusCounts, "changed", 1);
+        AssertCount(report.StatusCounts, "noOp", 1);
+        AssertCount(report.StatusCounts, "skipped", 1);
+        AssertCount(report.StatusCounts, "blocked", 1);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task CreateListReport_UsesCanonicalSkillAndHostDescriptorData ()
     {
         var packages = (await SkillTestData.GenerateFixturePackagesAsync()).Reverse().ToArray();
@@ -316,6 +389,10 @@ public sealed class SkillOperationReportBuilderTests
                     "Clean outdated.",
                     "skill-d"),
                 SkillDoctorDiagnostic.Error(
+                    SkillFailureCodes.InstallTargetRemovedFromCatalog,
+                    "Removed from catalog.",
+                    "skill-e"),
+                SkillDoctorDiagnostic.Error(
                     "SKILL_DOCTOR_SHARED",
                     "Same diagnostic.",
                     "skill-a"),
@@ -339,7 +416,7 @@ public sealed class SkillOperationReportBuilderTests
         Assert.Equal(["developer"], report.Tiers);
         Assert.Equal(["skill-a"], report.SkillNames);
         Assert.Equal("project", report.Scope);
-        Assert.Equal(new string?[] { null, "skill-a", "skill-a", "skill-a", "skill-b", "skill-c", "skill-d" }, report.Diagnostics.Select(static diagnostic => diagnostic.SkillName).ToArray());
+        Assert.Equal(new string?[] { null, "skill-a", "skill-a", "skill-a", "skill-b", "skill-c", "skill-d", "skill-e" }, report.Diagnostics.Select(static diagnostic => diagnostic.SkillName).ToArray());
         Assert.Equal("error", report.Diagnostics[0].Severity);
         Assert.Null(report.Diagnostics[0].TargetState);
         Assert.Equal("info", report.Diagnostics[1].Severity);
@@ -349,6 +426,7 @@ public sealed class SkillOperationReportBuilderTests
         Assert.Equal("hostArtifactDrift", report.Diagnostics[4].TargetState);
         Assert.Equal("versionAhead", report.Diagnostics[5].TargetState);
         Assert.Equal("cleanOutdated", report.Diagnostics[6].TargetState);
+        Assert.Equal("removedFromCatalog", report.Diagnostics[7].TargetState);
     }
 
     [Fact]

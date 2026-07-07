@@ -162,6 +162,17 @@ internal static class SkillTestData
             CreatePackageRemover());
     }
 
+    internal static SkillPruneService CreatePruneService ()
+    {
+        var hostAdapters = CreateDefaultHostAdapterSet();
+        return new SkillPruneService(
+            new SkillInstallTargetResolver(hostAdapters, CreateUserTargetRootResolver()),
+            CreateInstalledManifestReader(hostAdapters),
+            CreateInstalledPackageIntegrityVerifier(hostAdapters),
+            CreatePackageRemover(),
+            new SkillMaterializedPackageDiffBuilder());
+    }
+
     internal static SkillInstallationScanner CreateInstallationScanner ()
     {
         var hostAdapters = CreateDefaultHostAdapterSet();
