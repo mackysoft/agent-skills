@@ -2,7 +2,6 @@ using MackySoft.AgentSkills.Hosts.Claude;
 using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Installation.Requests;
 using MackySoft.AgentSkills.Installation.Results;
-using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
@@ -53,7 +52,7 @@ public sealed class SkillUninstallServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.True(result.Value!.DryRun);
         Assert.All(result.Value.Actions, static action => Assert.Equal(SkillUninstallActionKind.Deleted, action.ActionKind));
-        Assert.All(result.Value.Actions, static action => Assert.Equal(nameof(SkillInstalledTargetStateKind.Current), action.TargetState!.Kind));
+        Assert.All(result.Value.Actions, static action => Assert.Equal(SkillActionTargetStateKind.Current, action.TargetState!.Kind));
         Assert.All(result.Value.Actions, static action =>
         {
             Assert.NotNull(action.FileChanges);
@@ -86,7 +85,7 @@ public sealed class SkillUninstallServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
         Assert.Equal(SkillUninstallActionKind.Deleted, action.ActionKind);
-        Assert.Equal(nameof(SkillInstalledTargetStateKind.VersionAhead), action.TargetState!.Kind);
+        Assert.Equal(SkillActionTargetStateKind.VersionAhead, action.TargetState!.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetVersionAhead, action.TargetState.Code);
         Assert.Equal(aheadPackage.Manifest.SkillBundleVersion, action.TargetState.InstalledSkillBundleVersion);
         Assert.Equal(packages[0].Manifest.SkillBundleVersion, action.TargetState.BundledSkillBundleVersion);
@@ -112,7 +111,7 @@ public sealed class SkillUninstallServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
         Assert.Equal(SkillUninstallActionKind.Deleted, action.ActionKind);
-        Assert.Equal(nameof(SkillInstalledTargetStateKind.VersionAhead), action.TargetState!.Kind);
+        Assert.Equal(SkillActionTargetStateKind.VersionAhead, action.TargetState!.Kind);
         Assert.False(Directory.Exists(skillDirectory));
     }
 
@@ -316,7 +315,7 @@ public sealed class SkillUninstallServiceTests
         var action = result.Value!.Actions.Single(action => action.Identity.SkillName.Value == packages[0].Manifest.SkillName.Value);
         Assert.Equal(SkillUninstallActionKind.BlockedLocalModification, action.ActionKind);
         Assert.Equal(SkillBlockedReason.LocalModificationRequiresForce, action.BlockedReason);
-        Assert.Equal(nameof(SkillInstalledTargetStateKind.CommonContentDrift), action.TargetState!.Kind);
+        Assert.Equal(SkillActionTargetStateKind.CommonContentDrift, action.TargetState!.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, action.TargetState.Code);
         Assert.True(Directory.Exists(skillDirectory));
     }

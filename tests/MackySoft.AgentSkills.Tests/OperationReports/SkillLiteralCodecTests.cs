@@ -170,24 +170,39 @@ public sealed class SkillLiteralCodecTests
 
     [Theory]
     [Trait("Size", "Small")]
-    [InlineData(SkillInstalledTargetStateKind.Missing, "missing")]
-    [InlineData(SkillInstalledTargetStateKind.Current, "current")]
-    [InlineData(SkillInstalledTargetStateKind.CleanOutdated, "cleanOutdated")]
-    [InlineData(SkillInstalledTargetStateKind.LocalModified, "localModification")]
-    [InlineData(SkillInstalledTargetStateKind.Unmanaged, "unmanagedTarget")]
-    [InlineData(SkillInstalledTargetStateKind.ManifestDrift, "manifestDrift")]
-    [InlineData(SkillInstalledTargetStateKind.CommonContentDrift, "commonContentDrift")]
-    [InlineData(SkillInstalledTargetStateKind.FrontmatterDrift, "frontmatterDrift")]
-    [InlineData(SkillInstalledTargetStateKind.HostArtifactDrift, "hostArtifactDrift")]
-    [InlineData(SkillInstalledTargetStateKind.FileSetDrift, "fileSetDrift")]
-    [InlineData(SkillInstalledTargetStateKind.NameCollision, "nameCollision")]
-    [InlineData(SkillInstalledTargetStateKind.HostConflict, "hostConflict")]
-    [InlineData(SkillInstalledTargetStateKind.VersionAhead, "versionAhead")]
+    [InlineData(SkillActionTargetStateKind.Missing, "missing")]
+    [InlineData(SkillActionTargetStateKind.Current, "current")]
+    [InlineData(SkillActionTargetStateKind.CleanOutdated, "cleanOutdated")]
+    [InlineData(SkillActionTargetStateKind.LocalModified, "localModification")]
+    [InlineData(SkillActionTargetStateKind.Unmanaged, "unmanagedTarget")]
+    [InlineData(SkillActionTargetStateKind.ManifestDrift, "manifestDrift")]
+    [InlineData(SkillActionTargetStateKind.CommonContentDrift, "commonContentDrift")]
+    [InlineData(SkillActionTargetStateKind.FrontmatterDrift, "frontmatterDrift")]
+    [InlineData(SkillActionTargetStateKind.HostArtifactDrift, "hostArtifactDrift")]
+    [InlineData(SkillActionTargetStateKind.FileSetDrift, "fileSetDrift")]
+    [InlineData(SkillActionTargetStateKind.NameCollision, "nameCollision")]
+    [InlineData(SkillActionTargetStateKind.HostConflict, "hostConflict")]
+    [InlineData(SkillActionTargetStateKind.VersionAhead, "versionAhead")]
+    [InlineData(SkillActionTargetStateKind.RemovedFromCatalog, "removedFromCatalog")]
     public void FormatTargetStateKind_ReturnsStableLiteral (
-        SkillInstalledTargetStateKind kind,
+        SkillActionTargetStateKind kind,
         string expected)
     {
         Assert.Equal(expected, SkillLiteralCodec.FormatTargetStateKind(kind));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void FormatTargetStateKind_InstalledStateOverloadMatchesActionStateLiteral ()
+    {
+        foreach (var installedKind in Enum.GetValues<SkillInstalledTargetStateKind>())
+        {
+            var actionKind = (SkillActionTargetStateKind)(int)installedKind;
+
+            Assert.Equal(
+                SkillLiteralCodec.FormatTargetStateKind(actionKind),
+                SkillLiteralCodec.FormatTargetStateKind(installedKind));
+        }
     }
 
     [Theory]
@@ -226,6 +241,7 @@ public sealed class SkillLiteralCodecTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => SkillLiteralCodec.FormatScope((SkillScopeKind)999));
         Assert.Throws<ArgumentOutOfRangeException>(() => SkillLiteralCodec.FormatInstallAction((SkillInstallActionKind)999));
+        Assert.Throws<ArgumentOutOfRangeException>(() => SkillLiteralCodec.FormatTargetStateKind((SkillActionTargetStateKind)999));
         Assert.Throws<ArgumentOutOfRangeException>(() => SkillLiteralCodec.FormatTargetStateKind((SkillInstalledTargetStateKind)999));
         Assert.Throws<ArgumentOutOfRangeException>(() => SkillLiteralCodec.FormatDoctorSeverity((SkillDoctorSeverity)999));
     }

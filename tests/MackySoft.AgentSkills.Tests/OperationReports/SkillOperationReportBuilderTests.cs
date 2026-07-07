@@ -4,7 +4,6 @@ using MackySoft.AgentSkills.Hosts.Claude;
 using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Installation.Results;
-using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.OperationReports.Contracts;
@@ -31,13 +30,13 @@ public sealed class SkillOperationReportBuilderTests
                 new SkillInstallAction(
                     CreateIdentity(targetRoot, "skill-b"),
                     SkillInstallActionKind.NoOp,
-                    TargetState: new SkillActionTargetState(nameof(SkillInstalledTargetStateKind.Current))),
+                    TargetState: new SkillActionTargetState(SkillActionTargetStateKind.Current)),
                 new SkillInstallAction(
                     CreateIdentity(targetRoot, "skill-c"),
                     SkillInstallActionKind.BlockedLocalModification,
                     SkillBlockedReason.LocalModificationRequiresForce,
                     TargetState: new SkillActionTargetState(
-                        nameof(SkillInstalledTargetStateKind.FileSetDrift),
+                        SkillActionTargetStateKind.FileSetDrift,
                         SkillFailureCodes.InstallTargetFileSetMismatch,
                         "File set drift.",
                         new SkillActionTargetFileSet(["missing.md"], ["extra.md"], ["extra-dir"]))),
@@ -53,7 +52,7 @@ public sealed class SkillOperationReportBuilderTests
                         ]),
                     ],
                     TargetState: new SkillActionTargetState(
-                        nameof(SkillInstalledTargetStateKind.CommonContentDrift),
+                        SkillActionTargetStateKind.CommonContentDrift,
                         SkillFailureCodes.InstallTargetContentDigestMismatch,
                         "Content drift.",
                         InstalledSkillBundleVersion: 1,
@@ -211,26 +210,54 @@ public sealed class SkillOperationReportBuilderTests
         var result = new SkillPruneResult(
             targetRoot,
             [
-                new SkillPruneAction(CreateIdentity(targetRoot, "skill-c"), SkillPruneActionKind.SkippedCurrent),
-                new SkillPruneAction(CreateIdentity(targetRoot, "skill-d"), SkillPruneActionKind.SkippedForeignCatalog),
-                new SkillPruneAction(
-                    CreateIdentity(targetRoot, "skill-b"),
-                    SkillPruneActionKind.BlockedLocalModification,
-                    SkillBlockedReason.LocalModificationRequiresForce,
-                    new SkillActionTargetState(
-                        nameof(SkillInstalledTargetStateKind.CommonContentDrift),
-                        SkillFailureCodes.InstallTargetContentDigestMismatch,
-                        "Content drift.")),
                 new SkillPruneAction(
                     CreateIdentity(targetRoot, "skill-a"),
                     SkillPruneActionKind.Deleted,
                     TargetState: new SkillActionTargetState(
-                        nameof(SkillInstalledTargetStateKind.RemovedFromCatalog),
+                        SkillActionTargetStateKind.RemovedFromCatalog,
                         SkillFailureCodes.InstallTargetRemovedFromCatalog,
                         "Removed from catalog."))
                 {
                     FileChanges = new SkillActionFileChanges([], ["SKILL.md", "agent-skill.json"]),
                 },
+                new SkillPruneAction(CreateIdentity(targetRoot, "skill-b"), SkillPruneActionKind.SkippedCurrent),
+                new SkillPruneAction(CreateIdentity(targetRoot, "skill-c"), SkillPruneActionKind.SkippedForeignCatalog),
+                new SkillPruneAction(
+                    CreateIdentity(targetRoot, "skill-d"),
+                    SkillPruneActionKind.SkippedUnmanaged,
+                    TargetState: new SkillActionTargetState(
+                        SkillActionTargetStateKind.Unmanaged,
+                        SkillFailureCodes.InstallTargetUnmanaged,
+                        "Unmanaged.")),
+                new SkillPruneAction(
+                    CreateIdentity(targetRoot, "skill-e"),
+                    SkillPruneActionKind.BlockedLocalModification,
+                    SkillBlockedReason.LocalModificationRequiresForce,
+                    new SkillActionTargetState(
+                        SkillActionTargetStateKind.CommonContentDrift,
+                        SkillFailureCodes.InstallTargetContentDigestMismatch,
+                        "Content drift.")),
+                new SkillPruneAction(
+                    CreateIdentity(targetRoot, "skill-f"),
+                    SkillPruneActionKind.BlockedManifestInvalid,
+                    TargetState: new SkillActionTargetState(
+                        SkillActionTargetStateKind.ManifestDrift,
+                        SkillFailureCodes.ManifestInvalid,
+                        "Invalid manifest.")),
+                new SkillPruneAction(
+                    CreateIdentity(targetRoot, "skill-g"),
+                    SkillPruneActionKind.BlockedNameCollision,
+                    TargetState: new SkillActionTargetState(
+                        SkillActionTargetStateKind.NameCollision,
+                        SkillFailureCodes.InstallTargetNameCollision,
+                        "Name collision.")),
+                new SkillPruneAction(
+                    CreateIdentity(targetRoot, "skill-h"),
+                    SkillPruneActionKind.BlockedHostConflict,
+                    TargetState: new SkillActionTargetState(
+                        SkillActionTargetStateKind.HostConflict,
+                        SkillFailureCodes.InstallTargetHostConflict,
+                        "Host conflict.")),
             ],
             DryRun: true,
             Force: false);
@@ -239,20 +266,20 @@ public sealed class SkillOperationReportBuilderTests
 
         Assert.True(report.DryRun);
         Assert.False(report.Force);
-        Assert.Equal(["skill-a", "skill-b", "skill-c", "skill-d"], report.Actions.Select(static action => action.SkillName).ToArray());
-        Assert.Equal("deleted", report.Actions[0].Action);
-        Assert.Equal("changed", report.Actions[0].Status);
+        Assert.Equal(
+            ["skill-a", "skill-b", "skill-c", "skill-d", "skill-e", "skill-f", "skill-g", "skill-h"],
+            report.Actions.Select(static action => action.SkillName).ToArray());
+        Assert.Equal(
+            ["deleted", "skippedCurrent", "skippedForeignCatalog", "skippedUnmanaged", "blockedLocalModification", "blockedManifestInvalid", "blockedNameCollision", "blockedHostConflict"],
+            report.Actions.Select(static action => action.Action).ToArray());
+        Assert.Equal(
+            ["changed", "noOp", "skipped", "skipped", "blocked", "blocked", "blocked", "blocked"],
+            report.Actions.Select(static action => action.Status).ToArray());
         var deletedTargetState = report.Actions[0].TargetState!;
         Assert.Equal("removedFromCatalog", deletedTargetState.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetRemovedFromCatalog.Value, deletedTargetState.Code);
         Assert.Equal(["SKILL.md", "agent-skill.json"], report.Actions[0].FileChanges!.RemovedFiles);
-        Assert.Equal("blockedLocalModification", report.Actions[1].Action);
-        Assert.Equal("blocked", report.Actions[1].Status);
-        Assert.Equal("localModificationRequiresForce", report.Actions[1].BlockedReason);
-        Assert.Equal("skippedCurrent", report.Actions[2].Action);
-        Assert.Equal("noOp", report.Actions[2].Status);
-        Assert.Equal("skippedForeignCatalog", report.Actions[3].Action);
-        Assert.Equal("skipped", report.Actions[3].Status);
+        Assert.Equal("localModificationRequiresForce", report.Actions[4].BlockedReason);
         Assert.Equal(
             [
                 "deleted",
@@ -268,11 +295,15 @@ public sealed class SkillOperationReportBuilderTests
         AssertCount(report.ActionCounts, "deleted", 1);
         AssertCount(report.ActionCounts, "skippedCurrent", 1);
         AssertCount(report.ActionCounts, "skippedForeignCatalog", 1);
+        AssertCount(report.ActionCounts, "skippedUnmanaged", 1);
         AssertCount(report.ActionCounts, "blockedLocalModification", 1);
+        AssertCount(report.ActionCounts, "blockedManifestInvalid", 1);
+        AssertCount(report.ActionCounts, "blockedNameCollision", 1);
+        AssertCount(report.ActionCounts, "blockedHostConflict", 1);
         AssertCount(report.StatusCounts, "changed", 1);
         AssertCount(report.StatusCounts, "noOp", 1);
-        AssertCount(report.StatusCounts, "skipped", 1);
-        AssertCount(report.StatusCounts, "blocked", 1);
+        AssertCount(report.StatusCounts, "skipped", 2);
+        AssertCount(report.StatusCounts, "blocked", 4);
     }
 
     [Fact]
@@ -709,7 +740,7 @@ public sealed class SkillOperationReportBuilderTests
                     SkillInstallActionKind.BlockedLocalModification,
                     SkillBlockedReason.LocalModificationRequiresForce,
                     TargetState: new SkillActionTargetState(
-                        nameof(SkillInstalledTargetStateKind.FileSetDrift),
+                        SkillActionTargetStateKind.FileSetDrift,
                         SkillFailureCodes.InstallTargetFileSetMismatch,
                         "File set drift.",
                         new SkillActionTargetFileSet([unsafePath], [], []))),
@@ -772,10 +803,10 @@ public sealed class SkillOperationReportBuilderTests
                     CreateIdentity(targetRoot, "skill-a"),
                     SkillInstallActionKind.BlockedLocalModification,
                     SkillBlockedReason.LocalModificationRequiresForce,
-                    TargetState: new SkillActionTargetState("unsupported-state")),
+                    TargetState: new SkillActionTargetState((SkillActionTargetStateKind)999)),
             ]);
 
-        Assert.Throws<ArgumentException>(() => SkillOperationReportBuilder.CreateInstallReport(
+        Assert.Throws<ArgumentOutOfRangeException>(() => SkillOperationReportBuilder.CreateInstallReport(
             result,
             CreateContext()));
     }

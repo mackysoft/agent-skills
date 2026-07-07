@@ -225,7 +225,7 @@ public sealed class SkillInstallationScannerTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task ScanAsync_RejectsSameCatalogSkillOutsideCanonicalPackageSet ()
+    public async Task ScanAsync_RejectsSameCatalogSkillOutsideCanonicalPackageSetAsUnmanaged ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "scan-external-managed");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
@@ -242,7 +242,7 @@ public sealed class SkillInstallationScannerTests
         var scanResult = await scanner.ScanAsync(packages, targetRoot, OpenAiSkillHostAdapter.HostKey, cancellationToken: CancellationToken.None);
 
         Assert.False(scanResult.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetRemovedFromCatalog, scanResult.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.InstallTargetUnmanaged, scanResult.Failure!.Code);
     }
 
     [Fact]

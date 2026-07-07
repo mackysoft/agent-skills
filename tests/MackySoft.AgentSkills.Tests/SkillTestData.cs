@@ -162,14 +162,14 @@ internal static class SkillTestData
             CreatePackageRemover());
     }
 
-    internal static SkillPruneService CreatePruneService ()
+    internal static SkillPruneService CreatePruneService (ISkillInstalledPackageRemover? packageRemover = null)
     {
         var hostAdapters = CreateDefaultHostAdapterSet();
         return new SkillPruneService(
             new SkillInstallTargetResolver(hostAdapters, CreateUserTargetRootResolver()),
             CreateInstalledManifestReader(hostAdapters),
             CreateInstalledPackageIntegrityVerifier(hostAdapters),
-            CreatePackageRemover(),
+            packageRemover ?? CreatePackageRemover(),
             new SkillMaterializedPackageDiffBuilder());
     }
 
