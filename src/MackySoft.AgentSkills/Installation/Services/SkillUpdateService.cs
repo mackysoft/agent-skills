@@ -173,7 +173,7 @@ public sealed class SkillUpdateService
     {
         switch (state.Kind)
         {
-            case SkillInstalledTargetStateKind.Missing:
+            case SkillTargetStateKind.Missing:
                 return await CreateWriteActionPlanAsync(
                         package,
                         host,
@@ -184,13 +184,13 @@ public sealed class SkillUpdateService
                         input,
                         cancellationToken)
                     .ConfigureAwait(false);
-            case SkillInstalledTargetStateKind.Current:
+            case SkillTargetStateKind.Current:
                 return SkillOperationResult<SkillUpdateActionPlan>.Success(new SkillUpdateActionPlan(
                     new SkillUpdateAction(identity, SkillUpdateActionKind.NoOp, TargetState: SkillActionTargetStateProjection.Create(state)),
                     skillDirectory,
                     package,
                     null));
-            case SkillInstalledTargetStateKind.CleanOutdated:
+            case SkillTargetStateKind.CleanOutdated:
                 return await CreateWriteActionPlanAsync(
                         package,
                         host,
@@ -201,7 +201,7 @@ public sealed class SkillUpdateService
                         input,
                         cancellationToken)
                     .ConfigureAwait(false);
-            case SkillInstalledTargetStateKind.VersionAhead:
+            case SkillTargetStateKind.VersionAhead:
                 return await CreateVersionAheadActionPlanAsync(
                         package,
                         host,
@@ -221,7 +221,7 @@ public sealed class SkillUpdateService
                         input,
                         cancellationToken)
                     .ConfigureAwait(false);
-            case SkillInstalledTargetStateKind.Unmanaged:
+            case SkillTargetStateKind.Unmanaged:
                 if (!input.DryRun)
                 {
                     return SkillOperationResult<SkillUpdateActionPlan>.FailureResult(
@@ -240,8 +240,8 @@ public sealed class SkillUpdateService
                         state,
                         cancellationToken)
                     .ConfigureAwait(false);
-            case SkillInstalledTargetStateKind.NameCollision:
-            case SkillInstalledTargetStateKind.HostConflict:
+            case SkillTargetStateKind.NameCollision:
+            case SkillTargetStateKind.HostConflict:
                 return SkillOperationResult<SkillUpdateActionPlan>.FailureResult(
                     ResolveStateFailureCode(state),
                     state.Failure?.Message ?? $"Target skill directory cannot be updated: {skillDirectory}");
@@ -436,7 +436,7 @@ public sealed class SkillUpdateService
 
     private static SkillFailureCode ResolveChangedTargetFailureCode (SkillInstalledTargetState state)
     {
-        return state.Kind == SkillInstalledTargetStateKind.Unmanaged
+        return state.Kind == SkillTargetStateKind.Unmanaged
             ? SkillFailureCodes.InstallTargetUnmanaged
             : ResolveStateFailureCode(state);
     }

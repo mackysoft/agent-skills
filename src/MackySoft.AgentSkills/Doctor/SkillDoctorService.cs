@@ -105,18 +105,18 @@ public sealed class SkillDoctorService
 
         switch (stateResult.Value!.Kind)
         {
-            case SkillInstalledTargetStateKind.Current:
+            case SkillTargetStateKind.Current:
                 return;
-            case SkillInstalledTargetStateKind.Missing:
+            case SkillTargetStateKind.Missing:
                 diagnostics.Add(SkillDoctorDiagnostic.Error(SkillFailureCodes.InstallTargetUnmanaged, "Skill directory is missing.", package.Manifest.SkillName.Value));
                 return;
-            case SkillInstalledTargetStateKind.CleanOutdated:
+            case SkillTargetStateKind.CleanOutdated:
                 diagnostics.Add(SkillDoctorDiagnostic.Error(
                     SkillFailureCodes.InstallTargetOutdated,
                     "Installed SKILL package is clean but older than the bundled package.",
                     package.Manifest.SkillName.Value));
                 return;
-            case SkillInstalledTargetStateKind.VersionAhead:
+            case SkillTargetStateKind.VersionAhead:
                 var versionAheadFailure = stateResult.Value.Failure ?? SkillFailure.Create(
                     SkillFailureCodes.InstallTargetVersionAhead,
                     "Installed SKILL package was generated from a newer SKILL bundle.");
@@ -125,14 +125,14 @@ public sealed class SkillDoctorService
                     versionAheadFailure.Message,
                     package.Manifest.SkillName.Value));
                 return;
-            case SkillInstalledTargetStateKind.Unmanaged:
+            case SkillTargetStateKind.Unmanaged:
                 diagnostics.Add(SkillDoctorDiagnostic.Error(
                     SkillFailureCodes.InstallTargetUnmanaged,
                     "Skill directory is not managed by Agent Skills.",
                     package.Manifest.SkillName.Value));
                 return;
-            case SkillInstalledTargetStateKind.NameCollision:
-            case SkillInstalledTargetStateKind.HostConflict:
+            case SkillTargetStateKind.NameCollision:
+            case SkillTargetStateKind.HostConflict:
                 var failure = stateResult.Value.Failure ?? SkillFailure.Create(
                     SkillFailureCodes.InstallTargetLocalModification,
                     "Installed SKILL package contains local modifications.");

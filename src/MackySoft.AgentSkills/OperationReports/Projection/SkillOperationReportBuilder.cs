@@ -3,7 +3,6 @@ using MackySoft.AgentSkills.Doctor;
 using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Results;
-using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.OperationReports.Contracts;
@@ -11,6 +10,7 @@ using MackySoft.AgentSkills.OperationReports.Literals;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Selection;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.AgentSkills.Shared.Text;
 using MackySoft.AgentSkills.Tiers;
 
 namespace MackySoft.AgentSkills.OperationReports.Projection;
@@ -113,7 +113,7 @@ public static class SkillOperationReportBuilder
             hostDescriptor.HostKey,
             CreateTierLiterals(selectedTiers),
             CreateSkillNameLiterals(selectedSkillNames),
-            SkillLiteralCodec.FormatExportFormat(format),
+            ContractLiteralCodec.ToValue(format),
             outputPath,
             skills,
             skills.Length,
@@ -138,8 +138,8 @@ public static class SkillOperationReportBuilder
     /// <param name="context"> The normalized host and scope used for the install operation. Must not be <see langword="null" />. </param>
     /// <returns> A report whose actions and counts are deterministic. </returns>
     /// <exception cref="ArgumentNullException"> Thrown when <paramref name="result" /> or <paramref name="context" /> is <see langword="null" />. </exception>
-    /// <exception cref="ArgumentException"> Thrown when the result target root or context host descriptor is invalid, when <paramref name="context" /> does not match an action identity in <paramref name="result" />, or when an action target state contains an unsupported kind or invalid failure code. </exception>
-    /// <exception cref="ArgumentOutOfRangeException"> Thrown when the context scope, action kind, or diff change kind is unsupported. </exception>
+    /// <exception cref="ArgumentException"> Thrown when the result target root or context host descriptor is invalid, when <paramref name="context" /> does not match an action identity in <paramref name="result" />, or when an action target state contains an invalid failure code. </exception>
+    /// <exception cref="ArgumentOutOfRangeException"> Thrown when the context scope, action kind, target state kind, or diff change kind is unsupported. </exception>
     public static SkillOperationReport CreateInstallReport (
         SkillInstallResult result,
         SkillOperationReportContext context)
@@ -155,13 +155,13 @@ public static class SkillOperationReportBuilder
             result.PrintDiff,
             context,
             static action => action.Identity,
-            static action => SkillLiteralCodec.FormatInstallAction(action.ActionKind),
-            static action => SkillLiteralCodec.GetInstallActionStatus(action.ActionKind),
+            static action => ContractLiteralCodec.ToValue(action.ActionKind),
+            static action => SkillOperationActionStatusResolver.Resolve(action.ActionKind),
             static action => action.BlockedReason,
             static action => action.TargetState,
             static action => action.FileChanges,
             static action => action.Diffs,
-            SkillLiteralCodec.GetInstallActionLiterals());
+            ContractLiteralCodec.GetLiterals<SkillInstallActionKind>());
     }
 
     /// <summary> Creates product-neutral report data from a successful update operation. </summary>
@@ -169,8 +169,8 @@ public static class SkillOperationReportBuilder
     /// <param name="context"> The normalized host and scope used for the update operation. Must not be <see langword="null" />. </param>
     /// <returns> A report whose actions and counts are deterministic. </returns>
     /// <exception cref="ArgumentNullException"> Thrown when <paramref name="result" /> or <paramref name="context" /> is <see langword="null" />. </exception>
-    /// <exception cref="ArgumentException"> Thrown when the result target root or context host descriptor is invalid, when <paramref name="context" /> does not match an action identity in <paramref name="result" />, or when an action target state contains an unsupported kind or invalid failure code. </exception>
-    /// <exception cref="ArgumentOutOfRangeException"> Thrown when the context scope, action kind, or diff change kind is unsupported. </exception>
+    /// <exception cref="ArgumentException"> Thrown when the result target root or context host descriptor is invalid, when <paramref name="context" /> does not match an action identity in <paramref name="result" />, or when an action target state contains an invalid failure code. </exception>
+    /// <exception cref="ArgumentOutOfRangeException"> Thrown when the context scope, action kind, target state kind, or diff change kind is unsupported. </exception>
     public static SkillOperationReport CreateUpdateReport (
         SkillUpdateResult result,
         SkillOperationReportContext context)
@@ -186,13 +186,13 @@ public static class SkillOperationReportBuilder
             result.PrintDiff,
             context,
             static action => action.Identity,
-            static action => SkillLiteralCodec.FormatUpdateAction(action.ActionKind),
-            static action => SkillLiteralCodec.GetUpdateActionStatus(action.ActionKind),
+            static action => ContractLiteralCodec.ToValue(action.ActionKind),
+            static action => SkillOperationActionStatusResolver.Resolve(action.ActionKind),
             static action => action.BlockedReason,
             static action => action.TargetState,
             static action => action.FileChanges,
             static action => action.Diffs,
-            SkillLiteralCodec.GetUpdateActionLiterals());
+            ContractLiteralCodec.GetLiterals<SkillUpdateActionKind>());
     }
 
     /// <summary> Creates product-neutral report data from a successful uninstall operation. </summary>
@@ -200,8 +200,8 @@ public static class SkillOperationReportBuilder
     /// <param name="context"> The normalized host and scope used for the uninstall operation. Must not be <see langword="null" />. </param>
     /// <returns> A report whose actions and counts are deterministic. </returns>
     /// <exception cref="ArgumentNullException"> Thrown when <paramref name="result" /> or <paramref name="context" /> is <see langword="null" />. </exception>
-    /// <exception cref="ArgumentException"> Thrown when the result target root or context host descriptor is invalid, when <paramref name="context" /> does not match an action identity in <paramref name="result" />, or when an action target state contains an unsupported kind or invalid failure code. </exception>
-    /// <exception cref="ArgumentOutOfRangeException"> Thrown when the context scope, action kind, or diff change kind is unsupported. </exception>
+    /// <exception cref="ArgumentException"> Thrown when the result target root or context host descriptor is invalid, when <paramref name="context" /> does not match an action identity in <paramref name="result" />, or when an action target state contains an invalid failure code. </exception>
+    /// <exception cref="ArgumentOutOfRangeException"> Thrown when the context scope, action kind, target state kind, or diff change kind is unsupported. </exception>
     public static SkillOperationReport CreateUninstallReport (
         SkillUninstallResult result,
         SkillOperationReportContext context)
@@ -217,13 +217,44 @@ public static class SkillOperationReportBuilder
             printDiff: false,
             context,
             static action => action.Identity,
-            static action => SkillLiteralCodec.FormatUninstallAction(action.ActionKind),
-            static action => SkillLiteralCodec.GetUninstallActionStatus(action.ActionKind),
+            static action => ContractLiteralCodec.ToValue(action.ActionKind),
+            static action => SkillOperationActionStatusResolver.Resolve(action.ActionKind),
             static action => action.BlockedReason,
             static action => action.TargetState,
             static action => action.FileChanges,
             static _ => null,
-            SkillLiteralCodec.GetUninstallActionLiterals());
+            ContractLiteralCodec.GetLiterals<SkillUninstallActionKind>());
+    }
+
+    /// <summary> Creates product-neutral report data from a successful prune operation. </summary>
+    /// <param name="result"> The successful prune result to report. Must not be <see langword="null" />. </param>
+    /// <param name="context"> The normalized host and scope used for the prune operation. Must not be <see langword="null" />. </param>
+    /// <returns> A report whose actions and counts are deterministic. </returns>
+    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="result" /> or <paramref name="context" /> is <see langword="null" />. </exception>
+    /// <exception cref="ArgumentException"> Thrown when the result target root or context host descriptor is invalid, when <paramref name="context" /> does not match an action identity in <paramref name="result" />, or when an action target state contains an invalid failure code. </exception>
+    /// <exception cref="ArgumentOutOfRangeException"> Thrown when the context scope, action kind, or target state kind is unsupported. </exception>
+    public static SkillOperationReport CreatePruneReport (
+        SkillPruneResult result,
+        SkillOperationReportContext context)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        ArgumentNullException.ThrowIfNull(context);
+
+        return CreateOperationReport(
+            result.TargetRoot,
+            result.Actions,
+            result.DryRun,
+            result.Force,
+            printDiff: false,
+            context,
+            static action => action.Identity,
+            static action => ContractLiteralCodec.ToValue(action.ActionKind),
+            static action => SkillOperationActionStatusResolver.Resolve(action.ActionKind),
+            static action => action.BlockedReason,
+            static action => action.TargetState,
+            static action => action.FileChanges,
+            static _ => null,
+            ContractLiteralCodec.GetLiterals<SkillPruneActionKind>());
     }
 
     /// <summary> Creates product-neutral report data from a doctor result. </summary>
@@ -248,7 +279,7 @@ public static class SkillOperationReportBuilder
             .ThenBy(static diagnostic => diagnostic.Message, StringComparer.Ordinal)
             .ThenBy(static diagnostic => (int)diagnostic.Severity)
             .Select(static diagnostic => new SkillDoctorDiagnosticReport(
-                SkillLiteralCodec.FormatDoctorSeverity(diagnostic.Severity),
+                ContractLiteralCodec.ToValue(diagnostic.Severity),
                 diagnostic.Code,
                 diagnostic.Message,
                 diagnostic.SkillName,
@@ -259,7 +290,7 @@ public static class SkillOperationReportBuilder
             result.Host,
             CreateTierLiterals(selectedTiers),
             [],
-            SkillLiteralCodec.FormatScope(scope),
+            ContractLiteralCodec.ToValue(scope),
             result.TargetRoot,
             result.IsHealthy,
             diagnostics);
@@ -343,7 +374,7 @@ public static class SkillOperationReportBuilder
             context.HostDescriptor.HostKey,
             CreateTierLiterals(context.SelectedTiers),
             CreateSkillNameLiterals(context.SelectedSkillNames),
-            SkillLiteralCodec.FormatScope(context.Scope),
+            ContractLiteralCodec.ToValue(context.Scope),
             targetRoot,
             dryRun,
             force,
@@ -351,7 +382,7 @@ public static class SkillOperationReportBuilder
             projectedActions,
             CreateCounts(actionLiteralOrder, projectedActions, static action => action.Action),
             CreateCounts(
-                SkillLiteralCodec.GetActionStatusLiterals(),
+                ContractLiteralCodec.GetLiterals<SkillOperationActionStatus>(),
                 projectedActions,
                 static action => action.Status));
     }
@@ -433,8 +464,8 @@ public static class SkillOperationReportBuilder
         return new SkillOperationActionReport(
             identity.SkillName.Value,
             getActionLiteral(action),
-            SkillLiteralCodec.FormatActionStatus(status),
-            blockedReason.HasValue ? SkillLiteralCodec.FormatBlockedReason(blockedReason.Value) : null,
+            ContractLiteralCodec.ToValue(status),
+            blockedReason.HasValue ? ContractLiteralCodec.ToValue(blockedReason.Value) : null,
             CreateTargetStateReport(getTargetState(action)),
             CreateFileChangesReport(getFileChanges(action)),
             CreateFileDiffReports(printDiff ? getDiffs(action) : null));
@@ -447,14 +478,9 @@ public static class SkillOperationReportBuilder
             return null;
         }
 
-        if (!Enum.TryParse<SkillInstalledTargetStateKind>(state.Kind, ignoreCase: false, out var stateKind))
-        {
-            throw new ArgumentException($"Unsupported SKILL target state kind: {state.Kind}", nameof(state));
-        }
-
         return new SkillTargetStateReport(
-            SkillLiteralCodec.FormatTargetStateKind(stateKind),
-            state.Code.HasValue ? SkillLiteralCodec.FormatFailureCode(state.Code.Value) : null,
+            ContractLiteralCodec.ToValue(state.Kind),
+            state.Code.HasValue ? FormatFailureCode(state.Code.Value) : null,
             state.Message,
             state.InstalledSkillBundleVersion,
             state.BundledSkillBundleVersion,
@@ -468,6 +494,16 @@ public static class SkillOperationReportBuilder
             : new SkillOperationFileChangesReport(
                 CreateSafeRelativePathReports(fileChanges.ReplacedFiles, nameof(fileChanges)),
                 CreateSafeRelativePathReports(fileChanges.RemovedFiles, nameof(fileChanges)));
+    }
+
+    private static string FormatFailureCode (SkillFailureCode code)
+    {
+        if (!code.IsValid)
+        {
+            throw new ArgumentException("Failure code must be valid.", nameof(code));
+        }
+
+        return code.Value;
     }
 
     private static IReadOnlyList<SkillOperationFileDiffReport> CreateFileDiffReports (IReadOnlyList<SkillActionDiff>? diffs)
@@ -484,7 +520,7 @@ public static class SkillOperationReportBuilder
                 ValidateSafeRelativePath(file.RelativePath, nameof(diffs));
                 files.Add(new SkillOperationFileDiffReport(
                     file.RelativePath,
-                    SkillLiteralCodec.FormatDiffChangeKind(file.ChangeKind),
+                    ContractLiteralCodec.ToValue(file.ChangeKind),
                     file.BeforeContent,
                     file.AfterContent));
             }
@@ -511,8 +547,8 @@ public static class SkillOperationReportBuilder
     private static string? ResolveDiagnosticTargetState (string code)
     {
         return SkillFailureCode.TryCreate(code, out var failureCode)
-            && SkillInstalledTargetStateClassifier.TryResolveReportableKind(failureCode, out var stateKind)
-                ? SkillLiteralCodec.FormatTargetStateKind(stateKind)
+            && SkillDiagnosticTargetStateResolver.TryResolve(failureCode, out var stateKind)
+                ? ContractLiteralCodec.ToValue(stateKind)
                 : null;
     }
 

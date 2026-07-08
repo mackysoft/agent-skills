@@ -3,7 +3,6 @@ using MackySoft.AgentSkills.Hosts.Claude;
 using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Installation.Requests;
 using MackySoft.AgentSkills.Installation.Results;
-using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
@@ -52,7 +51,7 @@ public sealed class SkillInstallServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.True(result.Value!.DryRun);
         Assert.All(result.Value.Actions, static action => Assert.Equal(SkillInstallActionKind.Created, action.ActionKind));
-        Assert.All(result.Value.Actions, static action => Assert.Equal(nameof(SkillInstalledTargetStateKind.Missing), action.TargetState!.Kind));
+        Assert.All(result.Value.Actions, static action => Assert.Equal(SkillTargetStateKind.Missing, action.TargetState!.Kind));
         Assert.All(result.Value.Actions, static action => Assert.NotEmpty(action.Diffs!));
         Assert.All(result.Value.Actions, static action =>
         {
@@ -85,7 +84,7 @@ public sealed class SkillInstallServiceTests
         var action = result.Value!.Actions.Single(action => action.Identity.SkillName.Value == packages[0].Manifest.SkillName.Value);
         Assert.Equal(SkillInstallActionKind.BlockedManagedOverwrite, action.ActionKind);
         Assert.Equal(SkillBlockedReason.ManagedOverwriteRequiresForce, action.BlockedReason);
-        Assert.Equal(nameof(SkillInstalledTargetStateKind.CleanOutdated), action.TargetState!.Kind);
+        Assert.Equal(SkillTargetStateKind.CleanOutdated, action.TargetState!.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetOutdated, action.TargetState.Code);
         Assert.NotEmpty(action.Diffs!);
         Assert.Equal(originalSkill, File.ReadAllText(skillPath));
@@ -111,7 +110,7 @@ public sealed class SkillInstallServiceTests
         var action = result.Value!.Actions.Single();
         Assert.Equal(SkillInstallActionKind.BlockedManagedOverwrite, action.ActionKind);
         Assert.Equal(SkillBlockedReason.InstalledVersionAhead, action.BlockedReason);
-        Assert.Equal(nameof(SkillInstalledTargetStateKind.VersionAhead), action.TargetState!.Kind);
+        Assert.Equal(SkillTargetStateKind.VersionAhead, action.TargetState!.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetVersionAhead, action.TargetState.Code);
         Assert.Equal(aheadManifest, File.ReadAllText(manifestPath));
     }
@@ -134,7 +133,7 @@ public sealed class SkillInstallServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
         Assert.Equal(SkillInstallActionKind.Updated, action.ActionKind);
-        Assert.Equal(nameof(SkillInstalledTargetStateKind.VersionAhead), action.TargetState!.Kind);
+        Assert.Equal(SkillTargetStateKind.VersionAhead, action.TargetState!.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetVersionAhead, action.TargetState.Code);
         Assert.Equal(aheadPackage.Manifest.SkillBundleVersion, action.TargetState.InstalledSkillBundleVersion);
         Assert.Equal(packages[0].Manifest.SkillBundleVersion, action.TargetState.BundledSkillBundleVersion);
@@ -542,7 +541,7 @@ public sealed class SkillInstallServiceTests
         var action = result.Value!.Actions.Single(action => action.Identity.SkillName.Value == packages[0].Manifest.SkillName.Value);
         Assert.Equal(SkillInstallActionKind.BlockedLocalModification, action.ActionKind);
         Assert.Equal(SkillBlockedReason.LocalModificationRequiresForce, action.BlockedReason);
-        Assert.Equal(nameof(SkillInstalledTargetStateKind.ManifestDrift), action.TargetState!.Kind);
+        Assert.Equal(SkillTargetStateKind.ManifestDrift, action.TargetState!.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetManifestDigestMismatch, action.TargetState.Code);
         Assert.NotEmpty(action.Diffs!);
         Assert.Equal(tamperedManifest, File.ReadAllText(manifestPath));
@@ -667,7 +666,7 @@ public sealed class SkillInstallServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single(action => action.Identity.SkillName.Value == package.Manifest.SkillName.Value);
         Assert.Equal(SkillInstallActionKind.BlockedLocalModification, action.ActionKind);
-        Assert.Equal(nameof(SkillInstalledTargetStateKind.FileSetDrift), action.TargetState!.Kind);
+        Assert.Equal(SkillTargetStateKind.FileSetDrift, action.TargetState!.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, action.TargetState.Code);
         Assert.Contains(referencePath, action.TargetState.FileSet!.MissingFiles);
     }

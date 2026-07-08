@@ -1,4 +1,5 @@
 using MackySoft.AgentSkills.Installation.State;
+using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Installation.Services;
 
@@ -8,9 +9,9 @@ internal static class SkillForceTargetStatePolicy
     /// <summary> Gets whether the target state allows creating a new skill directory. </summary>
     /// <param name="kind"> The analyzed target state kind. </param>
     /// <returns> <see langword="true" /> only when the target is missing. </returns>
-    public static bool CanCreate (SkillInstalledTargetStateKind kind)
+    public static bool CanCreate (SkillTargetStateKind kind)
     {
-        return kind == SkillInstalledTargetStateKind.Missing;
+        return kind == SkillTargetStateKind.Missing;
     }
 
     /// <summary> Gets whether an install action may replace the target directory. </summary>
@@ -21,11 +22,11 @@ internal static class SkillForceTargetStatePolicy
     /// local-modification drift state.
     /// </returns>
     public static bool CanInstallReplace (
-        SkillInstalledTargetStateKind kind,
+        SkillTargetStateKind kind,
         bool force)
     {
         return force
-            && (kind is SkillInstalledTargetStateKind.CleanOutdated or SkillInstalledTargetStateKind.VersionAhead
+            && (kind is SkillTargetStateKind.CleanOutdated or SkillTargetStateKind.VersionAhead
                 || SkillInstalledTargetStateClassifier.IsLocalModificationDrift(kind));
     }
 
@@ -37,11 +38,11 @@ internal static class SkillForceTargetStatePolicy
     /// version-ahead or a local-modification drift state.
     /// </returns>
     public static bool CanUpdateReplace (
-        SkillInstalledTargetStateKind kind,
+        SkillTargetStateKind kind,
         bool force)
     {
-        return kind == SkillInstalledTargetStateKind.CleanOutdated
-            || (force && (kind == SkillInstalledTargetStateKind.VersionAhead || SkillInstalledTargetStateClassifier.IsLocalModificationDrift(kind)));
+        return kind == SkillTargetStateKind.CleanOutdated
+            || (force && (kind == SkillTargetStateKind.VersionAhead || SkillInstalledTargetStateClassifier.IsLocalModificationDrift(kind)));
     }
 
     /// <summary> Gets whether an uninstall action may delete the target directory. </summary>
@@ -52,10 +53,10 @@ internal static class SkillForceTargetStatePolicy
     /// and the target is a local-modification drift state.
     /// </returns>
     public static bool CanDelete (
-        SkillInstalledTargetStateKind kind,
+        SkillTargetStateKind kind,
         bool force)
     {
-        return kind is SkillInstalledTargetStateKind.Current or SkillInstalledTargetStateKind.CleanOutdated or SkillInstalledTargetStateKind.VersionAhead
+        return kind is SkillTargetStateKind.Current or SkillTargetStateKind.CleanOutdated or SkillTargetStateKind.VersionAhead
             || (force && SkillInstalledTargetStateClassifier.IsLocalModificationDrift(kind));
     }
 }

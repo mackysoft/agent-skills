@@ -44,4 +44,7 @@ public enum SkillFailureCategory
 
     /// <summary> The failure code is not recognized by this version of AgentSkills. </summary>
     UnexpectedInternalFailure = 13,
+
+    /// <summary> An installed managed target belongs to the product catalog but is no longer bundled by it. </summary>
+    RemovedFromCatalog = 14,
 }

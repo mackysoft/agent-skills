@@ -184,7 +184,7 @@ public sealed class SkillInstallService
     {
         switch (state.Kind)
         {
-            case SkillInstalledTargetStateKind.Missing:
+            case SkillTargetStateKind.Missing:
                 return await CreateWriteActionPlanAsync(
                         package,
                         host,
@@ -195,13 +195,13 @@ public sealed class SkillInstallService
                         input,
                         cancellationToken)
                     .ConfigureAwait(false);
-            case SkillInstalledTargetStateKind.Current:
+            case SkillTargetStateKind.Current:
                 return SkillOperationResult<SkillInstallActionPlan>.Success(new SkillInstallActionPlan(
                     new SkillInstallAction(identity, SkillInstallActionKind.NoOp, TargetState: SkillActionTargetStateProjection.Create(state)),
                     skillDirectory,
                     package,
                     null));
-            case SkillInstalledTargetStateKind.CleanOutdated:
+            case SkillTargetStateKind.CleanOutdated:
                 return await CreateManagedMismatchActionPlanAsync(
                         package,
                         host,
@@ -213,7 +213,7 @@ public sealed class SkillInstallService
                         state,
                         cancellationToken)
                     .ConfigureAwait(false);
-            case SkillInstalledTargetStateKind.VersionAhead:
+            case SkillTargetStateKind.VersionAhead:
                 return await CreateManagedMismatchActionPlanAsync(
                         package,
                         host,
@@ -237,7 +237,7 @@ public sealed class SkillInstallService
                         state,
                         cancellationToken)
                     .ConfigureAwait(false);
-            case SkillInstalledTargetStateKind.Unmanaged:
+            case SkillTargetStateKind.Unmanaged:
                 if (!input.DryRun)
                 {
                     return SkillOperationResult<SkillInstallActionPlan>.FailureResult(
@@ -256,8 +256,8 @@ public sealed class SkillInstallService
                         state,
                         cancellationToken)
                     .ConfigureAwait(false);
-            case SkillInstalledTargetStateKind.NameCollision:
-            case SkillInstalledTargetStateKind.HostConflict:
+            case SkillTargetStateKind.NameCollision:
+            case SkillTargetStateKind.HostConflict:
                 return SkillOperationResult<SkillInstallActionPlan>.FailureResult(
                     ResolveStateFailureCode(state),
                     state.Failure?.Message ?? $"Target skill directory cannot be overwritten: {skillDirectory}");
@@ -306,7 +306,7 @@ public sealed class SkillInstallService
                 .ConfigureAwait(false);
         }
 
-        var message = state.Kind == SkillInstalledTargetStateKind.VersionAhead
+        var message = state.Kind == SkillTargetStateKind.VersionAhead
             ? $"Target skill directory was generated from a newer SKILL bundle. Use --force to overwrite: {skillDirectory}"
             : $"Target skill directory differs from the canonical package. Use --force to overwrite: {skillDirectory}";
         return SkillOperationResult<SkillInstallActionPlan>.FailureResult(
@@ -413,7 +413,7 @@ public sealed class SkillInstallService
 
     private static SkillFailureCode ResolveChangedTargetFailureCode (SkillInstalledTargetState state)
     {
-        return state.Kind == SkillInstalledTargetStateKind.Unmanaged
+        return state.Kind == SkillTargetStateKind.Unmanaged
             ? SkillFailureCodes.InstallTargetUnmanaged
             : ResolveStateFailureCode(state);
     }

@@ -24,7 +24,7 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
         var state = await AnalyzeOpenAiAsync(packages[0], skillDirectory);
 
-        Assert.Equal(SkillInstalledTargetStateKind.ManifestDrift, state.Kind);
+        Assert.Equal(SkillTargetStateKind.ManifestDrift, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetManifestDigestMismatch, state.Failure!.Code);
     }
 
@@ -40,7 +40,7 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
         var state = await AnalyzeOpenAiAsync(packages[0], skillDirectory);
 
-        Assert.Equal(SkillInstalledTargetStateKind.ManifestDrift, state.Kind);
+        Assert.Equal(SkillTargetStateKind.ManifestDrift, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetManifestDigestMismatch, state.Failure!.Code);
         Assert.Null(state.FileSet);
     }
@@ -56,7 +56,7 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
         var state = await AnalyzeOpenAiAsync(packages[0], skillDirectory);
 
-        Assert.Equal(SkillInstalledTargetStateKind.CommonContentDrift, state.Kind);
+        Assert.Equal(SkillTargetStateKind.CommonContentDrift, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, state.Failure!.Code);
     }
 
@@ -73,7 +73,7 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
         var state = await AnalyzeOpenAiAsync(packages[0], skillDirectory);
 
-        Assert.Equal(SkillInstalledTargetStateKind.FrontmatterDrift, state.Kind);
+        Assert.Equal(SkillTargetStateKind.FrontmatterDrift, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetFrontmatterDigestMismatch, state.Failure!.Code);
     }
 
@@ -88,7 +88,7 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
         var state = await AnalyzeOpenAiAsync(packages[0], skillDirectory);
 
-        Assert.Equal(SkillInstalledTargetStateKind.HostArtifactDrift, state.Kind);
+        Assert.Equal(SkillTargetStateKind.HostArtifactDrift, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetHostArtifactDigestMismatch, state.Failure!.Code);
     }
 
@@ -105,7 +105,7 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
         var state = await AnalyzeOpenAiAsync(package, skillDirectory);
 
-        Assert.Equal(SkillInstalledTargetStateKind.FileSetDrift, state.Kind);
+        Assert.Equal(SkillTargetStateKind.FileSetDrift, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, state.Failure!.Code);
         Assert.Contains(referencePath, state.FileSet!.MissingFiles);
     }
@@ -121,7 +121,7 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
         var state = await AnalyzeOpenAiAsync(packages[0], skillDirectory);
 
-        Assert.Equal(SkillInstalledTargetStateKind.FileSetDrift, state.Kind);
+        Assert.Equal(SkillTargetStateKind.FileSetDrift, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, state.Failure!.Code);
         Assert.Contains("local-notes", state.FileSet!.ExtraDirectories);
     }
@@ -139,7 +139,7 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
         var state = await AnalyzeOpenAiAsync(updatedPackage, skillDirectory);
 
-        Assert.Equal(SkillInstalledTargetStateKind.FileSetDrift, state.Kind);
+        Assert.Equal(SkillTargetStateKind.FileSetDrift, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, state.Failure!.Code);
         Assert.Contains("references/extra.md", state.FileSet!.ExtraFiles);
     }
@@ -154,7 +154,7 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
         var state = await AnalyzeOpenAiAsync(updatedPackage, GetSkillDirectory(targetRoot, packages[0]));
 
-        Assert.Equal(SkillInstalledTargetStateKind.CleanOutdated, state.Kind);
+        Assert.Equal(SkillTargetStateKind.CleanOutdated, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetOutdated, state.Failure!.Code);
         Assert.Equal(packages[0].Manifest.SkillBundleVersion, state.InstalledSkillBundleVersion);
         Assert.Equal(updatedPackage.Manifest.SkillBundleVersion, state.BundledSkillBundleVersion);
@@ -171,7 +171,7 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
         var state = await AnalyzeOpenAiAsync(packages[0], skillDirectory);
 
-        Assert.Equal(SkillInstalledTargetStateKind.CleanOutdated, state.Kind);
+        Assert.Equal(SkillTargetStateKind.CleanOutdated, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetOutdated, state.Failure!.Code);
         Assert.Equal(0, state.InstalledSkillBundleVersion);
         Assert.Equal(packages[0].Manifest.SkillBundleVersion, state.BundledSkillBundleVersion);
@@ -191,7 +191,7 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
         var state = await AnalyzeOpenAiAsync(packages[0], GetSkillDirectory(install.Value!.TargetRoot, packages[0]));
 
-        Assert.Equal(SkillInstalledTargetStateKind.VersionAhead, state.Kind);
+        Assert.Equal(SkillTargetStateKind.VersionAhead, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetVersionAhead, state.Failure!.Code);
         Assert.Equal(aheadPackage.Manifest.SkillBundleVersion, state.InstalledSkillBundleVersion);
         Assert.Equal(packages[0].Manifest.SkillBundleVersion, state.BundledSkillBundleVersion);
@@ -218,7 +218,7 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
         var state = await AnalyzeOpenAiAsync(package, skillDirectory);
 
-        Assert.Equal(SkillInstalledTargetStateKind.CleanOutdated, state.Kind);
+        Assert.Equal(SkillTargetStateKind.CleanOutdated, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetOutdated, state.Failure!.Code);
     }
 
@@ -237,7 +237,7 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
         var state = await AnalyzeAsync(packages[0], GetSkillDirectory(installResult.Value!.TargetRoot, packages[0]), OpenAiSkillHostAdapter.HostKey);
 
-        Assert.Equal(SkillInstalledTargetStateKind.HostConflict, state.Kind);
+        Assert.Equal(SkillTargetStateKind.HostConflict, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetHostConflict, state.Failure!.Code);
     }
 
@@ -259,7 +259,7 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
         var state = await AnalyzeOpenAiAsync(package, Path.Combine(targetRoot, package.Manifest.SkillName.Value));
 
-        Assert.Equal(SkillInstalledTargetStateKind.NameCollision, state.Kind);
+        Assert.Equal(SkillTargetStateKind.NameCollision, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetNameCollision, state.Failure!.Code);
     }
 
@@ -275,7 +275,7 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
         var state = await AnalyzeOpenAiAsync(package, skillDirectory);
 
-        Assert.Equal(SkillInstalledTargetStateKind.Unmanaged, state.Kind);
+        Assert.Equal(SkillTargetStateKind.Unmanaged, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetUnmanaged, state.Failure!.Code);
     }
 

@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Hosts.Claude;
 using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Installation.Targeting;
@@ -224,7 +225,7 @@ public sealed class SkillInstallationScannerTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task ScanAsync_RejectsTopLevelManagedSkillOutsideCanonicalPackageSet ()
+    public async Task ScanAsync_RejectsSameCatalogSkillOutsideCanonicalPackageSetAsUnmanaged ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "scan-external-managed");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
@@ -232,6 +233,29 @@ public sealed class SkillInstallationScannerTests
         var serializer = new SkillManifestJsonSerializer();
         var externalManifest = packages[0].Manifest with
         {
+            SkillName = new SkillName("external-skill"),
+        };
+        externalManifest = SkillTestData.WithComputedManifestDigest(externalManifest);
+        scope.WriteFile(".agents/skills/external-skill/agent-skill.json", serializer.Serialize(externalManifest));
+        var scanner = SkillTestData.CreateInstallationScanner();
+
+        var scanResult = await scanner.ScanAsync(packages, targetRoot, OpenAiSkillHostAdapter.HostKey, cancellationToken: CancellationToken.None);
+
+        Assert.False(scanResult.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InstallTargetUnmanaged, scanResult.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task ScanAsync_RejectsForeignCatalogSkillOutsideCanonicalPackageSetAsUnmanaged ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "scan-foreign-managed");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var targetRoot = scope.CreateDirectory(".agents/skills");
+        var serializer = new SkillManifestJsonSerializer();
+        var externalManifest = packages[0].Manifest with
+        {
+            CatalogId = new SkillCatalogId("com.example.foreign-skills"),
             SkillName = new SkillName("external-skill"),
         };
         externalManifest = SkillTestData.WithComputedManifestDigest(externalManifest);

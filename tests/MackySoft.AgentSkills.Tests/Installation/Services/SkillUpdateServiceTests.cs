@@ -3,7 +3,6 @@ using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Installation.Contracts;
 using MackySoft.AgentSkills.Installation.Requests;
 using MackySoft.AgentSkills.Installation.Results;
-using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Materialization;
 using MackySoft.AgentSkills.Shared;
@@ -269,7 +268,7 @@ public sealed class SkillUpdateServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
         Assert.Equal(SkillUpdateActionKind.Created, action.ActionKind);
-        Assert.Equal(nameof(SkillInstalledTargetStateKind.Missing), action.TargetState!.Kind);
+        Assert.Equal(SkillTargetStateKind.Missing, action.TargetState!.Kind);
         Assert.NotEmpty(action.Diffs!);
         Assert.NotNull(action.FileChanges);
         Assert.Empty(action.FileChanges!.ReplacedFiles);
@@ -297,7 +296,7 @@ public sealed class SkillUpdateServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
         Assert.Equal(SkillUpdateActionKind.Updated, action.ActionKind);
-        Assert.Equal(nameof(SkillInstalledTargetStateKind.CleanOutdated), action.TargetState!.Kind);
+        Assert.Equal(SkillTargetStateKind.CleanOutdated, action.TargetState!.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetOutdated, action.TargetState.Code);
         Assert.NotEmpty(action.Diffs!);
         Assert.NotNull(action.FileChanges);
@@ -327,7 +326,7 @@ public sealed class SkillUpdateServiceTests
         var action = result.Value!.Actions.Single(action => action.Identity.SkillName.Value == packages[0].Manifest.SkillName.Value);
         Assert.Equal(SkillUpdateActionKind.BlockedLocalModification, action.ActionKind);
         Assert.Equal(SkillBlockedReason.LocalModificationRequiresForce, action.BlockedReason);
-        Assert.Equal(nameof(SkillInstalledTargetStateKind.CommonContentDrift), action.TargetState!.Kind);
+        Assert.Equal(SkillTargetStateKind.CommonContentDrift, action.TargetState!.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, action.TargetState.Code);
         Assert.NotEmpty(action.Diffs!);
         Assert.Equal(modifiedSkill, File.ReadAllText(skillPath));
@@ -354,7 +353,7 @@ public sealed class SkillUpdateServiceTests
         var action = result.Value!.Actions.Single();
         Assert.Equal(SkillUpdateActionKind.BlockedVersionAhead, action.ActionKind);
         Assert.Equal(SkillBlockedReason.InstalledVersionAhead, action.BlockedReason);
-        Assert.Equal(nameof(SkillInstalledTargetStateKind.VersionAhead), action.TargetState!.Kind);
+        Assert.Equal(SkillTargetStateKind.VersionAhead, action.TargetState!.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetVersionAhead, action.TargetState.Code);
         Assert.Equal(aheadPackage.Manifest.SkillBundleVersion, action.TargetState.InstalledSkillBundleVersion);
         Assert.Equal(packages[0].Manifest.SkillBundleVersion, action.TargetState.BundledSkillBundleVersion);

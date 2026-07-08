@@ -64,6 +64,7 @@ public sealed class SkillFailureClassifierTests
             [SkillFailureCodes.InstallTargetOutdated] = SkillFailureCategory.DriftOrLocalModification,
             [SkillFailureCodes.InstallTargetVersionAhead] = SkillFailureCategory.DriftOrLocalModification,
             [SkillFailureCodes.InstallTargetLocalModification] = SkillFailureCategory.DriftOrLocalModification,
+            [SkillFailureCodes.InstallTargetRemovedFromCatalog] = SkillFailureCategory.RemovedFromCatalog,
             [SkillFailureCodes.InstallTargetUnmanaged] = SkillFailureCategory.UnmanagedTarget,
             [SkillFailureCodes.InstallTargetNameCollision] = SkillFailureCategory.NameCollision,
             [SkillFailureCodes.InstallTargetHostConflict] = SkillFailureCategory.HostConflict,
