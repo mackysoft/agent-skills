@@ -547,7 +547,6 @@ public sealed class SkillOperationReportBuilderTests
             "MackySoft.AgentSkills.OperationReports.Contracts.SkillTargetFileSetReport",
             "MackySoft.AgentSkills.OperationReports.Contracts.SkillTargetStateReport",
             "MackySoft.AgentSkills.OperationReports.Contracts.SkillUserTargetRootPolicyReport",
-            "MackySoft.AgentSkills.OperationReports.Literals.SkillLiteralCodec",
             "MackySoft.AgentSkills.OperationReports.Projection.SkillOperationReportBuilder",
             "MackySoft.AgentSkills.OperationReports.Projection.SkillOperationReportContext",
         };
