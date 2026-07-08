@@ -297,7 +297,7 @@ public sealed class AgentSkillsCommandRunner
             return Failure(commandName, targetResult.Failure!);
         }
 
-        var currentCatalogResult = await packageProvider.GetPackageCatalogAsync(options.DefinedTiers, cancellationToken).ConfigureAwait(false);
+        var currentCatalogResult = await packageProvider.GetPackageCatalogAsync(options.Tiers, cancellationToken).ConfigureAwait(false);
         if (!currentCatalogResult.IsSuccess)
         {
             return Failure(commandName, currentCatalogResult.Failure!);
@@ -409,7 +409,7 @@ public sealed class AgentSkillsCommandRunner
         CancellationToken cancellationToken)
     {
         return packageProvider.GetPackageCatalogAsync(
-            options.DefinedTiers,
+            options.Tiers,
             selection.Tiers,
             selection.SkillNames,
             cancellationToken);
@@ -454,8 +454,8 @@ public sealed class AgentSkillsCommandRunner
         var tierValues = ExpandOptionValues(tierLiterals);
         var skillNameValues = ExpandOptionValues(skillNameLiterals);
         var tiersResult = tierValues.Length == 0
-            ? SkillTierLiteralParser.ParseDefinedTiers(options.DefinedTiers)
-            : SkillTierLiteralParser.ParseSelectedTiers(options.DefinedTiers, tierValues);
+            ? SkillTierLiteralParser.ParseDefinedTiers(options.Tiers)
+            : SkillTierLiteralParser.ParseSelectedTiers(options.Tiers, tierValues);
         if (!tiersResult.IsSuccess)
         {
             return SkillOperationResult<NormalizedPackageSelection>.FailureResult(tiersResult.Failure!.Code, tiersResult.Failure.Message);
@@ -497,8 +497,8 @@ public sealed class AgentSkillsCommandRunner
         }
 
         var reportTiersResult = tierValues.Length == 0
-            ? SkillTierLiteralParser.ParseDefinedTiers(options.DefinedTiers)
-            : SkillTierLiteralParser.ParseSelectedTiers(options.DefinedTiers, tierValues);
+            ? SkillTierLiteralParser.ParseDefinedTiers(options.Tiers)
+            : SkillTierLiteralParser.ParseSelectedTiers(options.Tiers, tierValues);
         if (!reportTiersResult.IsSuccess)
         {
             return SkillOperationResult<NormalizedPruneSelection>.FailureResult(reportTiersResult.Failure!.Code, reportTiersResult.Failure.Message);

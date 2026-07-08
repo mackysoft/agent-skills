@@ -10,11 +10,11 @@ namespace MackySoft.AgentSkills.Tests.Hosting;
 
 public sealed class AgentSkillsCommandRunnerTests
 {
-    private static readonly string[] DefinedTiers = ["basic", "advanced", "developer"];
+    private static readonly string[] Tiers = ["basic", "advanced", "developer"];
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task ListAsync_WhenSelectorsAreOmitted_ReturnsAllDefinedTiers ()
+    public async Task ListAsync_WhenSelectorsAreOmitted_ReturnsAllConfiguredTiers ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-hosting", "list-all");
         await WriteFixturePackagesAsync(scope.FullPath);
@@ -27,7 +27,7 @@ public sealed class AgentSkillsCommandRunnerTests
         Assert.Equal("skills.list", result.Command);
         Assert.Equal(0, result.ExitCode);
         var report = Assert.IsType<SkillListReport>(result.Payload);
-        Assert.Equal(DefinedTiers, report.Tiers);
+        Assert.Equal(Tiers, report.Tiers);
         Assert.Empty(report.SkillNames);
         Assert.Equal(SkillTestData.ExpectedSkillNames, report.Skills.Select(static skill => skill.SkillName).ToArray());
         Assert.Equal(
@@ -130,7 +130,7 @@ public sealed class AgentSkillsCommandRunnerTests
         {
             options.ProductName = "Example CLI";
             options.CatalogId = "com.mackysoft.agent-skills";
-            options.DefinedTiers = DefinedTiers;
+            options.Tiers = Tiers;
             options.PackageBaseDirectory = packageBaseDirectory;
             options.CommandRoot = commandRoot;
         });

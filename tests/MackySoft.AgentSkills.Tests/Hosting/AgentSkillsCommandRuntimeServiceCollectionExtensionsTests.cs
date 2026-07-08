@@ -20,7 +20,7 @@ public sealed class AgentSkillsCommandRuntimeServiceCollectionExtensionsTests
         {
             options.ProductName = "Example CLI";
             options.CatalogId = "com.example.skills";
-            options.DefinedTiers = ["basic", "advanced"];
+            options.Tiers = ["basic", "advanced"];
             options.PackageBaseDirectory = scope.FullPath;
         });
 
@@ -29,7 +29,7 @@ public sealed class AgentSkillsCommandRuntimeServiceCollectionExtensionsTests
 
         Assert.Equal("Example CLI", options.ProductName);
         Assert.Equal("com.example.skills", options.CatalogId);
-        Assert.Equal(["basic", "advanced"], options.DefinedTiers);
+        Assert.Equal(["basic", "advanced"], options.Tiers);
         Assert.Equal(Path.GetFullPath(scope.FullPath), options.PackageBaseDirectory);
         Assert.Equal("skills", options.CommandRoot);
         Assert.NotNull(provider.GetRequiredService<AgentSkillsCommandRunner>());
@@ -47,7 +47,7 @@ public sealed class AgentSkillsCommandRuntimeServiceCollectionExtensionsTests
         {
             options.ProductName = "Example CLI";
             options.CatalogId = "com.example.skills";
-            options.DefinedTiers = ["basic", "advanced"];
+            options.Tiers = ["basic", "advanced"];
             options.PackageBaseDirectory = scope.FullPath;
         });
         services.AddSingleton<IAgentSkillsCommandResultEmitter, TestCommandResultEmitter>();
@@ -59,7 +59,7 @@ public sealed class AgentSkillsCommandRuntimeServiceCollectionExtensionsTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public void AddAgentSkillsCommandRuntime_WhenDefinedTierIsInvalid_ThrowsArgumentException ()
+    public void AddAgentSkillsCommandRuntime_WhenTierIsInvalid_ThrowsArgumentException ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-hosting", "invalid-tier");
         var services = new ServiceCollection();
@@ -70,7 +70,7 @@ public sealed class AgentSkillsCommandRuntimeServiceCollectionExtensionsTests
             {
                 options.ProductName = "Example CLI";
                 options.CatalogId = "com.example.skills";
-                options.DefinedTiers = ["Basic"];
+                options.Tiers = ["Basic"];
                 options.PackageBaseDirectory = scope.FullPath;
             });
         });
@@ -95,7 +95,7 @@ public sealed class AgentSkillsCommandRuntimeServiceCollectionExtensionsTests
             {
                 options.ProductName = "Example CLI";
                 options.CatalogId = "com.example.skills";
-                options.DefinedTiers = ["basic"];
+                options.Tiers = ["basic"];
                 options.PackageBaseDirectory = scope.FullPath;
                 options.CommandRoot = commandRoot;
             });

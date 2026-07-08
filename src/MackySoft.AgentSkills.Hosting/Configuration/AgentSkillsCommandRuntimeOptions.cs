@@ -14,7 +14,7 @@ public sealed class AgentSkillsCommandRuntimeOptions
     public string CatalogId { get; set; } = string.Empty;
 
     /// <summary> Gets or sets the complete product-owned tier literal set accepted by command requests. </summary>
-    public IReadOnlyList<string> DefinedTiers { get; set; } = Array.Empty<string>();
+    public IReadOnlyList<string> Tiers { get; set; } = Array.Empty<string>();
 
     /// <summary> Gets or sets the application base directory that contains the bundled <c>skills</c> directory. </summary>
     public string PackageBaseDirectory { get; set; } = string.Empty;
@@ -28,7 +28,7 @@ public sealed class AgentSkillsCommandRuntimeOptions
         ArgumentException.ThrowIfNullOrWhiteSpace(CatalogId);
         ArgumentException.ThrowIfNullOrWhiteSpace(PackageBaseDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(CommandRoot);
-        ArgumentNullException.ThrowIfNull(DefinedTiers);
+        ArgumentNullException.ThrowIfNull(Tiers);
 
         if (!SkillCatalogId.TryCreate(CatalogId, out _))
         {
@@ -37,17 +37,17 @@ public sealed class AgentSkillsCommandRuntimeOptions
 
         AgentSkillsCommandRootValidator.ThrowIfInvalid(CommandRoot, nameof(CommandRoot));
 
-        var tiersResult = SkillTierLiteralParser.ParseDefinedTiers(DefinedTiers);
+        var tiersResult = SkillTierLiteralParser.ParseDefinedTiers(Tiers);
         if (!tiersResult.IsSuccess)
         {
-            throw new ArgumentException(tiersResult.Failure!.Message, nameof(DefinedTiers));
+            throw new ArgumentException(tiersResult.Failure!.Message, nameof(Tiers));
         }
 
         return new AgentSkillsCommandRuntimeOptions
         {
             ProductName = ProductName,
             CatalogId = CatalogId,
-            DefinedTiers = DefinedTiers.ToArray(),
+            Tiers = Tiers.ToArray(),
             PackageBaseDirectory = Path.GetFullPath(PackageBaseDirectory),
             CommandRoot = CommandRoot,
         };

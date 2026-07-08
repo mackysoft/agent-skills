@@ -58,7 +58,7 @@ Each source definition has a `skill.json` file.
 Important fields:
 
 - `catalogId` identifies the product-owned skill catalog. Use the same value when registering the command runtime.
-- `tier` must be one of the product-defined tier literals.
+- `tier` must be one of the tiers configured by the product CLI.
 - `skillName` is the exact machine name used by command selection and dependencies.
 - `skillBundleVersion` is the product's bundled skill-set version. Increase it when shipped skills change.
 - `dependencies` contains exact skill names from the same generated package set.
@@ -103,7 +103,7 @@ services.AddAgentSkillsCommandRuntime(options =>
 {
     options.ProductName = "Example CLI";
     options.CatalogId = "com.example.skills";
-    options.DefinedTiers = ["basic", "advanced", "developer"];
+    options.Tiers = ["basic", "advanced", "developer"];
     options.PackageBaseDirectory = AppContext.BaseDirectory;
     options.CommandRoot = "skills";
 });
@@ -146,7 +146,7 @@ builder.Services.AddAgentSkillsCommandRuntime(options =>
 {
     options.ProductName = "Example CLI";
     options.CatalogId = "com.example.skills";
-    options.DefinedTiers = ["basic", "advanced", "developer"];
+    options.Tiers = ["basic", "advanced", "developer"];
     options.PackageBaseDirectory = AppContext.BaseDirectory;
     options.CommandRoot = "skills";
 });
@@ -190,7 +190,7 @@ The command examples in this README use kebab-case option names. The ConsoleAppF
 The product CLI still owns:
 
 - when generated packages are built and how they are shipped;
-- `ProductName`, `CatalogId`, `DefinedTiers`, `PackageBaseDirectory`, and `CommandRoot`;
+- `ProductName`, `CatalogId`, `Tiers`, `PackageBaseDirectory`, and `CommandRoot`;
 - the public command surface outside the configured Agent Skills command root;
 - pre-dispatch command validation, help policy, filters, global options, and logging;
 - the output envelope, if the default JSON result shape is not appropriate.
@@ -211,7 +211,7 @@ skills prune
 skills doctor
 ```
 
-`skills list` can omit selectors and then lists every defined tier. Other commands require `--tier`, `--skill`, or both.
+`skills list` can omit selectors and then lists every configured tier. Other commands require `--tier`, `--skill`, or both.
 
 ### Examples
 
@@ -231,7 +231,7 @@ example skills doctor --host openai --scope project --tier basic
 | --- | --- | --- |
 | `--host` | export, install, update, uninstall, prune, doctor | Target host key. |
 | `--scope` | install, update, uninstall, prune, doctor | `project` or `user`. |
-| `--tier` | all commands | Select packages by product-defined tier. |
+| `--tier` | all commands | Select packages by configured product tier. |
 | `--skill` | all commands | Select exact skill names. |
 | `--repository-root` | project scope | Project root. Defaults to the current directory for project scope. |
 | `--target-dir` | install, update, uninstall, prune, doctor | Override the host target directory. |

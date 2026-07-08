@@ -247,7 +247,7 @@ builder.Services.AddAgentSkillsCommandRuntime(options =>
 {
     options.ProductName = "Smoke CLI";
     options.CatalogId = "com.mackysoft.agent-skills";
-    options.DefinedTiers = ["basic", "advanced", "developer"];
+    options.Tiers = ["basic", "advanced", "developer"];
     options.PackageBaseDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
     options.CommandRoot = "agent-skills";
 });
