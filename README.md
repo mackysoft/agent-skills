@@ -205,11 +205,11 @@ If an installed package has a newer `skillBundleVersion` than the bundled packag
 
 ## Prune Removed Managed Installs
 
-Use `SkillPruneService` when a product removes or renames a SKILL and wants previously installed managed output cleaned up. Expose prune as an explicit product CLI option such as `update --prune`, or as a standalone prune command; install and update do not delete removed catalog entries on their own.
+Use prune when a product removes or renames a SKILL and wants previously installed managed output cleaned up. Expose prune as an explicit product CLI option such as `update --prune`, or as a standalone prune command; install and update do not delete removed catalog entries on their own.
 
 Prune must receive the complete current package set for the product catalog, not just the packages selected for the current install or update operation. For example, `update --skill <name> --prune` must not treat every other valid catalog member as removed just because it was outside the user's selector.
 
-`SkillPruneService` only deletes top-level target directories that:
+Prune only deletes top-level target directories that:
 
 - contain a valid, digest-matched Agent Skills `agent-skill.json`;
 - have the requested `catalogId`;
