@@ -6,11 +6,28 @@ using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.OperationReports.Literals;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.Tests.OperationReports;
 
 public sealed class SkillLiteralCodecTests
 {
+    public static TheoryData<Type> ContractLiteralEnumTypes =>
+    [
+        typeof(SkillScopeKind),
+        typeof(SkillExportFormat),
+        typeof(SkillInstallActionKind),
+        typeof(SkillUpdateActionKind),
+        typeof(SkillUninstallActionKind),
+        typeof(SkillPruneActionKind),
+        typeof(SkillOperationActionStatus),
+        typeof(SkillBlockedReason),
+        typeof(SkillActionTargetStateKind),
+        typeof(SkillInstalledTargetStateKind),
+        typeof(SkillDiffChangeKind),
+        typeof(SkillDoctorSeverity),
+    ];
+
     [Fact]
     [Trait("Size", "Small")]
     public void NormalizeHost_ReturnsCanonicalHostKey ()
@@ -193,7 +210,7 @@ public sealed class SkillLiteralCodecTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public void FormatTargetStateKind_InstalledStateOverloadMatchesActionStateLiteral ()
+    public void FormatTargetStateKind_InstalledStateLiteralMatchesActionStateLiteral ()
     {
         foreach (var installedKind in Enum.GetValues<SkillInstalledTargetStateKind>())
         {
@@ -203,6 +220,21 @@ public sealed class SkillLiteralCodecTests
                 SkillLiteralCodec.FormatTargetStateKind(actionKind),
                 SkillLiteralCodec.FormatTargetStateKind(installedKind));
         }
+    }
+
+    [Theory]
+    [Trait("Size", "Small")]
+    [MemberData(nameof(ContractLiteralEnumTypes))]
+    public void ContractLiteralEnums_DefineLiteralForEveryValue (Type enumType)
+    {
+        var method = typeof(ContractLiteralCodec)
+            .GetMethod(nameof(ContractLiteralCodec.GetLiterals), Type.EmptyTypes)!
+            .MakeGenericMethod(enumType);
+
+        var literals = (IReadOnlyList<string>)method.Invoke(null, null)!;
+
+        Assert.Equal(Enum.GetValues(enumType).Length, literals.Count);
+        Assert.DoesNotContain(literals, string.IsNullOrWhiteSpace);
     }
 
     [Theory]
