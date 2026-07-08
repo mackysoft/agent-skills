@@ -69,7 +69,7 @@ Install the build tool in the product repository.
 
 ```bash
 dotnet new tool-manifest
-dotnet tool install MackySoft.AgentSkills.Cli --version 0.7.1
+dotnet tool install MackySoft.AgentSkills.Cli --version 0.8.0
 ```
 
 Generate the package root from the source definitions.
@@ -91,7 +91,7 @@ Use the hosting package when the product CLI wants standard Agent Skills command
 Add the hosting package to the product CLI.
 
 ```bash
-dotnet add <PROJECT>.csproj package MackySoft.AgentSkills.Hosting --version 0.7.1
+dotnet add <PROJECT>.csproj package MackySoft.AgentSkills.Hosting --version 0.8.0
 ```
 
 Register the runtime in the product's DI container.
@@ -128,7 +128,7 @@ Use the ConsoleAppFramework integration when the product CLI already uses Consol
 Add the integration package to the product CLI.
 
 ```bash
-dotnet add <PROJECT>.csproj package MackySoft.AgentSkills.ConsoleAppFramework --version 0.7.1
+dotnet add <PROJECT>.csproj package MackySoft.AgentSkills.ConsoleAppFramework --version 0.8.0
 dotnet add <PROJECT>.csproj package Microsoft.Extensions.Hosting
 ```
 
