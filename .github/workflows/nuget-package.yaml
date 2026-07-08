@@ -125,6 +125,8 @@ jobs:
 
           test -f "artifacts/packages/MackySoft.AgentSkills.${PACKAGE_VERSION}.nupkg"
           test -f "artifacts/packages/MackySoft.AgentSkills.Cli.${PACKAGE_VERSION}.nupkg"
+          test -f "artifacts/packages/MackySoft.AgentSkills.Hosting.${PACKAGE_VERSION}.nupkg"
+          test -f "artifacts/packages/MackySoft.AgentSkills.ConsoleAppFramework.${PACKAGE_VERSION}.nupkg"
 
       - name: Inspect publication state
         id: package_state
@@ -135,6 +137,8 @@ jobs:
           package-ids: |
             MackySoft.AgentSkills
             MackySoft.AgentSkills.Cli
+            MackySoft.AgentSkills.Hosting
+            MackySoft.AgentSkills.ConsoleAppFramework
 
       - name: Publish packages to nuget.org
         if: ${{ steps.package_state.outputs['publish-required'] == 'true' }}
@@ -151,6 +155,8 @@ jobs:
           package-ids: |
             MackySoft.AgentSkills
             MackySoft.AgentSkills.Cli
+            MackySoft.AgentSkills.Hosting
+            MackySoft.AgentSkills.ConsoleAppFramework
           max-attempts: 30
           interval-seconds: 10
 
@@ -191,6 +197,12 @@ jobs:
           download_published_package \
             "MackySoft.AgentSkills.Cli" \
             "artifacts/packages/MackySoft.AgentSkills.Cli.${PACKAGE_VERSION}.nupkg"
+          download_published_package \
+            "MackySoft.AgentSkills.Hosting" \
+            "artifacts/packages/MackySoft.AgentSkills.Hosting.${PACKAGE_VERSION}.nupkg"
+          download_published_package \
+            "MackySoft.AgentSkills.ConsoleAppFramework" \
+            "artifacts/packages/MackySoft.AgentSkills.ConsoleAppFramework.${PACKAGE_VERSION}.nupkg"
 
       - name: Re-guard release source
         uses: mackysoft/actions/release/source-guard@v1
