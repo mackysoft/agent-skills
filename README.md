@@ -17,20 +17,15 @@ Agent Skills provides the build tool, package format, host materialization, comm
 | `MackySoft.AgentSkills.Cli` | A product repository needs to generate canonical packages from source skill definitions. |
 | `MackySoft.AgentSkills` | A product needs the core package, host, install, export, prune, doctor, and report APIs without a hosted command runtime. |
 | `MackySoft.AgentSkills.Hosting` | A product CLI wants the standard Agent Skills command runtime and DI registration. |
-| `MackySoft.AgentSkills.ConsoleAppFramework` | A ConsoleAppFramework-based product CLI wants the standard `skills` command group registered on its existing builder. |
+| `MackySoft.AgentSkills.ConsoleAppFramework` | A ConsoleAppFramework-based product CLI wants Agent Skills commands registered on its existing builder. |
 
 All packages are versioned together.
 
-## Generate Packages
+## Create Skill Packages
 
-Install the build tool in the product repository.
+Agent Skills separates skill source files from generated packages. Keep the source files in the product repository and ship the generated package directory with the product CLI.
 
-```bash
-dotnet new tool-manifest
-dotnet tool install MackySoft.AgentSkills.Cli --version 0.7.1
-```
-
-Keep source-authored definitions under a product-owned directory.
+Source definitions use this layout:
 
 ```text
 skills/
@@ -42,17 +37,7 @@ skills/
         *.md.template
 ```
 
-Generate the package directory that your product will ship.
-
-```bash
-dotnet tool run agent-skills -- build \
-  --definitionsRoot skills/definitions \
-  --generatedRoot skills/generated
-```
-
-The generated directory is build output. Do not edit it manually; edit the source definition and run the build again.
-
-## Define a Skill
+### Define Source Skills
 
 Each source definition has a `skill.json` file.
 
@@ -78,7 +63,30 @@ Important fields:
 - `skillBundleVersion` is the product's bundled skill-set version. Increase it when shipped skills change.
 - `dependencies` contains exact skill names from the same generated package set.
 
-## Add the Command Runtime
+### Generate Shipped Packages
+
+Install the build tool in the product repository.
+
+```bash
+dotnet new tool-manifest
+dotnet tool install MackySoft.AgentSkills.Cli --version 0.7.1
+```
+
+Generate the package root from the source definitions.
+
+```bash
+dotnet tool run agent-skills -- build \
+  --definitionsRoot skills/definitions \
+  --generatedRoot artifacts/agent-skills
+```
+
+The generated directory is build output. Do not edit it manually; edit the source definition and run the build again. When packaging the product CLI, ship that generated directory as `<PackageBaseDirectory>/skills`.
+
+## Add Agent Skills to a Product CLI
+
+Use the hosting package when the product CLI wants standard Agent Skills command behavior, report data, and DI registration.
+
+### Command Runtime
 
 Add the hosting package to the product CLI.
 
@@ -113,7 +121,7 @@ The package base directory must contain the shipped generated packages under `sk
       references/
 ```
 
-## ConsoleAppFramework Integration
+### ConsoleAppFramework Integration
 
 Use the ConsoleAppFramework integration when the product CLI already uses ConsoleAppFramework and wants Agent Skills to add the standard command group to the existing app builder.
 
@@ -174,7 +182,7 @@ Command results use dot-separated names, so `tools skills list` is reported as `
 
 If your CLI validates unknown commands before ConsoleAppFramework dispatch, keep that product policy in sync with the configured command root. `AgentSkillsCommandNames` and `AgentSkillsCommandMetadata` provide stable subcommand literals for that purpose.
 
-## Product Responsibilities
+### Product Responsibilities
 
 The product CLI still owns:
 
@@ -186,7 +194,7 @@ The product CLI still owns:
 
 Register your own `IAgentSkillsCommandResultEmitter` after `AddAgentSkillsCommandRuntime(...)` when the product needs its own JSON envelope or text output.
 
-## Standard Commands
+## Run Standard Commands
 
 The ConsoleAppFramework integration registers these v1 commands under the configured command root. With the default root, the commands are:
 
@@ -202,7 +210,7 @@ skills doctor
 
 `skills list` can omit selectors and then lists every defined tier. Other commands require `--tier`, `--skill`, or both.
 
-Examples:
+### Examples
 
 ```bash
 example skills list
@@ -214,7 +222,7 @@ example skills prune --host openai --scope project --tier basic
 example skills doctor --host openai --scope project --tier basic
 ```
 
-Common options:
+### Common Options
 
 | Option | Applies to | Meaning |
 | --- | --- | --- |
@@ -229,7 +237,7 @@ Common options:
 | `--print-diff` | install, update | Include file diffs in the operation report. |
 | `--pretty` | all commands | Indent default JSON output. |
 
-## Supported Hosts
+### Supported Hosts
 
 | Host key | Host | Project target | User target |
 | --- | --- | --- | --- |
@@ -237,7 +245,7 @@ Common options:
 | `claude` | Claude Code | `.claude/skills` | `~/.claude/skills` |
 | `copilot` | GitHub Copilot CLI | `.github/skills` | `~/.copilot/skills` |
 
-## Prune Removed Skills
+### Prune Removed Skills
 
 Use `skills prune` when a product removes or renames a managed skill and wants old installed output cleaned up.
 
