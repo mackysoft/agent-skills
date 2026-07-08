@@ -169,7 +169,7 @@ Use `SkillPackageProvider.GetPackageCatalogAsync` for list-style discovery. The 
 
 ## Declare Dependencies
 
-Use `dependencies` when one skill intentionally invokes another skill. Dependencies are exact `skillName` literals from the same generated package set.
+Use `dependencies` when one skill invokes another skill. Dependencies are exact `skillName` literals from the same generated package set.
 
 ```json
 {
@@ -205,7 +205,7 @@ If an installed package has a newer `skillBundleVersion` than the bundled packag
 
 ## Prune Removed Managed Installs
 
-Use `SkillPruneService` when a product removes or renames a SKILL and wants previously installed managed output cleaned up. Prune is intentionally separate from install and update; expose it as an explicit product CLI option such as `update --prune`, or as a standalone prune command.
+Use `SkillPruneService` when a product removes or renames a SKILL and wants previously installed managed output cleaned up. Expose prune as an explicit product CLI option such as `update --prune`, or as a standalone prune command; install and update do not delete removed catalog entries on their own.
 
 Prune must receive the complete current package set for the product catalog, not just the packages selected for the current install or update operation. For example, `update --skill <name> --prune` must not treat every other valid catalog member as removed just because it was outside the user's selector.
 
@@ -225,4 +225,6 @@ Prune skips unmanaged directories, foreign catalogs, and current catalog members
 
 Runtime services return structured results that product CLIs can turn into product-neutral reports with `SkillOperationReportBuilder`.
 
-Report literals are stable contract values. Enum-backed report literals are formatted through `ContractLiteralCodec`; product command input normalization belongs in command parsing APIs such as `SkillCommandValueParser`, `SkillTierLiteralParser`, and `SkillNameLiteralParser`.
+Report fields use stable machine-readable literals such as action names, statuses, target states, scopes, and selected tiers. Product CLIs can print these reports directly, serialize them as JSON, or map them into their own user-facing output.
+
+Keep input parsing separate from report output. User-facing command literals should be parsed before calling runtime services, using the command parsing helpers described in the selection and runtime sections.
