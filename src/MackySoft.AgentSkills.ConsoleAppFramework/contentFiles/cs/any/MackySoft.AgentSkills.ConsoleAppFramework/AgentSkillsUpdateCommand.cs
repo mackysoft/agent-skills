@@ -1,3 +1,8 @@
+#nullable enable
+
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using ConsoleAppFramework;
 using MackySoft.AgentSkills.Hosting.Commands;
 using MackySoft.AgentSkills.Hosting.Reporting;
@@ -17,6 +22,11 @@ internal sealed class AgentSkillsUpdateCommand
         this.emitter = emitter ?? throw new ArgumentNullException(nameof(emitter));
     }
 
+    /// <summary> Updates Agent Skills. </summary>
+    /// <param name="repositoryRoot">--repository-root, Project root.</param>
+    /// <param name="targetDir">--target-dir, Host target directory override.</param>
+    /// <param name="dryRun">--dry-run, Report planned changes without writing files.</param>
+    /// <param name="printDiff">--print-diff, Include file diffs in the operation report.</param>
     [Command("update")]
     public async Task<int> UpdateAsync (
         string? host = null,

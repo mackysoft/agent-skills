@@ -1,3 +1,8 @@
+#nullable enable
+
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using ConsoleAppFramework;
 using MackySoft.AgentSkills.Hosting.Commands;
 using MackySoft.AgentSkills.Hosting.Reporting;
@@ -17,6 +22,9 @@ internal sealed class AgentSkillsDoctorCommand
         this.emitter = emitter ?? throw new ArgumentNullException(nameof(emitter));
     }
 
+    /// <summary> Diagnoses installed Agent Skills. </summary>
+    /// <param name="repositoryRoot">--repository-root, Project root.</param>
+    /// <param name="targetDir">--target-dir, Host target directory override.</param>
     [Command("doctor")]
     public async Task<int> DoctorAsync (
         string? host = null,
