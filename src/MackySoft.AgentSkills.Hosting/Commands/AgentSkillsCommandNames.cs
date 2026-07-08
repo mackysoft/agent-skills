@@ -59,9 +59,7 @@ public static class AgentSkillsCommandNames
         ArgumentException.ThrowIfNullOrWhiteSpace(root);
         ArgumentException.ThrowIfNullOrWhiteSpace(subcommand);
 
-        var reportRoot = string.Join(
-            ".",
-            root.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        var reportRoot = AgentSkillsCommandRootValidator.CreateReportRoot(root);
         return $"{reportRoot}.{subcommand}";
     }
 }

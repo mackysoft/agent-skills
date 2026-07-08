@@ -71,4 +71,28 @@ public sealed class AgentSkillsCommandMetadataTests
             ],
             AgentSkillsCommandMetadata.CreateReportCommandNames("tools skills"));
     }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("Agent Skills")]
+    [InlineData("agent-")]
+    [InlineData("agent--skills")]
+    [InlineData("tools  skills")]
+    [Trait("Size", "Small")]
+    public void CreateReportCommandNames_WhenRootIsInvalid_ThrowsArgumentException (string commandRoot)
+    {
+        Assert.Throws<ArgumentException>(() => AgentSkillsCommandMetadata.CreateReportCommandNames(commandRoot));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("Agent Skills")]
+    [InlineData("agent-")]
+    [InlineData("agent--skills")]
+    [InlineData("tools  skills")]
+    [Trait("Size", "Small")]
+    public void CreateCommandName_WhenRootIsInvalid_ThrowsArgumentException (string commandRoot)
+    {
+        Assert.Throws<ArgumentException>(() => AgentSkillsCommandNames.CreateCommandName(commandRoot, AgentSkillsCommandNames.ListSubcommand));
+    }
 }

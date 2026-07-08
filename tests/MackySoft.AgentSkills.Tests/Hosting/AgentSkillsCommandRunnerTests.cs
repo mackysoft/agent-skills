@@ -74,11 +74,11 @@ public sealed class AgentSkillsCommandRunnerTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task PruneAsync_UsesCompleteCurrentCatalogEvenWhenSkillSelectorIsNarrow ()
+    public async Task PruneAsync_WhenRemovedSkillNameIsSelected_PrunesOnlyThatInstalledSkill ()
     {
         using var packageScope = TestDirectories.CreateTempScope("agent-skills-hosting", "prune-package-root");
         using var targetScope = TestDirectories.CreateTempScope("agent-skills-hosting", "prune-target");
-        await WriteFixturePackagesAsync(packageScope.FullPath);
+        var packages = await WriteFixturePackagesAsync(packageScope.FullPath);
         using var provider = CreateProvider(packageScope.FullPath);
         var runner = provider.GetRequiredService<AgentSkillsCommandRunner>();
 
@@ -91,11 +91,15 @@ public sealed class AgentSkillsCommandRunnerTests
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
 
-        var selectedSkill = SkillTestData.ExpectedSkillNames[0];
+        var selectedOrphan = packages[0].Manifest.SkillName.Value;
+        var unselectedOrphan = packages[1].Manifest.SkillName.Value;
+        Directory.Delete(Path.Combine(packageScope.FullPath, "skills", selectedOrphan), recursive: true);
+        Directory.Delete(Path.Combine(packageScope.FullPath, "skills", unselectedOrphan), recursive: true);
+
         var pruneResult = await runner.PruneAsync(
             new AgentSkillsPruneCommandRequest(
                 Host: "openai",
-                Skill: [selectedSkill],
+                Skill: [selectedOrphan],
                 Scope: "project",
                 RepositoryRoot: targetScope.FullPath),
             CancellationToken.None);
@@ -103,10 +107,13 @@ public sealed class AgentSkillsCommandRunnerTests
         Assert.True(pruneResult.IsSuccess, pruneResult.Failure?.Message);
         var report = Assert.IsType<SkillOperationReport>(pruneResult.Payload);
         Assert.Equal(["basic", "advanced", "developer"], report.Tiers);
-        Assert.Equal([selectedSkill], report.SkillNames);
-        Assert.Equal(SkillTestData.ExpectedSkillNames, report.Actions.Select(static action => action.SkillName).ToArray());
-        Assert.All(report.Actions, static action => Assert.Equal("skippedCurrent", action.Action));
-        foreach (var skillName in SkillTestData.ExpectedSkillNames)
+        Assert.Equal([selectedOrphan], report.SkillNames);
+        var action = Assert.Single(report.Actions);
+        Assert.Equal(selectedOrphan, action.SkillName);
+        Assert.Equal("deleted", action.Action);
+        Assert.False(Directory.Exists(Path.Combine(targetScope.FullPath, ".agents", "skills", selectedOrphan)));
+        Assert.True(Directory.Exists(Path.Combine(targetScope.FullPath, ".agents", "skills", unselectedOrphan)));
+        foreach (var skillName in packages.Skip(2).Select(static package => package.Manifest.SkillName.Value))
         {
             Assert.True(
                 Directory.Exists(Path.Combine(targetScope.FullPath, ".agents", "skills", skillName)),

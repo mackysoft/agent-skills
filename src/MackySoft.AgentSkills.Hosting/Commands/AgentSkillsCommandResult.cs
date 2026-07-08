@@ -3,16 +3,32 @@ using MackySoft.AgentSkills.Shared;
 namespace MackySoft.AgentSkills.Hosting.Commands;
 
 /// <summary> Represents one command runtime result before product-specific emission. </summary>
-/// <param name="Command"> The stable command literal. </param>
-/// <param name="Payload"> The product-neutral command payload, or <see langword="null" /> for failures without payload data. </param>
-/// <param name="Failure"> The structured failure when the command could not produce a payload. </param>
-/// <param name="ExitCode"> The process exit code recommended by the standard command runtime. </param>
-public sealed record AgentSkillsCommandResult (
-    string Command,
-    object? Payload,
-    SkillFailure? Failure,
-    int ExitCode)
+public sealed record AgentSkillsCommandResult
 {
+    private AgentSkillsCommandResult (
+        string command,
+        object? payload,
+        SkillFailure? failure,
+        int exitCode)
+    {
+        Command = command;
+        Payload = payload;
+        Failure = failure;
+        ExitCode = exitCode;
+    }
+
+    /// <summary> Gets the stable command literal. </summary>
+    public string Command { get; }
+
+    /// <summary> Gets the product-neutral command payload, or <see langword="null" /> for failures without payload data. </summary>
+    public object? Payload { get; }
+
+    /// <summary> Gets the structured failure when the command could not produce a payload. </summary>
+    public SkillFailure? Failure { get; }
+
+    /// <summary> Gets the process exit code recommended by the standard command runtime. </summary>
+    public int ExitCode { get; }
+
     /// <summary> Gets a value indicating whether the command produced a payload. </summary>
     public bool IsSuccess => Failure is null;
 

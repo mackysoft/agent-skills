@@ -8,6 +8,7 @@ using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Requests;
 using MackySoft.AgentSkills.Installation.Services;
 using MackySoft.AgentSkills.Installation.Targeting;
+using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.OperationReports.Projection;
 using MackySoft.AgentSkills.Selection;
 using MackySoft.AgentSkills.Shared;
@@ -284,18 +285,16 @@ public sealed class AgentSkillsCommandRunner
         cancellationToken.ThrowIfCancellationRequested();
 
         var commandName = CreateCommandName(AgentSkillsCommandNames.PruneSubcommand);
-        var preparedResult = await PrepareTargetOperationAsync(
-                request.Host,
-                request.Scope,
-                request.RepositoryRoot,
-                request.TargetDir,
-                request.Tier,
-                request.Skill,
-                cancellationToken)
-            .ConfigureAwait(false);
-        if (!preparedResult.IsSuccess)
+        var selectionResult = NormalizeRequiredPruneSelection(request.Tier, request.Skill);
+        if (!selectionResult.IsSuccess)
         {
-            return Failure(commandName, preparedResult.Failure!);
+            return Failure(commandName, selectionResult.Failure!);
+        }
+
+        var targetResult = NormalizeTarget(request.Host, request.Scope, request.RepositoryRoot, request.TargetDir);
+        if (!targetResult.IsSuccess)
+        {
+            return Failure(commandName, targetResult.Failure!);
         }
 
         var currentCatalogResult = await packageProvider.GetPackageCatalogAsync(options.DefinedTiers, cancellationToken).ConfigureAwait(false);
@@ -304,14 +303,17 @@ public sealed class AgentSkillsCommandRunner
             return Failure(commandName, currentCatalogResult.Failure!);
         }
 
-        var prepared = preparedResult.Value!;
+        var selection = selectionResult.Value!;
+        var target = targetResult.Value!;
         var pruneResult = await pruneService.PruneAsync(
                 new SkillPruneInput(
                     new SkillCatalogId(options.CatalogId),
                     currentCatalogResult.Value!.Packages,
-                    prepared.Target.Request,
+                    target.Request,
                     request.DryRun,
-                    request.Force),
+                    request.Force,
+                    selection.TierFilter,
+                    selection.SkillNames),
                 cancellationToken)
             .ConfigureAwait(false);
         if (!pruneResult.IsSuccess)
@@ -321,7 +323,7 @@ public sealed class AgentSkillsCommandRunner
 
         var report = SkillOperationReportBuilder.CreatePruneReport(
             pruneResult.Value!,
-            CreateReportContext(prepared));
+            CreateReportContext(target, selection.ReportTiers, selection.SkillNames));
         return AgentSkillsCommandResult.Success(commandName, report);
     }
 
@@ -481,6 +483,44 @@ public sealed class AgentSkillsCommandRunner
         return NormalizeOptionalPackageSelection(tierValues, skillNameValues);
     }
 
+    private SkillOperationResult<NormalizedPruneSelection> NormalizeRequiredPruneSelection (
+        string[]? tierLiterals,
+        string[]? skillNameLiterals)
+    {
+        var tierValues = ExpandOptionValues(tierLiterals);
+        var skillNameValues = ExpandOptionValues(skillNameLiterals);
+        if (tierValues.Length == 0 && skillNameValues.Length == 0)
+        {
+            return SkillOperationResult<NormalizedPruneSelection>.FailureResult(
+                SkillFailureCodes.InputInvalid,
+                "Option '--tier' or '--skill' is required.");
+        }
+
+        var reportTiersResult = tierValues.Length == 0
+            ? SkillTierLiteralParser.ParseDefinedTiers(options.DefinedTiers)
+            : SkillTierLiteralParser.ParseSelectedTiers(options.DefinedTiers, tierValues);
+        if (!reportTiersResult.IsSuccess)
+        {
+            return SkillOperationResult<NormalizedPruneSelection>.FailureResult(reportTiersResult.Failure!.Code, reportTiersResult.Failure.Message);
+        }
+
+        var tierFilter = tierValues.Length == 0
+            ? Array.Empty<SkillTier>()
+            : reportTiersResult.Value!;
+        var skillNamesResult = skillNameValues.Length == 0
+            ? SkillOperationResult<IReadOnlyList<SkillName>>.Success(Array.Empty<SkillName>())
+            : SkillNameLiteralParser.ParseSelectedSkillNames(skillNameValues);
+        if (!skillNamesResult.IsSuccess)
+        {
+            return SkillOperationResult<NormalizedPruneSelection>.FailureResult(skillNamesResult.Failure!.Code, skillNamesResult.Failure.Message);
+        }
+
+        return SkillOperationResult<NormalizedPruneSelection>.Success(new NormalizedPruneSelection(
+            reportTiersResult.Value!,
+            tierFilter,
+            skillNamesResult.Value!));
+    }
+
     private static SkillOperationResult<IReadOnlyList<string>> NormalizeSkillNames (string[] skillNameValues)
     {
         if (skillNameValues.Length == 0)
@@ -587,18 +627,31 @@ public sealed class AgentSkillsCommandRunner
 
     private static SkillOperationReportContext CreateReportContext (PreparedTargetOperation prepared)
     {
+        return CreateReportContext(prepared.Target, prepared.Catalog.SelectedTiers, prepared.Catalog.SelectedSkillNames);
+    }
+
+    private static SkillOperationReportContext CreateReportContext (
+        NormalizedTargetRequest target,
+        IReadOnlyList<SkillTier> selectedTiers,
+        IReadOnlyList<SkillName> selectedSkillNames)
+    {
         return new SkillOperationReportContext(
-            prepared.Target.HostDescriptor,
-            prepared.Target.Scope,
-            prepared.Catalog.SelectedTiers)
+            target.HostDescriptor,
+            target.Scope,
+            selectedTiers)
         {
-            SelectedSkillNames = prepared.Catalog.SelectedSkillNames.Select(static skillName => skillName.Value).ToArray(),
+            SelectedSkillNames = selectedSkillNames.Select(static skillName => skillName.Value).ToArray(),
         };
     }
 
     private sealed record NormalizedPackageSelection (
         IReadOnlyList<SkillTier> Tiers,
         IReadOnlyList<string> SkillNames);
+
+    private sealed record NormalizedPruneSelection (
+        IReadOnlyList<SkillTier> ReportTiers,
+        IReadOnlyList<SkillTier> TierFilter,
+        IReadOnlyList<SkillName> SkillNames);
 
     private sealed record NormalizedTargetRequest (
         SkillHostDescriptor HostDescriptor,

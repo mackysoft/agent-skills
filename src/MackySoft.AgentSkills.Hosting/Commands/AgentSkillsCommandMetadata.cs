@@ -23,7 +23,7 @@ public static class AgentSkillsCommandMetadata
     /// <returns> A new array containing the supported report command names. </returns>
     public static string[] CreateReportCommandNames (string commandRoot = AgentSkillsCommandNames.Root)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(commandRoot);
+        AgentSkillsCommandRootValidator.ThrowIfInvalid(commandRoot, nameof(commandRoot));
 
         return
         [

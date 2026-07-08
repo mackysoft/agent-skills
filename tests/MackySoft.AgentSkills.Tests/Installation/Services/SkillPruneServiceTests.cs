@@ -8,6 +8,7 @@ using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.AgentSkills.Tiers;
 using MackySoft.Tests;
 
 namespace MackySoft.AgentSkills.Tests.Installation.Services;
@@ -68,6 +69,61 @@ public sealed class SkillPruneServiceTests
         var deleted = result.Value.Actions.Single(action => action.Identity.SkillName == orphan.Manifest.SkillName);
         Assert.Equal(SkillPruneActionKind.Deleted, deleted.ActionKind);
         Assert.True(Directory.Exists(Path.Combine(result.Value.TargetRoot, orphan.Manifest.SkillName.Value)));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task PruneAsync_WhenSkillNamesAreSelected_PrunesOnlyMatchingTargets ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "prune-selected-skill");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var selectedOrphan = packages[0];
+        var unselectedOrphan = packages[1];
+        var currentCatalog = packages.Skip(2).ToArray();
+        var installService = SkillTestData.CreateInstallService();
+        var pruneService = SkillTestData.CreatePruneService();
+        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var install = await installService.InstallAsync(packages, request, CancellationToken.None);
+        Assert.True(install.IsSuccess, install.Failure?.Message);
+
+        var result = await pruneService.PruneAsync(
+            new SkillPruneInput(
+                selectedOrphan.Manifest.CatalogId,
+                currentCatalog,
+                request,
+                SelectedSkillNames: [selectedOrphan.Manifest.SkillName]),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        var action = Assert.Single(result.Value!.Actions);
+        Assert.Equal(selectedOrphan.Manifest.SkillName, action.Identity.SkillName);
+        Assert.Equal(SkillPruneActionKind.Deleted, action.ActionKind);
+        Assert.False(Directory.Exists(Path.Combine(result.Value.TargetRoot, selectedOrphan.Manifest.SkillName.Value)));
+        Assert.True(Directory.Exists(Path.Combine(result.Value.TargetRoot, unselectedOrphan.Manifest.SkillName.Value)));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task PruneAsync_WhenTierIsSelected_SkipsUnmanagedTargetsWithoutKnownTier ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "prune-tier-skips-unmanaged");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var targetRoot = scope.CreateDirectory(".agents/skills");
+        scope.WriteFile(".agents/skills/custom-skill/SKILL.md", "# Custom\n");
+        var pruneService = SkillTestData.CreatePruneService();
+        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+
+        var result = await pruneService.PruneAsync(
+            new SkillPruneInput(
+                packages[0].Manifest.CatalogId,
+                packages,
+                request,
+                SelectedTiers: [new SkillTier("basic")]),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.Empty(result.Value!.Actions);
+        Assert.True(Directory.Exists(Path.Combine(targetRoot, "custom-skill")));
     }
 
     [Theory]
@@ -350,6 +406,43 @@ public sealed class SkillPruneServiceTests
         Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
         Assert.True(Directory.Exists(linkPath));
         Assert.True(Directory.Exists(linkTarget));
+    }
+
+    [Theory]
+    [Trait("Size", "Small")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PruneAsync_RejectsManifestSymlinkWithoutReportingBlockedManifest (bool force)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "prune-manifest-symlink");
+        using var outsideScope = TestDirectories.CreateTempScope("agent-skills-skills", "prune-manifest-symlink-outside");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var orphan = packages[0];
+        var targetRoot = scope.CreateDirectory(".agents/skills");
+        var skillDirectory = scope.CreateDirectory(Path.Combine(".agents", "skills", orphan.Manifest.SkillName.Value));
+        outsideScope.WriteFile("agent-skill.json", orphan.Files.Single(static file => file.RelativePath == "agent-skill.json").Content);
+        var manifestLink = Path.Combine(skillDirectory, "agent-skill.json");
+        if (!TestSymbolicLinks.TryCreateFile(manifestLink, Path.Combine(outsideScope.FullPath, "agent-skill.json")))
+        {
+            return;
+        }
+
+        var pruneService = SkillTestData.CreatePruneService();
+        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+
+        var result = await pruneService.PruneAsync(
+            new SkillPruneInput(orphan.Manifest.CatalogId, packages.Skip(1).ToArray(), request, Force: force),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.True(Directory.Exists(Path.Combine(targetRoot, orphan.Manifest.SkillName.Value)));
+        Assert.True(File.Exists(manifestLink));
     }
 
     [Fact]

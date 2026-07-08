@@ -35,10 +35,7 @@ public sealed class AgentSkillsCommandRuntimeOptions
             throw new ArgumentException($"SKILL catalog ID is invalid: {CatalogId}", nameof(CatalogId));
         }
 
-        if (!IsSafeCommandRoot(CommandRoot))
-        {
-            throw new ArgumentException($"SKILL command root is invalid: {CommandRoot}", nameof(CommandRoot));
-        }
+        AgentSkillsCommandRootValidator.ThrowIfInvalid(CommandRoot, nameof(CommandRoot));
 
         var tiersResult = SkillTierLiteralParser.ParseDefinedTiers(DefinedTiers);
         if (!tiersResult.IsSuccess)
@@ -54,67 +51,5 @@ public sealed class AgentSkillsCommandRuntimeOptions
             PackageBaseDirectory = Path.GetFullPath(PackageBaseDirectory),
             CommandRoot = CommandRoot,
         };
-    }
-
-    private static bool IsSafeCommandRoot (string commandRoot)
-    {
-        var tokens = commandRoot.Split(' ', StringSplitOptions.None);
-        if (tokens.Length == 0)
-        {
-            return false;
-        }
-
-        foreach (var token in tokens)
-        {
-            if (!IsSafeCommandToken(token))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static bool IsSafeCommandToken (string token)
-    {
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            return false;
-        }
-
-        if (!IsLowerAsciiLetterOrDigit(token[0]))
-        {
-            return false;
-        }
-
-        var previousWasHyphen = false;
-        for (var i = 1; i < token.Length; i++)
-        {
-            var character = token[i];
-            if (character == '-')
-            {
-                if (previousWasHyphen)
-                {
-                    return false;
-                }
-
-                previousWasHyphen = true;
-                continue;
-            }
-
-            if (!IsLowerAsciiLetterOrDigit(character))
-            {
-                return false;
-            }
-
-            previousWasHyphen = false;
-        }
-
-        return !previousWasHyphen;
-    }
-
-    private static bool IsLowerAsciiLetterOrDigit (char character)
-    {
-        return character is (>= 'a' and <= 'z') or (>= '0' and <= '9');
     }
 }
