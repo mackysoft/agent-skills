@@ -2,7 +2,6 @@ using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Doctor;
 using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Installation.Results;
-using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.OperationReports.Literals;
 using MackySoft.AgentSkills.Shared;
@@ -22,8 +21,7 @@ public sealed class SkillLiteralCodecTests
         typeof(SkillPruneActionKind),
         typeof(SkillOperationActionStatus),
         typeof(SkillBlockedReason),
-        typeof(SkillActionTargetStateKind),
-        typeof(SkillInstalledTargetStateKind),
+        typeof(SkillTargetStateKind),
         typeof(SkillDiffChangeKind),
         typeof(SkillDoctorSeverity),
     ];
@@ -187,39 +185,25 @@ public sealed class SkillLiteralCodecTests
 
     [Theory]
     [Trait("Size", "Small")]
-    [InlineData(SkillActionTargetStateKind.Missing, "missing")]
-    [InlineData(SkillActionTargetStateKind.Current, "current")]
-    [InlineData(SkillActionTargetStateKind.CleanOutdated, "cleanOutdated")]
-    [InlineData(SkillActionTargetStateKind.LocalModified, "localModification")]
-    [InlineData(SkillActionTargetStateKind.Unmanaged, "unmanagedTarget")]
-    [InlineData(SkillActionTargetStateKind.ManifestDrift, "manifestDrift")]
-    [InlineData(SkillActionTargetStateKind.CommonContentDrift, "commonContentDrift")]
-    [InlineData(SkillActionTargetStateKind.FrontmatterDrift, "frontmatterDrift")]
-    [InlineData(SkillActionTargetStateKind.HostArtifactDrift, "hostArtifactDrift")]
-    [InlineData(SkillActionTargetStateKind.FileSetDrift, "fileSetDrift")]
-    [InlineData(SkillActionTargetStateKind.NameCollision, "nameCollision")]
-    [InlineData(SkillActionTargetStateKind.HostConflict, "hostConflict")]
-    [InlineData(SkillActionTargetStateKind.VersionAhead, "versionAhead")]
-    [InlineData(SkillActionTargetStateKind.RemovedFromCatalog, "removedFromCatalog")]
+    [InlineData(SkillTargetStateKind.Missing, "missing")]
+    [InlineData(SkillTargetStateKind.Current, "current")]
+    [InlineData(SkillTargetStateKind.CleanOutdated, "cleanOutdated")]
+    [InlineData(SkillTargetStateKind.LocalModified, "localModification")]
+    [InlineData(SkillTargetStateKind.Unmanaged, "unmanagedTarget")]
+    [InlineData(SkillTargetStateKind.ManifestDrift, "manifestDrift")]
+    [InlineData(SkillTargetStateKind.CommonContentDrift, "commonContentDrift")]
+    [InlineData(SkillTargetStateKind.FrontmatterDrift, "frontmatterDrift")]
+    [InlineData(SkillTargetStateKind.HostArtifactDrift, "hostArtifactDrift")]
+    [InlineData(SkillTargetStateKind.FileSetDrift, "fileSetDrift")]
+    [InlineData(SkillTargetStateKind.NameCollision, "nameCollision")]
+    [InlineData(SkillTargetStateKind.HostConflict, "hostConflict")]
+    [InlineData(SkillTargetStateKind.VersionAhead, "versionAhead")]
+    [InlineData(SkillTargetStateKind.RemovedFromCatalog, "removedFromCatalog")]
     public void FormatTargetStateKind_ReturnsStableLiteral (
-        SkillActionTargetStateKind kind,
+        SkillTargetStateKind kind,
         string expected)
     {
         Assert.Equal(expected, SkillLiteralCodec.FormatTargetStateKind(kind));
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public void FormatTargetStateKind_InstalledStateLiteralMatchesActionStateLiteral ()
-    {
-        foreach (var installedKind in Enum.GetValues<SkillInstalledTargetStateKind>())
-        {
-            var actionKind = (SkillActionTargetStateKind)(int)installedKind;
-
-            Assert.Equal(
-                SkillLiteralCodec.FormatTargetStateKind(actionKind),
-                SkillLiteralCodec.FormatTargetStateKind(installedKind));
-        }
     }
 
     [Theory]
@@ -273,8 +257,7 @@ public sealed class SkillLiteralCodecTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => SkillLiteralCodec.FormatScope((SkillScopeKind)999));
         Assert.Throws<ArgumentOutOfRangeException>(() => SkillLiteralCodec.FormatInstallAction((SkillInstallActionKind)999));
-        Assert.Throws<ArgumentOutOfRangeException>(() => SkillLiteralCodec.FormatTargetStateKind((SkillActionTargetStateKind)999));
-        Assert.Throws<ArgumentOutOfRangeException>(() => SkillLiteralCodec.FormatTargetStateKind((SkillInstalledTargetStateKind)999));
+        Assert.Throws<ArgumentOutOfRangeException>(() => SkillLiteralCodec.FormatTargetStateKind((SkillTargetStateKind)999));
         Assert.Throws<ArgumentOutOfRangeException>(() => SkillLiteralCodec.FormatDoctorSeverity((SkillDoctorSeverity)999));
     }
 }

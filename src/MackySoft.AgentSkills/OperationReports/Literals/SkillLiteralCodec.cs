@@ -2,7 +2,6 @@ using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Doctor;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Results;
-using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.AgentSkills.Shared.Text;
@@ -163,20 +162,11 @@ public static class SkillLiteralCodec
         return FormatContractLiteral(reason, nameof(reason), "Unsupported SKILL blocked reason.");
     }
 
-    /// <summary> Formats an action target state kind as a stable lower camel literal. </summary>
+    /// <summary> Formats a target state kind as a stable lower camel literal. </summary>
     /// <param name="kind"> The target state kind to format. </param>
     /// <returns> The stable literal for <paramref name="kind" />. </returns>
-    /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="kind" /> is not a defined <see cref="SkillActionTargetStateKind" /> value. </exception>
-    public static string FormatTargetStateKind (SkillActionTargetStateKind kind)
-    {
-        return FormatContractLiteral(kind, nameof(kind), "Unsupported SKILL target state kind.");
-    }
-
-    /// <summary> Formats an installed target state kind as a stable lower camel literal. </summary>
-    /// <param name="kind"> The target state kind to format. </param>
-    /// <returns> The stable literal for <paramref name="kind" />. </returns>
-    /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="kind" /> is not a defined <see cref="SkillInstalledTargetStateKind" /> value. </exception>
-    public static string FormatTargetStateKind (SkillInstalledTargetStateKind kind)
+    /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="kind" /> is not a defined <see cref="SkillTargetStateKind" /> value. </exception>
+    public static string FormatTargetStateKind (SkillTargetStateKind kind)
     {
         return FormatContractLiteral(kind, nameof(kind), "Unsupported SKILL target state kind.");
     }

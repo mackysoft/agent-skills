@@ -35,7 +35,7 @@ public sealed class SkillPruneServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var deleted = result.Value!.Actions.Single(action => action.Identity.SkillName == orphan.Manifest.SkillName);
         Assert.Equal(SkillPruneActionKind.Deleted, deleted.ActionKind);
-        Assert.Equal(SkillActionTargetStateKind.RemovedFromCatalog, deleted.TargetState!.Kind);
+        Assert.Equal(SkillTargetStateKind.RemovedFromCatalog, deleted.TargetState!.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetRemovedFromCatalog, deleted.TargetState.Code);
         Assert.NotNull(deleted.FileChanges);
         Assert.Contains("SKILL.md", deleted.FileChanges!.RemovedFiles);

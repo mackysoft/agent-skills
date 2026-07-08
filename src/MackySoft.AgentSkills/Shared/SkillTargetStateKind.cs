@@ -1,9 +1,9 @@
 using MackySoft.AgentSkills.Shared.Text;
 
-namespace MackySoft.AgentSkills.Installation.State;
+namespace MackySoft.AgentSkills.Shared;
 
-/// <summary> Defines the state of one installed SKILL target. </summary>
-public enum SkillInstalledTargetStateKind
+/// <summary> Defines the analyzed state kind for one installed SKILL target. </summary>
+public enum SkillTargetStateKind
 {
     /// <summary> The target skill directory is absent. </summary>
     [ContractLiteral("missing")]
@@ -21,7 +21,7 @@ public enum SkillInstalledTargetStateKind
     [ContractLiteral("localModification")]
     LocalModified = 3,
 
-    /// <summary> The target skill directory exists without a Agent Skills manifest. </summary>
+    /// <summary> The target skill directory exists without an Agent Skills manifest. </summary>
     [ContractLiteral("unmanagedTarget")]
     Unmanaged = 4,
 

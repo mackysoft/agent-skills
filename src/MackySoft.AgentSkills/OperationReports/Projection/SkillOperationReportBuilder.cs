@@ -3,7 +3,6 @@ using MackySoft.AgentSkills.Doctor;
 using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Results;
-using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.OperationReports.Contracts;
@@ -537,7 +536,7 @@ public static class SkillOperationReportBuilder
     private static string? ResolveDiagnosticTargetState (string code)
     {
         return SkillFailureCode.TryCreate(code, out var failureCode)
-            && SkillInstalledTargetStateClassifier.TryResolveReportableKind(failureCode, out var stateKind)
+            && SkillDiagnosticTargetStateResolver.TryResolve(failureCode, out var stateKind)
                 ? SkillLiteralCodec.FormatTargetStateKind(stateKind)
                 : null;
     }

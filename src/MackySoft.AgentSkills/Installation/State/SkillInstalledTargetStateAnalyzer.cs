@@ -41,7 +41,7 @@ public sealed class SkillInstalledTargetStateAnalyzer
         if (!Directory.Exists(skillDirectory))
         {
             return SkillOperationResult<SkillInstalledTargetState>.Success(new SkillInstalledTargetState(
-                SkillInstalledTargetStateKind.Missing,
+                SkillTargetStateKind.Missing,
                 BundledSkillBundleVersion: package.Manifest.SkillBundleVersion));
         }
 
@@ -49,7 +49,7 @@ public sealed class SkillInstalledTargetStateAnalyzer
         if (currentResult.IsSuccess)
         {
             return SkillOperationResult<SkillInstalledTargetState>.Success(new SkillInstalledTargetState(
-                SkillInstalledTargetStateKind.Current,
+                SkillTargetStateKind.Current,
                 InstalledSkillBundleVersion: currentResult.Value!.SkillBundleVersion,
                 BundledSkillBundleVersion: package.Manifest.SkillBundleVersion));
         }
@@ -111,7 +111,7 @@ public sealed class SkillInstalledTargetStateAnalyzer
             return SkillOperationResult<SkillInstalledTargetState>.FailureResult(selectedFailure.Code, selectedFailure.Message);
         }
 
-        if (stateKind == SkillInstalledTargetStateKind.FileSetDrift)
+        if (stateKind == SkillTargetStateKind.FileSetDrift)
         {
             var fileSetResult = await ReadCurrentFileSetDriftAsync(package, skillDirectory, host, cancellationToken).ConfigureAwait(false);
             if (!fileSetResult.IsSuccess)
@@ -132,13 +132,13 @@ public sealed class SkillInstalledTargetStateAnalyzer
             bundledSkillBundleVersion: package.Manifest.SkillBundleVersion);
     }
 
-    private static SkillInstalledTargetStateKind ResolveCleanManagedMismatchKind (
+    private static SkillTargetStateKind ResolveCleanManagedMismatchKind (
         int installedSkillBundleVersion,
         int bundledSkillBundleVersion)
     {
         return installedSkillBundleVersion > bundledSkillBundleVersion
-            ? SkillInstalledTargetStateKind.VersionAhead
-            : SkillInstalledTargetStateKind.CleanOutdated;
+            ? SkillTargetStateKind.VersionAhead
+            : SkillTargetStateKind.CleanOutdated;
     }
 
     private static SkillFailure CreateCleanManagedMismatchFailure (
@@ -189,23 +189,23 @@ public sealed class SkillInstalledTargetStateAnalyzer
 
     private static bool TryResolveNonDriftStateKind (
         SkillFailureCode code,
-        out SkillInstalledTargetStateKind kind)
+        out SkillTargetStateKind kind)
     {
         if (code == SkillFailureCodes.InstallTargetUnmanaged)
         {
-            kind = SkillInstalledTargetStateKind.Unmanaged;
+            kind = SkillTargetStateKind.Unmanaged;
             return true;
         }
 
         if (code == SkillFailureCodes.InstallTargetNameCollision)
         {
-            kind = SkillInstalledTargetStateKind.NameCollision;
+            kind = SkillTargetStateKind.NameCollision;
             return true;
         }
 
         if (code == SkillFailureCodes.InstallTargetHostConflict)
         {
-            kind = SkillInstalledTargetStateKind.HostConflict;
+            kind = SkillTargetStateKind.HostConflict;
             return true;
         }
 
@@ -259,7 +259,7 @@ public sealed class SkillInstalledTargetStateAnalyzer
     }
 
     private static SkillOperationResult<SkillInstalledTargetState> Success (
-        SkillInstalledTargetStateKind kind,
+        SkillTargetStateKind kind,
         SkillFailure? failure = null,
         SkillInstalledTargetFileSet? fileSet = null,
         int? installedSkillBundleVersion = null,

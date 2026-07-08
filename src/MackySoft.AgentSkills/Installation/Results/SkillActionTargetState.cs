@@ -10,7 +10,7 @@ namespace MackySoft.AgentSkills.Installation.Results;
 /// <param name="InstalledSkillBundleVersion"> The installed target SKILL bundle version, when available. </param>
 /// <param name="BundledSkillBundleVersion"> The bundled canonical package SKILL bundle version, when available. </param>
 public sealed record SkillActionTargetState (
-    SkillActionTargetStateKind Kind,
+    SkillTargetStateKind Kind,
     SkillFailureCode? Code = null,
     string? Message = null,
     SkillActionTargetFileSet? FileSet = null,

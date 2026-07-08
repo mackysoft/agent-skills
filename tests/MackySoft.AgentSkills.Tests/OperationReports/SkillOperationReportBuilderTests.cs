@@ -30,13 +30,13 @@ public sealed class SkillOperationReportBuilderTests
                 new SkillInstallAction(
                     CreateIdentity(targetRoot, "skill-b"),
                     SkillInstallActionKind.NoOp,
-                    TargetState: new SkillActionTargetState(SkillActionTargetStateKind.Current)),
+                    TargetState: new SkillActionTargetState(SkillTargetStateKind.Current)),
                 new SkillInstallAction(
                     CreateIdentity(targetRoot, "skill-c"),
                     SkillInstallActionKind.BlockedLocalModification,
                     SkillBlockedReason.LocalModificationRequiresForce,
                     TargetState: new SkillActionTargetState(
-                        SkillActionTargetStateKind.FileSetDrift,
+                        SkillTargetStateKind.FileSetDrift,
                         SkillFailureCodes.InstallTargetFileSetMismatch,
                         "File set drift.",
                         new SkillActionTargetFileSet(["missing.md"], ["extra.md"], ["extra-dir"]))),
@@ -52,7 +52,7 @@ public sealed class SkillOperationReportBuilderTests
                         ]),
                     ],
                     TargetState: new SkillActionTargetState(
-                        SkillActionTargetStateKind.CommonContentDrift,
+                        SkillTargetStateKind.CommonContentDrift,
                         SkillFailureCodes.InstallTargetContentDigestMismatch,
                         "Content drift.",
                         InstalledSkillBundleVersion: 1,
@@ -214,7 +214,7 @@ public sealed class SkillOperationReportBuilderTests
                     CreateIdentity(targetRoot, "skill-a"),
                     SkillPruneActionKind.Deleted,
                     TargetState: new SkillActionTargetState(
-                        SkillActionTargetStateKind.RemovedFromCatalog,
+                        SkillTargetStateKind.RemovedFromCatalog,
                         SkillFailureCodes.InstallTargetRemovedFromCatalog,
                         "Removed from catalog."))
                 {
@@ -226,7 +226,7 @@ public sealed class SkillOperationReportBuilderTests
                     CreateIdentity(targetRoot, "skill-d"),
                     SkillPruneActionKind.SkippedUnmanaged,
                     TargetState: new SkillActionTargetState(
-                        SkillActionTargetStateKind.Unmanaged,
+                        SkillTargetStateKind.Unmanaged,
                         SkillFailureCodes.InstallTargetUnmanaged,
                         "Unmanaged.")),
                 new SkillPruneAction(
@@ -234,28 +234,28 @@ public sealed class SkillOperationReportBuilderTests
                     SkillPruneActionKind.BlockedLocalModification,
                     SkillBlockedReason.LocalModificationRequiresForce,
                     new SkillActionTargetState(
-                        SkillActionTargetStateKind.CommonContentDrift,
+                        SkillTargetStateKind.CommonContentDrift,
                         SkillFailureCodes.InstallTargetContentDigestMismatch,
                         "Content drift.")),
                 new SkillPruneAction(
                     CreateIdentity(targetRoot, "skill-f"),
                     SkillPruneActionKind.BlockedManifestInvalid,
                     TargetState: new SkillActionTargetState(
-                        SkillActionTargetStateKind.ManifestDrift,
+                        SkillTargetStateKind.ManifestDrift,
                         SkillFailureCodes.ManifestInvalid,
                         "Invalid manifest.")),
                 new SkillPruneAction(
                     CreateIdentity(targetRoot, "skill-g"),
                     SkillPruneActionKind.BlockedNameCollision,
                     TargetState: new SkillActionTargetState(
-                        SkillActionTargetStateKind.NameCollision,
+                        SkillTargetStateKind.NameCollision,
                         SkillFailureCodes.InstallTargetNameCollision,
                         "Name collision.")),
                 new SkillPruneAction(
                     CreateIdentity(targetRoot, "skill-h"),
                     SkillPruneActionKind.BlockedHostConflict,
                     TargetState: new SkillActionTargetState(
-                        SkillActionTargetStateKind.HostConflict,
+                        SkillTargetStateKind.HostConflict,
                         SkillFailureCodes.InstallTargetHostConflict,
                         "Host conflict.")),
             ],
@@ -740,7 +740,7 @@ public sealed class SkillOperationReportBuilderTests
                     SkillInstallActionKind.BlockedLocalModification,
                     SkillBlockedReason.LocalModificationRequiresForce,
                     TargetState: new SkillActionTargetState(
-                        SkillActionTargetStateKind.FileSetDrift,
+                        SkillTargetStateKind.FileSetDrift,
                         SkillFailureCodes.InstallTargetFileSetMismatch,
                         "File set drift.",
                         new SkillActionTargetFileSet([unsafePath], [], []))),
@@ -803,7 +803,7 @@ public sealed class SkillOperationReportBuilderTests
                     CreateIdentity(targetRoot, "skill-a"),
                     SkillInstallActionKind.BlockedLocalModification,
                     SkillBlockedReason.LocalModificationRequiresForce,
-                    TargetState: new SkillActionTargetState((SkillActionTargetStateKind)999)),
+                    TargetState: new SkillActionTargetState((SkillTargetStateKind)999)),
             ]);
 
         Assert.Throws<ArgumentOutOfRangeException>(() => SkillOperationReportBuilder.CreateInstallReport(

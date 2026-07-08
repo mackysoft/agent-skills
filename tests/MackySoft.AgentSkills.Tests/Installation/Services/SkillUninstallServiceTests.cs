@@ -52,7 +52,7 @@ public sealed class SkillUninstallServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.True(result.Value!.DryRun);
         Assert.All(result.Value.Actions, static action => Assert.Equal(SkillUninstallActionKind.Deleted, action.ActionKind));
-        Assert.All(result.Value.Actions, static action => Assert.Equal(SkillActionTargetStateKind.Current, action.TargetState!.Kind));
+        Assert.All(result.Value.Actions, static action => Assert.Equal(SkillTargetStateKind.Current, action.TargetState!.Kind));
         Assert.All(result.Value.Actions, static action =>
         {
             Assert.NotNull(action.FileChanges);
@@ -85,7 +85,7 @@ public sealed class SkillUninstallServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
         Assert.Equal(SkillUninstallActionKind.Deleted, action.ActionKind);
-        Assert.Equal(SkillActionTargetStateKind.VersionAhead, action.TargetState!.Kind);
+        Assert.Equal(SkillTargetStateKind.VersionAhead, action.TargetState!.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetVersionAhead, action.TargetState.Code);
         Assert.Equal(aheadPackage.Manifest.SkillBundleVersion, action.TargetState.InstalledSkillBundleVersion);
         Assert.Equal(packages[0].Manifest.SkillBundleVersion, action.TargetState.BundledSkillBundleVersion);
@@ -111,7 +111,7 @@ public sealed class SkillUninstallServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
         Assert.Equal(SkillUninstallActionKind.Deleted, action.ActionKind);
-        Assert.Equal(SkillActionTargetStateKind.VersionAhead, action.TargetState!.Kind);
+        Assert.Equal(SkillTargetStateKind.VersionAhead, action.TargetState!.Kind);
         Assert.False(Directory.Exists(skillDirectory));
     }
 
@@ -315,7 +315,7 @@ public sealed class SkillUninstallServiceTests
         var action = result.Value!.Actions.Single(action => action.Identity.SkillName.Value == packages[0].Manifest.SkillName.Value);
         Assert.Equal(SkillUninstallActionKind.BlockedLocalModification, action.ActionKind);
         Assert.Equal(SkillBlockedReason.LocalModificationRequiresForce, action.BlockedReason);
-        Assert.Equal(SkillActionTargetStateKind.CommonContentDrift, action.TargetState!.Kind);
+        Assert.Equal(SkillTargetStateKind.CommonContentDrift, action.TargetState!.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, action.TargetState.Code);
         Assert.True(Directory.Exists(skillDirectory));
     }

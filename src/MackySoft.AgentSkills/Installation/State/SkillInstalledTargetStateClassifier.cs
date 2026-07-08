@@ -7,13 +7,13 @@ internal static class SkillInstalledTargetStateClassifier
 {
     private static readonly StateClassification[] DriftClassifications =
     [
-        new(SkillFailureCodes.InstallTargetManifestDigestMismatch, SkillInstalledTargetStateKind.ManifestDrift, 0),
-        new(SkillFailureCodes.InstallTargetHostArtifactDigestMismatch, SkillInstalledTargetStateKind.HostArtifactDrift, 1),
-        new(SkillFailureCodes.InstallTargetFileSetMismatch, SkillInstalledTargetStateKind.FileSetDrift, 2),
-        new(SkillFailureCodes.InstallTargetFrontmatterDigestMismatch, SkillInstalledTargetStateKind.FrontmatterDrift, 3),
-        new(SkillFailureCodes.InstallTargetContentDigestMismatch, SkillInstalledTargetStateKind.CommonContentDrift, 4),
-        new(SkillFailureCodes.InstallTargetDigestMismatch, SkillInstalledTargetStateKind.LocalModified, 5),
-        new(SkillFailureCodes.InstallTargetLocalModification, SkillInstalledTargetStateKind.LocalModified, 5),
+        new(SkillFailureCodes.InstallTargetManifestDigestMismatch, SkillTargetStateKind.ManifestDrift, 0),
+        new(SkillFailureCodes.InstallTargetHostArtifactDigestMismatch, SkillTargetStateKind.HostArtifactDrift, 1),
+        new(SkillFailureCodes.InstallTargetFileSetMismatch, SkillTargetStateKind.FileSetDrift, 2),
+        new(SkillFailureCodes.InstallTargetFrontmatterDigestMismatch, SkillTargetStateKind.FrontmatterDrift, 3),
+        new(SkillFailureCodes.InstallTargetContentDigestMismatch, SkillTargetStateKind.CommonContentDrift, 4),
+        new(SkillFailureCodes.InstallTargetDigestMismatch, SkillTargetStateKind.LocalModified, 5),
+        new(SkillFailureCodes.InstallTargetLocalModification, SkillTargetStateKind.LocalModified, 5),
     ];
 
     /// <summary> Resolves a validation failure code to the target state kind that represents a drifted managed target. </summary>
@@ -22,44 +22,15 @@ internal static class SkillInstalledTargetStateClassifier
     /// <returns> <see langword="true" /> when <paramref name="code" /> represents a managed target drift state; otherwise <see langword="false" />. </returns>
     public static bool TryResolveDriftKind (
         SkillFailureCode code,
-        out SkillInstalledTargetStateKind kind)
+        out SkillTargetStateKind kind)
     {
         return TryResolve(DriftClassifications, code, out kind);
-    }
-
-    /// <summary> Resolves a failure code to the target state kind that should be exposed in operation reports. </summary>
-    /// <param name="code"> The failure code emitted by target analysis, validation, or doctor diagnostics. </param>
-    /// <param name="kind"> The resolved target state kind when this method returns <see langword="true" />. </param>
-    /// <returns> <see langword="true" /> when <paramref name="code" /> has a target state representation; otherwise <see langword="false" />. </returns>
-    public static bool TryResolveReportableKind (
-        SkillFailureCode code,
-        out SkillInstalledTargetStateKind kind)
-    {
-        if (code == SkillFailureCodes.InstallTargetOutdated)
-        {
-            kind = SkillInstalledTargetStateKind.CleanOutdated;
-            return true;
-        }
-
-        if (code == SkillFailureCodes.InstallTargetVersionAhead)
-        {
-            kind = SkillInstalledTargetStateKind.VersionAhead;
-            return true;
-        }
-
-        if (code == SkillFailureCodes.InstallTargetRemovedFromCatalog)
-        {
-            kind = SkillInstalledTargetStateKind.RemovedFromCatalog;
-            return true;
-        }
-
-        return TryResolveDriftKind(code, out kind);
     }
 
     /// <summary> Gets the ordering priority used when multiple managed drift signals are present for the same target. </summary>
     /// <param name="kind"> The target state kind to classify. </param>
     /// <returns> The drift priority where lower values win; <see cref="int.MaxValue" /> when <paramref name="kind" /> is not a managed drift state. </returns>
-    public static int GetDriftPriority (SkillInstalledTargetStateKind kind)
+    public static int GetDriftPriority (SkillTargetStateKind kind)
     {
         var priority = int.MaxValue;
         foreach (var classification in DriftClassifications)
@@ -76,7 +47,7 @@ internal static class SkillInstalledTargetStateClassifier
     /// <summary> Gets whether an install, update, or uninstall operation must treat the state as local modification drift. </summary>
     /// <param name="kind"> The target state kind to classify. </param>
     /// <returns> <see langword="true" /> when the state is a managed drift state that requires force to replace or delete; otherwise <see langword="false" />. </returns>
-    public static bool IsLocalModificationDrift (SkillInstalledTargetStateKind kind)
+    public static bool IsLocalModificationDrift (SkillTargetStateKind kind)
     {
         return GetDriftPriority(kind) != int.MaxValue;
     }
@@ -84,7 +55,7 @@ internal static class SkillInstalledTargetStateClassifier
     private static bool TryResolve (
         IReadOnlyList<StateClassification> classifications,
         SkillFailureCode code,
-        out SkillInstalledTargetStateKind kind)
+        out SkillTargetStateKind kind)
     {
         foreach (var classification in classifications)
         {
@@ -101,6 +72,6 @@ internal static class SkillInstalledTargetStateClassifier
 
     private readonly record struct StateClassification (
         SkillFailureCode Code,
-        SkillInstalledTargetStateKind Kind,
+        SkillTargetStateKind Kind,
         int Priority);
 }

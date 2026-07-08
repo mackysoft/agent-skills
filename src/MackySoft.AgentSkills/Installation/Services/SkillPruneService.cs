@@ -261,7 +261,7 @@ public sealed class SkillPruneService
                 new SkillPruneAction(
                     identity,
                     SkillPruneActionKind.SkippedUnmanaged,
-                    TargetState: CreateTargetState(SkillInstalledTargetStateKind.Unmanaged, SkillFailureCodes.InstallTargetUnmanaged, "Skill directory is not managed by Agent Skills.")),
+                    TargetState: CreateTargetState(SkillTargetStateKind.Unmanaged, SkillFailureCodes.InstallTargetUnmanaged, "Skill directory is not managed by Agent Skills.")),
                 skillDirectory,
                 ShouldDelete: false));
         }
@@ -318,7 +318,7 @@ public sealed class SkillPruneService
                 new SkillPruneAction(
                     identity,
                     SkillPruneActionKind.BlockedHostConflict,
-                    TargetState: CreateTargetState(SkillInstalledTargetStateKind.HostConflict, failure)),
+                    TargetState: CreateTargetState(SkillTargetStateKind.HostConflict, failure)),
                 skillDirectory,
                 ShouldDelete: false));
         }
@@ -329,7 +329,7 @@ public sealed class SkillPruneService
                 new SkillPruneAction(
                     identity,
                     SkillPruneActionKind.BlockedNameCollision,
-                    TargetState: CreateTargetState(SkillInstalledTargetStateKind.NameCollision, failure)),
+                    TargetState: CreateTargetState(SkillTargetStateKind.NameCollision, failure)),
                 skillDirectory,
                 ShouldDelete: false));
         }
@@ -340,7 +340,7 @@ public sealed class SkillPruneService
                 new SkillPruneAction(
                     identity,
                     SkillPruneActionKind.BlockedManifestInvalid,
-                    TargetState: CreateTargetState(SkillInstalledTargetStateKind.ManifestDrift, failure)),
+                    TargetState: CreateTargetState(SkillTargetStateKind.ManifestDrift, failure)),
                 skillDirectory,
                 ShouldDelete: false));
         }
@@ -351,7 +351,7 @@ public sealed class SkillPruneService
                 new SkillPruneAction(
                     identity,
                     SkillPruneActionKind.BlockedManifestInvalid,
-                    TargetState: CreateTargetState(SkillInstalledTargetStateKind.ManifestDrift, failure)),
+                    TargetState: CreateTargetState(SkillTargetStateKind.ManifestDrift, failure)),
                 skillDirectory,
                 ShouldDelete: false));
         }
@@ -505,7 +505,7 @@ public sealed class SkillPruneService
                 new SkillPruneAction(
                     identity,
                     SkillPruneActionKind.BlockedNameCollision,
-                    TargetState: CreateTargetState(SkillInstalledTargetStateKind.NameCollision, failure)),
+                    TargetState: CreateTargetState(SkillTargetStateKind.NameCollision, failure)),
                 skillDirectory,
                 ShouldDelete: false);
         }
@@ -514,7 +514,7 @@ public sealed class SkillPruneService
             new SkillPruneAction(
                 identity,
                 SkillPruneActionKind.BlockedManifestInvalid,
-                TargetState: CreateTargetState(SkillInstalledTargetStateKind.ManifestDrift, failure)),
+                TargetState: CreateTargetState(SkillTargetStateKind.ManifestDrift, failure)),
             skillDirectory,
             ShouldDelete: false);
     }
@@ -522,7 +522,7 @@ public sealed class SkillPruneService
     private static SkillActionTargetState CreateRemovedFromCatalogState (SkillManifest manifest)
     {
         return CreateTargetState(
-            SkillInstalledTargetStateKind.RemovedFromCatalog,
+            SkillTargetStateKind.RemovedFromCatalog,
             SkillFailure.Create(
                 SkillFailureCodes.InstallTargetRemovedFromCatalog,
                 $"Installed SKILL package is managed by the catalog but is no longer bundled: {manifest.SkillName}"),
@@ -530,20 +530,20 @@ public sealed class SkillPruneService
     }
 
     private static SkillActionTargetState CreateTargetState (
-        SkillInstalledTargetStateKind kind,
+        SkillTargetStateKind kind,
         SkillFailureCode code,
         string message)
     {
-        return new SkillActionTargetState(SkillActionTargetStateProjection.MapKind(kind), code, message);
+        return new SkillActionTargetState(kind, code, message);
     }
 
     private static SkillActionTargetState CreateTargetState (
-        SkillInstalledTargetStateKind kind,
+        SkillTargetStateKind kind,
         SkillFailure failure,
         int? installedSkillBundleVersion = null)
     {
         return new SkillActionTargetState(
-            SkillActionTargetStateProjection.MapKind(kind),
+            kind,
             failure.Code,
             failure.Message,
             InstalledSkillBundleVersion: installedSkillBundleVersion);

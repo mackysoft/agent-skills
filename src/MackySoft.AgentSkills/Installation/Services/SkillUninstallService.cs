@@ -170,17 +170,17 @@ public sealed class SkillUninstallService
     {
         switch (state.Kind)
         {
-            case SkillInstalledTargetStateKind.Missing:
+            case SkillTargetStateKind.Missing:
                 return SkillOperationResult<SkillUninstallActionPlan>.Success(new SkillUninstallActionPlan(
                     new SkillUninstallAction(identity, SkillUninstallActionKind.NoOp, TargetState: SkillActionTargetStateProjection.Create(state)),
                     skillDirectory,
                     package,
                     ShouldDelete: false));
-            case SkillInstalledTargetStateKind.Current:
-            case SkillInstalledTargetStateKind.CleanOutdated:
-            case SkillInstalledTargetStateKind.VersionAhead:
+            case SkillTargetStateKind.Current:
+            case SkillTargetStateKind.CleanOutdated:
+            case SkillTargetStateKind.VersionAhead:
                 return await CreateDeleteActionPlanAsync(package, skillDirectory, identity, state, cancellationToken).ConfigureAwait(false);
-            case SkillInstalledTargetStateKind.Unmanaged:
+            case SkillTargetStateKind.Unmanaged:
                 return SkillOperationResult<SkillUninstallActionPlan>.Success(new SkillUninstallActionPlan(
                     new SkillUninstallAction(identity, SkillUninstallActionKind.SkippedUnmanaged, TargetState: SkillActionTargetStateProjection.Create(state)),
                     skillDirectory,
@@ -188,8 +188,8 @@ public sealed class SkillUninstallService
                     ShouldDelete: false));
             case var kind when SkillInstalledTargetStateClassifier.IsLocalModificationDrift(kind):
                 return await CreateLocalModificationActionPlanAsync(package, skillDirectory, identity, state, input, cancellationToken).ConfigureAwait(false);
-            case SkillInstalledTargetStateKind.NameCollision:
-            case SkillInstalledTargetStateKind.HostConflict:
+            case SkillTargetStateKind.NameCollision:
+            case SkillTargetStateKind.HostConflict:
                 return SkillOperationResult<SkillUninstallActionPlan>.FailureResult(
                     ResolveStateFailureCode(state),
                     state.Failure?.Message ?? $"Target skill directory cannot be deleted: {skillDirectory}");
@@ -285,7 +285,7 @@ public sealed class SkillUninstallService
 
     private static SkillFailureCode ResolveChangedTargetFailureCode (SkillInstalledTargetState state)
     {
-        return state.Kind == SkillInstalledTargetStateKind.Unmanaged
+        return state.Kind == SkillTargetStateKind.Unmanaged
             ? SkillFailureCodes.InstallTargetUnmanaged
             : ResolveStateFailureCode(state);
     }
