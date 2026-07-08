@@ -113,15 +113,17 @@ The package base directory must contain the shipped generated packages under `sk
       references/
 ```
 
-## Register ConsoleAppFramework Commands
+## ConsoleAppFramework Integration
 
-If the product CLI uses ConsoleAppFramework, add the integration package.
+Use the ConsoleAppFramework integration when the product CLI already uses ConsoleAppFramework and wants Agent Skills to add the standard command group to the existing app builder.
+
+Add the integration package to the product CLI.
 
 ```bash
 dotnet add <PROJECT>.csproj package MackySoft.AgentSkills.ConsoleAppFramework --version 0.7.1
 ```
 
-Register Agent Skills on the product's existing `ConsoleAppBuilder`.
+Register Agent Skills on the product's existing `ConsoleAppBuilder`. The product still creates and runs the builder.
 
 ```csharp
 using ConsoleAppFramework;
@@ -178,7 +180,7 @@ The product CLI still owns:
 
 - when generated packages are built and how they are shipped;
 - `ProductName`, `CatalogId`, `DefinedTiers`, `PackageBaseDirectory`, and `CommandRoot`;
-- the public command surface outside the standard `skills` group;
+- the public command surface outside the configured Agent Skills command root;
 - pre-dispatch command validation, help policy, filters, global options, and logging;
 - the output envelope, if the default JSON result shape is not appropriate.
 
@@ -186,7 +188,7 @@ Register your own `IAgentSkillsCommandResultEmitter` after `AddAgentSkillsComman
 
 ## Standard Commands
 
-The ConsoleAppFramework integration registers this v1 command group:
+The ConsoleAppFramework integration registers these v1 commands under the configured command root. With the default root, the commands are:
 
 ```text
 skills list
