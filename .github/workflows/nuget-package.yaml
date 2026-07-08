@@ -123,8 +123,40 @@ jobs:
             exit 2
           fi
 
-          test -f "artifacts/packages/MackySoft.AgentSkills.${PACKAGE_VERSION}.nupkg"
-          test -f "artifacts/packages/MackySoft.AgentSkills.Cli.${PACKAGE_VERSION}.nupkg"
+          expected_packages=(
+            "MackySoft.AgentSkills.${PACKAGE_VERSION}.nupkg"
+            "MackySoft.AgentSkills.Cli.${PACKAGE_VERSION}.nupkg"
+            "MackySoft.AgentSkills.Hosting.${PACKAGE_VERSION}.nupkg"
+            "MackySoft.AgentSkills.ConsoleAppFramework.${PACKAGE_VERSION}.nupkg"
+          )
+
+          for package_file in "${expected_packages[@]}"; do
+            test -f "artifacts/packages/${package_file}"
+          done
+
+          actual_packages=()
+          while IFS= read -r package_file; do
+            actual_packages+=("${package_file}")
+          done < <(find artifacts/packages -maxdepth 1 -type f -name '*.nupkg' -exec basename {} \; | sort)
+
+          sorted_expected_packages=()
+          while IFS= read -r package_file; do
+            sorted_expected_packages+=("${package_file}")
+          done < <(printf '%s\n' "${expected_packages[@]}" | sort)
+
+          if [[ "${#actual_packages[@]}" -ne "${#sorted_expected_packages[@]}" ]]; then
+            printf 'Unexpected package artifacts:\n' >&2
+            printf '  %s\n' "${actual_packages[@]}" >&2
+            exit 1
+          fi
+
+          for index in "${!sorted_expected_packages[@]}"; do
+            if [[ "${actual_packages[$index]}" != "${sorted_expected_packages[$index]}" ]]; then
+              printf 'Unexpected package artifacts:\n' >&2
+              printf '  %s\n' "${actual_packages[@]}" >&2
+              exit 1
+            fi
+          done
 
       - name: Inspect publication state
         id: package_state
@@ -135,6 +167,8 @@ jobs:
           package-ids: |
             MackySoft.AgentSkills
             MackySoft.AgentSkills.Cli
+            MackySoft.AgentSkills.Hosting
+            MackySoft.AgentSkills.ConsoleAppFramework
 
       - name: Publish packages to nuget.org
         if: ${{ steps.package_state.outputs['publish-required'] == 'true' }}
@@ -151,6 +185,8 @@ jobs:
           package-ids: |
             MackySoft.AgentSkills
             MackySoft.AgentSkills.Cli
+            MackySoft.AgentSkills.Hosting
+            MackySoft.AgentSkills.ConsoleAppFramework
           max-attempts: 30
           interval-seconds: 10
 
@@ -191,6 +227,12 @@ jobs:
           download_published_package \
             "MackySoft.AgentSkills.Cli" \
             "artifacts/packages/MackySoft.AgentSkills.Cli.${PACKAGE_VERSION}.nupkg"
+          download_published_package \
+            "MackySoft.AgentSkills.Hosting" \
+            "artifacts/packages/MackySoft.AgentSkills.Hosting.${PACKAGE_VERSION}.nupkg"
+          download_published_package \
+            "MackySoft.AgentSkills.ConsoleAppFramework" \
+            "artifacts/packages/MackySoft.AgentSkills.ConsoleAppFramework.${PACKAGE_VERSION}.nupkg"
 
       - name: Re-guard release source
         uses: mackysoft/actions/release/source-guard@v1

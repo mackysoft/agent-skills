@@ -1,7 +1,7 @@
 # パッケージリリースガイド
 
 ## 目的
-この文書は、`MackySoft.AgentSkills` と `MackySoft.AgentSkills.Cli` の NuGet パッケージ version を更新し、GitHub Release と NuGet.org へ公開する手順を固定するためのものです。
+この文書は、Agent Skills の NuGet パッケージ version を更新し、GitHub Release と NuGet.org へ公開する手順を固定するためのものです。
 
 利用側 repository で公開済み package を取り込む手順ではなく、この repository から新しい package version をリリースする作業を対象にします。
 
@@ -10,7 +10,12 @@
 - `Directory.Build.props` の `<Version>` が package version の正本である。
 - release tag は `<Version>` と同じ SemVer 文字列にする。先頭に `v` を付けない。
 - `nuget-package` workflow は tag push で起動する。
-- `MackySoft.AgentSkills` と `MackySoft.AgentSkills.Cli` は同じ version で公開する。
+- 次の NuGet package は同じ version で公開する。
+
+  - `MackySoft.AgentSkills`
+  - `MackySoft.AgentSkills.Cli`
+  - `MackySoft.AgentSkills.Hosting`
+  - `MackySoft.AgentSkills.ConsoleAppFramework`
 
 ## Version を決める
 1. 現在の最新 release tag と NuGet.org の公開済み version を確認する。
@@ -19,6 +24,8 @@
    git tag --list --sort=v:refname
    curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentskills/index.json
    curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentskills.cli/index.json
+   curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentskills.hosting/index.json
+   curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentskills.consoleappframework/index.json
    ```
 
 2. 直近 release tag から `master` までの差分を確認する。
@@ -98,18 +105,20 @@ workflow は次を実行します。
 
 - `dotnet-verify.yaml` による 3 OS 検証
 - tag と default branch の source guard
-- package 作成と smoke test
+- package 作成、成果物個数の確認、smoke test
 - NuGet.org への trusted publishing
-- NuGet.org で両 package が取得可能になるまでの待機
+- NuGet.org で全 package が取得可能になるまでの待機
 - 公開済み package の repository commit 検証
 - GitHub Release への `.nupkg` mirror
 
 ## 公開後確認
-1. NuGet.org で両 package の version を確認する。
+1. NuGet.org で全 package の version を確認する。
 
    ```bash
    curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentskills/index.json
    curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentskills.cli/index.json
+   curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentskills.hosting/index.json
+   curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentskills.consoleappframework/index.json
    ```
 
 2. 公開済み `.nupkg` を取得し、repository commit が release tag の commit と一致することを確認する。
@@ -124,9 +133,19 @@ workflow は次を実行します。
      --package-id MackySoft.AgentSkills.Cli \
      --package-path <DOWNLOADED_CLI_NUPKG> \
      --expected-commit <RELEASE_TAG_COMMIT_SHA>
+
+   bash scripts/validate-nuget-package-repository-commit.sh \
+     --package-id MackySoft.AgentSkills.Hosting \
+     --package-path <DOWNLOADED_HOSTING_NUPKG> \
+     --expected-commit <RELEASE_TAG_COMMIT_SHA>
+
+   bash scripts/validate-nuget-package-repository-commit.sh \
+     --package-id MackySoft.AgentSkills.ConsoleAppFramework \
+     --package-path <DOWNLOADED_CONSOLEAPPFRAMEWORK_NUPKG> \
+     --expected-commit <RELEASE_TAG_COMMIT_SHA>
    ```
 
-3. GitHub Release に両 package artifact が mirror されていることを確認する。
+3. GitHub Release に全 package artifact が mirror されていることを確認する。
 
    ```bash
    gh release view <VERSION> --json url,assets,body
@@ -139,8 +158,8 @@ workflow は次を実行します。
    ```
 
 ## 停止条件
-- `MackySoft.AgentSkills` と `MackySoft.AgentSkills.Cli` の片方だけが NuGet.org に存在する。
+- 4 package の一部だけが NuGet.org に存在する。
 - release tag が default branch 以外の commit を指している。
 - `Directory.Build.props` の `<Version>` と release tag が一致しない。
 - 公開済み package の repository commit が release tag commit と一致しない。
-- GitHub Release に `.nupkg` artifact が片方しか存在しない。
+- GitHub Release の `.nupkg` artifact が 4 個ではない。

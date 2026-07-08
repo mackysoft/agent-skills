@@ -1,6 +1,8 @@
 using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Installation.Targeting;
+using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
+using MackySoft.AgentSkills.Tiers;
 
 namespace MackySoft.AgentSkills.Installation.Requests;
 
@@ -13,9 +15,13 @@ namespace MackySoft.AgentSkills.Installation.Requests;
 /// Whether managed orphan targets with local modifications can be deleted. Force does not allow deleting unmanaged
 /// targets, foreign catalogs, invalid manifests, name collisions, host conflicts, or path-safety failures.
 /// </param>
+/// <param name="SelectedTiers"> Optional tier filter for installed managed targets. Empty or <see langword="null" /> means every tier. </param>
+/// <param name="SelectedSkillNames"> Optional exact skill-name filter for installed target directories. Empty or <see langword="null" /> means every skill name. </param>
 public sealed record SkillPruneInput (
     SkillCatalogId CatalogId,
     IReadOnlyList<CanonicalSkillPackage> CurrentCatalogPackages,
     SkillInstallRequest TargetRequest,
     bool DryRun = false,
-    bool Force = false);
+    bool Force = false,
+    IReadOnlyList<SkillTier>? SelectedTiers = null,
+    IReadOnlyList<SkillName>? SelectedSkillNames = null);

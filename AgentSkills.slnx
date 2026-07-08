@@ -2,6 +2,8 @@
   <Folder Name="/src/">
     <Project Path="src/MackySoft.AgentSkills/MackySoft.AgentSkills.csproj" />
     <Project Path="src/MackySoft.AgentSkills.Cli/MackySoft.AgentSkills.Cli.csproj" />
+    <Project Path="src/MackySoft.AgentSkills.Hosting/MackySoft.AgentSkills.Hosting.csproj" />
+    <Project Path="src/MackySoft.AgentSkills.ConsoleAppFramework/MackySoft.AgentSkills.ConsoleAppFramework.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/MackySoft.AgentSkills.Tests/MackySoft.AgentSkills.Tests.csproj" />

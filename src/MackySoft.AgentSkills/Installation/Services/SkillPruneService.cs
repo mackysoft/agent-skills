@@ -11,6 +11,7 @@ using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Packaging.FileSystem;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.AgentSkills.Tiers;
 
 namespace MackySoft.AgentSkills.Installation.Services;
 
@@ -72,9 +73,13 @@ public sealed class SkillPruneService
 
         var target = targetResult.Value!;
         var targetRoot = target.TargetRoot;
+        var selectedTiers = CreateSelectedTierSet(input.SelectedTiers);
+        var selectedSkillNames = CreateSelectedSkillNameSet(input.SelectedSkillNames);
         var actionPlansResult = await CreateActionPlansAsync(
                 input.CatalogId,
                 currentCatalogSkillNames,
+                selectedTiers,
+                selectedSkillNames,
                 target.Host,
                 input.TargetRequest.Scope,
                 targetRoot,
@@ -100,6 +105,7 @@ public sealed class SkillPruneService
                 var preconditionResult = await ValidateDeletePreconditionAsync(
                         input.CatalogId,
                         currentCatalogSkillNames,
+                        selectedTiers,
                         target.Host,
                         input.TargetRequest.Scope,
                         targetRoot,
@@ -128,6 +134,7 @@ public sealed class SkillPruneService
                         (directory, token) => ValidateDeletePreconditionAsync(
                             input.CatalogId,
                             currentCatalogSkillNames,
+                            selectedTiers,
                             target.Host,
                             input.TargetRequest.Scope,
                             targetRoot,
@@ -154,6 +161,8 @@ public sealed class SkillPruneService
     private async ValueTask<SkillOperationResult<IReadOnlyList<SkillPruneActionPlan>>> CreateActionPlansAsync (
         SkillCatalogId catalogId,
         IReadOnlySet<SkillName> currentCatalogSkillNames,
+        IReadOnlySet<SkillTier> selectedTiers,
+        IReadOnlySet<SkillName> selectedSkillNames,
         string host,
         SkillScopeKind scope,
         string targetRoot,
@@ -193,6 +202,11 @@ public sealed class SkillPruneService
                 continue;
             }
 
+            if (!IsSelectedSkillName(selectedSkillNames, skillName))
+            {
+                continue;
+            }
+
             if (IsSymbolicLinkOrReparsePoint(skillDirectory))
             {
                 return SkillOperationResult<IReadOnlyList<SkillPruneActionPlan>>.FailureResult(
@@ -213,6 +227,7 @@ public sealed class SkillPruneService
             var actionPlanResult = await CreateActionPlanAsync(
                     catalogId,
                     currentCatalogSkillNames,
+                    selectedTiers,
                     host,
                     resolvedSkillDirectory,
                     identity,
@@ -226,18 +241,19 @@ public sealed class SkillPruneService
                     actionPlanResult.Failure.Message);
             }
 
-            if (actionPlanResult.Value is not null)
+            if (actionPlanResult.Value!.ActionPlan is not null)
             {
-                actionPlans.Add(actionPlanResult.Value);
+                actionPlans.Add(actionPlanResult.Value.ActionPlan);
             }
         }
 
         return SkillOperationResult<IReadOnlyList<SkillPruneActionPlan>>.Success(actionPlans);
     }
 
-    private async ValueTask<SkillOperationResult<SkillPruneActionPlan?>> CreateActionPlanAsync (
+    private async ValueTask<SkillOperationResult<SkillPruneActionPlanResult>> CreateActionPlanAsync (
         SkillCatalogId catalogId,
         IReadOnlySet<SkillName> currentCatalogSkillNames,
+        IReadOnlySet<SkillTier> selectedTiers,
         string host,
         string skillDirectory,
         SkillInstallIdentity identity,
@@ -250,13 +266,18 @@ public sealed class SkillPruneService
             "agent-skill.json");
         if (!manifestPathResult.IsSuccess)
         {
-            return SkillOperationResult<SkillPruneActionPlan?>.FailureResult(
+            return SkillOperationResult<SkillPruneActionPlanResult>.FailureResult(
                 manifestPathResult.Failure!.Code,
                 manifestPathResult.Failure.Message);
         }
 
         if (!File.Exists(manifestPathResult.Value!))
         {
+            if (selectedTiers.Count > 0)
+            {
+                return NoAction();
+            }
+
             return Success(new SkillPruneActionPlan(
                 new SkillPruneAction(
                     identity,
@@ -269,10 +290,15 @@ public sealed class SkillPruneService
         var installedManifestResult = await installedManifestReader.ReadRequiredAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
         if (!installedManifestResult.IsSuccess)
         {
-            return Success(CreateBlockedManifestActionPlan(identity, skillDirectory, installedManifestResult.Failure!));
+            return CreateBlockedManifestActionPlan(identity, skillDirectory, selectedTiers, installedManifestResult.Failure!);
         }
 
         var installedManifest = installedManifestResult.Value!.Manifest;
+        if (!IsSelectedTier(selectedTiers, installedManifest.Tier))
+        {
+            return NoAction();
+        }
+
         if (installedManifest.CatalogId != catalogId)
         {
             return Success(new SkillPruneActionPlan(
@@ -292,7 +318,7 @@ public sealed class SkillPruneService
         return await CreateOrphanActionPlanAsync(installedManifest, host, skillDirectory, identity, force, cancellationToken).ConfigureAwait(false);
     }
 
-    private async ValueTask<SkillOperationResult<SkillPruneActionPlan?>> CreateOrphanActionPlanAsync (
+    private async ValueTask<SkillOperationResult<SkillPruneActionPlanResult>> CreateOrphanActionPlanAsync (
         SkillManifest installedManifest,
         string host,
         string skillDirectory,
@@ -358,7 +384,7 @@ public sealed class SkillPruneService
 
         if (!SkillInstalledTargetStateClassifier.TryResolveDriftKind(failure.Code, out var driftKind))
         {
-            return SkillOperationResult<SkillPruneActionPlan?>.FailureResult(failure.Code, failure.Message);
+            return SkillOperationResult<SkillPruneActionPlanResult>.FailureResult(failure.Code, failure.Message);
         }
 
         if (force)
@@ -381,7 +407,7 @@ public sealed class SkillPruneService
             ShouldDelete: false));
     }
 
-    private async ValueTask<SkillOperationResult<SkillPruneActionPlan?>> CreateDeleteActionPlanAsync (
+    private async ValueTask<SkillOperationResult<SkillPruneActionPlanResult>> CreateDeleteActionPlanAsync (
         string skillDirectory,
         SkillInstallIdentity identity,
         SkillActionTargetState targetState,
@@ -390,7 +416,7 @@ public sealed class SkillPruneService
         var fileChangesResult = await diffBuilder.BuildDeletionFileChangesAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
         if (!fileChangesResult.IsSuccess)
         {
-            return SkillOperationResult<SkillPruneActionPlan?>.FailureResult(fileChangesResult.Failure!.Code, fileChangesResult.Failure.Message);
+            return SkillOperationResult<SkillPruneActionPlanResult>.FailureResult(fileChangesResult.Failure!.Code, fileChangesResult.Failure.Message);
         }
 
         return Success(new SkillPruneActionPlan(
@@ -406,6 +432,7 @@ public sealed class SkillPruneService
     private async ValueTask<SkillOperationResult<bool>> ValidateDeletePreconditionAsync (
         SkillCatalogId catalogId,
         IReadOnlySet<SkillName> currentCatalogSkillNames,
+        IReadOnlySet<SkillTier> selectedTiers,
         string host,
         SkillScopeKind scope,
         string targetRoot,
@@ -423,6 +450,7 @@ public sealed class SkillPruneService
         var actionPlanResult = await CreateActionPlanAsync(
                 catalogId,
                 currentCatalogSkillNames,
+                selectedTiers,
                 host,
                 skillDirectory,
                 identityResult.Value!,
@@ -434,16 +462,16 @@ public sealed class SkillPruneService
             return SkillOperationResult<bool>.FailureResult(actionPlanResult.Failure!.Code, actionPlanResult.Failure.Message);
         }
 
-        if (actionPlanResult.Value?.ShouldDelete != true)
+        if (actionPlanResult.Value!.ActionPlan?.ShouldDelete != true)
         {
             return SkillOperationResult<bool>.FailureResult(
-                ResolveChangedTargetFailureCode(actionPlanResult.Value?.Action.TargetState),
+                ResolveChangedTargetFailureCode(actionPlanResult.Value.ActionPlan?.Action.TargetState),
                 $"Target skill directory changed after planning; refusing to delete: {skillDirectory}");
         }
 
         return targetSnapshot is null
             ? SkillOperationResult<bool>.Success(true)
-            : await ValidateTargetSnapshotAsync(skillDirectory, targetSnapshot, actionPlanResult.Value.Action.TargetState, cancellationToken).ConfigureAwait(false);
+            : await ValidateTargetSnapshotAsync(skillDirectory, targetSnapshot, actionPlanResult.Value.ActionPlan.Action.TargetState, cancellationToken).ConfigureAwait(false);
     }
 
     private async ValueTask<SkillOperationResult<bool>> ValidateTargetSnapshotAsync (
@@ -494,29 +522,105 @@ public sealed class SkillPruneService
         return SkillOperationResult<IReadOnlySet<SkillName>>.Success(skillNames);
     }
 
-    private static SkillPruneActionPlan CreateBlockedManifestActionPlan (
+    private static SkillOperationResult<SkillPruneActionPlanResult> CreateBlockedManifestActionPlan (
         SkillInstallIdentity identity,
         string skillDirectory,
+        IReadOnlySet<SkillTier> selectedTiers,
         SkillFailure failure)
     {
+        if (failure.Code == SkillFailureCodes.PathUnsafe)
+        {
+            return SkillOperationResult<SkillPruneActionPlanResult>.FailureResult(failure.Code, failure.Message);
+        }
+
+        if (selectedTiers.Count > 0)
+        {
+            return NoAction();
+        }
+
         if (failure.Code == SkillFailureCodes.InstallTargetNameCollision)
         {
-            return new SkillPruneActionPlan(
+            return Success(new SkillPruneActionPlan(
                 new SkillPruneAction(
                     identity,
                     SkillPruneActionKind.BlockedNameCollision,
                     TargetState: CreateTargetState(SkillTargetStateKind.NameCollision, failure)),
                 skillDirectory,
-                ShouldDelete: false);
+                ShouldDelete: false));
         }
 
-        return new SkillPruneActionPlan(
+        if (failure.Code == SkillFailureCodes.InstallTargetUnmanaged)
+        {
+            return Success(new SkillPruneActionPlan(
+                new SkillPruneAction(
+                    identity,
+                    SkillPruneActionKind.SkippedUnmanaged,
+                    TargetState: CreateTargetState(SkillTargetStateKind.Unmanaged, failure)),
+                skillDirectory,
+                ShouldDelete: false));
+        }
+
+        if (failure.Code != SkillFailureCodes.ManifestInvalid
+            && failure.Code != SkillFailureCodes.InstallTargetManifestDigestMismatch)
+        {
+            return SkillOperationResult<SkillPruneActionPlanResult>.FailureResult(failure.Code, failure.Message);
+        }
+
+        return Success(new SkillPruneActionPlan(
             new SkillPruneAction(
                 identity,
                 SkillPruneActionKind.BlockedManifestInvalid,
                 TargetState: CreateTargetState(SkillTargetStateKind.ManifestDrift, failure)),
             skillDirectory,
-            ShouldDelete: false);
+            ShouldDelete: false));
+    }
+
+    private static IReadOnlySet<SkillTier> CreateSelectedTierSet (IReadOnlyList<SkillTier>? selectedTiers)
+    {
+        if (selectedTiers is null || selectedTiers.Count == 0)
+        {
+            return new HashSet<SkillTier>();
+        }
+
+        var result = new HashSet<SkillTier>();
+        foreach (var tier in selectedTiers)
+        {
+            ArgumentNullException.ThrowIfNull(tier);
+            result.Add(tier);
+        }
+
+        return result;
+    }
+
+    private static IReadOnlySet<SkillName> CreateSelectedSkillNameSet (IReadOnlyList<SkillName>? selectedSkillNames)
+    {
+        if (selectedSkillNames is null || selectedSkillNames.Count == 0)
+        {
+            return new HashSet<SkillName>();
+        }
+
+        var result = new HashSet<SkillName>();
+        foreach (var skillName in selectedSkillNames)
+        {
+            ArgumentNullException.ThrowIfNull(skillName);
+            result.Add(skillName);
+        }
+
+        return result;
+    }
+
+    private static bool IsSelectedTier (
+        IReadOnlySet<SkillTier> selectedTiers,
+        SkillTier tier)
+    {
+        return selectedTiers.Count == 0 || selectedTiers.Contains(tier);
+    }
+
+    private static bool IsSelectedSkillName (
+        IReadOnlySet<SkillName> selectedSkillNames,
+        SkillName skillName)
+    {
+        return selectedSkillNames.Count == 0 || selectedSkillNames.Contains(skillName);
     }
 
     private static SkillActionTargetState CreateRemovedFromCatalogState (SkillManifest manifest)
@@ -587,10 +691,17 @@ public sealed class SkillPruneService
             || (directory.Attributes & FileAttributes.ReparsePoint) != 0;
     }
 
-    private static SkillOperationResult<SkillPruneActionPlan?> Success (SkillPruneActionPlan actionPlan)
+    private static SkillOperationResult<SkillPruneActionPlanResult> Success (SkillPruneActionPlan actionPlan)
     {
-        return SkillOperationResult<SkillPruneActionPlan?>.Success(actionPlan);
+        return SkillOperationResult<SkillPruneActionPlanResult>.Success(new SkillPruneActionPlanResult(actionPlan));
     }
+
+    private static SkillOperationResult<SkillPruneActionPlanResult> NoAction ()
+    {
+        return SkillOperationResult<SkillPruneActionPlanResult>.Success(new SkillPruneActionPlanResult(null));
+    }
+
+    private sealed record SkillPruneActionPlanResult (SkillPruneActionPlan? ActionPlan);
 
     private sealed record SkillPruneActionPlan (
         SkillPruneAction Action,

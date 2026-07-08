@@ -117,8 +117,7 @@ else
 fi
 
 mkdir -p "$package_dir"
-rm -f "$package_dir"/MackySoft.AgentSkills."$package_version".nupkg
-rm -f "$package_dir"/MackySoft.AgentSkills.Cli."$package_version".nupkg
+rm -f "$package_dir"/*.nupkg
 
 pack_properties=(
   -p:Version="$package_version"
@@ -140,18 +139,58 @@ dotnet pack src/MackySoft.AgentSkills.Cli/MackySoft.AgentSkills.Cli.csproj \
   --no-restore \
   "${pack_properties[@]}" \
   --output "$package_dir"
+dotnet pack src/MackySoft.AgentSkills.Hosting/MackySoft.AgentSkills.Hosting.csproj \
+  --configuration "$configuration" \
+  --no-restore \
+  "${pack_properties[@]}" \
+  --output "$package_dir"
+dotnet pack src/MackySoft.AgentSkills.ConsoleAppFramework/MackySoft.AgentSkills.ConsoleAppFramework.csproj \
+  --configuration "$configuration" \
+  --no-restore \
+  "${pack_properties[@]}" \
+  --output "$package_dir"
 
 library_package="$package_dir/MackySoft.AgentSkills.$package_version.nupkg"
 cli_package="$package_dir/MackySoft.AgentSkills.Cli.$package_version.nupkg"
-if [ ! -f "$library_package" ]; then
-  echo "library package was not created: $library_package" >&2
+hosting_package="$package_dir/MackySoft.AgentSkills.Hosting.$package_version.nupkg"
+consoleappframework_package="$package_dir/MackySoft.AgentSkills.ConsoleAppFramework.$package_version.nupkg"
+expected_package_files=(
+  "MackySoft.AgentSkills.$package_version.nupkg"
+  "MackySoft.AgentSkills.Cli.$package_version.nupkg"
+  "MackySoft.AgentSkills.Hosting.$package_version.nupkg"
+  "MackySoft.AgentSkills.ConsoleAppFramework.$package_version.nupkg"
+)
+
+for package_file in "${expected_package_files[@]}"; do
+  if [ ! -f "$package_dir/$package_file" ]; then
+    echo "package was not created: $package_dir/$package_file" >&2
+    exit 1
+  fi
+done
+
+actual_package_files=()
+while IFS= read -r package_file; do
+  actual_package_files+=("$package_file")
+done < <(find "$package_dir" -maxdepth 1 -type f -name '*.nupkg' -exec basename {} \; | sort)
+
+sorted_expected_package_files=()
+while IFS= read -r package_file; do
+  sorted_expected_package_files+=("$package_file")
+done < <(printf '%s\n' "${expected_package_files[@]}" | sort)
+
+if [ "${#actual_package_files[@]}" -ne "${#sorted_expected_package_files[@]}" ]; then
+  printf 'package output contained unexpected .nupkg files:\n' >&2
+  printf '  %s\n' "${actual_package_files[@]}" >&2
   exit 1
 fi
 
-if [ ! -f "$cli_package" ]; then
-  echo "CLI package was not created: $cli_package" >&2
-  exit 1
-fi
+for index in "${!sorted_expected_package_files[@]}"; do
+  if [ "${actual_package_files[$index]}" != "${sorted_expected_package_files[$index]}" ]; then
+    printf 'package output contained unexpected .nupkg files:\n' >&2
+    printf '  %s\n' "${actual_package_files[@]}" >&2
+    exit 1
+  fi
+done
 
 if [ -n "$repository_commit" ]; then
   bash "$script_dir/validate-nuget-package-repository-commit.sh" \
@@ -161,6 +200,14 @@ if [ -n "$repository_commit" ]; then
   bash "$script_dir/validate-nuget-package-repository-commit.sh" \
     --package-id MackySoft.AgentSkills.Cli \
     --package-path "$cli_package" \
+    --expected-commit "$repository_commit"
+  bash "$script_dir/validate-nuget-package-repository-commit.sh" \
+    --package-id MackySoft.AgentSkills.Hosting \
+    --package-path "$hosting_package" \
+    --expected-commit "$repository_commit"
+  bash "$script_dir/validate-nuget-package-repository-commit.sh" \
+    --package-id MackySoft.AgentSkills.ConsoleAppFramework \
+    --package-path "$consoleappframework_package" \
     --expected-commit "$repository_commit"
 fi
 
@@ -173,6 +220,70 @@ dotnet restore "$consumer_dir/consumer.csproj" \
   --source "$package_dir" \
   --source https://api.nuget.org/v3/index.json >/dev/null
 dotnet build "$consumer_dir/consumer.csproj" --configuration "$configuration" --no-restore >/dev/null
+
+console_consumer_dir="$work_root/console-consumer"
+dotnet new console --output "$console_consumer_dir" --no-restore >/dev/null
+cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/generated" "$console_consumer_dir/skills"
+dotnet add "$console_consumer_dir/console-consumer.csproj" package MackySoft.AgentSkills.ConsoleAppFramework \
+  --version "$package_version" \
+  --source "$package_dir" >/dev/null
+dotnet add "$console_consumer_dir/console-consumer.csproj" package Microsoft.Extensions.Hosting >/dev/null
+mkdir -p "$console_consumer_dir/Properties"
+cat > "$console_consumer_dir/Properties/AssemblyInfo.cs" <<'CS'
+using ConsoleAppFramework;
+
+[assembly: ConsoleAppFrameworkGeneratorOptions(DisableNamingConversion = true)]
+CS
+cat > "$console_consumer_dir/Program.cs" <<'CS'
+using System;
+using System.IO;
+using ConsoleAppFramework;
+using MackySoft.AgentSkills.ConsoleAppFramework;
+using MackySoft.AgentSkills.Hosting.Composition;
+using Microsoft.Extensions.Hosting;
+
+var builder = Host.CreateApplicationBuilder(args);
+builder.Services.AddAgentSkillsCommandRuntime(options =>
+{
+    options.ProductName = "Smoke CLI";
+    options.CatalogId = "com.mackysoft.agent-skills";
+    options.Tiers = ["basic", "advanced", "developer"];
+    options.PackageBaseDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
+    options.CommandRoot = "agent-skills";
+});
+
+var app = builder.ToConsoleAppBuilder();
+app.RegisterAgentSkillsCommands();
+await app.RunAsync(args);
+return Environment.ExitCode;
+CS
+dotnet restore "$console_consumer_dir/console-consumer.csproj" \
+  --source "$package_dir" \
+  --source https://api.nuget.org/v3/index.json >/dev/null
+dotnet build "$console_consumer_dir/console-consumer.csproj" \
+  --configuration "$configuration" \
+  --no-restore \
+  -p:ImplicitUsings=disable \
+  -p:Nullable=enable \
+  -p:TreatWarningsAsErrors=true \
+  -p:AgentSkillsConsoleAppFrameworkCommandRoot=agent-skills >/dev/null
+dotnet run \
+  --project "$console_consumer_dir/console-consumer.csproj" \
+  --configuration "$configuration" \
+  --no-build \
+  -- agent-skills list --pretty > "$work_root/skills-list.json"
+grep -q '"Command": "agent-skills.list"' "$work_root/skills-list.json"
+grep -q '"Status": "ok"' "$work_root/skills-list.json"
+grep -q '"SkillName": "agent-skills-plan-apply"' "$work_root/skills-list.json"
+mkdir -p "$work_root/install-target"
+dotnet run \
+  --project "$console_consumer_dir/console-consumer.csproj" \
+  --configuration "$configuration" \
+  --no-build \
+  -- agent-skills install --host openai --scope project --tier basic --repository-root "$work_root/install-target" --dry-run --pretty > "$work_root/skills-install.json"
+grep -q '"Command": "agent-skills.install"' "$work_root/skills-install.json"
+grep -q '"Status": "ok"' "$work_root/skills-install.json"
+grep -q '"DryRun": true' "$work_root/skills-install.json"
 
 tool_dir="$work_root/tool"
 mkdir -p "$tool_dir"

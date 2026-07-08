@@ -22,6 +22,23 @@ public sealed class ProjectBoundaryTests
 
     [Theory]
     [Trait("Size", "Small")]
+    [InlineData("src/MackySoft.AgentSkills/MackySoft.AgentSkills.csproj")]
+    [InlineData("src/MackySoft.AgentSkills.Hosting/MackySoft.AgentSkills.Hosting.csproj")]
+    public void NonConsoleAppFrameworkProjects_DoNotReferenceConsoleAppFramework (string relativeProjectPath)
+    {
+        var projectPath = Path.Combine(SkillTestData.GetRepositoryRoot(), relativeProjectPath);
+        var document = XDocument.Load(projectPath);
+
+        var packageReferences = document.Descendants("PackageReference")
+            .Select(static element => element.Attribute("Include")?.Value)
+            .Where(static value => value is not null)
+            .ToArray();
+
+        Assert.DoesNotContain(packageReferences, static reference => string.Equals(reference, "ConsoleAppFramework", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [Trait("Size", "Small")]
     [InlineData("Names", "MackySoft.AgentSkills.Catalogs")]
     [InlineData("Names", "MackySoft.AgentSkills.Commands")]
     [InlineData("Names", "MackySoft.AgentSkills.Dependencies")]

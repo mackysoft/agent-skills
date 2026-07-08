@@ -1,6 +1,6 @@
 namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
-/// <summary> Represents a product-neutral install, update, or uninstall report. </summary>
+/// <summary> Represents a product-neutral install, update, uninstall, or prune report. </summary>
 /// <param name="Host"> The canonical host key used for the operation. </param>
 /// <param name="Tiers"> The selected product-owned SKILL tier literals. </param>
 /// <param name="SkillNames"> The exact SKILL name selection. Empty means no name filter. </param>

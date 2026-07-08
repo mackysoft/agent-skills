@@ -77,6 +77,8 @@ public sealed class WorkflowConfigurationTests
         Assert.Contains("--repository-commit \"${RELEASE_SHA}\"", workflow, StringComparison.Ordinal);
         Assert.Contains("artifacts/packages/MackySoft.AgentSkills.${PACKAGE_VERSION}.nupkg", workflow, StringComparison.Ordinal);
         Assert.Contains("artifacts/packages/MackySoft.AgentSkills.Cli.${PACKAGE_VERSION}.nupkg", workflow, StringComparison.Ordinal);
+        Assert.Contains("artifacts/packages/MackySoft.AgentSkills.Hosting.${PACKAGE_VERSION}.nupkg", workflow, StringComparison.Ordinal);
+        Assert.Contains("artifacts/packages/MackySoft.AgentSkills.ConsoleAppFramework.${PACKAGE_VERSION}.nupkg", workflow, StringComparison.Ordinal);
         Assert.Contains("--title \"${RELEASE_TAG}\"", workflow, StringComparison.Ordinal);
         Assert.Contains("--notes \"\"", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("bash scripts/validate-release-tag.sh", workflow, StringComparison.Ordinal);
@@ -160,6 +162,12 @@ public sealed class WorkflowConfigurationTests
         Assert.Contains("validate-nuget-package-repository-commit.sh", script, StringComparison.Ordinal);
         Assert.Contains("MackySoft.AgentSkills.$package_version.nupkg", script, StringComparison.Ordinal);
         Assert.Contains("MackySoft.AgentSkills.Cli.$package_version.nupkg", script, StringComparison.Ordinal);
+        Assert.Contains("MackySoft.AgentSkills.Hosting.$package_version.nupkg", script, StringComparison.Ordinal);
+        Assert.Contains("MackySoft.AgentSkills.ConsoleAppFramework.$package_version.nupkg", script, StringComparison.Ordinal);
+        Assert.Contains("MackySoft.AgentSkills.ConsoleAppFramework", script, StringComparison.Ordinal);
+        Assert.Contains("RegisterAgentSkillsCommands", script, StringComparison.Ordinal);
+        Assert.Contains("AgentSkillsConsoleAppFrameworkCommandRoot=agent-skills", script, StringComparison.Ordinal);
+        Assert.Contains("agent-skills list --pretty", script, StringComparison.Ordinal);
     }
 
     [Fact]
