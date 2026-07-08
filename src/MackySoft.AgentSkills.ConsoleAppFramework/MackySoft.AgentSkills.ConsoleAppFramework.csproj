@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>MackySoft.AgentSkills.ConsoleAppFramework</AssemblyName>
+    <RootNamespace>MackySoft.AgentSkills.ConsoleAppFramework</RootNamespace>
+    <LangVersion>13.0</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>true</IsPackable>
+    <PackageId>MackySoft.AgentSkills.ConsoleAppFramework</PackageId>
+    <Description>ConsoleAppFramework source integration for product CLIs that expose Agent Skills commands.</Description>
+    <PackageTags>agent;skills;cli;consoleappframework;source</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="contentFiles/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ConsoleAppFramework" Version="5.7.13" />
+    <ProjectReference Include="../MackySoft.AgentSkills.Hosting/MackySoft.AgentSkills.Hosting.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="buildTransitive/MackySoft.AgentSkills.ConsoleAppFramework.props" Pack="true" PackagePath="buildTransitive/" />
+    <None Include="contentFiles/cs/any/MackySoft.AgentSkills.ConsoleAppFramework/*.cs" Pack="true" PackagePath="contentFiles/cs/any/MackySoft.AgentSkills.ConsoleAppFramework/" />
+  </ItemGroup>
+
+</Project>

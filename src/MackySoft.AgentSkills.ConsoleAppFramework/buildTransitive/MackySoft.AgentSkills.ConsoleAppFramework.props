@@ -1,0 +1,8 @@
+<Project>
+  <ItemGroup>
+    <Compile
+      Include="$(MSBuildThisFileDirectory)..\contentFiles\cs\any\MackySoft.AgentSkills.ConsoleAppFramework\*.cs"
+      Link="MackySoft.AgentSkills.ConsoleAppFramework\%(Filename)%(Extension)"
+      Visible="false" />
+  </ItemGroup>
+</Project>
