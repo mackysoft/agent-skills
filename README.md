@@ -129,6 +129,7 @@ Add the integration package to the product CLI.
 
 ```bash
 dotnet add <PROJECT>.csproj package MackySoft.AgentSkills.ConsoleAppFramework --version 0.7.1
+dotnet add <PROJECT>.csproj package Microsoft.Extensions.Hosting
 ```
 
 Register Agent Skills on the product's existing `ConsoleAppBuilder`. The product still creates and runs the builder.
@@ -139,7 +140,7 @@ using MackySoft.AgentSkills.ConsoleAppFramework;
 using MackySoft.AgentSkills.Hosting.Composition;
 using Microsoft.Extensions.Hosting;
 
-HostApplicationBuilder builder = Host.CreateApplicationBuilder();
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.AddAgentSkillsCommandRuntime(options =>
 {
@@ -181,6 +182,8 @@ The command root must be one or more lower-kebab command tokens separated by a s
 Command results use dot-separated names, so `tools skills list` is reported as `tools.skills.list`.
 
 If your CLI validates unknown commands before ConsoleAppFramework dispatch, keep that product policy in sync with the configured command root. `AgentSkillsCommandNames` and `AgentSkillsCommandMetadata` provide stable subcommand literals for that purpose.
+
+The command examples in this README use kebab-case option names. The ConsoleAppFramework integration keeps those documented option names available even when the product assembly changes ConsoleAppFramework naming conversion.
 
 ### Product Responsibilities
 
@@ -249,7 +252,9 @@ example skills doctor --host openai --scope project --tier basic
 
 Use `skills prune` when a product removes or renames a managed skill and wants old installed output cleaned up.
 
-Prune compares installed managed skills with the complete current catalog for the registered `CatalogId`. A narrow selector such as `--skill example-review` controls the report context and target selection, but prune still uses the full current catalog so other valid catalog members are not treated as removed.
+Prune compares installed managed skills with the complete current catalog for the registered `CatalogId`. A narrow selector limits the installed target directories that prune considers, but prune still reads the full current catalog so valid catalog members are not treated as removed.
+
+`--skill` can name a managed skill that was removed from the current generated package set. `--tier` selects installed managed targets whose manifest has that tier.
 
 Prune deletes only managed, clean, current-host skill directories that belong to the registered catalog and no longer exist in the current generated package set. It skips unmanaged directories, foreign catalogs, current catalog members, invalid manifests, name collisions, and host conflicts. `--force` allows deleting locally modified managed orphans, but it does not turn unsafe or foreign targets into delete candidates.
 
