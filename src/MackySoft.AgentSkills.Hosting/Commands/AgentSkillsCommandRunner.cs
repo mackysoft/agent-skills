@@ -65,20 +65,21 @@ public sealed class AgentSkillsCommandRunner
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
+        var commandName = CreateCommandName(AgentSkillsCommandNames.ListSubcommand);
         var selectionResult = NormalizeOptionalPackageSelection(request.Tier, request.Skill);
         if (!selectionResult.IsSuccess)
         {
-            return Failure(AgentSkillsCommandNames.List, selectionResult.Failure!);
+            return Failure(commandName, selectionResult.Failure!);
         }
 
         var catalogResult = await GetPackageCatalogAsync(selectionResult.Value!, cancellationToken).ConfigureAwait(false);
         if (!catalogResult.IsSuccess)
         {
-            return Failure(AgentSkillsCommandNames.List, catalogResult.Failure!);
+            return Failure(commandName, catalogResult.Failure!);
         }
 
         var report = SkillOperationReportBuilder.CreateListReport(catalogResult.Value!, hostAdapters);
-        return AgentSkillsCommandResult.Success(AgentSkillsCommandNames.List, report);
+        return AgentSkillsCommandResult.Success(commandName, report);
     }
 
     /// <summary> Runs <c>skills export</c> and returns product-neutral export report data. </summary>
@@ -89,34 +90,35 @@ public sealed class AgentSkillsCommandRunner
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
+        var commandName = CreateCommandName(AgentSkillsCommandNames.ExportSubcommand);
         var selectionResult = NormalizeRequiredPackageSelection(request.Tier, request.Skill);
         if (!selectionResult.IsSuccess)
         {
-            return Failure(AgentSkillsCommandNames.Export, selectionResult.Failure!);
+            return Failure(commandName, selectionResult.Failure!);
         }
 
         var hostResult = SkillCommandValueParser.ParseHostLiteral(request.Host, hostAdapters);
         if (!hostResult.IsSuccess)
         {
-            return Failure(AgentSkillsCommandNames.Export, hostResult.Failure!);
+            return Failure(commandName, hostResult.Failure!);
         }
 
         var outputResult = NormalizeRequiredFullPath(request.Output, "Option '--output' is required.");
         if (!outputResult.IsSuccess)
         {
-            return Failure(AgentSkillsCommandNames.Export, outputResult.Failure!);
+            return Failure(commandName, outputResult.Failure!);
         }
 
         var formatResult = NormalizeExportFormat(request.Format);
         if (!formatResult.IsSuccess)
         {
-            return Failure(AgentSkillsCommandNames.Export, formatResult.Failure!);
+            return Failure(commandName, formatResult.Failure!);
         }
 
         var catalogResult = await GetPackageCatalogAsync(selectionResult.Value!, cancellationToken).ConfigureAwait(false);
         if (!catalogResult.IsSuccess)
         {
-            return Failure(AgentSkillsCommandNames.Export, catalogResult.Failure!);
+            return Failure(commandName, catalogResult.Failure!);
         }
 
         var packages = catalogResult.Value!.Packages;
@@ -129,7 +131,7 @@ public sealed class AgentSkillsCommandRunner
             .ConfigureAwait(false);
         if (!exportResult.IsSuccess)
         {
-            return Failure(AgentSkillsCommandNames.Export, exportResult.Failure!);
+            return Failure(commandName, exportResult.Failure!);
         }
 
         var report = SkillOperationReportBuilder.CreateExportReport(
@@ -139,7 +141,7 @@ public sealed class AgentSkillsCommandRunner
             formatResult.Value,
             catalogResult.Value.SelectedTiers,
             catalogResult.Value.SelectedSkillNames.Select(static skillName => skillName.Value).ToArray());
-        return AgentSkillsCommandResult.Success(AgentSkillsCommandNames.Export, report);
+        return AgentSkillsCommandResult.Success(commandName, report);
     }
 
     /// <summary> Runs <c>skills install</c> and returns product-neutral operation report data. </summary>
@@ -150,6 +152,7 @@ public sealed class AgentSkillsCommandRunner
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
+        var commandName = CreateCommandName(AgentSkillsCommandNames.InstallSubcommand);
         var preparedResult = await PrepareTargetOperationAsync(
                 request.Host,
                 request.Scope,
@@ -161,7 +164,7 @@ public sealed class AgentSkillsCommandRunner
             .ConfigureAwait(false);
         if (!preparedResult.IsSuccess)
         {
-            return Failure(AgentSkillsCommandNames.Install, preparedResult.Failure!);
+            return Failure(commandName, preparedResult.Failure!);
         }
 
         var prepared = preparedResult.Value!;
@@ -176,13 +179,13 @@ public sealed class AgentSkillsCommandRunner
             .ConfigureAwait(false);
         if (!installResult.IsSuccess)
         {
-            return Failure(AgentSkillsCommandNames.Install, installResult.Failure!);
+            return Failure(commandName, installResult.Failure!);
         }
 
         var report = SkillOperationReportBuilder.CreateInstallReport(
             installResult.Value!,
             CreateReportContext(prepared));
-        return AgentSkillsCommandResult.Success(AgentSkillsCommandNames.Install, report);
+        return AgentSkillsCommandResult.Success(commandName, report);
     }
 
     /// <summary> Runs <c>skills update</c> and returns product-neutral operation report data. </summary>
@@ -193,6 +196,7 @@ public sealed class AgentSkillsCommandRunner
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
+        var commandName = CreateCommandName(AgentSkillsCommandNames.UpdateSubcommand);
         var preparedResult = await PrepareTargetOperationAsync(
                 request.Host,
                 request.Scope,
@@ -204,7 +208,7 @@ public sealed class AgentSkillsCommandRunner
             .ConfigureAwait(false);
         if (!preparedResult.IsSuccess)
         {
-            return Failure(AgentSkillsCommandNames.Update, preparedResult.Failure!);
+            return Failure(commandName, preparedResult.Failure!);
         }
 
         var prepared = preparedResult.Value!;
@@ -219,13 +223,13 @@ public sealed class AgentSkillsCommandRunner
             .ConfigureAwait(false);
         if (!updateResult.IsSuccess)
         {
-            return Failure(AgentSkillsCommandNames.Update, updateResult.Failure!);
+            return Failure(commandName, updateResult.Failure!);
         }
 
         var report = SkillOperationReportBuilder.CreateUpdateReport(
             updateResult.Value!,
             CreateReportContext(prepared));
-        return AgentSkillsCommandResult.Success(AgentSkillsCommandNames.Update, report);
+        return AgentSkillsCommandResult.Success(commandName, report);
     }
 
     /// <summary> Runs <c>skills uninstall</c> and returns product-neutral operation report data. </summary>
@@ -236,6 +240,7 @@ public sealed class AgentSkillsCommandRunner
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
+        var commandName = CreateCommandName(AgentSkillsCommandNames.UninstallSubcommand);
         var preparedResult = await PrepareTargetOperationAsync(
                 request.Host,
                 request.Scope,
@@ -247,7 +252,7 @@ public sealed class AgentSkillsCommandRunner
             .ConfigureAwait(false);
         if (!preparedResult.IsSuccess)
         {
-            return Failure(AgentSkillsCommandNames.Uninstall, preparedResult.Failure!);
+            return Failure(commandName, preparedResult.Failure!);
         }
 
         var prepared = preparedResult.Value!;
@@ -261,13 +266,13 @@ public sealed class AgentSkillsCommandRunner
             .ConfigureAwait(false);
         if (!uninstallResult.IsSuccess)
         {
-            return Failure(AgentSkillsCommandNames.Uninstall, uninstallResult.Failure!);
+            return Failure(commandName, uninstallResult.Failure!);
         }
 
         var report = SkillOperationReportBuilder.CreateUninstallReport(
             uninstallResult.Value!,
             CreateReportContext(prepared));
-        return AgentSkillsCommandResult.Success(AgentSkillsCommandNames.Uninstall, report);
+        return AgentSkillsCommandResult.Success(commandName, report);
     }
 
     /// <summary> Runs <c>skills prune</c> and returns product-neutral operation report data. </summary>
@@ -278,6 +283,7 @@ public sealed class AgentSkillsCommandRunner
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
+        var commandName = CreateCommandName(AgentSkillsCommandNames.PruneSubcommand);
         var preparedResult = await PrepareTargetOperationAsync(
                 request.Host,
                 request.Scope,
@@ -289,13 +295,13 @@ public sealed class AgentSkillsCommandRunner
             .ConfigureAwait(false);
         if (!preparedResult.IsSuccess)
         {
-            return Failure(AgentSkillsCommandNames.Prune, preparedResult.Failure!);
+            return Failure(commandName, preparedResult.Failure!);
         }
 
         var currentCatalogResult = await packageProvider.GetPackageCatalogAsync(options.DefinedTiers, cancellationToken).ConfigureAwait(false);
         if (!currentCatalogResult.IsSuccess)
         {
-            return Failure(AgentSkillsCommandNames.Prune, currentCatalogResult.Failure!);
+            return Failure(commandName, currentCatalogResult.Failure!);
         }
 
         var prepared = preparedResult.Value!;
@@ -310,13 +316,13 @@ public sealed class AgentSkillsCommandRunner
             .ConfigureAwait(false);
         if (!pruneResult.IsSuccess)
         {
-            return Failure(AgentSkillsCommandNames.Prune, pruneResult.Failure!);
+            return Failure(commandName, pruneResult.Failure!);
         }
 
         var report = SkillOperationReportBuilder.CreatePruneReport(
             pruneResult.Value!,
             CreateReportContext(prepared));
-        return AgentSkillsCommandResult.Success(AgentSkillsCommandNames.Prune, report);
+        return AgentSkillsCommandResult.Success(commandName, report);
     }
 
     /// <summary> Runs <c>skills doctor</c> and returns product-neutral doctor report data. </summary>
@@ -327,6 +333,7 @@ public sealed class AgentSkillsCommandRunner
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
+        var commandName = CreateCommandName(AgentSkillsCommandNames.DoctorSubcommand);
         var preparedResult = await PrepareTargetOperationAsync(
                 request.Host,
                 request.Scope,
@@ -338,14 +345,14 @@ public sealed class AgentSkillsCommandRunner
             .ConfigureAwait(false);
         if (!preparedResult.IsSuccess)
         {
-            return Failure(AgentSkillsCommandNames.Doctor, preparedResult.Failure!);
+            return Failure(commandName, preparedResult.Failure!);
         }
 
         var prepared = preparedResult.Value!;
         var targetResult = targetResolver.ResolveTarget(prepared.Target.Request);
         if (!targetResult.IsSuccess)
         {
-            return Failure(AgentSkillsCommandNames.Doctor, targetResult.Failure!);
+            return Failure(commandName, targetResult.Failure!);
         }
 
         var doctorResult = await doctorService.DiagnoseAsync(
@@ -360,7 +367,7 @@ public sealed class AgentSkillsCommandRunner
             prepared.Catalog.SelectedTiers,
             prepared.Catalog.SelectedSkillNames.Select(static skillName => skillName.Value).ToArray());
         return AgentSkillsCommandResult.Success(
-            AgentSkillsCommandNames.Doctor,
+            commandName,
             report,
             report.IsHealthy ? 0 : 1);
     }
@@ -571,6 +578,11 @@ public sealed class AgentSkillsCommandRunner
         SkillFailure failure)
     {
         return AgentSkillsCommandResult.FailureResult(command, failure);
+    }
+
+    private string CreateCommandName (string subcommand)
+    {
+        return AgentSkillsCommandNames.CreateCommandName(options.CommandRoot, subcommand);
     }
 
     private static SkillOperationReportContext CreateReportContext (PreparedTargetOperation prepared)

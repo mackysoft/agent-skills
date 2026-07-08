@@ -37,4 +37,38 @@ public sealed class AgentSkillsCommandMetadataTests
             ],
             AgentSkillsCommandMetadata.CreateReportCommandNames());
     }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void CreateReportCommandNames_WhenRootIsSpecified_ReturnsRootedReportCommandNames ()
+    {
+        Assert.Equal(
+            [
+                "agent-skills.list",
+                "agent-skills.export",
+                "agent-skills.install",
+                "agent-skills.update",
+                "agent-skills.uninstall",
+                "agent-skills.prune",
+                "agent-skills.doctor",
+            ],
+            AgentSkillsCommandMetadata.CreateReportCommandNames("agent-skills"));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void CreateReportCommandNames_WhenRootContainsNestedTokens_ReturnsDottedReportCommandNames ()
+    {
+        Assert.Equal(
+            [
+                "tools.skills.list",
+                "tools.skills.export",
+                "tools.skills.install",
+                "tools.skills.update",
+                "tools.skills.uninstall",
+                "tools.skills.prune",
+                "tools.skills.doctor",
+            ],
+            AgentSkillsCommandMetadata.CreateReportCommandNames("tools skills"));
+    }
 }

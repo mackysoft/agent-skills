@@ -31,6 +31,7 @@ public sealed class AgentSkillsCommandRuntimeServiceCollectionExtensionsTests
         Assert.Equal("com.example.skills", options.CatalogId);
         Assert.Equal(["basic", "advanced"], options.DefinedTiers);
         Assert.Equal(Path.GetFullPath(scope.FullPath), options.PackageBaseDirectory);
+        Assert.Equal("skills", options.CommandRoot);
         Assert.NotNull(provider.GetRequiredService<AgentSkillsCommandRunner>());
         Assert.IsType<AgentSkillsJsonCommandResultEmitter>(provider.GetRequiredService<IAgentSkillsCommandResultEmitter>());
     }
@@ -75,6 +76,32 @@ public sealed class AgentSkillsCommandRuntimeServiceCollectionExtensionsTests
         });
 
         Assert.Contains("tier", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("Agent Skills")]
+    [InlineData("agent-")]
+    [InlineData("agent--skills")]
+    [InlineData("tools  skills")]
+    [Trait("Size", "Small")]
+    public void AddAgentSkillsCommandRuntime_WhenCommandRootIsInvalid_ThrowsArgumentException (string commandRoot)
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-hosting", "invalid-command-root");
+        var services = new ServiceCollection();
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+        {
+            services.AddAgentSkillsCommandRuntime(options =>
+            {
+                options.ProductName = "Example CLI";
+                options.CatalogId = "com.example.skills";
+                options.DefinedTiers = ["basic"];
+                options.PackageBaseDirectory = scope.FullPath;
+                options.CommandRoot = commandRoot;
+            });
+        });
+
+        Assert.Contains("command root", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed class TestCommandResultEmitter : IAgentSkillsCommandResultEmitter

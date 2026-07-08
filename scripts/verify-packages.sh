@@ -225,6 +225,7 @@ services.AddAgentSkillsCommandRuntime(options =>
     options.CatalogId = "com.mackysoft.agent-skills";
     options.DefinedTiers = ["basic", "advanced", "developer"];
     options.PackageBaseDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
+    options.CommandRoot = "agent-skills";
 });
 
 using var provider = services.BuildServiceProvider();
@@ -246,13 +247,16 @@ CS
 dotnet restore "$console_consumer_dir/console-consumer.csproj" \
   --source "$package_dir" \
   --source https://api.nuget.org/v3/index.json >/dev/null
-dotnet build "$console_consumer_dir/console-consumer.csproj" --configuration "$configuration" --no-restore >/dev/null
+dotnet build "$console_consumer_dir/console-consumer.csproj" \
+  --configuration "$configuration" \
+  --no-restore \
+  -p:AgentSkillsConsoleAppFrameworkCommandRoot=agent-skills >/dev/null
 dotnet run \
   --project "$console_consumer_dir/console-consumer.csproj" \
   --configuration "$configuration" \
   --no-build \
-  -- skills list --pretty > "$work_root/skills-list.json"
-grep -q '"Command": "skills.list"' "$work_root/skills-list.json"
+  -- agent-skills list --pretty > "$work_root/skills-list.json"
+grep -q '"Command": "agent-skills.list"' "$work_root/skills-list.json"
 grep -q '"Status": "ok"' "$work_root/skills-list.json"
 grep -q '"SkillName": "agent-skills-plan-apply"' "$work_root/skills-list.json"
 

@@ -24,6 +24,7 @@ public sealed class AgentSkillsCommandRunnerTests
         var result = await runner.ListAsync(new AgentSkillsListCommandRequest(), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.Equal("skills.list", result.Command);
         Assert.Equal(0, result.ExitCode);
         var report = Assert.IsType<SkillListReport>(result.Payload);
         Assert.Equal(DefinedTiers, report.Tiers);
@@ -32,6 +33,21 @@ public sealed class AgentSkillsCommandRunnerTests
         Assert.Equal(
             new[] { ("basic", 4), ("advanced", 0), ("developer", 0) },
             report.AvailableTiers.Select(static tier => (tier.Tier, tier.SkillCount)).ToArray());
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task ListAsync_WhenCommandRootIsConfigured_ReturnsCommandNameWithConfiguredRoot ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-hosting", "list-custom-root");
+        await WriteFixturePackagesAsync(scope.FullPath);
+        using var provider = CreateProvider(scope.FullPath, "tools skills");
+        var runner = provider.GetRequiredService<AgentSkillsCommandRunner>();
+
+        var result = await runner.ListAsync(new AgentSkillsListCommandRequest(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.Equal("tools.skills.list", result.Command);
     }
 
     [Fact]
@@ -98,7 +114,9 @@ public sealed class AgentSkillsCommandRunnerTests
         }
     }
 
-    private static ServiceProvider CreateProvider (string packageBaseDirectory)
+    private static ServiceProvider CreateProvider (
+        string packageBaseDirectory,
+        string commandRoot = "skills")
     {
         var services = new ServiceCollection();
         services.AddAgentSkillsCommandRuntime(options =>
@@ -107,6 +125,7 @@ public sealed class AgentSkillsCommandRunnerTests
             options.CatalogId = "com.mackysoft.agent-skills";
             options.DefinedTiers = DefinedTiers;
             options.PackageBaseDirectory = packageBaseDirectory;
+            options.CommandRoot = commandRoot;
         });
 
         return services.BuildServiceProvider();

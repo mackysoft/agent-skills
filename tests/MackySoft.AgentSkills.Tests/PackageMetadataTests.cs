@@ -139,6 +139,14 @@ public sealed class PackageMetadataTests
             "contentFiles\\cs\\any\\MackySoft.AgentSkills.ConsoleAppFramework\\*.cs",
             propsDocument.ToString(SaveOptions.DisableFormatting),
             StringComparison.Ordinal);
+        Assert.Contains(
+            "AgentSkillsConsoleAppFrameworkCommandRoot",
+            propsDocument.ToString(SaveOptions.DisableFormatting),
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "GenerateAgentSkillsConsoleAppFrameworkRegistrar",
+            propsDocument.ToString(SaveOptions.DisableFormatting),
+            StringComparison.Ordinal);
     }
 
     private static string ToRepositoryPath (string relativePath)

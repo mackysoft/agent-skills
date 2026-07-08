@@ -97,6 +97,7 @@ services.AddAgentSkillsCommandRuntime(options =>
     options.CatalogId = "com.example.skills";
     options.DefinedTiers = ["basic", "advanced", "developer"];
     options.PackageBaseDirectory = AppContext.BaseDirectory;
+    options.CommandRoot = "skills";
 });
 ```
 
@@ -136,6 +137,7 @@ builder.Services.AddAgentSkillsCommandRuntime(options =>
     options.CatalogId = "com.example.skills";
     options.DefinedTiers = ["basic", "advanced", "developer"];
     options.PackageBaseDirectory = AppContext.BaseDirectory;
+    options.CommandRoot = "skills";
 });
 
 ConsoleApp.ConsoleAppBuilder app = builder.ToConsoleAppBuilder();
@@ -147,16 +149,35 @@ await app.RunAsync(args);
 return Environment.ExitCode;
 ```
 
-`RegisterAgentSkillsCommands()` only adds the fixed `skills` command group to the builder. It does not create a builder, run the app, set `ConsoleApp.LogError`, replace the service provider, register filters, or change command validation.
+`RegisterAgentSkillsCommands()` adds the Agent Skills command group to the builder. It does not create a builder, run the app, set `ConsoleApp.LogError`, replace the service provider, register filters, or change command validation.
 
-If your CLI validates unknown commands before ConsoleAppFramework dispatch, keep that product policy in sync with the `skills` command group. `AgentSkillsCommandNames` and `AgentSkillsCommandMetadata` provide stable literals for that purpose.
+The default command root is `skills`. To expose another root, set the ConsoleAppFramework integration's MSBuild property and keep the runtime option aligned.
+
+```xml
+<PropertyGroup>
+  <AgentSkillsConsoleAppFrameworkCommandRoot>agent-skills</AgentSkillsConsoleAppFrameworkCommandRoot>
+</PropertyGroup>
+```
+
+```csharp
+services.AddAgentSkillsCommandRuntime(options =>
+{
+    options.CommandRoot = "agent-skills";
+    // Set the other required options here.
+});
+```
+
+The command root must be one or more lower-kebab command tokens separated by a single space, such as `skills`, `agent-skills`, or `tools skills`.
+Command results use dot-separated names, so `tools skills list` is reported as `tools.skills.list`.
+
+If your CLI validates unknown commands before ConsoleAppFramework dispatch, keep that product policy in sync with the configured command root. `AgentSkillsCommandNames` and `AgentSkillsCommandMetadata` provide stable subcommand literals for that purpose.
 
 ## Product Responsibilities
 
 The product CLI still owns:
 
 - when generated packages are built and how they are shipped;
-- `ProductName`, `CatalogId`, `DefinedTiers`, and `PackageBaseDirectory`;
+- `ProductName`, `CatalogId`, `DefinedTiers`, `PackageBaseDirectory`, and `CommandRoot`;
 - the public command surface outside the standard `skills` group;
 - pre-dispatch command validation, help policy, filters, global options, and logging;
 - the output envelope, if the default JSON result shape is not appropriate.
