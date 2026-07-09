@@ -14,7 +14,7 @@ internal sealed class AgentSkillsDoctorCommand
     private readonly AgentSkillsCommandRunner runner;
     private readonly IAgentSkillsCommandResultEmitter emitter;
 
-    public AgentSkillsDoctorCommand (
+    public AgentSkillsDoctorCommand(
         AgentSkillsCommandRunner runner,
         IAgentSkillsCommandResultEmitter emitter)
     {
@@ -26,7 +26,7 @@ internal sealed class AgentSkillsDoctorCommand
     /// <param name="repositoryRoot">Project root.</param>
     /// <param name="targetDir">Host target directory override.</param>
     [Command("doctor")]
-    public async Task<int> DoctorAsync (
+    public async Task<int> DoctorAsync(
         string? host = null,
         string[]? tier = null,
         string[]? skill = null,

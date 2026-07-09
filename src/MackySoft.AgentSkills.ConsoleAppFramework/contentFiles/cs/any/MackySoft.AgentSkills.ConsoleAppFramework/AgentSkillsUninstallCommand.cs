@@ -14,7 +14,7 @@ internal sealed class AgentSkillsUninstallCommand
     private readonly AgentSkillsCommandRunner runner;
     private readonly IAgentSkillsCommandResultEmitter emitter;
 
-    public AgentSkillsUninstallCommand (
+    public AgentSkillsUninstallCommand(
         AgentSkillsCommandRunner runner,
         IAgentSkillsCommandResultEmitter emitter)
     {
@@ -27,7 +27,7 @@ internal sealed class AgentSkillsUninstallCommand
     /// <param name="targetDir">Host target directory override.</param>
     /// <param name="dryRun">Report planned changes without writing files.</param>
     [Command("uninstall")]
-    public async Task<int> UninstallAsync (
+    public async Task<int> UninstallAsync(
         string? host = null,
         string[]? tier = null,
         string[]? skill = null,

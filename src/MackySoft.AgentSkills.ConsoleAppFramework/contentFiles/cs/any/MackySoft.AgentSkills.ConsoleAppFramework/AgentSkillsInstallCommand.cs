@@ -14,7 +14,7 @@ internal sealed class AgentSkillsInstallCommand
     private readonly AgentSkillsCommandRunner runner;
     private readonly IAgentSkillsCommandResultEmitter emitter;
 
-    public AgentSkillsInstallCommand (
+    public AgentSkillsInstallCommand(
         AgentSkillsCommandRunner runner,
         IAgentSkillsCommandResultEmitter emitter)
     {
@@ -28,7 +28,7 @@ internal sealed class AgentSkillsInstallCommand
     /// <param name="dryRun">Report planned changes without writing files.</param>
     /// <param name="printDiff">Include file diffs in the operation report.</param>
     [Command("install")]
-    public async Task<int> InstallAsync (
+    public async Task<int> InstallAsync(
         string? host = null,
         string[]? tier = null,
         string[]? skill = null,
