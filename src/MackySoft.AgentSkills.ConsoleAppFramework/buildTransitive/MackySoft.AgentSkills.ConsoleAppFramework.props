@@ -1,8 +1,6 @@
 <Project>
   <PropertyGroup>
     <AgentSkillsConsoleAppFrameworkCommandRoot Condition="'$(AgentSkillsConsoleAppFrameworkCommandRoot)' == ''">skills</AgentSkillsConsoleAppFrameworkCommandRoot>
-    <_AgentSkillsConsoleAppFrameworkGeneratedDirectory>$(IntermediateOutputPath)MackySoft.AgentSkills.ConsoleAppFramework\</_AgentSkillsConsoleAppFrameworkGeneratedDirectory>
-    <_AgentSkillsConsoleAppFrameworkRegistrarFile>$(_AgentSkillsConsoleAppFrameworkGeneratedDirectory)AgentSkillsConsoleAppCommandRegistrar.g.cs</_AgentSkillsConsoleAppFrameworkRegistrarFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,6 +11,11 @@
   </ItemGroup>
 
   <Target Name="GenerateAgentSkillsConsoleAppFrameworkRegistrar" BeforeTargets="CoreCompile">
+    <PropertyGroup>
+      <_AgentSkillsConsoleAppFrameworkGeneratedDirectory>$(IntermediateOutputPath)MackySoft.AgentSkills.ConsoleAppFramework\</_AgentSkillsConsoleAppFrameworkGeneratedDirectory>
+      <_AgentSkillsConsoleAppFrameworkRegistrarFile>$(_AgentSkillsConsoleAppFrameworkGeneratedDirectory)AgentSkillsConsoleAppCommandRegistrar.g.cs</_AgentSkillsConsoleAppFrameworkRegistrarFile>
+    </PropertyGroup>
+
     <Error
       Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('$(AgentSkillsConsoleAppFrameworkCommandRoot)', '^[a-z0-9]+(-[a-z0-9]+)*( [a-z0-9]+(-[a-z0-9]+)*)*$')) != 'True'"
       Text="AgentSkillsConsoleAppFrameworkCommandRoot must be one or more lower-kebab command tokens separated by a single space." />

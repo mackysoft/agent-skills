@@ -23,9 +23,9 @@ internal sealed class AgentSkillsUninstallCommand
     }
 
     /// <summary> Uninstalls Agent Skills. </summary>
-    /// <param name="repositoryRoot">--repository-root, Project root.</param>
-    /// <param name="targetDir">--target-dir, Host target directory override.</param>
-    /// <param name="dryRun">--dry-run, Report planned changes without writing files.</param>
+    /// <param name="repositoryRoot">Project root.</param>
+    /// <param name="targetDir">Host target directory override.</param>
+    /// <param name="dryRun">Report planned changes without writing files.</param>
     [Command("uninstall")]
     public async Task<int> UninstallAsync (
         string? host = null,

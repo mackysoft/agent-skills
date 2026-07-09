@@ -69,7 +69,7 @@ Install the build tool in the product repository.
 
 ```bash
 dotnet new tool-manifest
-dotnet tool install MackySoft.AgentSkills.Cli --version 0.8.0
+dotnet tool install MackySoft.AgentSkills.Cli --version 0.8.1
 ```
 
 Generate the package root from the source definitions.
@@ -91,7 +91,7 @@ Use the hosting package when the product CLI wants standard Agent Skills command
 Add the hosting package to the product CLI.
 
 ```bash
-dotnet add <PROJECT>.csproj package MackySoft.AgentSkills.Hosting --version 0.8.0
+dotnet add <PROJECT>.csproj package MackySoft.AgentSkills.Hosting --version 0.8.1
 ```
 
 Register the runtime in the product's DI container.
@@ -121,6 +121,17 @@ The package base directory must contain the shipped generated packages under `sk
       references/
 ```
 
+Project-scope commands use the current directory when `--repository-root` is omitted. If the product CLI already has a repository-root policy, set `RepositoryRootResolver` to keep Agent Skills commands aligned with it.
+
+```csharp
+services.AddAgentSkillsCommandRuntime(options =>
+{
+    options.RepositoryRootResolver = currentDirectory =>
+        ProductRepositoryResolver.Resolve(currentDirectory);
+    // Set the required options shown above.
+});
+```
+
 ### ConsoleAppFramework Integration
 
 Use the ConsoleAppFramework integration when the product CLI already uses ConsoleAppFramework and wants Agent Skills to add the standard command group to the existing app builder.
@@ -128,7 +139,7 @@ Use the ConsoleAppFramework integration when the product CLI already uses Consol
 Add the integration package to the product CLI.
 
 ```bash
-dotnet add <PROJECT>.csproj package MackySoft.AgentSkills.ConsoleAppFramework --version 0.8.0
+dotnet add <PROJECT>.csproj package MackySoft.AgentSkills.ConsoleAppFramework --version 0.8.1
 dotnet add <PROJECT>.csproj package Microsoft.Extensions.Hosting
 ```
 
@@ -183,16 +194,16 @@ Command results use dot-separated names, so `tools skills list` is reported as `
 
 If your CLI validates unknown commands before ConsoleAppFramework dispatch, keep that product policy in sync with the configured command root. `AgentSkillsCommandNames` and `AgentSkillsCommandMetadata` provide stable subcommand literals for that purpose.
 
-The command examples in this README use kebab-case option names. The ConsoleAppFramework integration keeps those documented option names available even when the product assembly changes ConsoleAppFramework naming conversion.
+The command examples in this README use ConsoleAppFramework's default kebab-case option names. If the product exposes different public option names, keep that compatibility in the product CLI before ConsoleAppFramework dispatch.
 
 ### Product Responsibilities
 
 The product CLI still owns:
 
 - when generated packages are built and how they are shipped;
-- `ProductName`, `CatalogId`, `Tiers`, `PackageBaseDirectory`, and `CommandRoot`;
+- `ProductName`, `CatalogId`, `Tiers`, `PackageBaseDirectory`, `CommandRoot`, and the default repository-root policy;
 - the public command surface outside the configured Agent Skills command root;
-- pre-dispatch command validation, help policy, filters, global options, and logging;
+- pre-dispatch command validation, option-name compatibility, help policy, filters, global options, and logging;
 - the output envelope, if the default JSON result shape is not appropriate.
 
 Register your own `IAgentSkillsCommandResultEmitter` after `AddAgentSkillsCommandRuntime(...)` when the product needs its own JSON envelope or text output.
@@ -233,7 +244,7 @@ example skills doctor --host openai --scope project --tier basic
 | `--scope` | install, update, uninstall, prune, doctor | `project` or `user`. |
 | `--tier` | all commands | Select packages by configured product tier. |
 | `--skill` | all commands | Select exact skill names. |
-| `--repository-root` | project scope | Project root. Defaults to the current directory for project scope. |
+| `--repository-root` | project scope | Project root. Defaults to the configured repository-root resolver for project scope. |
 | `--target-dir` | install, update, uninstall, prune, doctor | Override the host target directory. |
 | `--dry-run` | install, update, uninstall, prune | Report planned changes without writing files. |
 | `--force` | install, update, uninstall, prune | Allow supported overwrite or delete operations that otherwise require confirmation. |

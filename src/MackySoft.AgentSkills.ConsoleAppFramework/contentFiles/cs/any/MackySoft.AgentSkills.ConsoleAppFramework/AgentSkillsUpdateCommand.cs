@@ -23,10 +23,10 @@ internal sealed class AgentSkillsUpdateCommand
     }
 
     /// <summary> Updates Agent Skills. </summary>
-    /// <param name="repositoryRoot">--repository-root, Project root.</param>
-    /// <param name="targetDir">--target-dir, Host target directory override.</param>
-    /// <param name="dryRun">--dry-run, Report planned changes without writing files.</param>
-    /// <param name="printDiff">--print-diff, Include file diffs in the operation report.</param>
+    /// <param name="repositoryRoot">Project root.</param>
+    /// <param name="targetDir">Host target directory override.</param>
+    /// <param name="dryRun">Report planned changes without writing files.</param>
+    /// <param name="printDiff">Include file diffs in the operation report.</param>
     [Command("update")]
     public async Task<int> UpdateAsync (
         string? host = null,

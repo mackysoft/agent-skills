@@ -280,7 +280,7 @@ dotnet run \
   --project "$console_consumer_dir/console-consumer.csproj" \
   --configuration "$configuration" \
   --no-build \
-  -- agent-skills install --host openai --scope project --tier basic --repository-root "$work_root/install-target" --dry-run --pretty > "$work_root/skills-install.json"
+  -- agent-skills install --host openai --scope project --tier basic --repositoryRoot "$work_root/install-target" --dryRun --pretty > "$work_root/skills-install.json"
 grep -q '"Command": "agent-skills.install"' "$work_root/skills-install.json"
 grep -q '"Status": "ok"' "$work_root/skills-install.json"
 grep -q '"DryRun": true' "$work_root/skills-install.json"
