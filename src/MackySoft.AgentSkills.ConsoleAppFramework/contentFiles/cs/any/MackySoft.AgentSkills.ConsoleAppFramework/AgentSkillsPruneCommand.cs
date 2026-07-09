@@ -14,7 +14,7 @@ internal sealed class AgentSkillsPruneCommand
     private readonly AgentSkillsCommandRunner runner;
     private readonly IAgentSkillsCommandResultEmitter emitter;
 
-    public AgentSkillsPruneCommand (
+    public AgentSkillsPruneCommand(
         AgentSkillsCommandRunner runner,
         IAgentSkillsCommandResultEmitter emitter)
     {
@@ -27,7 +27,7 @@ internal sealed class AgentSkillsPruneCommand
     /// <param name="targetDir">Host target directory override.</param>
     /// <param name="dryRun">Report planned changes without writing files.</param>
     [Command("prune")]
-    public async Task<int> PruneAsync (
+    public async Task<int> PruneAsync(
         string? host = null,
         string[]? tier = null,
         string[]? skill = null,

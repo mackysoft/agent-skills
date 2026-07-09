@@ -14,7 +14,7 @@ internal sealed class AgentSkillsExportCommand
     private readonly AgentSkillsCommandRunner runner;
     private readonly IAgentSkillsCommandResultEmitter emitter;
 
-    public AgentSkillsExportCommand (
+    public AgentSkillsExportCommand(
         AgentSkillsCommandRunner runner,
         IAgentSkillsCommandResultEmitter emitter)
     {
@@ -24,7 +24,7 @@ internal sealed class AgentSkillsExportCommand
 
     /// <summary> Exports Agent Skills. </summary>
     [Command("export")]
-    public async Task<int> ExportAsync (
+    public async Task<int> ExportAsync(
         string? host = null,
         string[]? tier = null,
         string[]? skill = null,

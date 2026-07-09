@@ -14,7 +14,7 @@ internal sealed class AgentSkillsUpdateCommand
     private readonly AgentSkillsCommandRunner runner;
     private readonly IAgentSkillsCommandResultEmitter emitter;
 
-    public AgentSkillsUpdateCommand (
+    public AgentSkillsUpdateCommand(
         AgentSkillsCommandRunner runner,
         IAgentSkillsCommandResultEmitter emitter)
     {
@@ -28,7 +28,7 @@ internal sealed class AgentSkillsUpdateCommand
     /// <param name="dryRun">Report planned changes without writing files.</param>
     /// <param name="printDiff">Include file diffs in the operation report.</param>
     [Command("update")]
-    public async Task<int> UpdateAsync (
+    public async Task<int> UpdateAsync(
         string? host = null,
         string[]? tier = null,
         string[]? skill = null,
