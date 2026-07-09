@@ -22,6 +22,7 @@ internal sealed class AgentSkillsListCommand
         this.emitter = emitter ?? throw new ArgumentNullException(nameof(emitter));
     }
 
+    /// <summary> Lists Agent Skills. </summary>
     [Command("list")]
     public async Task<int> ListAsync (
         string[]? tier = null,

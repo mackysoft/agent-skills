@@ -22,6 +22,7 @@ internal sealed class AgentSkillsExportCommand
         this.emitter = emitter ?? throw new ArgumentNullException(nameof(emitter));
     }
 
+    /// <summary> Exports Agent Skills. </summary>
     [Command("export")]
     public async Task<int> ExportAsync (
         string? host = null,

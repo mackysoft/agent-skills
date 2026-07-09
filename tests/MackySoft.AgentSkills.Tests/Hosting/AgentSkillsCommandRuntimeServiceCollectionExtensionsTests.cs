@@ -32,6 +32,7 @@ public sealed class AgentSkillsCommandRuntimeServiceCollectionExtensionsTests
         Assert.Equal(["basic", "advanced"], options.Tiers);
         Assert.Equal(Path.GetFullPath(scope.FullPath), options.PackageBaseDirectory);
         Assert.Equal("skills", options.CommandRoot);
+        Assert.Equal(Directory.GetCurrentDirectory(), options.RepositoryRootResolver(Directory.GetCurrentDirectory()));
         Assert.NotNull(provider.GetRequiredService<AgentSkillsCommandRunner>());
         Assert.IsType<AgentSkillsJsonCommandResultEmitter>(provider.GetRequiredService<IAgentSkillsCommandResultEmitter>());
     }
@@ -102,6 +103,26 @@ public sealed class AgentSkillsCommandRuntimeServiceCollectionExtensionsTests
         });
 
         Assert.Contains("command root", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void AddAgentSkillsCommandRuntime_WhenRepositoryRootResolverIsNull_ThrowsArgumentNullException ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-hosting", "null-root-resolver");
+        var services = new ServiceCollection();
+
+        Assert.Throws<ArgumentNullException>(() =>
+        {
+            services.AddAgentSkillsCommandRuntime(options =>
+            {
+                options.ProductName = "Example CLI";
+                options.CatalogId = "com.example.skills";
+                options.Tiers = ["basic"];
+                options.PackageBaseDirectory = scope.FullPath;
+                options.RepositoryRootResolver = null!;
+            });
+        });
     }
 
     private sealed class TestCommandResultEmitter : IAgentSkillsCommandResultEmitter

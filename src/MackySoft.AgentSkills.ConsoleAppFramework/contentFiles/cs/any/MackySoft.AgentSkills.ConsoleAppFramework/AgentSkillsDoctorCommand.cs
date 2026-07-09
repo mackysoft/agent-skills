@@ -23,8 +23,8 @@ internal sealed class AgentSkillsDoctorCommand
     }
 
     /// <summary> Diagnoses installed Agent Skills. </summary>
-    /// <param name="repositoryRoot">--repository-root, Project root.</param>
-    /// <param name="targetDir">--target-dir, Host target directory override.</param>
+    /// <param name="repositoryRoot">Project root.</param>
+    /// <param name="targetDir">Host target directory override.</param>
     [Command("doctor")]
     public async Task<int> DoctorAsync (
         string? host = null,

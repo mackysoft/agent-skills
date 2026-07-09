@@ -357,12 +357,15 @@ public sealed class AgentSkillsCommandRunner
             return Failure(commandName, targetResult.Failure!);
         }
 
-        var doctorResult = await doctorService.DiagnoseAsync(
-                prepared.Catalog.Packages,
-                prepared.Target.HostDescriptor.HostKey,
-                targetResult.Value!.TargetRoot,
-                cancellationToken)
-            .ConfigureAwait(false);
+        var packages = prepared.Catalog.Packages;
+        var doctorResult = packages.Count == 0
+            ? new SkillDoctorResult(prepared.Target.HostDescriptor.HostKey, targetResult.Value!.TargetRoot, Array.Empty<SkillDoctorDiagnostic>())
+            : await doctorService.DiagnoseAsync(
+                    packages,
+                    prepared.Target.HostDescriptor.HostKey,
+                    targetResult.Value!.TargetRoot,
+                    cancellationToken)
+                .ConfigureAwait(false);
         var report = SkillOperationReportBuilder.CreateDoctorReport(
             doctorResult,
             prepared.Target.Scope,
@@ -564,7 +567,7 @@ public sealed class AgentSkillsCommandRunner
             : SkillCommandValueParser.ParseExportFormatLiteral(format);
     }
 
-    private static SkillOperationResult<NormalizedRepositoryRoot> NormalizeRepositoryRoot (
+    private SkillOperationResult<NormalizedRepositoryRoot> NormalizeRepositoryRoot (
         SkillScopeKind scope,
         string? repositoryRoot)
     {
@@ -578,7 +581,7 @@ public sealed class AgentSkillsCommandRunner
         }
 
         string root = string.IsNullOrWhiteSpace(repositoryRoot)
-            ? Directory.GetCurrentDirectory()
+            ? options.RepositoryRootResolver(Directory.GetCurrentDirectory())
             : repositoryRoot;
         var result = NormalizeRequiredFullPath(root, "Project-scope SKILL operation requires a repository root.");
         return result.IsSuccess
@@ -601,9 +604,9 @@ public sealed class AgentSkillsCommandRunner
         var expanded = new List<string>();
         foreach (var value in values)
         {
-            foreach (var item in (value ?? string.Empty).Split(',', StringSplitOptions.TrimEntries))
+            foreach (var item in (value ?? string.Empty).Split(','))
             {
-                if (!string.IsNullOrWhiteSpace(item))
+                if (item.Length != 0)
                 {
                     expanded.Add(item);
                 }

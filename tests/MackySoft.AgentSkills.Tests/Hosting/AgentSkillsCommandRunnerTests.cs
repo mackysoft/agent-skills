@@ -74,6 +74,72 @@ public sealed class AgentSkillsCommandRunnerTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task ListAsync_WhenSelectedTierContainsWhitespace_ReturnsInputFailure ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-hosting", "list-tier-whitespace");
+        await WriteFixturePackagesAsync(scope.FullPath);
+        using var provider = CreateProvider(scope.FullPath);
+        var runner = provider.GetRequiredService<AgentSkillsCommandRunner>();
+
+        var result = await runner.ListAsync(new AgentSkillsListCommandRequest(Tier: ["advanced "]), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task InstallAsync_WhenRepositoryRootIsOmitted_UsesConfiguredRepositoryRootResolver ()
+    {
+        using var packageScope = TestDirectories.CreateTempScope("agent-skills-hosting", "install-package-root");
+        using var targetScope = TestDirectories.CreateTempScope("agent-skills-hosting", "install-resolved-root");
+        await WriteFixturePackagesAsync(packageScope.FullPath);
+        using var provider = CreateProvider(
+            packageScope.FullPath,
+            repositoryRootResolver: _ => targetScope.FullPath);
+        var runner = provider.GetRequiredService<AgentSkillsCommandRunner>();
+
+        var result = await runner.InstallAsync(
+            new AgentSkillsInstallCommandRequest(
+                Host: "openai",
+                Tier: ["basic"],
+                Scope: "project",
+                DryRun: true),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        var report = Assert.IsType<SkillOperationReport>(result.Payload);
+        FileSystemAssert.ForPath(report.TargetRoot).EqualsNormalized(Path.Combine(targetScope.FullPath, ".agents", "skills"));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task DoctorAsync_WhenSelectedTierContainsNoPackages_ReturnsHealthyEmptyReport ()
+    {
+        using var packageScope = TestDirectories.CreateTempScope("agent-skills-hosting", "doctor-empty-package-root");
+        using var targetScope = TestDirectories.CreateTempScope("agent-skills-hosting", "doctor-empty-target");
+        await WriteFixturePackagesAsync(packageScope.FullPath);
+        using var provider = CreateProvider(packageScope.FullPath);
+        var runner = provider.GetRequiredService<AgentSkillsCommandRunner>();
+
+        var result = await runner.DoctorAsync(
+            new AgentSkillsDoctorCommandRequest(
+                Host: "openai",
+                Tier: ["advanced"],
+                Scope: "project",
+                RepositoryRoot: targetScope.FullPath),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.Equal(0, result.ExitCode);
+        var report = Assert.IsType<SkillDoctorReport>(result.Payload);
+        Assert.True(report.IsHealthy);
+        Assert.Equal(["advanced"], report.Tiers);
+        Assert.Empty(report.Diagnostics);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task PruneAsync_WhenRemovedSkillNameIsSelected_PrunesOnlyThatInstalledSkill ()
     {
         using var packageScope = TestDirectories.CreateTempScope("agent-skills-hosting", "prune-package-root");
@@ -123,7 +189,8 @@ public sealed class AgentSkillsCommandRunnerTests
 
     private static ServiceProvider CreateProvider (
         string packageBaseDirectory,
-        string commandRoot = "skills")
+        string commandRoot = "skills",
+        Func<string, string>? repositoryRootResolver = null)
     {
         var services = new ServiceCollection();
         services.AddAgentSkillsCommandRuntime(options =>
@@ -133,6 +200,10 @@ public sealed class AgentSkillsCommandRunnerTests
             options.Tiers = Tiers;
             options.PackageBaseDirectory = packageBaseDirectory;
             options.CommandRoot = commandRoot;
+            if (repositoryRootResolver is not null)
+            {
+                options.RepositoryRootResolver = repositoryRootResolver;
+            }
         });
 
         return services.BuildServiceProvider();

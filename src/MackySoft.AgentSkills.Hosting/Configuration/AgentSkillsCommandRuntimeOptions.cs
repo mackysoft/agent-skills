@@ -22,6 +22,9 @@ public sealed class AgentSkillsCommandRuntimeOptions
     /// <summary> Gets or sets the public command root used in standard command result names. </summary>
     public string CommandRoot { get; set; } = AgentSkillsCommandNames.Root;
 
+    /// <summary> Gets or sets the resolver used when a project-scope command omits its repository root. </summary>
+    public Func<string, string> RepositoryRootResolver { get; set; } = static currentDirectory => currentDirectory;
+
     internal AgentSkillsCommandRuntimeOptions CreateValidatedCopy ()
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(ProductName);
@@ -29,6 +32,7 @@ public sealed class AgentSkillsCommandRuntimeOptions
         ArgumentException.ThrowIfNullOrWhiteSpace(PackageBaseDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(CommandRoot);
         ArgumentNullException.ThrowIfNull(Tiers);
+        ArgumentNullException.ThrowIfNull(RepositoryRootResolver);
 
         if (!SkillCatalogId.TryCreate(CatalogId, out _))
         {
@@ -50,6 +54,7 @@ public sealed class AgentSkillsCommandRuntimeOptions
             Tiers = Tiers.ToArray(),
             PackageBaseDirectory = Path.GetFullPath(PackageBaseDirectory),
             CommandRoot = CommandRoot,
+            RepositoryRootResolver = RepositoryRootResolver,
         };
     }
 }
