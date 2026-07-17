@@ -36,11 +36,10 @@ public sealed class WorkflowConfigurationTests
         Assert.Contains("workflow_dispatch:", workflow, StringComparison.Ordinal);
         Assert.Contains("expected_sha:", workflow, StringComparison.Ordinal);
         Assert.Contains("source:\n    name: synchronized source", workflow, StringComparison.Ordinal);
-        Assert.Contains("if: inputs.expected_sha != ''", workflow, StringComparison.Ordinal);
         Assert.Contains("ACTUAL_SHA: ${{ github.sha }}", workflow, StringComparison.Ordinal);
         Assert.Contains("EXPECTED_SHA: ${{ inputs.expected_sha }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("if [[ -n \"${EXPECTED_SHA}\" && \"${ACTUAL_SHA}\" != \"${EXPECTED_SHA}\" ]]; then", workflow, StringComparison.Ordinal);
         Assert.Contains("test:\n    needs: source", workflow, StringComparison.Ordinal);
-        Assert.Contains("if: always() && (needs.source.result == 'success' || needs.source.result == 'skipped')", workflow, StringComparison.Ordinal);
         Assert.Contains("uses: ./.github/workflows/dotnet-verify.yaml", workflow, StringComparison.Ordinal);
         Assert.Contains("package:\n    name: package\n    needs: test", workflow, StringComparison.Ordinal);
         Assert.Contains("run: bash scripts/verify-packages.sh --configuration Release", workflow, StringComparison.Ordinal);
