@@ -5,24 +5,24 @@
   "category": "basic",
   "skillName": "agent-skills-packaging",
   "displayName": "Agent Skills Packaging",
-  "description": "完成したエージェントスキルを Agent Skills 1.0 の固定レイアウトへ反映し、生成、検証、配布物への同梱、自己ホスト時の依存境界を整える。Agent Skills を採用する製品でスキル定義を追加または更新するとき、verify と sync の継続的インテグレーション運用を整えるとき、または定義、生成物、配布契約をレビューするときに使う。",
+  "description": "完成したエージェントスキルの責務、発火条件、判断、成果、完了状態を保持して、Agent Skills 採用製品へソース定義を初回追加または更新し、正規の生成、製品への収録、製品から利用できることまで検証する。既存のソース定義、生成物、依存関係、製品設定を編集せずレビューし、問題、根拠、必要な差分、未検証範囲を整理するときにも使う。",
   "dependencies": [],
-  "contentDigest": "ae0196bb75a04ae6e0ee208e1fa323a4d50a7f75470ac7b6b4852a0f97d2fa1e",
-  "manifestDigest": "efa5bec5915ca313783332ead90b636b3328bc771d76c89b89809ecf6dd534a0",
+  "contentDigest": "ca2fa72e1c566d6409aada1e7812e428fc137b21b719dec81044c8f756acd07f",
+  "manifestDigest": "0fc926effb63946740ac4911d29197bb5a76446d41bf240addf5a537a145fbe0",
   "hostArtifacts": [
     {
       "host": "claude",
-      "materializedFrontmatterDigest": "6a0ad65b6bfbb0d748bbff6fb2cc05b6aec557bf2c497a97ec884683fadb73bd"
+      "materializedFrontmatterDigest": "112603e499bcae5b2e9f24de3fc19ec30e2be92b15805463123302c98db47f15"
     },
     {
       "host": "copilot",
-      "materializedFrontmatterDigest": "1b8971cdcf32db905a4087f6d030f8957774701abbb4fdaf9e4264047a024f83"
+      "materializedFrontmatterDigest": "e95d81f97846314720a909c78c93c3a0cd6c682baf5b08d136ba29b443135157"
     },
     {
       "host": "openai",
       "path": "agents/openai.yaml",
-      "digest": "adc7c1b743511491caea105f74f32a3e961b833479f2bba6fdff8defe14ce8a5",
-      "materializedFrontmatterDigest": "f0448f8275c527303428a2616250cfb4215a9710103ea25cc8df67dd3077696b"
+      "digest": "d6fdda0af115e036cd47afb0d4844e8818f11bbda54d108a388e2b69750b60f3",
+      "materializedFrontmatterDigest": "24cd6436f79ad727dbae1e30beafa6ac3bdf932755975b99211fec5b2f67adfa"
     }
   ]
 }

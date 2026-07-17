@@ -25,58 +25,9 @@ All packages are versioned together.
 
 Agent Skills separates skill source files from generated packages. Keep the source files in the product repository and ship the generated package directory with the product CLI.
 
-A source bundle and its generated output use this fixed layout:
-
-```text
-skills/
-  bundle.json
-  definitions/
-    <category>/
-      <skill-name>/
-        skill.json
-        SKILL.md.template
-        references/
-          *.md.template
-  generated/
-    bundle.json
-    <skill-name>/
-      agent-skill.json
-      SKILL.md
-      agents/
-      references/
-```
-
 ### Define Source Skills
 
-Define the catalog and release version once in `bundle.json`.
-
-```json
-{
-  "schemaVersion": 1,
-  "catalogId": "com.example.skills",
-  "skillBundleVersion": 1
-}
-```
-
-Each source definition has a `skill.json` file under exactly one category directory.
-
-```json
-{
-  "schemaVersion": 1,
-  "displayName": "Example Review",
-  "description": "Review the example product.",
-  "dependencies": []
-}
-```
-
-Important fields:
-
-- `catalogId` identifies the product-owned skill catalog.
-- `skillBundleVersion` is the product's bundled skill-set version. The build command advances it when source changes require new generated output. A manually advanced value is accepted only when it is exactly one greater than the current generated version and the source content changed.
-- The category directory name is the skill's category and must be a lowercase hyphenated literal.
-- The skill directory name is the exact machine name used by command selection and dependencies.
-- `dependencies` contains exact skill names from the same generated package set.
-- Reference names are derived from regular `references/*.md.template` files directly under the skill directory. Do not duplicate them in `skill.json`.
+Use the [Agent Skills source definition contract](skills/generated/agent-skills-packaging/references/source-definition-contract.md) shipped with the `agent-skills-packaging` skill. It is the public contract for source-input layout, metadata, naming, dependencies, and content.
 
 ### Generate Shipped Packages
 
@@ -94,6 +45,8 @@ dotnet tool run agent-skills -- build --root skills
 ```
 
 The command reads `bundle.json` and `definitions` under the bundle root and replaces its `generated` directory. Do not edit generated files manually; edit the source bundle and run the build again. When packaging the product CLI, ship the generated directory as `<PackageBaseDirectory>/skills`.
+
+`skillBundleVersion` identifies the product's generated skill set. When source changes require new generated output, the build advances the current generated version by one. A manually advanced source value is accepted only when it is exactly one greater than the current generated version and the source content changed.
 
 When generated output already matches the source definition and bundle version, the command does not write any files. To verify committed output without changing the working tree, use:
 

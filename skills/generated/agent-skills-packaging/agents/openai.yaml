@@ -1,6 +1,6 @@
 interface:
   display_name: "Agent Skills Packaging"
-  short_description: "完成したエージェントスキルを Agent Skills 1.0 の固定レイアウトへ反映し、生成、検証、配布物への同梱、自己ホスト時の依存境界を整える。Agent Skills を採用する製品でスキル定義を追加または更新するとき、verify と sync の継続的インテグレーション運用を整えるとき、または定義、生成物、配布契約をレビューするときに使う。"
+  short_description: "完成したエージェントスキルの責務、発火条件、判断、成果、完了状態を保持して、Agent Skills 採用製品へソース定義を初回追加または更新し、正規の生成、製品への収録、製品から利用できることまで検証する。既存のソース定義、生成物、依存関係、製品設定を編集せずレビューし、問題、根拠、必要な差分、未検証範囲を整理するときにも使う。"
   default_prompt: "Use $agent-skills-packaging to follow the Agent Skills Packaging workflow."
 
 policy:
