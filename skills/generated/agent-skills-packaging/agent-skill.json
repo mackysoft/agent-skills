@@ -5,24 +5,24 @@
   "tier": "development",
   "skillName": "agent-skills-packaging",
   "displayName": "Agent Skills Packaging",
-  "description": "完成したエージェントスキルを AgentSkills の正規ソース定義へ反映し、製品が所有するカタログ情報と整合させ、正規パッケージの生成、ホスト別成果物、依存関係、インストール可能性を検証する。AgentSkills を利用する製品でスキル定義を追加、更新、レビューし、生成物を同期するときに使う。",
+  "description": "完成したエージェントスキルを AgentSkills の正規ソース定義へ反映し、製品が所有するカタログ情報と整合させ、正規パッケージの生成、ホスト別成果物、依存関係、インストール可能性を検証する。AgentSkills を利用する製品でスキル定義を追加または更新して生成物を同期するとき、あるいは定義と生成物をレビューするときに使う。",
   "dependencies": [],
-  "contentDigest": "da7b2c8a239bd365e6611ba7251b1222203bf32008b2329e21973e1f7c507029",
-  "manifestDigest": "10ef210a869052a2b5b0f410a6f73a140ea37b9d811251aeb4c2538fca23b886",
+  "contentDigest": "8f9bf300467c7132e3190a8b59bd790ddc583ed47120f245dfdf7bc4ac4e624f",
+  "manifestDigest": "f7702e56d2fe7709c18a9fdb84ede9468b9bbf7367a2e5bf93faa45c730b45d6",
   "hostArtifacts": [
     {
       "host": "claude",
-      "materializedFrontmatterDigest": "f3af07f8a632d1a51403a14647cb89bfc46ce7b351747d206631a03df512e92e"
+      "materializedFrontmatterDigest": "67fe74f06f3a3e75f593fee5afa58519a2000975678a7d36d3dfdefbc61b4a56"
     },
     {
       "host": "copilot",
-      "materializedFrontmatterDigest": "473e72a36085aa9eba5a7b0ebe8b6dd6239dba31188684d2b126bd58b19a3b37"
+      "materializedFrontmatterDigest": "6f81848b10b2dbb485dae4620d6e7a24f4a5050aab50858a9cf8340631ede456"
     },
     {
       "host": "openai",
       "path": "agents/openai.yaml",
-      "digest": "8b225e0728d942902cdaf3ee213e7ec8a2e23817eb3f65091e76a549a91bfd56",
-      "materializedFrontmatterDigest": "41089efff6d377772843cd9f23d13eb373c47e432a394ae9950a6210c4e2643c"
+      "digest": "cfbb50c5ea6a21e8276b5d5daed204f19f68c9f2f46d3e6ce50fbf7b63637524",
+      "materializedFrontmatterDigest": "cf9ffd960b68297390c48e2681e485ef1c94daee34fa1f6adb68746048c3c648"
     }
   ]
 }
