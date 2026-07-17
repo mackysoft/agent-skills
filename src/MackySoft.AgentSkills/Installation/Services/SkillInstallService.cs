@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Contracts;
 using MackySoft.AgentSkills.Installation.Diffing;
 using MackySoft.AgentSkills.Installation.Requests;
@@ -62,8 +63,6 @@ public sealed class SkillInstallService
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
-        ArgumentNullException.ThrowIfNull(input.Packages);
-        ArgumentNullException.ThrowIfNull(input.TargetRequest);
         cancellationToken.ThrowIfCancellationRequested();
 
         var targetResult = targetResolver.ResolveTarget(input.TargetRequest);
@@ -175,7 +174,7 @@ public sealed class SkillInstallService
 
     private async ValueTask<SkillOperationResult<SkillInstallActionPlan>> CreateActionPlanAsync (
         CanonicalSkillPackage package,
-        string host,
+        SkillHostKind host,
         string skillDirectory,
         SkillInstallIdentity identity,
         SkillInstalledTargetState state,
@@ -197,9 +196,16 @@ public sealed class SkillInstallService
                     .ConfigureAwait(false);
             case SkillTargetStateKind.Current:
                 return SkillOperationResult<SkillInstallActionPlan>.Success(new SkillInstallActionPlan(
-                    new SkillInstallAction(identity, SkillInstallActionKind.NoOp, TargetState: SkillActionTargetStateProjection.Create(state)),
+                    new SkillInstallAction(
+                        identity,
+                        SkillInstallActionKind.NoOp,
+                        SkillActionTargetStateProjection.Create(state),
+                        blockedReason: null,
+                        diffs: null,
+                        fileChanges: null),
                     skillDirectory,
                     package,
+                    null,
                     null));
             case SkillTargetStateKind.CleanOutdated:
                 return await CreateManagedMismatchActionPlanAsync(
@@ -225,7 +231,7 @@ public sealed class SkillInstallService
                         state,
                         cancellationToken)
                     .ConfigureAwait(false);
-            case var kind when SkillInstalledTargetStateClassifier.IsLocalModificationDrift(kind):
+            case var kind when SkillTargetStateClassifier.IsLocalModificationDrift(kind):
                 return await CreateManagedMismatchActionPlanAsync(
                         package,
                         host,
@@ -268,7 +274,7 @@ public sealed class SkillInstallService
 
     private async ValueTask<SkillOperationResult<SkillInstallActionPlan>> CreateManagedMismatchActionPlanAsync (
         CanonicalSkillPackage package,
-        string host,
+        SkillHostKind host,
         string skillDirectory,
         SkillInstallIdentity identity,
         SkillInstallInput input,
@@ -316,7 +322,7 @@ public sealed class SkillInstallService
 
     private async ValueTask<SkillOperationResult<SkillInstallActionPlan>> CreateWriteActionPlanAsync (
         CanonicalSkillPackage package,
-        string host,
+        SkillHostKind host,
         string skillDirectory,
         SkillInstallIdentity identity,
         SkillInstallActionKind actionKind,
@@ -335,11 +341,10 @@ public sealed class SkillInstallService
                 new SkillInstallAction(
                     identity,
                     actionKind,
-                    Diffs: packagePlan.Diffs,
-                    TargetState: SkillActionTargetStateProjection.Create(state))
-                {
-                    FileChanges = packagePlan.FileChanges,
-                },
+                    SkillActionTargetStateProjection.Create(state),
+                    blockedReason: null,
+                    packagePlan.Diffs,
+                    packagePlan.FileChanges),
             skillDirectory,
             package,
             packagePlan.MaterializedPackage,
@@ -348,7 +353,7 @@ public sealed class SkillInstallService
 
     private async ValueTask<SkillOperationResult<SkillInstallActionPlan>> CreateBlockedActionPlanAsync (
         CanonicalSkillPackage package,
-        string host,
+        SkillHostKind host,
         string skillDirectory,
         SkillInstallIdentity identity,
         SkillInstallActionKind actionKind,
@@ -360,16 +365,23 @@ public sealed class SkillInstallService
         var packagePlanResult = await CreateMaterializedPackagePlanAsync(package, host, skillDirectory, printDiff, cancellationToken).ConfigureAwait(false);
         return packagePlanResult.IsSuccess
             ? SkillOperationResult<SkillInstallActionPlan>.Success(new SkillInstallActionPlan(
-                new SkillInstallAction(identity, actionKind, blockedReason, packagePlanResult.Value!.Diffs, SkillActionTargetStateProjection.Create(state)),
+                new SkillInstallAction(
+                    identity,
+                    actionKind,
+                    SkillActionTargetStateProjection.Create(state),
+                    blockedReason,
+                    packagePlanResult.Value!.Diffs,
+                    fileChanges: null),
                 skillDirectory,
                 package,
+                null,
                 null))
             : SkillOperationResult<SkillInstallActionPlan>.FailureResult(packagePlanResult.Failure!.Code, packagePlanResult.Failure.Message);
     }
 
     private async ValueTask<SkillOperationResult<bool>> ValidateWritePreconditionAsync (
         CanonicalSkillPackage package,
-        string host,
+        SkillHostKind host,
         string skillDirectory,
         SkillInstallActionKind actionKind,
         SkillActionTargetSnapshot? targetSnapshot,
@@ -447,7 +459,7 @@ public sealed class SkillInstallService
 
     private async ValueTask<SkillOperationResult<SkillMaterializedPackagePlan>> CreateMaterializedPackagePlanAsync (
         CanonicalSkillPackage package,
-        string host,
+        SkillHostKind host,
         string skillDirectory,
         bool printDiff,
         CancellationToken cancellationToken)
@@ -466,7 +478,7 @@ public sealed class SkillInstallService
 
     private async ValueTask<SkillOperationResult<SkillMaterializedPackageWritePlan>> CreateMaterializedPackageWritePlanAsync (
         CanonicalSkillPackage package,
-        string host,
+        SkillHostKind host,
         string skillDirectory,
         bool printDiff,
         CancellationToken cancellationToken)
@@ -491,20 +503,74 @@ public sealed class SkillInstallService
             changePlan.FileChanges.TargetSnapshot));
     }
 
-    private sealed record SkillMaterializedPackagePlan (
-        SkillMaterializedPackage MaterializedPackage,
-        IReadOnlyList<SkillActionDiff> Diffs);
+    private sealed class SkillMaterializedPackagePlan
+    {
+        public SkillMaterializedPackagePlan (
+            SkillMaterializedPackage materializedPackage,
+            IReadOnlyList<SkillActionDiff> diffs)
+        {
+            MaterializedPackage = materializedPackage ?? throw new ArgumentNullException(nameof(materializedPackage));
+            Diffs = SkillActionContractGuard.Snapshot(diffs, nameof(diffs));
+        }
 
-    private sealed record SkillMaterializedPackageWritePlan (
-        SkillMaterializedPackage MaterializedPackage,
-        IReadOnlyList<SkillActionDiff> Diffs,
-        SkillActionFileChanges FileChanges,
-        SkillActionTargetSnapshot TargetSnapshot);
+        public SkillMaterializedPackage MaterializedPackage { get; }
 
-    private sealed record SkillInstallActionPlan (
-        SkillInstallAction Action,
-        string SkillDirectory,
-        CanonicalSkillPackage Package,
-        SkillMaterializedPackage? MaterializedPackage,
-        SkillActionTargetSnapshot? TargetSnapshot = null);
+        public IReadOnlyList<SkillActionDiff> Diffs { get; }
+    }
+
+    private sealed class SkillMaterializedPackageWritePlan
+    {
+        public SkillMaterializedPackageWritePlan (
+            SkillMaterializedPackage materializedPackage,
+            IReadOnlyList<SkillActionDiff> diffs,
+            SkillActionFileChanges fileChanges,
+            SkillActionTargetSnapshot targetSnapshot)
+        {
+            MaterializedPackage = materializedPackage ?? throw new ArgumentNullException(nameof(materializedPackage));
+            Diffs = SkillActionContractGuard.Snapshot(diffs, nameof(diffs));
+            FileChanges = fileChanges ?? throw new ArgumentNullException(nameof(fileChanges));
+            TargetSnapshot = targetSnapshot ?? throw new ArgumentNullException(nameof(targetSnapshot));
+        }
+
+        public SkillMaterializedPackage MaterializedPackage { get; }
+
+        public IReadOnlyList<SkillActionDiff> Diffs { get; }
+
+        public SkillActionFileChanges FileChanges { get; }
+
+        public SkillActionTargetSnapshot TargetSnapshot { get; }
+    }
+
+    private sealed class SkillInstallActionPlan
+    {
+        public SkillInstallActionPlan (
+            SkillInstallAction action,
+            string skillDirectory,
+            CanonicalSkillPackage package,
+            SkillMaterializedPackage? materializedPackage,
+            SkillActionTargetSnapshot? targetSnapshot)
+        {
+            Action = action ?? throw new ArgumentNullException(nameof(action));
+            ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+            if ((materializedPackage is null) != (targetSnapshot is null))
+            {
+                throw new ArgumentException("A materialized package and its target snapshot must be provided together.", nameof(targetSnapshot));
+            }
+
+            SkillDirectory = skillDirectory;
+            Package = package ?? throw new ArgumentNullException(nameof(package));
+            MaterializedPackage = materializedPackage;
+            TargetSnapshot = targetSnapshot;
+        }
+
+        public SkillInstallAction Action { get; }
+
+        public string SkillDirectory { get; }
+
+        public CanonicalSkillPackage Package { get; }
+
+        public SkillMaterializedPackage? MaterializedPackage { get; }
+
+        public SkillActionTargetSnapshot? TargetSnapshot { get; }
+    }
 }

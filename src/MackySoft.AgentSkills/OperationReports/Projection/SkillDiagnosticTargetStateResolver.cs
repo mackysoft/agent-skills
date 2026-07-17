@@ -1,4 +1,3 @@
-using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.OperationReports.Projection;
@@ -32,6 +31,6 @@ internal static class SkillDiagnosticTargetStateResolver
             return true;
         }
 
-        return SkillInstalledTargetStateClassifier.TryResolveDriftKind(code, out kind);
+        return SkillTargetStateClassifier.TryResolveDriftKind(code, out kind);
     }
 }

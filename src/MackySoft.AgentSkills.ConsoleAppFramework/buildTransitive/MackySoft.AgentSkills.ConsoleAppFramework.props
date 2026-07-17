@@ -1,6 +1,11 @@
 <Project>
+  <!--
+    NOTE: ConsoleAppFramework generates its builder and dispatch in each consumer assembly and rejects command types from another project with CAF014, so the commands must remain consumer-side source integration.
+    Registrar generation is switchable because ConsoleAppFramework statically collects Add<T> calls even when the registrar is not invoked.
+  -->
   <PropertyGroup>
     <AgentSkillsConsoleAppFrameworkCommandRoot Condition="'$(AgentSkillsConsoleAppFrameworkCommandRoot)' == ''">skills</AgentSkillsConsoleAppFrameworkCommandRoot>
+    <AgentSkillsConsoleAppFrameworkGenerateRegistrar Condition="'$(AgentSkillsConsoleAppFrameworkGenerateRegistrar)' == ''">true</AgentSkillsConsoleAppFrameworkGenerateRegistrar>
   </PropertyGroup>
 
   <ItemGroup>
@@ -10,7 +15,16 @@
       Visible="false" />
   </ItemGroup>
 
-  <Target Name="GenerateAgentSkillsConsoleAppFrameworkRegistrar" BeforeTargets="CoreCompile">
+  <Target Name="ValidateAgentSkillsConsoleAppFrameworkProperties" BeforeTargets="CoreCompile">
+    <Error
+      Condition="'$(AgentSkillsConsoleAppFrameworkGenerateRegistrar)' != 'true' and '$(AgentSkillsConsoleAppFrameworkGenerateRegistrar)' != 'false'"
+      Text="AgentSkillsConsoleAppFrameworkGenerateRegistrar must be true or false." />
+  </Target>
+
+  <Target
+    Name="GenerateAgentSkillsConsoleAppFrameworkRegistrar"
+    BeforeTargets="CoreCompile"
+    Condition="'$(AgentSkillsConsoleAppFrameworkGenerateRegistrar)' == 'true'">
     <PropertyGroup>
       <_AgentSkillsConsoleAppFrameworkGeneratedDirectory>$(IntermediateOutputPath)MackySoft.AgentSkills.ConsoleAppFramework\</_AgentSkillsConsoleAppFrameworkGeneratedDirectory>
       <_AgentSkillsConsoleAppFrameworkRegistrarFile>$(_AgentSkillsConsoleAppFrameworkGeneratedDirectory)AgentSkillsConsoleAppCommandRegistrar.g.cs</_AgentSkillsConsoleAppFrameworkRegistrarFile>

@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Materialization;
 using MackySoft.AgentSkills.Packaging.Canonical;
@@ -43,12 +44,11 @@ public sealed class SkillInstalledPackageValidator
     public async ValueTask<SkillOperationResult<SkillManifest>> ValidateAsync (
         CanonicalSkillPackage package,
         string skillDirectory,
-        string host,
+        SkillHostKind host,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(package);
         ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
-        ArgumentException.ThrowIfNullOrWhiteSpace(host);
         cancellationToken.ThrowIfCancellationRequested();
 
         var installedManifestResult = await installedManifestReader.ReadRequiredAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
@@ -113,7 +113,7 @@ public sealed class SkillInstalledPackageValidator
         SkillManifest manifest,
         CancellationToken cancellationToken)
     {
-        if (!string.Equals(manifest.ContentDigest, package.Manifest.ContentDigest, StringComparison.Ordinal))
+        if (manifest.ContentDigest != package.Manifest.ContentDigest)
         {
             return SkillOperationResult<SkillManifest>.FailureResult(
                 SkillFailureCodes.InstallTargetContentDigestMismatch,

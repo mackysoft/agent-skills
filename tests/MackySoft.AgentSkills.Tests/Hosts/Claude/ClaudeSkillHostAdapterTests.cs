@@ -8,23 +8,18 @@ public sealed class ClaudeSkillHostAdapterTests
 {
     [Fact]
     [Trait("Size", "Small")]
-    public void Descriptor_ExposesCapabilityMetadata ()
+    public void Descriptor_ExposesHostPolicy ()
     {
         var adapter = new ClaudeSkillHostAdapter();
         var descriptor = adapter.Descriptor;
 
-        Assert.Equal(ClaudeSkillHostAdapter.HostKey, descriptor.HostKey);
-        Assert.True(descriptor.SupportsProjectScope);
-        Assert.True(descriptor.SupportsUserScope);
+        Assert.Equal(SkillHostKind.Claude, descriptor.Host);
         Assert.Equal(".claude/skills", descriptor.ProjectDefaultTargetPath);
         Assert.Equal("~/.claude/skills", descriptor.UserDefaultTargetPath);
-        Assert.NotNull(descriptor.UserTargetRootPolicy);
-        Assert.Null(descriptor.UserTargetRootPolicy!.EnvironmentVariableName);
+        Assert.Null(descriptor.UserTargetRootPolicy.EnvironmentVariableName);
         Assert.Null(descriptor.UserTargetRootPolicy.EnvironmentVariableChildDirectory);
         Assert.Equal(".claude/skills", descriptor.UserTargetRootPolicy.HomeRelativeDirectory);
-        Assert.False(descriptor.RequiresMetadataArtifact);
         Assert.Null(descriptor.MetadataArtifactPath);
-        Assert.Null(((ISkillHostAdapter)adapter).MetadataArtifactPath);
         Assert.False(string.IsNullOrWhiteSpace(descriptor.ReloadGuidance));
     }
 

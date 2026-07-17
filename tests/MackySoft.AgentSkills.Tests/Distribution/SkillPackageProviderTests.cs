@@ -1,9 +1,10 @@
+using MackySoft.AgentSkills.Bundles;
+using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Tiers;
 using MackySoft.Tests;
 
 namespace MackySoft.AgentSkills.Tests.Distribution;
@@ -12,266 +13,155 @@ public sealed class SkillPackageProviderTests
 {
     [Fact]
     [Trait("Size", "Small")]
-    public async Task GetPackagesAsync_FiltersByExactSelectedTiersAsync ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "filter");
-        await WritePackagesAsync(scope.FullPath, await SkillTestData.GenerateFixturePackagesAsync());
-        var provider = CreateProvider(scope.FullPath);
-
-        var result = await provider.GetPackagesAsync(DefinedTierLiterals, ["basic", "advanced"], CancellationToken.None);
-
-        Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(SkillTestData.ExpectedSkillNames, result.Value!.Select(static package => package.Manifest.SkillName.Value).ToArray());
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task GetPackageCatalogAsync_ReturnsAllDefinedTierCountsAndSortedPackagesAsync ()
+    public async Task GetPackageCatalogAsync_DerivesAvailableCategoriesAndDescriptorFromBundle ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "catalog");
-        await WritePackagesAsync(scope.FullPath, (await SkillTestData.GenerateFixturePackagesAsync()).Reverse().ToArray());
-        var provider = CreateProvider(scope.FullPath);
-
-        var result = await provider.GetPackageCatalogAsync(DefinedTierLiterals, CancellationToken.None);
-
-        Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(["basic", "advanced", "developer"], result.Value!.SelectedTiers.Select(static item => item.Value).ToArray());
-        Assert.Empty(result.Value!.SelectedSkillNames);
-        Assert.Equal(["basic", "advanced", "developer"], result.Value!.AvailableTiers.Select(static item => item.Tier.Value).ToArray());
-        Assert.Equal([SkillTestData.ExpectedSkillNames.Length, 0, 0], result.Value!.AvailableTiers.Select(static item => item.PackageCount).ToArray());
-        Assert.Equal(SkillTestData.ExpectedSkillNames, result.Value!.Packages.Select(static package => package.Manifest.SkillName.Value).ToArray());
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task GetPackageCatalogAsync_WithSelectedTiers_ReturnsAllDefinedTierCountsAndMatchingPackagesAsync ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "catalog-selected");
-        await WritePackagesAsync(scope.FullPath, (await SkillTestData.GenerateFixturePackagesAsync()).Reverse().ToArray());
-        var provider = CreateProvider(scope.FullPath);
-
-        var result = await provider.GetPackageCatalogAsync(DefinedTierLiterals, [new SkillTier("advanced"), new SkillTier("developer")], CancellationToken.None);
-
-        Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(["advanced", "developer"], result.Value!.SelectedTiers.Select(static item => item.Value).ToArray());
-        Assert.Empty(result.Value!.SelectedSkillNames);
-        Assert.Equal(["basic", "advanced", "developer"], result.Value!.AvailableTiers.Select(static item => item.Tier.Value).ToArray());
-        Assert.Equal([SkillTestData.ExpectedSkillNames.Length, 0, 0], result.Value!.AvailableTiers.Select(static item => item.PackageCount).ToArray());
-        Assert.Empty(result.Value!.Packages);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task GetPackageCatalogAsync_WithMixedTiers_CountsAllTiersAndReturnsSelectedPackagesAsync ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "catalog-mixed-tiers");
         var packages = (await SkillTestData.GenerateFixturePackagesAsync()).ToArray();
-        var mixedPackages = packages
-            .Select((package, index) => index switch
-            {
-                1 => WithTier(package, new SkillTier("advanced")),
-                2 => WithTier(package, new SkillTier("developer")),
-                _ => package,
-            })
-            .Reverse()
-            .ToArray();
-        await WritePackagesAsync(scope.FullPath, mixedPackages);
+        packages[1] = WithCategory(packages[1], new SkillCategory("advanced"));
+        packages[2] = WithCategory(packages[2], new SkillCategory("developer"));
+        var bundle = CreateBundle(packages.Reverse().ToArray());
+        await WriteBundleAsync(scope.FullPath, bundle);
         var provider = CreateProvider(scope.FullPath);
 
-        var result = await provider.GetPackageCatalogAsync(DefinedTierLiterals, [new SkillTier("advanced"), new SkillTier("developer")], CancellationToken.None);
+        var result = await provider.GetPackageCatalogAsync(CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(["advanced", "developer"], result.Value!.SelectedTiers.Select(static item => item.Value).ToArray());
-        Assert.Empty(result.Value!.SelectedSkillNames);
-        Assert.Equal(["basic", "advanced", "developer"], result.Value!.AvailableTiers.Select(static item => item.Tier.Value).ToArray());
-        Assert.Equal([2, 1, 1], result.Value!.AvailableTiers.Select(static item => item.PackageCount).ToArray());
+        Assert.Equal(bundle.Descriptor.SchemaVersion, result.Value!.BundleDescriptor.SchemaVersion);
+        Assert.Equal(bundle.Descriptor.CatalogId, result.Value.BundleDescriptor.CatalogId);
+        Assert.Equal(bundle.Descriptor.SkillBundleVersion, result.Value.BundleDescriptor.SkillBundleVersion);
+        Assert.Equal(bundle.Descriptor.BundleDigest, result.Value.BundleDescriptor.BundleDigest);
+        Assert.Equal(["advanced", "core", "developer"], result.Value.SelectedCategories.Select(static item => item.Value).ToArray());
+        Assert.Empty(result.Value.SelectedSkillNames);
         Assert.Equal(
-            new[] { packages[1].Manifest.SkillName.Value, packages[2].Manifest.SkillName.Value }.Order(StringComparer.Ordinal).ToArray(),
-            result.Value!.Packages.Select(static package => package.Manifest.SkillName.Value).ToArray());
+            new[] { ("advanced", 1), ("core", 2), ("developer", 1) },
+            result.Value.AvailableCategories.Select(static item => (item.Category.Value, item.PackageCount)).ToArray());
+        Assert.Equal(SkillTestData.ExpectedSkillNames, result.Value.Packages.Select(static package => package.Manifest.SkillName.Value).ToArray());
     }
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task GetPackagesAsync_ReturnsEmptyList_WhenSelectedTierHasNoPackagesAsync ()
+    public async Task GetPackagesAsync_FiltersByExactSelectedCategories ()
     {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "empty-tier");
-        await WritePackagesAsync(scope.FullPath, await SkillTestData.GenerateFixturePackagesAsync());
+        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "category-filter");
+        var packages = (await SkillTestData.GenerateFixturePackagesAsync()).ToArray();
+        packages[1] = WithCategory(packages[1], new SkillCategory("advanced"));
+        await WriteBundleAsync(scope.FullPath, CreateBundle(packages));
         var provider = CreateProvider(scope.FullPath);
 
-        var result = await provider.GetPackagesAsync(DefinedTierLiterals, ["advanced", "developer"], CancellationToken.None);
+        var result = await provider.GetPackagesAsync(["advanced"], CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Empty(result.Value!);
+        Assert.Equal([packages[1].Manifest.SkillName.Value], result.Value!.Select(static package => package.Manifest.SkillName.Value).ToArray());
     }
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task GetPackagesBySkillNamesAsync_FiltersByExactSkillNamesAsync ()
+    public async Task GetPackageCatalogAsync_DeduplicatesSelectionsInCallerOrder ()
     {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "filter-skill-name");
-        var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        await WritePackagesAsync(scope.FullPath, packages.Reverse().ToArray());
-        var provider = CreateProvider(scope.FullPath);
-        var selectedSkillNames = new[]
-        {
-            packages[2].Manifest.SkillName.Value,
-            packages[0].Manifest.SkillName.Value,
-            packages[2].Manifest.SkillName.Value,
-        };
-
-        var result = await provider.GetPackagesBySkillNamesAsync(DefinedTierLiterals, selectedSkillNames, CancellationToken.None);
-
-        Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(
-            new[] { packages[0].Manifest.SkillName.Value, packages[2].Manifest.SkillName.Value }.Order(StringComparer.Ordinal).ToArray(),
-            result.Value!.Select(static package => package.Manifest.SkillName.Value).ToArray());
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task GetPackageCatalogBySkillNamesAsync_ReportsSelectedSkillNamesAndTierCountsAsync ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "catalog-skill-name");
-        var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        await WritePackagesAsync(scope.FullPath, packages.Reverse().ToArray());
-        var provider = CreateProvider(scope.FullPath);
-
-        var result = await provider.GetPackageCatalogBySkillNamesAsync(DefinedTierLiterals, [packages[1].Manifest.SkillName.Value], CancellationToken.None);
-
-        Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(["basic", "advanced", "developer"], result.Value!.SelectedTiers.Select(static item => item.Value).ToArray());
-        Assert.Equal([packages[1].Manifest.SkillName.Value], result.Value.SelectedSkillNames.Select(static skillName => skillName.Value).ToArray());
-        Assert.Equal([SkillTestData.ExpectedSkillNames.Length, 0, 0], result.Value.AvailableTiers.Select(static item => item.PackageCount).ToArray());
-        Assert.Equal([packages[1].Manifest.SkillName.Value], result.Value.Packages.Select(static package => package.Manifest.SkillName.Value).ToArray());
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task GetPackagesBySkillNamesAsync_IncludesTransitiveDependenciesAsync ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "transitive-dependencies");
-        var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        packages = SkillTestData.ReplacePackage(packages, WithDependencies(packages[0], [packages[1].Manifest.SkillName.Value]));
-        packages = SkillTestData.ReplacePackage(packages, WithDependencies(packages[1], [packages[2].Manifest.SkillName.Value]));
-        await WritePackagesAsync(scope.FullPath, packages);
-        var provider = CreateProvider(scope.FullPath);
-
-        var result = await provider.GetPackagesBySkillNamesAsync(DefinedTierLiterals, [packages[0].Manifest.SkillName.Value], CancellationToken.None);
-
-        Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(
-            new[] { packages[0].Manifest.SkillName.Value, packages[1].Manifest.SkillName.Value, packages[2].Manifest.SkillName.Value }.Order(StringComparer.Ordinal).ToArray(),
-            result.Value!.Select(static package => package.Manifest.SkillName.Value).ToArray());
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task GetPackagesAsync_WithSelectedTiers_IncludesDependencyOutsideSelectedTierAsync ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "tier-external-dependency");
-        var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        var dependency = WithTier(packages[1], new SkillTier("advanced"));
-        packages = SkillTestData.ReplacePackage(packages, WithDependencies(packages[0], [dependency.Manifest.SkillName.Value]));
-        packages = SkillTestData.ReplacePackage(packages, dependency);
-        await WritePackagesAsync(scope.FullPath, packages);
-        var provider = CreateProvider(scope.FullPath);
-
-        var result = await provider.GetPackagesAsync(DefinedTierLiterals, ["basic"], CancellationToken.None);
-
-        Assert.True(result.IsSuccess, result.Failure?.Message);
-        var packageByName = result.Value!.ToDictionary(static package => package.Manifest.SkillName.Value, StringComparer.Ordinal);
-        Assert.True(packageByName.ContainsKey(packages[0].Manifest.SkillName.Value));
-        Assert.True(packageByName.ContainsKey(dependency.Manifest.SkillName.Value));
-        Assert.Equal("advanced", packageByName[dependency.Manifest.SkillName.Value].Manifest.Tier.Value);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task GetPackageCatalogAsync_WithSelectedTiersAndSkillNames_IncludesDependencyOutsideSelectedTierAsync ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "tier-skill-name-external-dependency");
-        var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        var dependency = WithTier(packages[1], new SkillTier("advanced"));
-        packages = SkillTestData.ReplacePackage(packages, WithDependencies(packages[0], [dependency.Manifest.SkillName.Value]));
-        packages = SkillTestData.ReplacePackage(packages, dependency);
-        await WritePackagesAsync(scope.FullPath, packages);
+        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "deduplicate-selection");
+        var packages = (await SkillTestData.GenerateFixturePackagesAsync()).ToArray();
+        packages[1] = WithCategory(packages[1], new SkillCategory("advanced"));
+        await WriteBundleAsync(scope.FullPath, CreateBundle(packages));
         var provider = CreateProvider(scope.FullPath);
 
         var result = await provider.GetPackageCatalogAsync(
-            DefinedTierLiterals,
-            [new SkillTier("basic")],
+            ["core", "advanced", "core"],
+            [packages[0].Manifest.SkillName.Value, packages[0].Manifest.SkillName.Value],
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.Equal(["core", "advanced"], result.Value!.SelectedCategories.Select(static item => item.Value).ToArray());
+        Assert.Equal([packages[0].Manifest.SkillName.Value], result.Value.SelectedSkillNames.Select(static item => item.Value).ToArray());
+        Assert.Equal([packages[0].Manifest.SkillName.Value], result.Value.Packages.Select(static package => package.Manifest.SkillName.Value).ToArray());
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task GetPackagesBySkillNamesAsync_IncludesTransitiveDependencies ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "dependencies");
+        var packages = (await SkillTestData.GenerateFixturePackagesAsync()).ToArray();
+        packages[0] = WithDependencies(packages[0], [packages[1].Manifest.SkillName.Value]);
+        packages[1] = WithDependencies(packages[1], [packages[2].Manifest.SkillName.Value]);
+        await WriteBundleAsync(scope.FullPath, CreateBundle(packages));
+        var provider = CreateProvider(scope.FullPath);
+
+        var result = await provider.GetPackagesBySkillNamesAsync([packages[0].Manifest.SkillName.Value], CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.Equal(
+            new[] { packages[0].Manifest.SkillName.Value, packages[1].Manifest.SkillName.Value, packages[2].Manifest.SkillName.Value }.Order(StringComparer.Ordinal),
+            result.Value!.Select(static package => package.Manifest.SkillName.Value));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task GetPackagesAsync_IncludesDependencyOutsideSelectedCategory ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "cross-category-dependency");
+        var packages = (await SkillTestData.GenerateFixturePackagesAsync()).ToArray();
+        packages[1] = WithCategory(packages[1], new SkillCategory("advanced"));
+        packages[0] = WithDependencies(packages[0], [packages[1].Manifest.SkillName.Value]);
+        await WriteBundleAsync(scope.FullPath, CreateBundle(packages));
+        var provider = CreateProvider(scope.FullPath);
+
+        var result = await provider.GetPackagesAsync(
+            ["core"],
             [packages[0].Manifest.SkillName.Value],
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(["basic"], result.Value!.SelectedTiers.Select(static tier => tier.Value).ToArray());
-        Assert.Equal([packages[0].Manifest.SkillName.Value], result.Value.SelectedSkillNames.Select(static skillName => skillName.Value).ToArray());
         Assert.Equal(
-            new[] { packages[0].Manifest.SkillName.Value, dependency.Manifest.SkillName.Value }.Order(StringComparer.Ordinal).ToArray(),
-            result.Value.Packages.Select(static package => package.Manifest.SkillName.Value).ToArray());
+            new[] { packages[0].Manifest.SkillName.Value, packages[1].Manifest.SkillName.Value }.Order(StringComparer.Ordinal),
+            result.Value!.Select(static package => package.Manifest.SkillName.Value));
+        Assert.Equal("advanced", result.Value!.Single(package => package.Manifest.SkillName == packages[1].Manifest.SkillName).Manifest.Category.Value);
     }
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task GetPackagesAsync_Fails_WhenGeneratedDependencyIsMissingAsync ()
+    public async Task GetPackageCatalogAsync_RejectsUnknownCategory ()
     {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "missing-dependency");
-        var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        packages = SkillTestData.ReplacePackage(packages, WithDependencies(packages[0], ["missing-skill"]));
-        await WritePackagesAsync(scope.FullPath, packages);
+        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "unknown-category");
+        await WriteBundleAsync(scope.FullPath, await SkillTestData.GenerateFixtureBundleAsync());
         var provider = CreateProvider(scope.FullPath);
 
-        var result = await provider.GetPackagesAsync(DefinedTierLiterals, ["basic"], CancellationToken.None);
+        var result = await provider.GetPackageCatalogAsync(["internal"], [], CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
-        Assert.Contains("dependency was not found", result.Failure.Message, StringComparison.Ordinal);
+        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Contains("Unsupported SKILL category: internal", result.Failure.Message, StringComparison.Ordinal);
+        Assert.Contains("core", result.Failure.Message, StringComparison.Ordinal);
     }
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task GetPackagesAsync_WithoutSelection_Fails_WhenGeneratedDependencyIsMissingAsync ()
+    public async Task GetPackageCatalogAsync_RejectsSkillOutsideSelectedCategory ()
     {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "raw-missing-dependency");
-        var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        packages = SkillTestData.ReplacePackage(packages, WithDependencies(packages[0], ["missing-skill"]));
-        await WritePackagesAsync(scope.FullPath, packages);
+        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "category-name-mismatch");
+        var packages = (await SkillTestData.GenerateFixturePackagesAsync()).ToArray();
+        packages[1] = WithCategory(packages[1], new SkillCategory("advanced"));
+        await WriteBundleAsync(scope.FullPath, CreateBundle(packages));
         var provider = CreateProvider(scope.FullPath);
 
-        var result = await provider.GetPackagesAsync(CancellationToken.None);
+        var result = await provider.GetPackageCatalogAsync(
+            ["advanced"],
+            [packages[0].Manifest.SkillName.Value],
+            CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
-        Assert.Contains("dependency was not found", result.Failure.Message, StringComparison.Ordinal);
+        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Contains("does not match selected categories", result.Failure.Message, StringComparison.Ordinal);
     }
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task GetPackagesAsync_Fails_WhenGeneratedDependencyCycleExistsAsync ()
+    public async Task GetPackageCatalogBySkillNamesAsync_RejectsMissingSkillName ()
     {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "dependency-cycle");
-        var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        packages = SkillTestData.ReplacePackage(packages, WithDependencies(packages[0], [packages[1].Manifest.SkillName.Value]));
-        packages = SkillTestData.ReplacePackage(packages, WithDependencies(packages[1], [packages[0].Manifest.SkillName.Value]));
-        await WritePackagesAsync(scope.FullPath, packages);
+        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "missing-name");
+        await WriteBundleAsync(scope.FullPath, await SkillTestData.GenerateFixtureBundleAsync());
         var provider = CreateProvider(scope.FullPath);
 
-        var result = await provider.GetPackagesAsync(DefinedTierLiterals, ["basic"], CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
-        Assert.Contains("dependency cycle", result.Failure.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task GetPackagesAsync_Fails_WhenSelectedSkillNameDoesNotExistAsync ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "missing-skill-name");
-        await WritePackagesAsync(scope.FullPath, await SkillTestData.GenerateFixturePackagesAsync());
-        var provider = CreateProvider(scope.FullPath);
-
-        var result = await provider.GetPackagesBySkillNamesAsync(DefinedTierLiterals, ["missing-skill"], CancellationToken.None);
+        var result = await provider.GetPackageCatalogBySkillNamesAsync(["missing-skill"], CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
@@ -280,168 +170,107 @@ public sealed class SkillPackageProviderTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task GetPackagesAsync_Fails_WhenSelectedSkillNameDoesNotMatchSelectedTierAsync ()
+    public async Task GetPackagesAsync_WhenBundleRootIsMissing_ReturnsSourceFailure ()
     {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "skill-name-tier-mismatch");
-        var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        await WritePackagesAsync(scope.FullPath, packages);
+        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "missing-root");
         var provider = CreateProvider(scope.FullPath);
 
-        var result = await provider.GetPackagesAsync(
-            DefinedTierLiterals,
-            [new SkillTier("advanced")],
-            [packages[0].Manifest.SkillName.Value],
-            CancellationToken.None);
+        var result = await provider.GetPackagesAsync(CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
-        Assert.Contains("does not match selected tiers", result.Failure.Message, StringComparison.Ordinal);
+        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Contains("package root", result.Failure.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task GetPackagesAsync_Fails_WhenNormalizedSelectionIsEmptyAsync ()
+    public async Task GetPackagesAsync_WhenBundleDescriptorIsMissing_ReturnsManifestFailure ()
     {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "empty-normalized-selection");
+        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "missing-descriptor");
+        Directory.CreateDirectory(Path.Combine(scope.FullPath, "skills"));
         var provider = CreateProvider(scope.FullPath);
 
-        var result = await provider.GetPackagesAsync(DefinedTierLiterals, Array.Empty<SkillTier>(), CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
-        Assert.Contains("At least one SKILL tier", result.Failure.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task GetPackagesAsync_Fails_WhenNormalizedSelectionContainsUndefinedTierAsync ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "undefined-normalized-selection");
-        var provider = CreateProvider(scope.FullPath);
-
-        var result = await provider.GetPackagesAsync(DefinedTierLiterals, [new SkillTier("internal")], CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
-        Assert.Contains("Unsupported SKILL tier: internal", result.Failure.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task GetPackagesAsync_Fails_WhenGeneratedPackageUsesUndefinedTierAsync ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "undefined-tier");
-        var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        packages = packages
-            .Select((package, index) => index == 0 ? WithTier(package, new SkillTier("internal")) : package)
-            .ToArray();
-        await WritePackagesAsync(scope.FullPath, packages);
-        var provider = CreateProvider(scope.FullPath);
-
-        var result = await provider.GetPackagesAsync(DefinedTierLiterals, ["basic"], CancellationToken.None);
+        var result = await provider.GetPackagesAsync(CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
-        Assert.Contains("undefined tier", result.Failure.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task GetPackageCatalogAsync_Fails_WhenGeneratedPackageUsesUndefinedTierAsync ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "catalog-undefined-tier");
-        var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        packages = packages
-            .Select((package, index) => index == 0 ? WithTier(package, new SkillTier("internal")) : package)
-            .ToArray();
-        await WritePackagesAsync(scope.FullPath, packages);
-        var provider = CreateProvider(scope.FullPath);
-
-        var result = await provider.GetPackageCatalogAsync(DefinedTierLiterals, CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
-        Assert.Contains("undefined tier", result.Failure.Message, StringComparison.Ordinal);
+        Assert.Contains("bundle.json", result.Failure.Message, StringComparison.Ordinal);
     }
 
     private static SkillPackageProvider CreateProvider (string baseDirectory)
     {
+        var manifestSerializer = new SkillManifestJsonSerializer();
+        var bundleSerializer = new SkillBundleJsonSerializer();
+        var bundleFactory = new CanonicalSkillBundle.Factory(new SkillBundleDigestCalculator(manifestSerializer));
         return new SkillPackageProvider(
             new BundledSkillPackageRootResolver(baseDirectory),
-            SkillTestData.CreatePackageReader());
+            new CanonicalSkillBundleReader(
+                SkillTestData.CreatePackageReader(),
+                bundleSerializer,
+                bundleFactory));
     }
 
-    private static async Task WritePackagesAsync (
+    private static async Task WriteBundleAsync (
         string baseDirectory,
-        IReadOnlyList<CanonicalSkillPackage> packages)
+        CanonicalSkillBundle bundle)
     {
-        var packageRoot = Path.Combine(baseDirectory, "skills");
-        Directory.CreateDirectory(packageRoot);
-
-        foreach (var package in packages)
-        {
-            var skillDirectory = Path.Combine(packageRoot, package.Manifest.SkillName.Value);
-            foreach (var file in package.Files)
-            {
-                var filePath = Path.Combine(skillDirectory, file.RelativePath.Replace('/', Path.DirectorySeparatorChar));
-                var directory = Path.GetDirectoryName(filePath);
-                Assert.False(string.IsNullOrWhiteSpace(directory));
-                Directory.CreateDirectory(directory);
-                await File.WriteAllTextAsync(filePath, file.Content);
-            }
-        }
+        var manifestSerializer = new SkillManifestJsonSerializer();
+        var bundleSerializer = new SkillBundleJsonSerializer();
+        var bundleFactory = new CanonicalSkillBundle.Factory(new SkillBundleDigestCalculator(manifestSerializer));
+        var writer = new CanonicalSkillBundleWriter(
+            SkillTestData.CreateCanonicalPackageWriter(),
+            bundleSerializer,
+            new CanonicalSkillBundleReader(
+                SkillTestData.CreatePackageReader(),
+                bundleSerializer,
+                bundleFactory));
+        var result = await writer.WriteAsync(bundle, Path.Combine(baseDirectory, "skills"), CancellationToken.None);
+        Assert.True(result.IsSuccess, result.Failure?.Message);
     }
 
-    private static CanonicalSkillPackage WithTier (
-        CanonicalSkillPackage package,
-        SkillTier tier)
+    private static CanonicalSkillBundle CreateBundle (IReadOnlyList<CanonicalSkillPackage> packages)
     {
-        var serializer = new SkillManifestJsonSerializer();
-        var manifest = package.Manifest with
-        {
-            Tier = tier,
-        };
-        manifest = new SkillManifestDigestCalculator(serializer).WithComputedManifestDigest(manifest);
-        var manifestText = serializer.Serialize(manifest);
-        var files = package.Files
-            .Select(file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal)
-                ? SkillPackageFile.Create("agent-skill.json", manifestText)
-                : file)
-            .ToArray();
+        var package = Assert.Single(packages.GroupBy(static item => (item.Manifest.CatalogId, item.Manifest.SkillBundleVersion)));
+        var descriptor = new SkillBundleDescriptor(
+            SkillBundleDefinition.CurrentSchemaVersion,
+            package.Key.CatalogId,
+            package.Key.SkillBundleVersion,
+            new SkillBundleDigestCalculator(new SkillManifestJsonSerializer()).ComputeDigest(packages));
+        return SkillTestData.CreateCanonicalBundle(descriptor, packages);
+    }
 
-        return package with
-        {
-            Manifest = manifest,
-            Files = files,
-        };
+    private static CanonicalSkillPackage WithCategory (
+        CanonicalSkillPackage package,
+        SkillCategory category)
+    {
+        return WithManifest(package, SkillTestData.CopyManifest(package.Manifest, category: category));
     }
 
     private static CanonicalSkillPackage WithDependencies (
         CanonicalSkillPackage package,
         IReadOnlyList<string> dependencies)
     {
-        var serializer = new SkillManifestJsonSerializer();
-        var manifest = package.Manifest with
-        {
-            Dependencies = dependencies
+        return WithManifest(package, SkillTestData.CopyManifest(
+            package.Manifest,
+            dependencies: dependencies
                 .Order(StringComparer.Ordinal)
                 .Select(static dependency => new SkillName(dependency))
-                .ToArray(),
-        };
-        manifest = new SkillManifestDigestCalculator(serializer).WithComputedManifestDigest(manifest);
-        var manifestText = serializer.Serialize(manifest);
+                .ToArray()));
+    }
+
+    private static CanonicalSkillPackage WithManifest (
+        CanonicalSkillPackage package,
+        SkillManifestCandidate manifest)
+    {
+        var serializer = new SkillManifestJsonSerializer();
+        var normalizedManifest = SkillTestData.WithComputedManifestDigest(manifest);
+        var manifestText = serializer.Serialize(normalizedManifest);
         var files = package.Files
             .Select(file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal)
-                ? SkillPackageFile.Create("agent-skill.json", manifestText)
+                ? new SkillPackageFile("agent-skill.json", manifestText)
                 : file)
             .ToArray();
 
-        return package with
-        {
-            Manifest = manifest,
-            Files = files,
-        };
+        return SkillTestData.CreateCanonicalPackage(normalizedManifest, files);
     }
-
-    private static readonly string[] DefinedTierLiterals = ["basic", "advanced", "developer"];
 }

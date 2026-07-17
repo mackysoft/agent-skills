@@ -3,14 +3,24 @@ namespace MackySoft.AgentSkills.Installation.Results;
 /// <summary>
 /// Represents the existing target files that a create, replace, or delete action plans or performs.
 /// </summary>
-/// <param name="ReplacedFiles">
-/// Existing slash-separated paths, relative to the skill directory, whose file content differs from the
-/// materialized package file at the same path. Paths are ordinal sorted and do not include added files.
-/// </param>
-/// <param name="RemovedFiles">
-/// Existing slash-separated paths, relative to the skill directory, that the action removes.
-/// Paths are ordinal sorted and do not include directories.
-/// </param>
-public sealed record SkillActionFileChanges (
-    IReadOnlyList<string> ReplacedFiles,
-    IReadOnlyList<string> RemovedFiles);
+public sealed class SkillActionFileChanges
+{
+    /// <summary> Initializes one existing file change summary. </summary>
+    internal SkillActionFileChanges (
+        IReadOnlyList<string> replacedFiles,
+        IReadOnlyList<string> removedFiles)
+    {
+        ReplacedFiles = SkillActionContractGuard.PathSnapshot(replacedFiles, nameof(replacedFiles), sortOrdinal: true);
+        RemovedFiles = SkillActionContractGuard.PathSnapshot(removedFiles, nameof(removedFiles), sortOrdinal: true);
+        if (ReplacedFiles.Intersect(RemovedFiles, StringComparer.Ordinal).Any())
+        {
+            throw new ArgumentException("A file cannot be both replaced and removed by the same action.", nameof(removedFiles));
+        }
+    }
+
+    /// <summary> Gets an ordinal-sorted snapshot of existing files whose content is replaced. </summary>
+    public IReadOnlyList<string> ReplacedFiles { get; }
+
+    /// <summary> Gets an ordinal-sorted snapshot of existing files that are removed. </summary>
+    public IReadOnlyList<string> RemovedFiles { get; }
+}

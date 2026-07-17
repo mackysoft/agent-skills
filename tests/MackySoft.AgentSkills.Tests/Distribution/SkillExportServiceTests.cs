@@ -3,7 +3,6 @@ using System.IO.Compression;
 using System.Text;
 using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Hosts.Contracts;
-using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
@@ -25,7 +24,7 @@ public sealed class SkillExportServiceTests
 
         var result = await service.ExportAsync(
             [],
-            OpenAiSkillHostAdapter.HostKey,
+            SkillHostKind.OpenAi,
             scope.GetPath("exported"),
             (SkillExportFormat)42,
             CancellationToken.None);
@@ -43,7 +42,7 @@ public sealed class SkillExportServiceTests
         var outputRoot = scope.GetPath("exported");
         var service = SkillTestData.CreateExportService();
 
-        var result = await service.ExportAsync([], OpenAiSkillHostAdapter.HostKey, outputRoot, SkillExportFormat.Directory, CancellationToken.None);
+        var result = await service.ExportAsync([], SkillHostKind.OpenAi, outputRoot, SkillExportFormat.Directory, CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal(Path.GetFullPath(outputRoot), result.Value);
@@ -79,7 +78,7 @@ public sealed class SkillExportServiceTests
 
         var service = SkillTestData.CreateExportService();
 
-        var result = await service.ExportAsync(packages, OpenAiSkillHostAdapter.HostKey, outputScope.FullPath, CancellationToken.None);
+        var result = await service.ExportAsync(packages, SkillHostKind.OpenAi, outputScope.FullPath, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
@@ -94,7 +93,7 @@ public sealed class SkillExportServiceTests
         var service = SkillTestData.CreateExportService();
         var destinationDirectory = scope.CreateDirectory("release.zip");
 
-        var result = await service.ExportAsync(packages, OpenAiSkillHostAdapter.HostKey, destinationDirectory, SkillExportFormat.Zip, CancellationToken.None);
+        var result = await service.ExportAsync(packages, SkillHostKind.OpenAi, destinationDirectory, SkillExportFormat.Zip, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.InstallTargetWriteFailed, result.Failure!.Code);
@@ -111,7 +110,7 @@ public sealed class SkillExportServiceTests
 
         foreach (var adapter in GetSupportedAdapters())
         {
-            var host = adapter.Descriptor.HostKey;
+            var host = adapter.Descriptor.Host;
             var firstZip = scope.GetPath($"{host}-first.zip");
             var secondZip = scope.GetPath($"{host}-second.zip");
 
@@ -139,9 +138,9 @@ public sealed class SkillExportServiceTests
 
             foreach (var adapter in GetSupportedAdapters())
             {
-                var zipPath = scope.GetPath($"{adapter.Descriptor.HostKey}.zip");
+                var zipPath = scope.GetPath($"{adapter.Descriptor.Host}.zip");
 
-                var result = await service.ExportAsync([package], adapter.Descriptor.HostKey, zipPath, SkillExportFormat.Zip, CancellationToken.None);
+                var result = await service.ExportAsync([package], adapter.Descriptor.Host, zipPath, SkillExportFormat.Zip, CancellationToken.None);
 
                 Assert.True(result.IsSuccess, result.Failure?.Message);
                 var entryNames = GetZipEntryNames(zipPath);
@@ -166,7 +165,7 @@ public sealed class SkillExportServiceTests
 
         foreach (var adapter in GetSupportedAdapters())
         {
-            var host = adapter.Descriptor.HostKey;
+            var host = adapter.Descriptor.Host;
             var firstDirectoryRoot = scope.GetPath($"{host}-directory-a");
             var secondDirectoryRoot = scope.GetPath($"{host}-directory-b");
             var zipPath = scope.GetPath($"{host}.zip");
@@ -194,7 +193,7 @@ public sealed class SkillExportServiceTests
 
     private static IReadOnlyDictionary<string, string> CreateExpectedExportMap (
         IReadOnlyList<CanonicalSkillPackage> packages,
-        string host)
+        SkillHostKind host)
     {
         var service = SkillTestData.CreateMaterializationService();
         var files = new Dictionary<string, string>(StringComparer.Ordinal);

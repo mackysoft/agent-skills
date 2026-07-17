@@ -1,7 +1,6 @@
 using MackySoft.AgentSkills.Commands;
 using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Hosts.Contracts;
-using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Shared;
 
@@ -18,7 +17,7 @@ public sealed class SkillCommandValueParserTests
             SkillTestData.CreateDefaultHostAdapterSet());
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(OpenAiSkillHostAdapter.HostKey, result.Value!.HostKey);
+        Assert.Equal(SkillHostKind.OpenAi, result.Value!.Host);
     }
 
     [Fact]
@@ -72,26 +71,6 @@ public sealed class SkillCommandValueParserTests
         Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
     }
 
-    [Fact]
-    [Trait("Size", "Small")]
-    public void ParseScopeLiteral_ReturnsUnsupportedScope_WhenHostDoesNotSupportScope ()
-    {
-        var result = SkillCommandValueParser.ParseScopeLiteral("user", CreateProjectOnlyHost());
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ScopeUnsupported, result.Failure!.Code);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public void ValidateScopeSupport_ReturnsInputInvalid_ForUndefinedScopeValue ()
-    {
-        var result = SkillCommandValueParser.ValidateScopeSupport((SkillScopeKind)42, CreateProjectOnlyHost());
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
-    }
-
     [Theory]
     [Trait("Size", "Small")]
     [InlineData("directory", SkillExportFormat.Directory)]
@@ -139,17 +118,4 @@ public sealed class SkillCommandValueParserTests
             static failure => Assert.DoesNotContain("--", failure!.Message, StringComparison.Ordinal));
     }
 
-    private static SkillHostDescriptor CreateProjectOnlyHost ()
-    {
-        return new SkillHostDescriptor(
-            HostKey: "project-only",
-            SupportsProjectScope: true,
-            SupportsUserScope: false,
-            ProjectDefaultTargetPath: ".project-only/skills",
-            UserDefaultTargetPath: null,
-            UserTargetRootPolicy: null,
-            RequiresMetadataArtifact: false,
-            MetadataArtifactPath: null,
-            ReloadGuidance: "Reload project-only skills.");
-    }
 }

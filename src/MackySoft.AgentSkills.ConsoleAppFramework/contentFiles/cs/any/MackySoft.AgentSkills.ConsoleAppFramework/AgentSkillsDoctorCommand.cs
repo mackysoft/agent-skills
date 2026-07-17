@@ -14,7 +14,7 @@ internal sealed class AgentSkillsDoctorCommand
     private readonly AgentSkillsCommandRunner runner;
     private readonly IAgentSkillsCommandResultEmitter emitter;
 
-    public AgentSkillsDoctorCommand(
+    public AgentSkillsDoctorCommand (
         AgentSkillsCommandRunner runner,
         IAgentSkillsCommandResultEmitter emitter)
     {
@@ -26,9 +26,9 @@ internal sealed class AgentSkillsDoctorCommand
     /// <param name="repositoryRoot">Project root.</param>
     /// <param name="targetDir">Host target directory override.</param>
     [Command("doctor")]
-    public async Task<int> DoctorAsync(
+    public async Task<int> DoctorAsync (
         string? host = null,
-        string[]? tier = null,
+        string[]? category = null,
         string[]? skill = null,
         string? scope = null,
         string? repositoryRoot = null,
@@ -36,7 +36,7 @@ internal sealed class AgentSkillsDoctorCommand
         bool pretty = false,
         CancellationToken cancellationToken = default)
     {
-        var result = await runner.DoctorAsync(new AgentSkillsDoctorCommandRequest(host, tier, skill, scope, repositoryRoot, targetDir), cancellationToken).ConfigureAwait(false);
+        var result = await runner.DoctorAsync(new AgentSkillsDoctorCommandRequest(host, category, skill, scope, repositoryRoot, targetDir), cancellationToken).ConfigureAwait(false);
         return await emitter.EmitAsync(result, new AgentSkillsCommandOutputOptions(pretty), cancellationToken).ConfigureAwait(false);
     }
 }

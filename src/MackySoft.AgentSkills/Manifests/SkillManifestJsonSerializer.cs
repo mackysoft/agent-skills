@@ -2,9 +2,12 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using MackySoft.AgentSkills.Catalogs;
+using MackySoft.AgentSkills.Categories;
+using MackySoft.AgentSkills.Digests;
+using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Tiers;
+using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.Manifests;
 
@@ -22,16 +25,25 @@ public sealed class SkillManifestJsonSerializer
     /// <returns> The serialized JSON with LF line endings and a trailing newline. </returns>
     public string Serialize (SkillManifest manifest)
     {
-        return Serialize(manifest, includeManifestDigest: true);
+        return Serialize(manifest, includeSkillBundleVersion: true, includeManifestDigest: true);
     }
 
     internal string SerializeWithoutManifestDigest (SkillManifest manifest)
     {
-        return Serialize(manifest, includeManifestDigest: false);
+        return Serialize(manifest, includeSkillBundleVersion: true, includeManifestDigest: false);
+    }
+
+    /// <summary> Serializes the version-independent manifest projection used by bundle digest calculation. </summary>
+    /// <param name="manifest"> The manifest to project. </param>
+    /// <returns> Canonical JSON without <c>skillBundleVersion</c> or <c>manifestDigest</c>. </returns>
+    internal string SerializeForBundleDigest (SkillManifest manifest)
+    {
+        return Serialize(manifest, includeSkillBundleVersion: false, includeManifestDigest: false);
     }
 
     private static string Serialize (
         SkillManifest manifest,
+        bool includeSkillBundleVersion,
         bool includeManifestDigest)
     {
         ArgumentNullException.ThrowIfNull(manifest);
@@ -39,18 +51,18 @@ public sealed class SkillManifestJsonSerializer
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream, WriterOptions))
         {
-            WriteManifest(writer, manifest, includeManifestDigest);
+            WriteManifest(writer, manifest, includeSkillBundleVersion, includeManifestDigest);
         }
 
         var json = SkillTextNormalizer.NormalizeToLf(Encoding.UTF8.GetString(stream.ToArray()));
         return json.EndsWith('\n') ? json : json + "\n";
     }
 
-    /// <summary> Reads one manifest from JSON text. </summary>
+    /// <summary> Reads one untrusted manifest candidate from JSON text. </summary>
     /// <param name="json"> The JSON text. </param>
-    /// <returns> The parsed manifest. </returns>
+    /// <returns> The parsed manifest candidate. </returns>
     /// <exception cref="JsonException"> Thrown when the JSON is invalid. </exception>
-    public SkillManifest Deserialize (string json)
+    internal SkillManifestCandidate Deserialize (string json)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(json);
 
@@ -59,38 +71,40 @@ public sealed class SkillManifestJsonSerializer
         var artifacts = root.GetProperty("hostArtifacts")
             .EnumerateArray()
             .Select(static element => new SkillHostArtifactManifest(
-                Host: element.GetProperty("host").GetString() ?? string.Empty,
-                Path: element.TryGetProperty("path", out var pathElement) ? pathElement.GetString() : null,
-                Digest: element.TryGetProperty("digest", out var digestElement) ? digestElement.GetString() : null,
-                MaterializedFrontmatterDigest: element.GetProperty("materializedFrontmatterDigest").GetString() ?? string.Empty))
+                ReadHost(element.GetProperty("host")),
+                element.TryGetProperty("path", out var pathElement) ? pathElement.GetString() : null,
+                element.TryGetProperty("digest", out var digestElement)
+                    ? Sha256Digest.Parse(digestElement.GetString() ?? string.Empty)
+                    : null,
+                Sha256Digest.Parse(element.GetProperty("materializedFrontmatterDigest").GetString() ?? string.Empty)))
             .ToArray();
 
-        return new SkillManifest(
-            SchemaVersion: root.GetProperty("schemaVersion").GetInt32(),
-            SkillBundleVersion: root.TryGetProperty("skillBundleVersion", out var skillBundleVersionElement) ? skillBundleVersionElement.GetInt32() : 0,
-            CatalogId: new SkillCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty),
-            Tier: new SkillTier(root.GetProperty("tier").GetString() ?? string.Empty),
-            SkillName: new SkillName(root.GetProperty("skillName").GetString() ?? string.Empty),
-            DisplayName: root.GetProperty("displayName").GetString() ?? string.Empty,
-            Description: root.GetProperty("description").GetString() ?? string.Empty,
-            Dependencies: ReadDependencies(root),
-            ContentDigest: root.GetProperty("contentDigest").GetString() ?? string.Empty,
-            ManifestDigest: root.GetProperty("manifestDigest").GetString() ?? string.Empty,
-            HostArtifacts: artifacts);
+        return new SkillManifestCandidate(
+            root.GetProperty("schemaVersion").GetInt32(),
+            root.GetProperty("skillBundleVersion").GetInt32(),
+            new SkillCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty),
+            new SkillCategory(root.GetProperty("category").GetString() ?? string.Empty),
+            new SkillName(root.GetProperty("skillName").GetString() ?? string.Empty),
+            root.GetProperty("displayName").GetString() ?? string.Empty,
+            root.GetProperty("description").GetString() ?? string.Empty,
+            ReadDependencies(root),
+            Sha256Digest.Parse(root.GetProperty("contentDigest").GetString() ?? string.Empty),
+            Sha256Digest.Parse(root.GetProperty("manifestDigest").GetString() ?? string.Empty),
+            artifacts);
     }
 
     /// <summary> Reads one manifest from JSON text without leaking parse exceptions. </summary>
     /// <param name="json"> The JSON text. </param>
-    /// <returns> The parsed manifest or manifest-invalid failure. </returns>
-    public SkillOperationResult<SkillManifest> TryDeserialize (string json)
+    /// <returns> The parsed manifest candidate or manifest-invalid failure. </returns>
+    internal SkillOperationResult<SkillManifestCandidate> TryDeserialize (string json)
     {
         try
         {
-            return SkillOperationResult<SkillManifest>.Success(Deserialize(json));
+            return SkillOperationResult<SkillManifestCandidate>.Success(Deserialize(json));
         }
         catch (Exception ex) when (ex is JsonException or InvalidOperationException or ArgumentException or KeyNotFoundException or FormatException)
         {
-            return SkillOperationResult<SkillManifest>.FailureResult(
+            return SkillOperationResult<SkillManifestCandidate>.FailureResult(
                 SkillFailureCodes.ManifestInvalid,
                 "agent-skill.json is invalid.");
         }
@@ -99,36 +113,98 @@ public sealed class SkillManifestJsonSerializer
     private static void WriteManifest (
         Utf8JsonWriter writer,
         SkillManifest manifest,
+        bool includeSkillBundleVersion,
+        bool includeManifestDigest)
+    {
+        WriteManifest(
+            writer,
+            manifest.SchemaVersion,
+            manifest.SkillBundleVersion,
+            manifest.CatalogId,
+            manifest.Category,
+            manifest.SkillName,
+            manifest.DisplayName,
+            manifest.Description,
+            manifest.Dependencies,
+            manifest.ContentDigest,
+            manifest.ManifestDigest,
+            manifest.HostArtifacts,
+            includeSkillBundleVersion,
+            includeManifestDigest);
+    }
+
+    internal string SerializeWithoutManifestDigest (SkillManifestCandidate manifest)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream, WriterOptions))
+        {
+            WriteManifest(
+                writer,
+                manifest.SchemaVersion,
+                manifest.SkillBundleVersion,
+                manifest.CatalogId,
+                manifest.Category,
+                manifest.SkillName,
+                manifest.DisplayName,
+                manifest.Description,
+                manifest.Dependencies,
+                manifest.ContentDigest,
+                null,
+                manifest.HostArtifacts,
+                includeSkillBundleVersion: true,
+                includeManifestDigest: false);
+        }
+
+        var json = SkillTextNormalizer.NormalizeToLf(Encoding.UTF8.GetString(stream.ToArray()));
+        return json.EndsWith('\n') ? json : json + "\n";
+    }
+
+    private static void WriteManifest (
+        Utf8JsonWriter writer,
+        int schemaVersion,
+        int skillBundleVersion,
+        SkillCatalogId catalogId,
+        SkillCategory category,
+        SkillName skillName,
+        string displayName,
+        string description,
+        IReadOnlyList<SkillName> dependencies,
+        Sha256Digest contentDigest,
+        Sha256Digest? manifestDigest,
+        IReadOnlyList<SkillHostArtifactManifest> hostArtifacts,
+        bool includeSkillBundleVersion,
         bool includeManifestDigest)
     {
         writer.WriteStartObject();
-        writer.WriteNumber("schemaVersion", manifest.SchemaVersion);
-        if (manifest.SkillBundleVersion > 0)
+        writer.WriteNumber("schemaVersion", schemaVersion);
+        if (includeSkillBundleVersion)
         {
-            writer.WriteNumber("skillBundleVersion", manifest.SkillBundleVersion);
+            writer.WriteNumber("skillBundleVersion", skillBundleVersion);
         }
 
-        writer.WriteString("catalogId", manifest.CatalogId.Value);
-        writer.WriteString("tier", manifest.Tier.Value);
-        writer.WriteString("skillName", manifest.SkillName.Value);
-        writer.WriteString("displayName", manifest.DisplayName);
-        writer.WriteString("description", manifest.Description);
+        writer.WriteString("catalogId", catalogId.Value);
+        writer.WriteString("category", category.Value);
+        writer.WriteString("skillName", skillName.Value);
+        writer.WriteString("displayName", displayName);
+        writer.WriteString("description", description);
         writer.WritePropertyName("dependencies");
         writer.WriteStartArray();
-        foreach (var dependency in manifest.Dependencies.OrderBy(static dependency => dependency.Value, StringComparer.Ordinal))
+        foreach (var dependency in dependencies.OrderBy(static dependency => dependency.Value, StringComparer.Ordinal))
         {
             writer.WriteStringValue(dependency.Value);
         }
 
         writer.WriteEndArray();
-        writer.WriteString("contentDigest", manifest.ContentDigest);
+        writer.WriteString("contentDigest", contentDigest.ToString());
         if (includeManifestDigest)
         {
-            writer.WriteString("manifestDigest", manifest.ManifestDigest);
+            writer.WriteString("manifestDigest", manifestDigest!.ToString());
         }
 
         writer.WritePropertyName("hostArtifacts");
-        WriteHostArtifacts(writer, manifest.HostArtifacts);
+        WriteHostArtifacts(writer, hostArtifacts);
         writer.WriteEndObject();
     }
 
@@ -138,35 +214,41 @@ public sealed class SkillManifestJsonSerializer
     {
         writer.WriteStartArray();
 
-        foreach (var artifact in hostArtifacts.OrderBy(static artifact => artifact.Host, StringComparer.Ordinal))
+        foreach (var artifact in hostArtifacts.OrderBy(static artifact => artifact.Host))
         {
             writer.WriteStartObject();
-            writer.WriteString("host", artifact.Host);
+            writer.WriteString("host", ContractLiteralCodec.ToValue(artifact.Host));
             if (!string.IsNullOrWhiteSpace(artifact.Path))
             {
                 writer.WriteString("path", artifact.Path);
             }
 
-            if (!string.IsNullOrWhiteSpace(artifact.Digest))
+            if (artifact.Digest is not null)
             {
-                writer.WriteString("digest", artifact.Digest);
+                writer.WriteString("digest", artifact.Digest.ToString());
             }
 
-            writer.WriteString("materializedFrontmatterDigest", artifact.MaterializedFrontmatterDigest);
+            writer.WriteString("materializedFrontmatterDigest", artifact.MaterializedFrontmatterDigest.ToString());
             writer.WriteEndObject();
         }
 
         writer.WriteEndArray();
     }
 
-    private static IReadOnlyList<SkillName> ReadDependencies (JsonElement root)
+    private static SkillHostKind ReadHost (JsonElement element)
     {
-        if (!root.TryGetProperty("dependencies", out var dependenciesElement))
+        var literal = element.GetString();
+        if (!ContractLiteralCodec.TryParse(literal, out SkillHostKind host))
         {
-            return [];
+            throw new JsonException($"Unsupported SKILL host literal: {literal ?? "(null)"}.");
         }
 
-        return dependenciesElement
+        return host;
+    }
+
+    private static IReadOnlyList<SkillName> ReadDependencies (JsonElement root)
+    {
+        return root.GetProperty("dependencies")
             .EnumerateArray()
             .Select(static element => new SkillName(element.GetString() ?? string.Empty))
             .ToArray();

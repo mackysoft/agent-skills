@@ -1,0 +1,85 @@
+## 目的
+
+完成したエージェントスキルを、対象製品が所有する Agent Skills 1.0 のソース定義へ反映し、生成物、配布物、標準コマンドから利用できる状態まで整える。
+
+## フロー
+
+### Phase 1: 採用と正本を確認する
+
+対象製品の実行物または配布物を構成する .NET プロジェクトについて、評価済みの `PackageReference` と `ProjectReference` を確認する。`MackySoft.AgentSkills` または `MackySoft.AgentSkills.*` を直接参照している場合だけ、Agent Skills 採用製品として扱う。
+
+バンドルルート、固定している CLI バージョン、同期コマンド、検証コマンド、generated の同梱方法を特定する。利用側リポジトリでは `.config/dotnet-tools.json` が固定する CLI を使う。Agent Skills リポジトリ自身では、未公開パッケージへ依存せず、現在のソースを `dotnet run --project src/MackySoft.AgentSkills.Cli/MackySoft.AgentSkills.Cli.csproj -- build --root skills` で実行する。
+
+### Phase 2: 所有境界に従って定義する
+
+固定レイアウトを維持する。
+
+```text
+<root>/
+  bundle.json
+  definitions/
+    <category>/
+      <skill>/
+        skill.json
+        SKILL.md.template
+        references/
+  generated/
+    bundle.json
+    <skill>/
+```
+
+各情報を次の場所だけで所有する。
+
+| 情報 | 正本 |
+| --- | --- |
+| `catalogId`、`skillBundleVersion` | source `bundle.json` |
+| category | `definitions` 直下のディレクトリ名 |
+| `skillName` | category 直下のスキルディレクトリ名 |
+| 表示名、説明、`dependencies` | 個別 `skill.json` |
+| スキル本文と参照名・参照本文 | `SKILL.md.template` と `references/*.md.template` |
+| digest、manifest、ホスト別成果物 | CLI が作る `generated` |
+| schema version | 対象バージョンの Agent Skills コード契約 |
+
+個別定義へ `catalogId`、`skillBundleVersion`、category、`skillName`、reference 一覧、旧 `tier` を重複して書かない。`dependencies` には、同じバンドルから必ず一緒に解決するスキル名だけを書く。
+
+一方、generated の `agent-skill.json` は単体で配布、選択、依存解決、整合性検証を行う manifest なので最小化しない。source から導出した `category` と `skillName` も含め、バンドル識別情報、表示情報、`dependencies`、digest、`hostArtifacts` を保持する。
+
+### Phase 3: 同期する
+
+ソース定義だけを編集し、generated を手で修正しない。利用側では次を実行する。
+
+```bash
+dotnet tool run agent-skills -- build --root <root>
+```
+
+通常の内容変更では、source と generated のバージョンが同じなら CLI が `skillBundleVersion` を1つ進める。内容を変更したうえで source を generated のちょうど1つ先へ手動更新した場合は、その値を維持する。内容を伴わないバージョン変更、巻き戻し、飛び越しは修正せず失敗として扱う。
+
+SHA-256 は小文字16進数64文字で扱い、`sha256:` 接頭辞を付けない。
+
+### Phase 4: 配布境界を整える
+
+製品のビルド出力またはパッケージへ `<root>/generated` の内容を `skills/` として同梱する。標準の list、install、update、uninstall、prune、doctor、export を提供する製品は、同梱先を `PackageBaseDirectory` と一致させる。
+
+自己ホストする Agent Skills CLI では、現在の CLI ソースが source bundle から generated を作り、コミット済み generated をツールパッケージへ収録する。この処理を CLI 自身の MSBuild 中に起動する target にはしない。明示的な同期と検証に分けることで、CLI のビルドが未生成の CLI を要求する循環を作らない。
+
+自己ホスト CLI は依存性の最上位にある composition root とし、Core、Hosting、ConsoleAppFramework adapter を利用する。ConsoleAppFramework は command 型を利用側アセンブリでコンパイルする必要があるため、CLI も adapter の source integration を正本として使う。command wrapper を CLI へ複製せず、adapter や下位ライブラリから CLI を参照させない。
+
+### Phase 5: 検証する
+
+利用側の読み取り専用検証では次を実行する。
+
+```bash
+dotnet tool run agent-skills -- build --root <root> --check
+```
+
+Pull Request では `actions/verify/action.yaml` を使う。branch への自動同期では `contents: write` を与えて `actions/sync/action.yaml` を使う。sync は clean な Git index を要求し、source `bundle.json` と generated だけを bot commit の対象にする。
+
+最後に製品のビルドとパッケージ検証を実行し、同梱された bundle から対象スキルを列挙でき、代表ホストとスコープで install または dry-run が成功することを確認する。
+
+## 完了条件
+
+- 定義が固定深さの category 構造にあり、共通値を重複所有していない。
+- CLI による再同期後、`build --check` が成功する。
+- generated に古いスキル、旧 manifest、手編集差分が残っていない。
+- 配布物に generated bundle が収録され、標準コマンドから対象スキルを利用できる。
+- 自己ホストの場合、生成は明示コマンドであり、CLI のビルド依存に循環を作っていない。

@@ -1,12 +1,22 @@
 namespace MackySoft.AgentSkills.Shared;
 
 /// <summary> Represents one machine-readable SKILL operation failure. </summary>
-/// <param name="Code"> The failure code. </param>
-/// <param name="Message"> The user-facing failure message. </param>
-public sealed record SkillFailure (
-    SkillFailureCode Code,
-    string Message)
+public sealed class SkillFailure
 {
+    private SkillFailure (
+        SkillFailureCode code,
+        string message)
+    {
+        Code = code;
+        Message = message;
+    }
+
+    /// <summary> Gets the machine-readable failure code. </summary>
+    public SkillFailureCode Code { get; }
+
+    /// <summary> Gets the user-facing failure message. </summary>
+    public string Message { get; }
+
     /// <summary> Creates one SKILL failure. </summary>
     /// <param name="code"> The failure code. </param>
     /// <param name="message"> The user-facing failure message. </param>
@@ -15,11 +25,7 @@ public sealed record SkillFailure (
         SkillFailureCode code,
         string message)
     {
-        if (!code.IsValid)
-        {
-            throw new ArgumentException("Failure code must be valid.", nameof(code));
-        }
-
+        ArgumentNullException.ThrowIfNull(code);
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
         return new SkillFailure(code, message);
     }

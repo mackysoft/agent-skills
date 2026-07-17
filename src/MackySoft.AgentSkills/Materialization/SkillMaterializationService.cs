@@ -1,6 +1,8 @@
+using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.Materialization;
 
@@ -22,7 +24,7 @@ public sealed class SkillMaterializationService
     /// <returns> The materialized package or unsupported-host failure. </returns>
     public SkillOperationResult<SkillMaterializedPackage> Materialize (
         CanonicalSkillPackage package,
-        string host)
+        SkillHostKind host)
     {
         ArgumentNullException.ThrowIfNull(package);
 
@@ -52,7 +54,7 @@ public sealed class SkillMaterializationService
         {
             if (string.Equals(file.RelativePath, "SKILL.md", StringComparison.Ordinal))
             {
-                files.Add(SkillPackageFile.Create(file.RelativePath, artifacts.Frontmatter + "\n" + file.Content));
+                files.Add(new SkillPackageFile(file.RelativePath, artifacts.Frontmatter + "\n" + file.Content));
                 continue;
             }
 
@@ -68,22 +70,22 @@ public sealed class SkillMaterializationService
         {
             if (artifacts.MetadataContent is not null)
             {
-                throw new InvalidOperationException($"Host adapter '{adapter.Descriptor.HostKey}' must not emit metadata artifacts.");
+                throw new InvalidOperationException($"Host adapter '{ContractLiteralCodec.ToValue(adapter.Descriptor.Host)}' must not emit metadata artifacts.");
             }
         }
         else
         {
             if (artifacts.MetadataContent is null)
             {
-                throw new InvalidOperationException($"Host adapter '{adapter.Descriptor.HostKey}' must emit metadata artifact '{metadataArtifactPath}'.");
+                throw new InvalidOperationException($"Host adapter '{ContractLiteralCodec.ToValue(adapter.Descriptor.Host)}' must emit metadata artifact '{metadataArtifactPath}'.");
             }
 
-            files.Add(SkillPackageFile.Create(metadataArtifactPath, artifacts.MetadataContent));
+            files.Add(new SkillPackageFile(metadataArtifactPath, artifacts.MetadataContent));
         }
 
         return SkillOperationResult<SkillMaterializedPackage>.Success(new SkillMaterializedPackage(
             package.Manifest.SkillName,
-            adapter.Descriptor.HostKey,
+            adapter.Descriptor.Host,
             files.OrderBy(static file => file.RelativePath, StringComparer.Ordinal).ToArray()));
     }
 }

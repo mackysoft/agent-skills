@@ -1,4 +1,4 @@
-using MackySoft.AgentSkills.Hosts.OpenAi;
+using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Diffing;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Materialization;
@@ -20,10 +20,10 @@ public sealed class SkillMaterializedPackageDiffBuilderTests
         scope.WriteFile(Path.Combine("sample-skill", "obsolete.md"), "# Obsolete\n");
         var package = new SkillMaterializedPackage(
             new SkillName("sample-skill"),
-            OpenAiSkillHostAdapter.HostKey,
+            SkillHostKind.OpenAi,
             [
-                SkillPackageFile.Create("SKILL.md", "# After\n"),
-                SkillPackageFile.Create("new.md", "# New\n"),
+                new SkillPackageFile("SKILL.md", "# After\n"),
+                new SkillPackageFile("new.md", "# New\n"),
             ]);
         var builder = new SkillMaterializedPackageDiffBuilder();
 
@@ -84,8 +84,8 @@ public sealed class SkillMaterializedPackageDiffBuilderTests
 
         var package = new SkillMaterializedPackage(
             new SkillName("sample-skill"),
-            OpenAiSkillHostAdapter.HostKey,
-            [SkillPackageFile.Create("SKILL.md", "# After\n")]);
+            SkillHostKind.OpenAi,
+            [new SkillPackageFile("SKILL.md", "# After\n")]);
         var builder = new SkillMaterializedPackageDiffBuilder();
 
         var result = await builder.BuildAsync(skillDirectory, package, CancellationToken.None);
@@ -128,8 +128,8 @@ public sealed class SkillMaterializedPackageDiffBuilderTests
         scope.WriteFile(Path.Combine("sample-skill", "unsafe\\name.md"), "# Unsafe\n");
         var package = new SkillMaterializedPackage(
             new SkillName("sample-skill"),
-            OpenAiSkillHostAdapter.HostKey,
-            [SkillPackageFile.Create("SKILL.md", "# After\n")]);
+            SkillHostKind.OpenAi,
+            [new SkillPackageFile("SKILL.md", "# After\n")]);
         var builder = new SkillMaterializedPackageDiffBuilder();
 
         var result = await builder.BuildAsync(skillDirectory, package, CancellationToken.None);

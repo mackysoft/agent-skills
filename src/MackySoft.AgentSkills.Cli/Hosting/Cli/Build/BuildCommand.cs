@@ -1,59 +1,49 @@
 using ConsoleAppFramework;
+using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Cli.Hosting.Cli.Common.Contracts;
-using MackySoft.AgentSkills.Generation;
-using MackySoft.AgentSkills.Packaging.Canonical;
 
 namespace MackySoft.AgentSkills.Cli.Hosting.Cli.Build;
 
 /// <summary> Provides the public build command for canonical SKILL package generation. </summary>
 internal sealed class BuildCommand
 {
-    private readonly SkillPackageGenerationService generationService;
-    private readonly CanonicalSkillPackageWriter packageWriter;
+    private readonly SkillBundleBuildService buildService;
 
     /// <summary> Initializes a new instance of the <see cref="BuildCommand" /> class. </summary>
-    /// <param name="generationService"> The canonical package generation service. </param>
-    /// <param name="packageWriter"> The canonical package writer. </param>
-    public BuildCommand (
-        SkillPackageGenerationService generationService,
-        CanonicalSkillPackageWriter packageWriter)
+    /// <param name="buildService"> The source and generated bundle reconciliation service. </param>
+    public BuildCommand (SkillBundleBuildService buildService)
     {
-        this.generationService = generationService ?? throw new ArgumentNullException(nameof(generationService));
-        this.packageWriter = packageWriter ?? throw new ArgumentNullException(nameof(packageWriter));
+        this.buildService = buildService ?? throw new ArgumentNullException(nameof(buildService));
     }
 
-    /// <summary> Generates canonical SKILL package files from source definitions. </summary>
-    /// <param name="definitionsRoot"> Required product-owned skill definitions directory.</param>
-    /// <param name="generatedRoot"> Required canonical generated skills directory.</param>
-    /// <param name="cancellationToken"> The cancellation token propagated by command execution.</param>
-    /// <returns> The process exit code.</returns>
+    /// <summary> Reconciles a canonical runtime bundle from a fixed-layout source bundle root. </summary>
+    /// <param name="root"> The root containing <c>bundle.json</c>, <c>definitions</c>, and generated output. </param>
+    /// <param name="check"> Whether to fail without writing when generated output requires changes. </param>
+    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
+    /// <returns> The process exit code. </returns>
     [Command(AgentSkillsCommandNames.Build)]
     public async Task<int> BuildAsync (
-        string definitionsRoot,
-        string generatedRoot,
+        string root = "skills",
+        bool check = false,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var packagesResult = await generationService.GenerateAllAsync(definitionsRoot, cancellationToken).ConfigureAwait(false);
-        if (!packagesResult.IsSuccess)
+        var result = await buildService.BuildAsync(root, check, cancellationToken).ConfigureAwait(false);
+        if (!result.IsSuccess)
         {
-            Console.Error.WriteLine(packagesResult.Failure!.Message);
+            Console.Error.WriteLine(result.Failure!.Message);
             return 1;
         }
 
-        var writeResult = await packageWriter.WriteAllAsync(
-            packagesResult.Value!,
-            generatedRoot,
-            cleanOutputRoot: true,
-            cancellationToken).ConfigureAwait(false);
-        if (!writeResult.IsSuccess)
+        var generatedRoot = Path.Combine(Path.GetFullPath(root), "generated");
+        if (!result.Value!.Changed)
         {
-            Console.Error.WriteLine(writeResult.Failure!.Message);
-            return 1;
+            Console.WriteLine($"Canonical skills are up to date: {generatedRoot}");
+            return 0;
         }
 
-        Console.WriteLine($"Generated canonical skills: {writeResult.Value}");
+        Console.WriteLine($"Generated canonical skills: {generatedRoot} (bundle version {result.Value.Descriptor.SkillBundleVersion})");
         return 0;
     }
 }

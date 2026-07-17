@@ -10,9 +10,21 @@ public sealed class SkillNameTests
     {
         var skillName = new SkillName("sample-skill");
 
-        Assert.True(skillName.IsInitialized);
         Assert.Equal("sample-skill", skillName.Value);
         Assert.Equal("sample-skill", skillName.ToString());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("SampleSkill")]
+    [InlineData("sample_skill")]
+    [InlineData("-sample")]
+    [InlineData("sample/skill")]
+    [Trait("Size", "Small")]
+    public void Constructor_RejectsUnsafeLiteral (string? literal)
+    {
+        Assert.Throws<ArgumentException>(() => new SkillName(literal!));
     }
 
     [Theory]
@@ -28,18 +40,7 @@ public sealed class SkillNameTests
         var result = SkillName.TryCreate(literal, out var skillName);
 
         Assert.False(result);
-        Assert.False(skillName.IsInitialized);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public void DefaultValue_IsNotInitialized ()
-    {
-        SkillName skillName = default;
-
-        Assert.False(skillName.IsInitialized);
-        Assert.Throws<InvalidOperationException>(() => skillName.Value);
-        Assert.Throws<InvalidOperationException>(() => skillName.ToString());
+        Assert.Null(skillName);
     }
 
     [Fact]

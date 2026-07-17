@@ -1,15 +1,16 @@
+using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Doctor;
 
 /// <summary> Represents one SKILL doctor diagnostic. </summary>
-public sealed record SkillDoctorDiagnostic
+public sealed class SkillDoctorDiagnostic
 {
     private SkillDoctorDiagnostic (
         SkillDoctorSeverity severity,
-        string code,
+        SkillFailureCode code,
         string message,
-        string? skillName)
+        SkillName? skillName)
     {
         Severity = severity;
         Code = code;
@@ -21,13 +22,13 @@ public sealed record SkillDoctorDiagnostic
     public SkillDoctorSeverity Severity { get; }
 
     /// <summary> Gets the diagnostic code. </summary>
-    public string Code { get; }
+    public SkillFailureCode Code { get; }
 
     /// <summary> Gets the diagnostic message. </summary>
     public string Message { get; }
 
     /// <summary> Gets the related skill name, or <see langword="null" /> for target-level diagnostics. </summary>
-    public string? SkillName { get; }
+    public SkillName? SkillName { get; }
 
     /// <summary> Creates an error diagnostic. </summary>
     /// <param name="code"> The diagnostic code. </param>
@@ -39,7 +40,11 @@ public sealed record SkillDoctorDiagnostic
         string message,
         string? skillName = null)
     {
-        return Create(SkillDoctorSeverity.Error, code, message, skillName);
+        return Create(
+            SkillDoctorSeverity.Error,
+            new SkillFailureCode(code),
+            message,
+            skillName is null ? null : new SkillName(skillName));
     }
 
     /// <summary> Creates an error diagnostic from a SKILL failure code. </summary>
@@ -50,14 +55,9 @@ public sealed record SkillDoctorDiagnostic
     public static SkillDoctorDiagnostic Error (
         SkillFailureCode code,
         string message,
-        string? skillName = null)
+        SkillName? skillName = null)
     {
-        if (!code.IsValid)
-        {
-            throw new ArgumentException("Failure code must be valid.", nameof(code));
-        }
-
-        return Create(SkillDoctorSeverity.Error, code.Value, message, skillName);
+        return Create(SkillDoctorSeverity.Error, code, message, skillName);
     }
 
     /// <summary> Creates an informational diagnostic. </summary>
@@ -70,16 +70,20 @@ public sealed record SkillDoctorDiagnostic
         string message,
         string? skillName = null)
     {
-        return Create(SkillDoctorSeverity.Info, code, message, skillName);
+        return Create(
+            SkillDoctorSeverity.Info,
+            new SkillFailureCode(code),
+            message,
+            skillName is null ? null : new SkillName(skillName));
     }
 
     private static SkillDoctorDiagnostic Create (
         SkillDoctorSeverity severity,
-        string code,
+        SkillFailureCode code,
         string message,
-        string? skillName)
+        SkillName? skillName)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        ArgumentNullException.ThrowIfNull(code);
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
 
         return new SkillDoctorDiagnostic(severity, code, message, skillName);

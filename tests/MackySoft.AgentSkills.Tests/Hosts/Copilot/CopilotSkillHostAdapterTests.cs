@@ -8,23 +8,18 @@ public sealed class CopilotSkillHostAdapterTests
 {
     [Fact]
     [Trait("Size", "Small")]
-    public void Descriptor_ExposesCapabilityMetadata ()
+    public void Descriptor_ExposesHostPolicy ()
     {
         var adapter = new CopilotSkillHostAdapter();
         var descriptor = adapter.Descriptor;
 
-        Assert.Equal(CopilotSkillHostAdapter.HostKey, descriptor.HostKey);
-        Assert.True(descriptor.SupportsProjectScope);
-        Assert.True(descriptor.SupportsUserScope);
+        Assert.Equal(SkillHostKind.Copilot, descriptor.Host);
         Assert.Equal(".github/skills", descriptor.ProjectDefaultTargetPath);
         Assert.Equal("~/.copilot/skills", descriptor.UserDefaultTargetPath);
-        Assert.NotNull(descriptor.UserTargetRootPolicy);
-        Assert.Null(descriptor.UserTargetRootPolicy!.EnvironmentVariableName);
+        Assert.Null(descriptor.UserTargetRootPolicy.EnvironmentVariableName);
         Assert.Null(descriptor.UserTargetRootPolicy.EnvironmentVariableChildDirectory);
         Assert.Equal(".copilot/skills", descriptor.UserTargetRootPolicy.HomeRelativeDirectory);
-        Assert.False(descriptor.RequiresMetadataArtifact);
         Assert.Null(descriptor.MetadataArtifactPath);
-        Assert.Null(((ISkillHostAdapter)adapter).MetadataArtifactPath);
         Assert.False(string.IsNullOrWhiteSpace(descriptor.ReloadGuidance));
     }
 

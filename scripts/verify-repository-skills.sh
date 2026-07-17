@@ -23,21 +23,12 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-temp_root="$DOTNET_REPO_ROOT/obj"
-mkdir -p "$temp_root"
-work_dir="$(mktemp -d "${temp_root%/}/agent-skills-source-verify.XXXXXX")"
-trap 'rm -rf "$work_dir"' EXIT
-
-expected_root="$work_dir/generated"
-generate_options=(--output "$expected_root")
+run_options=(
+  --project "$DOTNET_REPO_ROOT/src/MackySoft.AgentSkills.Cli/MackySoft.AgentSkills.Cli.csproj"
+  --configuration Release
+)
 if [ "$restore" = false ]; then
-  generate_options=(--no-restore "${generate_options[@]}")
-fi
-bash "$script_dir/generate-repository-skills.sh" "${generate_options[@]}" >/dev/null
-
-if ! diff -ruN "$DOTNET_REPO_ROOT/skills/generated" "$expected_root"; then
-  echo "Generated repository skills are out of date. Run: bash scripts/generate-repository-skills.sh" >&2
-  exit 1
+  run_options+=(--no-restore)
 fi
 
-echo "Generated repository skills are up to date."
+dotnet run "${run_options[@]}" -- build --root "$DOTNET_REPO_ROOT/skills" --check

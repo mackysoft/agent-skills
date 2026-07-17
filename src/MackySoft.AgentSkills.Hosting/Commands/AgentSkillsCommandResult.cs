@@ -3,7 +3,7 @@ using MackySoft.AgentSkills.Shared;
 namespace MackySoft.AgentSkills.Hosting.Commands;
 
 /// <summary> Represents one command runtime result before product-specific emission. </summary>
-public sealed record AgentSkillsCommandResult
+public sealed class AgentSkillsCommandResult
 {
     private AgentSkillsCommandResult (
         string command,

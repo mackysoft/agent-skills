@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "skillBundleVersion": 1,
+  "catalogId": "com.mackysoft.agent-skills",
+  "category": "core",
+  "skillName": "agent-skills-read-project",
+  "displayName": "Agent Skills Read Project",
+  "description": "Use when inspecting a Unity project with Agent Skills before choosing selectors, operation metadata, schemas, or readIndex freshness. Guides read-first discovery without hard-coding operation contracts.",
+  "dependencies": [],
+  "contentDigest": "7abc133f4cab76dc3c9177b9b86747a3400935dd89a4b3fe372959b705e35143",
+  "manifestDigest": "4a84800bf2937143fead7947790d6d7632b5bf755dd24b73005dc92107589599",
+  "hostArtifacts": [
+    {
+      "host": "claude",
+      "materializedFrontmatterDigest": "9149577f1c28f16d2ae6b30168e77e2cb27698743aca857719ab82114e3fa4dd"
+    },
+    {
+      "host": "copilot",
+      "materializedFrontmatterDigest": "f7ac137e3e241527a2e1f7417b386980cbd7311bc1ab966fd008a79a7029dae0"
+    },
+    {
+      "host": "openai",
+      "path": "agents/openai.yaml",
+      "digest": "0c890be2be52e04e0ffd4373939679874ce285814a112396748e4dd8ba6c7e60",
+      "materializedFrontmatterDigest": "ffbbff8a18a54cfa24efa1c6089a32c75df912b4037e0db4bf2d36ee033b6f04"
+    }
+  ]
+}

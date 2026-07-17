@@ -288,6 +288,10 @@ dotnet_naming_style.camel_case.required_suffix =
 dotnet_naming_style.camel_case.word_separator = 
 dotnet_naming_style.camel_case.capitalization = camel_case
 
+# These files are compiled in consumer projects whose implicit using policy is unknown.
+[src/MackySoft.AgentSkills.ConsoleAppFramework/contentFiles/**/*.cs]
+dotnet_diagnostic.IDE0005.severity = none
+
 [src/Ucli.Unity/**/*.cs]
 csharp_style_namespace_declarations = block_scoped
 csharp_style_prefer_primary_constructors = false

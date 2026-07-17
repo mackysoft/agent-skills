@@ -1,17 +1,16 @@
 using MackySoft.AgentSkills.Catalogs;
+using MackySoft.AgentSkills.Categories;
+using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Contracts;
 using MackySoft.AgentSkills.Installation.Diffing;
 using MackySoft.AgentSkills.Installation.Requests;
 using MackySoft.AgentSkills.Installation.Results;
-using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Installation.Validation;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Names;
-using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Packaging.FileSystem;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Tiers;
 
 namespace MackySoft.AgentSkills.Installation.Services;
 
@@ -53,18 +52,11 @@ public sealed class SkillPruneService
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
-        ArgumentNullException.ThrowIfNull(input.CatalogId);
-        ArgumentNullException.ThrowIfNull(input.CurrentCatalogPackages);
-        ArgumentNullException.ThrowIfNull(input.TargetRequest);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var catalogIndexResult = CreateCurrentCatalogSkillIndex(input.CatalogId, input.CurrentCatalogPackages);
-        if (!catalogIndexResult.IsSuccess)
-        {
-            return SkillOperationResult<SkillPruneResult>.FailureResult(catalogIndexResult.Failure!.Code, catalogIndexResult.Failure.Message);
-        }
-
-        var currentCatalogSkillNames = catalogIndexResult.Value!;
+        var currentCatalogSkillNames = input.CurrentCatalogPackages
+            .Select(static package => package.Manifest.SkillName)
+            .ToHashSet();
         var targetResult = targetResolver.ResolveTarget(input.TargetRequest);
         if (!targetResult.IsSuccess)
         {
@@ -73,12 +65,12 @@ public sealed class SkillPruneService
 
         var target = targetResult.Value!;
         var targetRoot = target.TargetRoot;
-        var selectedTiers = CreateSelectedTierSet(input.SelectedTiers);
+        var selectedCategories = CreateSelectedCategorySet(input.SelectedCategories);
         var selectedSkillNames = CreateSelectedSkillNameSet(input.SelectedSkillNames);
         var actionPlansResult = await CreateActionPlansAsync(
                 input.CatalogId,
                 currentCatalogSkillNames,
-                selectedTiers,
+                selectedCategories,
                 selectedSkillNames,
                 target.Host,
                 input.TargetRequest.Scope,
@@ -105,7 +97,7 @@ public sealed class SkillPruneService
                 var preconditionResult = await ValidateDeletePreconditionAsync(
                         input.CatalogId,
                         currentCatalogSkillNames,
-                        selectedTiers,
+                        selectedCategories,
                         target.Host,
                         input.TargetRequest.Scope,
                         targetRoot,
@@ -134,7 +126,7 @@ public sealed class SkillPruneService
                         (directory, token) => ValidateDeletePreconditionAsync(
                             input.CatalogId,
                             currentCatalogSkillNames,
-                            selectedTiers,
+                            selectedCategories,
                             target.Host,
                             input.TargetRequest.Scope,
                             targetRoot,
@@ -161,9 +153,9 @@ public sealed class SkillPruneService
     private async ValueTask<SkillOperationResult<IReadOnlyList<SkillPruneActionPlan>>> CreateActionPlansAsync (
         SkillCatalogId catalogId,
         IReadOnlySet<SkillName> currentCatalogSkillNames,
-        IReadOnlySet<SkillTier> selectedTiers,
+        IReadOnlySet<SkillCategory> selectedCategories,
         IReadOnlySet<SkillName> selectedSkillNames,
-        string host,
+        SkillHostKind host,
         SkillScopeKind scope,
         string targetRoot,
         bool force,
@@ -227,7 +219,7 @@ public sealed class SkillPruneService
             var actionPlanResult = await CreateActionPlanAsync(
                     catalogId,
                     currentCatalogSkillNames,
-                    selectedTiers,
+                    selectedCategories,
                     host,
                     resolvedSkillDirectory,
                     identity,
@@ -253,8 +245,8 @@ public sealed class SkillPruneService
     private async ValueTask<SkillOperationResult<SkillPruneActionPlanResult>> CreateActionPlanAsync (
         SkillCatalogId catalogId,
         IReadOnlySet<SkillName> currentCatalogSkillNames,
-        IReadOnlySet<SkillTier> selectedTiers,
-        string host,
+        IReadOnlySet<SkillCategory> selectedCategories,
+        SkillHostKind host,
         string skillDirectory,
         SkillInstallIdentity identity,
         bool force,
@@ -273,7 +265,7 @@ public sealed class SkillPruneService
 
         if (!File.Exists(manifestPathResult.Value!))
         {
-            if (selectedTiers.Count > 0)
+            if (selectedCategories.Count > 0)
             {
                 return NoAction();
             }
@@ -282,19 +274,22 @@ public sealed class SkillPruneService
                 new SkillPruneAction(
                     identity,
                     SkillPruneActionKind.SkippedUnmanaged,
-                    TargetState: CreateTargetState(SkillTargetStateKind.Unmanaged, SkillFailureCodes.InstallTargetUnmanaged, "Skill directory is not managed by Agent Skills.")),
+                    CreateTargetState(SkillTargetStateKind.Unmanaged, SkillFailureCodes.InstallTargetUnmanaged, "Skill directory is not managed by Agent Skills."),
+                    blockedReason: null,
+                    fileChanges: null),
                 skillDirectory,
-                ShouldDelete: false));
+                shouldDelete: false,
+                targetSnapshot: null));
         }
 
         var installedManifestResult = await installedManifestReader.ReadRequiredAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
         if (!installedManifestResult.IsSuccess)
         {
-            return CreateBlockedManifestActionPlan(identity, skillDirectory, selectedTiers, installedManifestResult.Failure!);
+            return CreateBlockedManifestActionPlan(identity, skillDirectory, selectedCategories, installedManifestResult.Failure!);
         }
 
         var installedManifest = installedManifestResult.Value!.Manifest;
-        if (!IsSelectedTier(selectedTiers, installedManifest.Tier))
+        if (!IsSelectedCategory(selectedCategories, installedManifest.Category))
         {
             return NoAction();
         }
@@ -302,17 +297,19 @@ public sealed class SkillPruneService
         if (installedManifest.CatalogId != catalogId)
         {
             return Success(new SkillPruneActionPlan(
-                new SkillPruneAction(identity, SkillPruneActionKind.SkippedForeignCatalog),
+                new SkillPruneAction(identity, SkillPruneActionKind.SkippedForeignCatalog, targetState: null, blockedReason: null, fileChanges: null),
                 skillDirectory,
-                ShouldDelete: false));
+                shouldDelete: false,
+                targetSnapshot: null));
         }
 
         if (currentCatalogSkillNames.Contains(installedManifest.SkillName))
         {
             return Success(new SkillPruneActionPlan(
-                new SkillPruneAction(identity, SkillPruneActionKind.SkippedCurrent),
+                new SkillPruneAction(identity, SkillPruneActionKind.SkippedCurrent, targetState: null, blockedReason: null, fileChanges: null),
                 skillDirectory,
-                ShouldDelete: false));
+                shouldDelete: false,
+                targetSnapshot: null));
         }
 
         return await CreateOrphanActionPlanAsync(installedManifest, host, skillDirectory, identity, force, cancellationToken).ConfigureAwait(false);
@@ -320,7 +317,7 @@ public sealed class SkillPruneService
 
     private async ValueTask<SkillOperationResult<SkillPruneActionPlanResult>> CreateOrphanActionPlanAsync (
         SkillManifest installedManifest,
-        string host,
+        SkillHostKind host,
         string skillDirectory,
         SkillInstallIdentity identity,
         bool force,
@@ -344,9 +341,12 @@ public sealed class SkillPruneService
                 new SkillPruneAction(
                     identity,
                     SkillPruneActionKind.BlockedHostConflict,
-                    TargetState: CreateTargetState(SkillTargetStateKind.HostConflict, failure)),
+                    CreateTargetState(SkillTargetStateKind.HostConflict, failure),
+                    blockedReason: null,
+                    fileChanges: null),
                 skillDirectory,
-                ShouldDelete: false));
+                shouldDelete: false,
+                targetSnapshot: null));
         }
 
         if (failure.Code == SkillFailureCodes.InstallTargetNameCollision)
@@ -355,9 +355,12 @@ public sealed class SkillPruneService
                 new SkillPruneAction(
                     identity,
                     SkillPruneActionKind.BlockedNameCollision,
-                    TargetState: CreateTargetState(SkillTargetStateKind.NameCollision, failure)),
+                    CreateTargetState(SkillTargetStateKind.NameCollision, failure),
+                    blockedReason: null,
+                    fileChanges: null),
                 skillDirectory,
-                ShouldDelete: false));
+                shouldDelete: false,
+                targetSnapshot: null));
         }
 
         if (failure.Code == SkillFailureCodes.ManifestInvalid)
@@ -366,9 +369,12 @@ public sealed class SkillPruneService
                 new SkillPruneAction(
                     identity,
                     SkillPruneActionKind.BlockedManifestInvalid,
-                    TargetState: CreateTargetState(SkillTargetStateKind.ManifestDrift, failure)),
+                    CreateTargetState(SkillTargetStateKind.ManifestDrift, failure, installedManifest.SkillBundleVersion),
+                    blockedReason: null,
+                    fileChanges: null),
                 skillDirectory,
-                ShouldDelete: false));
+                shouldDelete: false,
+                targetSnapshot: null));
         }
 
         if (failure.Code == SkillFailureCodes.InstallTargetManifestDigestMismatch)
@@ -377,12 +383,15 @@ public sealed class SkillPruneService
                 new SkillPruneAction(
                     identity,
                     SkillPruneActionKind.BlockedManifestInvalid,
-                    TargetState: CreateTargetState(SkillTargetStateKind.ManifestDrift, failure)),
+                    CreateTargetState(SkillTargetStateKind.ManifestDrift, failure, installedManifest.SkillBundleVersion),
+                    blockedReason: null,
+                    fileChanges: null),
                 skillDirectory,
-                ShouldDelete: false));
+                shouldDelete: false,
+                targetSnapshot: null));
         }
 
-        if (!SkillInstalledTargetStateClassifier.TryResolveDriftKind(failure.Code, out var driftKind))
+        if (!SkillTargetStateClassifier.TryResolveDriftKind(failure.Code, out var driftKind))
         {
             return SkillOperationResult<SkillPruneActionPlanResult>.FailureResult(failure.Code, failure.Message);
         }
@@ -401,10 +410,12 @@ public sealed class SkillPruneService
             new SkillPruneAction(
                 identity,
                 SkillPruneActionKind.BlockedLocalModification,
+                CreateTargetState(driftKind, failure, installedManifest.SkillBundleVersion),
                 SkillBlockedReason.LocalModificationRequiresForce,
-                CreateTargetState(driftKind, failure, installedManifest.SkillBundleVersion)),
+                fileChanges: null),
             skillDirectory,
-            ShouldDelete: false));
+            shouldDelete: false,
+            targetSnapshot: null));
     }
 
     private async ValueTask<SkillOperationResult<SkillPruneActionPlanResult>> CreateDeleteActionPlanAsync (
@@ -420,20 +431,22 @@ public sealed class SkillPruneService
         }
 
         return Success(new SkillPruneActionPlan(
-            new SkillPruneAction(identity, SkillPruneActionKind.Deleted, TargetState: targetState)
-            {
-                FileChanges = fileChangesResult.Value!.FileChanges,
-            },
+            new SkillPruneAction(
+                identity,
+                SkillPruneActionKind.Deleted,
+                targetState,
+                blockedReason: null,
+                fileChangesResult.Value!.FileChanges),
             skillDirectory,
-            ShouldDelete: true,
-            TargetSnapshot: fileChangesResult.Value.TargetSnapshot));
+            shouldDelete: true,
+            targetSnapshot: fileChangesResult.Value.TargetSnapshot));
     }
 
     private async ValueTask<SkillOperationResult<bool>> ValidateDeletePreconditionAsync (
         SkillCatalogId catalogId,
         IReadOnlySet<SkillName> currentCatalogSkillNames,
-        IReadOnlySet<SkillTier> selectedTiers,
-        string host,
+        IReadOnlySet<SkillCategory> selectedCategories,
+        SkillHostKind host,
         SkillScopeKind scope,
         string targetRoot,
         string skillDirectory,
@@ -450,7 +463,7 @@ public sealed class SkillPruneService
         var actionPlanResult = await CreateActionPlanAsync(
                 catalogId,
                 currentCatalogSkillNames,
-                selectedTiers,
+                selectedCategories,
                 host,
                 skillDirectory,
                 identityResult.Value!,
@@ -496,36 +509,10 @@ public sealed class SkillPruneService
             $"Target skill directory changed after planning; refusing to delete: {skillDirectory}");
     }
 
-    private static SkillOperationResult<IReadOnlySet<SkillName>> CreateCurrentCatalogSkillIndex (
-        SkillCatalogId catalogId,
-        IReadOnlyList<CanonicalSkillPackage> currentCatalogPackages)
-    {
-        var skillNames = new HashSet<SkillName>();
-        foreach (var package in currentCatalogPackages)
-        {
-            ArgumentNullException.ThrowIfNull(package);
-            if (package.Manifest.CatalogId != catalogId)
-            {
-                return SkillOperationResult<IReadOnlySet<SkillName>>.FailureResult(
-                    SkillFailureCodes.InputInvalid,
-                    $"Current catalog package belongs to another catalog: {package.Manifest.SkillName}");
-            }
-
-            if (!skillNames.Add(package.Manifest.SkillName))
-            {
-                return SkillOperationResult<IReadOnlySet<SkillName>>.FailureResult(
-                    SkillFailureCodes.InputInvalid,
-                    $"Current catalog contains duplicate SKILL name: {package.Manifest.SkillName}");
-            }
-        }
-
-        return SkillOperationResult<IReadOnlySet<SkillName>>.Success(skillNames);
-    }
-
     private static SkillOperationResult<SkillPruneActionPlanResult> CreateBlockedManifestActionPlan (
         SkillInstallIdentity identity,
         string skillDirectory,
-        IReadOnlySet<SkillTier> selectedTiers,
+        IReadOnlySet<SkillCategory> selectedCategories,
         SkillFailure failure)
     {
         if (failure.Code == SkillFailureCodes.PathUnsafe)
@@ -533,7 +520,7 @@ public sealed class SkillPruneService
             return SkillOperationResult<SkillPruneActionPlanResult>.FailureResult(failure.Code, failure.Message);
         }
 
-        if (selectedTiers.Count > 0)
+        if (selectedCategories.Count > 0)
         {
             return NoAction();
         }
@@ -544,9 +531,12 @@ public sealed class SkillPruneService
                 new SkillPruneAction(
                     identity,
                     SkillPruneActionKind.BlockedNameCollision,
-                    TargetState: CreateTargetState(SkillTargetStateKind.NameCollision, failure)),
+                    CreateTargetState(SkillTargetStateKind.NameCollision, failure),
+                    blockedReason: null,
+                    fileChanges: null),
                 skillDirectory,
-                ShouldDelete: false));
+                shouldDelete: false,
+                targetSnapshot: null));
         }
 
         if (failure.Code == SkillFailureCodes.InstallTargetUnmanaged)
@@ -555,9 +545,12 @@ public sealed class SkillPruneService
                 new SkillPruneAction(
                     identity,
                     SkillPruneActionKind.SkippedUnmanaged,
-                    TargetState: CreateTargetState(SkillTargetStateKind.Unmanaged, failure)),
+                    CreateTargetState(SkillTargetStateKind.Unmanaged, failure),
+                    blockedReason: null,
+                    fileChanges: null),
                 skillDirectory,
-                ShouldDelete: false));
+                shouldDelete: false,
+                targetSnapshot: null));
         }
 
         if (failure.Code != SkillFailureCodes.ManifestInvalid
@@ -570,23 +563,25 @@ public sealed class SkillPruneService
             new SkillPruneAction(
                 identity,
                 SkillPruneActionKind.BlockedManifestInvalid,
-                TargetState: CreateTargetState(SkillTargetStateKind.ManifestDrift, failure)),
+                CreateTargetState(SkillTargetStateKind.ManifestDrift, failure),
+                blockedReason: null,
+                fileChanges: null),
             skillDirectory,
-            ShouldDelete: false));
+            shouldDelete: false,
+            targetSnapshot: null));
     }
 
-    private static IReadOnlySet<SkillTier> CreateSelectedTierSet (IReadOnlyList<SkillTier>? selectedTiers)
+    private static IReadOnlySet<SkillCategory> CreateSelectedCategorySet (IReadOnlyList<SkillCategory>? selectedCategories)
     {
-        if (selectedTiers is null || selectedTiers.Count == 0)
+        if (selectedCategories is null || selectedCategories.Count == 0)
         {
-            return new HashSet<SkillTier>();
+            return new HashSet<SkillCategory>();
         }
 
-        var result = new HashSet<SkillTier>();
-        foreach (var tier in selectedTiers)
+        var result = new HashSet<SkillCategory>();
+        foreach (var category in selectedCategories)
         {
-            ArgumentNullException.ThrowIfNull(tier);
-            result.Add(tier);
+            result.Add(category);
         }
 
         return result;
@@ -602,18 +597,17 @@ public sealed class SkillPruneService
         var result = new HashSet<SkillName>();
         foreach (var skillName in selectedSkillNames)
         {
-            ArgumentNullException.ThrowIfNull(skillName);
             result.Add(skillName);
         }
 
         return result;
     }
 
-    private static bool IsSelectedTier (
-        IReadOnlySet<SkillTier> selectedTiers,
-        SkillTier tier)
+    private static bool IsSelectedCategory (
+        IReadOnlySet<SkillCategory> selectedCategories,
+        SkillCategory category)
     {
-        return selectedTiers.Count == 0 || selectedTiers.Contains(tier);
+        return selectedCategories.Count == 0 || selectedCategories.Contains(category);
     }
 
     private static bool IsSelectedSkillName (
@@ -638,7 +632,13 @@ public sealed class SkillPruneService
         SkillFailureCode code,
         string message)
     {
-        return new SkillActionTargetState(kind, code, message);
+        return new SkillActionTargetState(
+            kind,
+            code,
+            message,
+            fileSet: null,
+            installedSkillBundleVersion: null,
+            bundledSkillBundleVersion: null);
     }
 
     private static SkillActionTargetState CreateTargetState (
@@ -650,11 +650,13 @@ public sealed class SkillPruneService
             kind,
             failure.Code,
             failure.Message,
-            InstalledSkillBundleVersion: installedSkillBundleVersion);
+            fileSet: null,
+            installedSkillBundleVersion,
+            bundledSkillBundleVersion: null);
     }
 
     private static SkillOperationResult<SkillInstallIdentity> CreateIdentityFromDirectory (
-        string host,
+        SkillHostKind host,
         SkillScopeKind scope,
         string targetRoot,
         string skillDirectory)
@@ -701,11 +703,42 @@ public sealed class SkillPruneService
         return SkillOperationResult<SkillPruneActionPlanResult>.Success(new SkillPruneActionPlanResult(null));
     }
 
-    private sealed record SkillPruneActionPlanResult (SkillPruneActionPlan? ActionPlan);
+    private sealed class SkillPruneActionPlanResult
+    {
+        public SkillPruneActionPlanResult (SkillPruneActionPlan? actionPlan)
+        {
+            ActionPlan = actionPlan;
+        }
 
-    private sealed record SkillPruneActionPlan (
-        SkillPruneAction Action,
-        string SkillDirectory,
-        bool ShouldDelete,
-        SkillActionTargetSnapshot? TargetSnapshot = null);
+        public SkillPruneActionPlan? ActionPlan { get; }
+    }
+
+    private sealed class SkillPruneActionPlan
+    {
+        public SkillPruneActionPlan (
+            SkillPruneAction action,
+            string skillDirectory,
+            bool shouldDelete,
+            SkillActionTargetSnapshot? targetSnapshot)
+        {
+            Action = action ?? throw new ArgumentNullException(nameof(action));
+            ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+            if (shouldDelete != (targetSnapshot is not null))
+            {
+                throw new ArgumentException("A delete action plan must have a target snapshot, and a non-delete plan must not have one.", nameof(targetSnapshot));
+            }
+
+            SkillDirectory = skillDirectory;
+            ShouldDelete = shouldDelete;
+            TargetSnapshot = targetSnapshot;
+        }
+
+        public SkillPruneAction Action { get; }
+
+        public string SkillDirectory { get; }
+
+        public bool ShouldDelete { get; }
+
+        public SkillActionTargetSnapshot? TargetSnapshot { get; }
+    }
 }

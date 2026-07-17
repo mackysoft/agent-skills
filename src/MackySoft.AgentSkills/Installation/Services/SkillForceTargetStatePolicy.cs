@@ -1,4 +1,3 @@
-using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Installation.Services;
@@ -27,7 +26,7 @@ internal static class SkillForceTargetStatePolicy
     {
         return force
             && (kind is SkillTargetStateKind.CleanOutdated or SkillTargetStateKind.VersionAhead
-                || SkillInstalledTargetStateClassifier.IsLocalModificationDrift(kind));
+                || SkillTargetStateClassifier.IsLocalModificationDrift(kind));
     }
 
     /// <summary> Gets whether an update action may replace the target directory. </summary>
@@ -42,7 +41,7 @@ internal static class SkillForceTargetStatePolicy
         bool force)
     {
         return kind == SkillTargetStateKind.CleanOutdated
-            || (force && (kind == SkillTargetStateKind.VersionAhead || SkillInstalledTargetStateClassifier.IsLocalModificationDrift(kind)));
+            || (force && (kind == SkillTargetStateKind.VersionAhead || SkillTargetStateClassifier.IsLocalModificationDrift(kind)));
     }
 
     /// <summary> Gets whether an uninstall action may delete the target directory. </summary>
@@ -57,6 +56,6 @@ internal static class SkillForceTargetStatePolicy
         bool force)
     {
         return kind is SkillTargetStateKind.Current or SkillTargetStateKind.CleanOutdated or SkillTargetStateKind.VersionAhead
-            || (force && SkillInstalledTargetStateClassifier.IsLocalModificationDrift(kind));
+            || (force && SkillTargetStateClassifier.IsLocalModificationDrift(kind));
     }
 }

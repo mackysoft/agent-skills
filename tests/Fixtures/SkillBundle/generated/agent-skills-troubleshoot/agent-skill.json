@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "skillBundleVersion": 1,
+  "catalogId": "com.mackysoft.agent-skills",
+  "category": "core",
+  "skillName": "agent-skills-troubleshoot",
+  "displayName": "Agent Skills Troubleshoot",
+  "description": "Use when diagnosing Agent Skills daemon, lifecycle, readIndex freshness, timeout, compile or domain reload, logs, IPC, and Unity execution failures.",
+  "dependencies": [],
+  "contentDigest": "1b56c1fcd43c518b6b48e20a23e520707d8b4b0a160d6bc97e9f7dabf1f0e04a",
+  "manifestDigest": "616e3a1d4be6b07f7087dc25ee70f76b69e2fd0eee64daeadcc4100feeab0ed2",
+  "hostArtifacts": [
+    {
+      "host": "claude",
+      "materializedFrontmatterDigest": "c8976c41f8f1412a65d8f80be86be2e93c68dd1fdc2a6a4945c20ec272d12393"
+    },
+    {
+      "host": "copilot",
+      "materializedFrontmatterDigest": "f0ed6c20267a0299ab83e912be318c5d9ed367e79740a339679e16994bb99786"
+    },
+    {
+      "host": "openai",
+      "path": "agents/openai.yaml",
+      "digest": "46a500f3956d3b123517c58fd12a4e4557cb20f1c398ac71b34c4492edb9c784",
+      "materializedFrontmatterDigest": "34c5c420a9d37585338a382fef19256911c4e7a5c866c7942d504e0da1e798e8"
+    }
+  ]
+}

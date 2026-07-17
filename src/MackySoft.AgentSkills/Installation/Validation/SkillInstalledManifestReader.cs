@@ -8,17 +8,17 @@ namespace MackySoft.AgentSkills.Installation.Validation;
 public sealed class SkillInstalledManifestReader
 {
     private readonly SkillManifestJsonSerializer manifestSerializer;
-    private readonly SkillManifestValidator manifestValidator;
+    private readonly SkillManifest.Factory manifestFactory;
 
     /// <summary> Initializes a new instance of the <see cref="SkillInstalledManifestReader" /> class. </summary>
     /// <param name="manifestSerializer"> The manifest serializer. </param>
-    /// <param name="manifestValidator"> The manifest validator. </param>
+    /// <param name="manifestFactory"> The canonical manifest construction boundary. </param>
     public SkillInstalledManifestReader (
         SkillManifestJsonSerializer manifestSerializer,
-        SkillManifestValidator manifestValidator)
+        SkillManifest.Factory manifestFactory)
     {
         this.manifestSerializer = manifestSerializer ?? throw new ArgumentNullException(nameof(manifestSerializer));
-        this.manifestValidator = manifestValidator ?? throw new ArgumentNullException(nameof(manifestValidator));
+        this.manifestFactory = manifestFactory ?? throw new ArgumentNullException(nameof(manifestFactory));
     }
 
     /// <summary> Reads and shape-validates the required installed manifest from one skill directory. </summary>
@@ -48,7 +48,7 @@ public sealed class SkillInstalledManifestReader
                 $"Target skill directory is missing agent-skill.json: {skillDirectory}");
         }
 
-        var manifestTextResult = await SkillPackageManifestTextReader.ReadUtf8WithoutByteOrderMarkAsync(manifestPath, cancellationToken).ConfigureAwait(false);
+        var manifestTextResult = await SkillPackageTextFileReader.ReadAsync(manifestPath, cancellationToken).ConfigureAwait(false);
         if (!manifestTextResult.IsSuccess)
         {
             return SkillOperationResult<SkillInstalledManifest>.FailureResult(
@@ -65,8 +65,7 @@ public sealed class SkillInstalledManifestReader
                 $"Target skill manifest is invalid: {manifestPath}");
         }
 
-        var manifest = manifestResult.Value!;
-        var validationResult = manifestValidator.ValidateInstalledShape(manifest);
+        var validationResult = manifestFactory.CreateCanonicalFromInstalledShape(manifestResult.Value!);
         if (!validationResult.IsSuccess)
         {
             return SkillOperationResult<SkillInstalledManifest>.FailureResult(
@@ -74,6 +73,7 @@ public sealed class SkillInstalledManifestReader
                 validationResult.Failure.Message);
         }
 
+        var manifest = validationResult.Value!;
         if (!string.Equals(Path.GetFileName(skillDirectory), manifest.SkillName.Value, StringComparison.Ordinal))
         {
             return SkillOperationResult<SkillInstalledManifest>.FailureResult(

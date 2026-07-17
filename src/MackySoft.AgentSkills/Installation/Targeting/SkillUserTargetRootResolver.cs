@@ -28,37 +28,7 @@ public sealed class SkillUserTargetRootResolver
         ArgumentNullException.ThrowIfNull(descriptor);
 
         var policy = descriptor.UserTargetRootPolicy;
-        if (!descriptor.SupportsUserScope || policy is null)
-        {
-            return SkillOperationResult<string>.FailureResult(
-                SkillFailureCodes.UserTargetUnavailable,
-                $"SKILL host '{descriptor.HostKey}' does not define a user-scope target root.");
-        }
-
-        if (!SkillRelativePath.IsSafeFilePath(policy.HomeRelativeDirectory))
-        {
-            return SkillOperationResult<string>.FailureResult(
-                SkillFailureCodes.UserTargetUnavailable,
-                "Host user target home-relative directory must be a safe relative path.");
-        }
-
-        if (string.IsNullOrWhiteSpace(policy.EnvironmentVariableName)
-            && !string.IsNullOrWhiteSpace(policy.EnvironmentVariableChildDirectory))
-        {
-            return SkillOperationResult<string>.FailureResult(
-                SkillFailureCodes.UserTargetUnavailable,
-                "Host user target environment child directory requires an environment variable name.");
-        }
-
-        if (!string.IsNullOrWhiteSpace(policy.EnvironmentVariableChildDirectory)
-            && !SkillRelativePath.IsSafeFilePath(policy.EnvironmentVariableChildDirectory))
-        {
-            return SkillOperationResult<string>.FailureResult(
-                SkillFailureCodes.UserTargetUnavailable,
-                "Host user target environment child directory must be a safe relative path.");
-        }
-
-        if (!string.IsNullOrWhiteSpace(policy.EnvironmentVariableName))
+        if (policy.EnvironmentVariableName is not null)
         {
             var environmentRoot = environmentVariableProvider(policy.EnvironmentVariableName);
             if (!string.IsNullOrWhiteSpace(environmentRoot))
@@ -70,7 +40,7 @@ public sealed class SkillUserTargetRootResolver
                         $"Environment variable '{policy.EnvironmentVariableName}' must contain an absolute path for SKILL user scope.");
                 }
 
-                var targetRoot = string.IsNullOrWhiteSpace(policy.EnvironmentVariableChildDirectory)
+                var targetRoot = policy.EnvironmentVariableChildDirectory is null
                     ? environmentRoot
                     : Path.Combine(environmentRoot, policy.EnvironmentVariableChildDirectory);
                 return GetFullPath(targetRoot);

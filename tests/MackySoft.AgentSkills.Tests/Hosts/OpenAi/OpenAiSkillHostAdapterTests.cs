@@ -8,23 +8,18 @@ public sealed class OpenAiSkillHostAdapterTests
 {
     [Fact]
     [Trait("Size", "Small")]
-    public void Descriptor_ExposesCapabilityMetadata ()
+    public void Descriptor_ExposesHostPolicy ()
     {
         var adapter = new OpenAiSkillHostAdapter();
         var descriptor = adapter.Descriptor;
 
-        Assert.Equal(OpenAiSkillHostAdapter.HostKey, descriptor.HostKey);
-        Assert.True(descriptor.SupportsProjectScope);
-        Assert.True(descriptor.SupportsUserScope);
+        Assert.Equal(SkillHostKind.OpenAi, descriptor.Host);
         Assert.Equal(".agents/skills", descriptor.ProjectDefaultTargetPath);
         Assert.Equal("${CODEX_HOME}/skills or ~/.codex/skills", descriptor.UserDefaultTargetPath);
-        Assert.NotNull(descriptor.UserTargetRootPolicy);
-        Assert.Equal("CODEX_HOME", descriptor.UserTargetRootPolicy!.EnvironmentVariableName);
+        Assert.Equal("CODEX_HOME", descriptor.UserTargetRootPolicy.EnvironmentVariableName);
         Assert.Equal("skills", descriptor.UserTargetRootPolicy.EnvironmentVariableChildDirectory);
         Assert.Equal(".codex/skills", descriptor.UserTargetRootPolicy.HomeRelativeDirectory);
-        Assert.True(descriptor.RequiresMetadataArtifact);
         Assert.Equal("agents/openai.yaml", descriptor.MetadataArtifactPath);
-        Assert.Equal(descriptor.MetadataArtifactPath, ((ISkillHostAdapter)adapter).MetadataArtifactPath);
         Assert.False(string.IsNullOrWhiteSpace(descriptor.ReloadGuidance));
     }
 

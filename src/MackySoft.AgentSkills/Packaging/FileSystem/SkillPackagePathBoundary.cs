@@ -1,4 +1,5 @@
 using MackySoft.AgentSkills.Shared;
+using MackySoft.AgentSkills.Shared.FileSystem;
 
 namespace MackySoft.AgentSkills.Packaging.FileSystem;
 
@@ -13,20 +14,11 @@ internal static class SkillPackagePathBoundary
         string rootPath,
         string targetPath)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(rootPath);
-        ArgumentException.ThrowIfNullOrWhiteSpace(targetPath);
-
-        var rootFullPath = ResolveExistingPathSegments(Path.GetFullPath(rootPath));
-        var targetFullPath = ResolveExistingPathSegments(Path.GetFullPath(targetPath));
-
-        if (!IsUnderOrEqual(rootFullPath, targetFullPath))
-        {
-            return SkillOperationResult<string>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
-                $"Path must stay under root '{rootFullPath}': {targetFullPath}");
-        }
-
-        return SkillOperationResult<string>.Success(targetFullPath);
+        return SkillPathBoundary.ResolveUnderRoot(
+            rootPath,
+            targetPath,
+            SkillFailureCodes.PathUnsafe,
+            "Path");
     }
 
     /// <summary> Verifies that a package file path remains under the target directory. </summary>
@@ -95,66 +87,4 @@ internal static class SkillPackagePathBoundary
 
         return ResolveUnderRoot(rootDirectory, fileResult.Value!);
     }
-
-    private static bool IsUnderOrEqual (
-        string rootPath,
-        string targetPath)
-    {
-        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        var normalizedRoot = EnsureTrailingDirectorySeparator(rootPath);
-        var normalizedTarget = EnsureTrailingDirectorySeparator(targetPath);
-        return string.Equals(normalizedRoot, normalizedTarget, comparison)
-            || normalizedTarget.StartsWith(normalizedRoot, comparison);
-    }
-
-    private static string ResolveExistingPathSegments (string path)
-    {
-        var root = Path.GetPathRoot(path);
-        if (string.IsNullOrWhiteSpace(root))
-        {
-            return path;
-        }
-
-        var currentPath = root;
-        var relativePath = path[root.Length..];
-        var segments = relativePath.Split(
-            [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-            StringSplitOptions.RemoveEmptyEntries);
-
-        for (var i = 0; i < segments.Length; i++)
-        {
-            currentPath = Path.Combine(currentPath, segments[i]);
-            if (!Directory.Exists(currentPath))
-            {
-                if (i == segments.Length - 1 && File.Exists(currentPath))
-                {
-                    var file = new FileInfo(currentPath);
-                    var resolvedFile = file.ResolveLinkTarget(returnFinalTarget: true);
-                    if (resolvedFile is not null)
-                    {
-                        currentPath = resolvedFile.FullName;
-                    }
-                }
-
-                continue;
-            }
-
-            var directory = new DirectoryInfo(currentPath);
-            var resolved = directory.ResolveLinkTarget(returnFinalTarget: true);
-            if (resolved is not null)
-            {
-                currentPath = resolved.FullName;
-            }
-        }
-
-        return Path.GetFullPath(currentPath);
-    }
-
-    private static string EnsureTrailingDirectorySeparator (string path)
-    {
-        return path.EndsWith(Path.DirectorySeparatorChar)
-            ? path
-            : path + Path.DirectorySeparatorChar;
-    }
-
 }

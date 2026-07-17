@@ -1,4 +1,4 @@
-using MackySoft.AgentSkills.Catalogs;
+using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Commands;
 using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Doctor;
@@ -12,14 +12,13 @@ using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.OperationReports.Projection;
 using MackySoft.AgentSkills.Selection;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Tiers;
 
 namespace MackySoft.AgentSkills.Hosting.Commands;
 
 /// <summary> Runs product CLI Agent Skills commands after normalizing raw command input. </summary>
 public sealed class AgentSkillsCommandRunner
 {
-    private readonly AgentSkillsCommandRuntimeOptions options;
+    private readonly AgentSkillsCommandRuntimeConfiguration configuration;
     private readonly SkillPackageProvider packageProvider;
     private readonly SkillHostAdapterSet hostAdapters;
     private readonly SkillExportService exportService;
@@ -32,7 +31,7 @@ public sealed class AgentSkillsCommandRunner
 
     /// <summary> Initializes a new instance of the <see cref="AgentSkillsCommandRunner" /> class. </summary>
     public AgentSkillsCommandRunner (
-        AgentSkillsCommandRuntimeOptions options,
+        AgentSkillsCommandRuntimeConfiguration configuration,
         SkillPackageProvider packageProvider,
         SkillHostAdapterSet hostAdapters,
         SkillExportService exportService,
@@ -43,7 +42,7 @@ public sealed class AgentSkillsCommandRunner
         SkillDoctorService doctorService,
         SkillInstallTargetResolver targetResolver)
     {
-        this.options = options ?? throw new ArgumentNullException(nameof(options));
+        this.configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         this.packageProvider = packageProvider ?? throw new ArgumentNullException(nameof(packageProvider));
         this.hostAdapters = hostAdapters ?? throw new ArgumentNullException(nameof(hostAdapters));
         this.exportService = exportService ?? throw new ArgumentNullException(nameof(exportService));
@@ -67,7 +66,7 @@ public sealed class AgentSkillsCommandRunner
         cancellationToken.ThrowIfCancellationRequested();
 
         var commandName = CreateCommandName(AgentSkillsCommandNames.ListSubcommand);
-        var selectionResult = NormalizeOptionalPackageSelection(request.Tier, request.Skill);
+        var selectionResult = NormalizeOptionalPackageSelection(request.Category, request.Skill);
         if (!selectionResult.IsSuccess)
         {
             return Failure(commandName, selectionResult.Failure!);
@@ -92,7 +91,7 @@ public sealed class AgentSkillsCommandRunner
         cancellationToken.ThrowIfCancellationRequested();
 
         var commandName = CreateCommandName(AgentSkillsCommandNames.ExportSubcommand);
-        var selectionResult = NormalizeRequiredPackageSelection(request.Tier, request.Skill);
+        var selectionResult = NormalizeRequiredPackageSelection(request.Category, request.Skill);
         if (!selectionResult.IsSuccess)
         {
             return Failure(commandName, selectionResult.Failure!);
@@ -125,7 +124,7 @@ public sealed class AgentSkillsCommandRunner
         var packages = catalogResult.Value!.Packages;
         var exportResult = await exportService.ExportAsync(
                 packages,
-                hostResult.Value!.HostKey,
+                hostResult.Value!.Host,
                 outputResult.Value!,
                 formatResult.Value,
                 cancellationToken)
@@ -140,8 +139,8 @@ public sealed class AgentSkillsCommandRunner
             packages,
             hostResult.Value!,
             formatResult.Value,
-            catalogResult.Value.SelectedTiers,
-            catalogResult.Value.SelectedSkillNames.Select(static skillName => skillName.Value).ToArray());
+            catalogResult.Value.SelectedCategories,
+            catalogResult.Value.SelectedSkillNames);
         return AgentSkillsCommandResult.Success(commandName, report);
     }
 
@@ -159,7 +158,7 @@ public sealed class AgentSkillsCommandRunner
                 request.Scope,
                 request.RepositoryRoot,
                 request.TargetDir,
-                request.Tier,
+                request.Category,
                 request.Skill,
                 cancellationToken)
             .ConfigureAwait(false);
@@ -203,7 +202,7 @@ public sealed class AgentSkillsCommandRunner
                 request.Scope,
                 request.RepositoryRoot,
                 request.TargetDir,
-                request.Tier,
+                request.Category,
                 request.Skill,
                 cancellationToken)
             .ConfigureAwait(false);
@@ -247,7 +246,7 @@ public sealed class AgentSkillsCommandRunner
                 request.Scope,
                 request.RepositoryRoot,
                 request.TargetDir,
-                request.Tier,
+                request.Category,
                 request.Skill,
                 cancellationToken)
             .ConfigureAwait(false);
@@ -285,7 +284,7 @@ public sealed class AgentSkillsCommandRunner
         cancellationToken.ThrowIfCancellationRequested();
 
         var commandName = CreateCommandName(AgentSkillsCommandNames.PruneSubcommand);
-        var selectionResult = NormalizeRequiredPruneSelection(request.Tier, request.Skill);
+        var selectionResult = NormalizeRequiredPackageSelection(request.Category, request.Skill);
         if (!selectionResult.IsSuccess)
         {
             return Failure(commandName, selectionResult.Failure!);
@@ -297,22 +296,28 @@ public sealed class AgentSkillsCommandRunner
             return Failure(commandName, targetResult.Failure!);
         }
 
-        var currentCatalogResult = await packageProvider.GetPackageCatalogAsync(options.Tiers, cancellationToken).ConfigureAwait(false);
+        var currentCatalogResult = await packageProvider.GetPackageCatalogAsync(cancellationToken).ConfigureAwait(false);
         if (!currentCatalogResult.IsSuccess)
         {
             return Failure(commandName, currentCatalogResult.Failure!);
         }
 
-        var selection = selectionResult.Value!;
+        var pruneSelectionResult = NormalizePruneSelection(selectionResult.Value!, currentCatalogResult.Value!.AvailableCategories);
+        if (!pruneSelectionResult.IsSuccess)
+        {
+            return Failure(commandName, pruneSelectionResult.Failure!);
+        }
+
+        var selection = pruneSelectionResult.Value!;
         var target = targetResult.Value!;
         var pruneResult = await pruneService.PruneAsync(
                 new SkillPruneInput(
-                    new SkillCatalogId(options.CatalogId),
-                    currentCatalogResult.Value!.Packages,
+                    currentCatalogResult.Value.BundleDescriptor.CatalogId,
+                    currentCatalogResult.Value.Packages,
                     target.Request,
                     request.DryRun,
                     request.Force,
-                    selection.TierFilter,
+                    selection.CategoryFilter,
                     selection.SkillNames),
                 cancellationToken)
             .ConfigureAwait(false);
@@ -323,7 +328,7 @@ public sealed class AgentSkillsCommandRunner
 
         var report = SkillOperationReportBuilder.CreatePruneReport(
             pruneResult.Value!,
-            CreateReportContext(target, selection.ReportTiers, selection.SkillNames));
+            CreateReportContext(target, selection.ReportCategories, selection.SkillNames));
         return AgentSkillsCommandResult.Success(commandName, report);
     }
 
@@ -341,7 +346,7 @@ public sealed class AgentSkillsCommandRunner
                 request.Scope,
                 request.RepositoryRoot,
                 request.TargetDir,
-                request.Tier,
+                request.Category,
                 request.Skill,
                 cancellationToken)
             .ConfigureAwait(false);
@@ -359,18 +364,18 @@ public sealed class AgentSkillsCommandRunner
 
         var packages = prepared.Catalog.Packages;
         var doctorResult = packages.Count == 0
-            ? new SkillDoctorResult(prepared.Target.HostDescriptor.HostKey, targetResult.Value!.TargetRoot, Array.Empty<SkillDoctorDiagnostic>())
+            ? new SkillDoctorResult(prepared.Target.HostDescriptor.Host, targetResult.Value!.TargetRoot, Array.Empty<SkillDoctorDiagnostic>())
             : await doctorService.DiagnoseAsync(
                     packages,
-                    prepared.Target.HostDescriptor.HostKey,
+                    prepared.Target.HostDescriptor.Host,
                     targetResult.Value!.TargetRoot,
                     cancellationToken)
                 .ConfigureAwait(false);
         var report = SkillOperationReportBuilder.CreateDoctorReport(
             doctorResult,
             prepared.Target.Scope,
-            prepared.Catalog.SelectedTiers,
-            prepared.Catalog.SelectedSkillNames.Select(static skillName => skillName.Value).ToArray());
+            prepared.Catalog.SelectedCategories,
+            prepared.Catalog.SelectedSkillNames);
         return AgentSkillsCommandResult.Success(
             commandName,
             report,
@@ -382,11 +387,11 @@ public sealed class AgentSkillsCommandRunner
         string? scope,
         string? repositoryRoot,
         string? targetDir,
-        string[]? tiers,
-        string[]? skillNames,
+        IReadOnlyList<string>? categories,
+        IReadOnlyList<string>? skillNames,
         CancellationToken cancellationToken)
     {
-        var selectionResult = NormalizeRequiredPackageSelection(tiers, skillNames);
+        var selectionResult = NormalizeRequiredPackageSelection(categories, skillNames);
         if (!selectionResult.IsSuccess)
         {
             return SkillOperationResult<PreparedTargetOperation>.FailureResult(selectionResult.Failure!.Code, selectionResult.Failure.Message);
@@ -412,8 +417,7 @@ public sealed class AgentSkillsCommandRunner
         CancellationToken cancellationToken)
     {
         return packageProvider.GetPackageCatalogAsync(
-            options.Tiers,
-            selection.Tiers,
+            selection.Categories,
             selection.SkillNames,
             cancellationToken);
     }
@@ -430,7 +434,7 @@ public sealed class AgentSkillsCommandRunner
             return SkillOperationResult<NormalizedTargetRequest>.FailureResult(hostResult.Failure!.Code, hostResult.Failure.Message);
         }
 
-        var scopeResult = SkillCommandValueParser.ParseScopeLiteral(scope, hostResult.Value!);
+        var scopeResult = SkillCommandValueParser.ParseScopeLiteral(scope);
         if (!scopeResult.IsSuccess)
         {
             return SkillOperationResult<NormalizedTargetRequest>.FailureResult(scopeResult.Failure!.Code, scopeResult.Failure.Message);
@@ -442,85 +446,92 @@ public sealed class AgentSkillsCommandRunner
             return SkillOperationResult<NormalizedTargetRequest>.FailureResult(repositoryRootResult.Failure!.Code, repositoryRootResult.Failure.Message);
         }
 
-        var request = new SkillInstallRequest(
-            hostResult.Value!.HostKey,
+        var targetRootResult = NormalizeTargetRoot(
             scopeResult.Value,
             repositoryRootResult.Value!.Value,
-            NormalizeOptionalPath(targetDir));
+            targetDir);
+        if (!targetRootResult.IsSuccess)
+        {
+            return SkillOperationResult<NormalizedTargetRequest>.FailureResult(targetRootResult.Failure!.Code, targetRootResult.Failure.Message);
+        }
+
+        var request = new SkillInstallRequest(
+            hostResult.Value!.Host,
+            scopeResult.Value,
+            repositoryRootResult.Value!.Value,
+            targetRootResult.Value!.Value);
         return SkillOperationResult<NormalizedTargetRequest>.Success(new NormalizedTargetRequest(hostResult.Value, scopeResult.Value, request));
     }
 
     private SkillOperationResult<NormalizedPackageSelection> NormalizeOptionalPackageSelection (
-        string[]? tierLiterals,
-        string[]? skillNameLiterals)
+        IReadOnlyList<string>? categoryLiterals,
+        IReadOnlyList<string>? skillNameLiterals)
     {
-        var tierValues = ExpandOptionValues(tierLiterals);
+        var categoryValues = ExpandOptionValues(categoryLiterals);
         var skillNameValues = ExpandOptionValues(skillNameLiterals);
-        var tiersResult = tierValues.Length == 0
-            ? SkillTierLiteralParser.ParseDefinedTiers(options.Tiers)
-            : SkillTierLiteralParser.ParseSelectedTiers(options.Tiers, tierValues);
-        if (!tiersResult.IsSuccess)
-        {
-            return SkillOperationResult<NormalizedPackageSelection>.FailureResult(tiersResult.Failure!.Code, tiersResult.Failure.Message);
-        }
-
         var skillNamesResult = NormalizeSkillNames(skillNameValues);
         return skillNamesResult.IsSuccess
-            ? SkillOperationResult<NormalizedPackageSelection>.Success(new NormalizedPackageSelection(tiersResult.Value!, skillNamesResult.Value!))
+            ? SkillOperationResult<NormalizedPackageSelection>.Success(new NormalizedPackageSelection(categoryValues, skillNamesResult.Value!))
             : SkillOperationResult<NormalizedPackageSelection>.FailureResult(skillNamesResult.Failure!.Code, skillNamesResult.Failure.Message);
     }
 
     private SkillOperationResult<NormalizedPackageSelection> NormalizeRequiredPackageSelection (
-        string[]? tierLiterals,
-        string[]? skillNameLiterals)
+        IReadOnlyList<string>? categoryLiterals,
+        IReadOnlyList<string>? skillNameLiterals)
     {
-        var tierValues = ExpandOptionValues(tierLiterals);
+        var categoryValues = ExpandOptionValues(categoryLiterals);
         var skillNameValues = ExpandOptionValues(skillNameLiterals);
-        if (tierValues.Length == 0 && skillNameValues.Length == 0)
+        if (categoryValues.Length == 0 && skillNameValues.Length == 0)
         {
             return SkillOperationResult<NormalizedPackageSelection>.FailureResult(
                 SkillFailureCodes.InputInvalid,
-                "Option '--tier' or '--skill' is required.");
+                "Option '--category' or '--skill' is required.");
         }
 
-        return NormalizeOptionalPackageSelection(tierValues, skillNameValues);
+        return NormalizeOptionalPackageSelection(categoryValues, skillNameValues);
     }
 
-    private SkillOperationResult<NormalizedPruneSelection> NormalizeRequiredPruneSelection (
-        string[]? tierLiterals,
-        string[]? skillNameLiterals)
+    private static SkillOperationResult<NormalizedPruneSelection> NormalizePruneSelection (
+        NormalizedPackageSelection selection,
+        IReadOnlyList<SkillCategoryPackageCount> availableCategories)
     {
-        var tierValues = ExpandOptionValues(tierLiterals);
-        var skillNameValues = ExpandOptionValues(skillNameLiterals);
-        if (tierValues.Length == 0 && skillNameValues.Length == 0)
+        ArgumentNullException.ThrowIfNull(selection);
+        ArgumentNullException.ThrowIfNull(availableCategories);
+
+        var allCategories = availableCategories.Select(static item => item.Category).ToArray();
+        IReadOnlyList<SkillCategory> reportCategories;
+        if (selection.Categories.Count == 0)
         {
-            return SkillOperationResult<NormalizedPruneSelection>.FailureResult(
-                SkillFailureCodes.InputInvalid,
-                "Option '--tier' or '--skill' is required.");
+            reportCategories = allCategories;
+        }
+        else
+        {
+            // NOTE: Prune filters installed manifests, so a valid category remains selectable after it disappears from the current bundle.
+            var categoryResult = SkillCategoryLiteralParser.ParseSelectedCategories(selection.Categories);
+            if (!categoryResult.IsSuccess)
+            {
+                return SkillOperationResult<NormalizedPruneSelection>.FailureResult(
+                    categoryResult.Failure!.Code,
+                    categoryResult.Failure.Message);
+            }
+
+            reportCategories = categoryResult.Value!;
         }
 
-        var reportTiersResult = tierValues.Length == 0
-            ? SkillTierLiteralParser.ParseDefinedTiers(options.Tiers)
-            : SkillTierLiteralParser.ParseSelectedTiers(options.Tiers, tierValues);
-        if (!reportTiersResult.IsSuccess)
-        {
-            return SkillOperationResult<NormalizedPruneSelection>.FailureResult(reportTiersResult.Failure!.Code, reportTiersResult.Failure.Message);
-        }
-
-        var tierFilter = tierValues.Length == 0
-            ? Array.Empty<SkillTier>()
-            : reportTiersResult.Value!;
-        var skillNamesResult = skillNameValues.Length == 0
+        var categoryFilter = selection.Categories.Count == 0
+            ? Array.Empty<SkillCategory>()
+            : reportCategories;
+        var skillNamesResult = selection.SkillNames.Count == 0
             ? SkillOperationResult<IReadOnlyList<SkillName>>.Success(Array.Empty<SkillName>())
-            : SkillNameLiteralParser.ParseSelectedSkillNames(skillNameValues);
+            : SkillNameLiteralParser.ParseSelectedSkillNames(selection.SkillNames);
         if (!skillNamesResult.IsSuccess)
         {
             return SkillOperationResult<NormalizedPruneSelection>.FailureResult(skillNamesResult.Failure!.Code, skillNamesResult.Failure.Message);
         }
 
         return SkillOperationResult<NormalizedPruneSelection>.Success(new NormalizedPruneSelection(
-            reportTiersResult.Value!,
-            tierFilter,
+            reportCategories,
+            categoryFilter,
             skillNamesResult.Value!));
     }
 
@@ -581,7 +592,7 @@ public sealed class AgentSkillsCommandRunner
         }
 
         string root = string.IsNullOrWhiteSpace(repositoryRoot)
-            ? options.RepositoryRootResolver(Directory.GetCurrentDirectory())
+            ? configuration.RepositoryRootResolver(Directory.GetCurrentDirectory())
             : repositoryRoot;
         var result = NormalizeRequiredFullPath(root, "Project-scope SKILL operation requires a repository root.");
         return result.IsSuccess
@@ -589,14 +600,45 @@ public sealed class AgentSkillsCommandRunner
             : SkillOperationResult<NormalizedRepositoryRoot>.FailureResult(result.Failure!.Code, result.Failure.Message);
     }
 
-    private static string? NormalizeOptionalPath (string? path)
+    private static SkillOperationResult<NormalizedTargetRoot> NormalizeTargetRoot (
+        SkillScopeKind scope,
+        string? repositoryRoot,
+        string? targetRoot)
     {
-        return string.IsNullOrWhiteSpace(path) ? null : path;
+        if (string.IsNullOrWhiteSpace(targetRoot))
+        {
+            return SkillOperationResult<NormalizedTargetRoot>.Success(new NormalizedTargetRoot(null));
+        }
+
+        if (scope == SkillScopeKind.User && !Path.IsPathFullyQualified(targetRoot))
+        {
+            return SkillOperationResult<NormalizedTargetRoot>.FailureResult(
+                SkillFailureCodes.PathUnsafe,
+                "User-scope SKILL targetDir must be an absolute path.");
+        }
+
+        if (!Path.IsPathFullyQualified(targetRoot))
+        {
+            try
+            {
+                return SkillOperationResult<NormalizedTargetRoot>.Success(new NormalizedTargetRoot(
+                    Path.GetFullPath(targetRoot, repositoryRoot!)));
+            }
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                return SkillOperationResult<NormalizedTargetRoot>.FailureResult(SkillFailureCodes.PathUnsafe, ex.Message);
+            }
+        }
+
+        var result = NormalizeRequiredFullPath(targetRoot, "SKILL targetDir is required.");
+        return result.IsSuccess
+            ? SkillOperationResult<NormalizedTargetRoot>.Success(new NormalizedTargetRoot(result.Value!))
+            : SkillOperationResult<NormalizedTargetRoot>.FailureResult(result.Failure!.Code, result.Failure.Message);
     }
 
-    private static string[] ExpandOptionValues (string[]? values)
+    private static string[] ExpandOptionValues (IReadOnlyList<string>? values)
     {
-        if (values is null || values.Length == 0)
+        if (values is null || values.Count == 0)
         {
             return [];
         }
@@ -604,7 +646,7 @@ public sealed class AgentSkillsCommandRunner
         var expanded = new List<string>();
         foreach (var value in values)
         {
-            foreach (var item in (value ?? string.Empty).Split(','))
+            foreach (var item in value.Split(','))
             {
                 if (item.Length != 0)
                 {
@@ -625,45 +667,151 @@ public sealed class AgentSkillsCommandRunner
 
     private string CreateCommandName (string subcommand)
     {
-        return AgentSkillsCommandNames.CreateCommandName(options.CommandRoot, subcommand);
+        return AgentSkillsCommandNames.CreateCommandName(configuration.CommandRoot, subcommand);
     }
 
     private static SkillOperationReportContext CreateReportContext (PreparedTargetOperation prepared)
     {
-        return CreateReportContext(prepared.Target, prepared.Catalog.SelectedTiers, prepared.Catalog.SelectedSkillNames);
+        return CreateReportContext(prepared.Target, prepared.Catalog.SelectedCategories, prepared.Catalog.SelectedSkillNames);
     }
 
     private static SkillOperationReportContext CreateReportContext (
         NormalizedTargetRequest target,
-        IReadOnlyList<SkillTier> selectedTiers,
+        IReadOnlyList<SkillCategory> selectedCategories,
         IReadOnlyList<SkillName> selectedSkillNames)
     {
         return new SkillOperationReportContext(
             target.HostDescriptor,
             target.Scope,
-            selectedTiers)
-        {
-            SelectedSkillNames = selectedSkillNames.Select(static skillName => skillName.Value).ToArray(),
-        };
+            selectedCategories,
+            selectedSkillNames);
     }
 
-    private sealed record NormalizedPackageSelection (
-        IReadOnlyList<SkillTier> Tiers,
-        IReadOnlyList<string> SkillNames);
+    private sealed class NormalizedPackageSelection
+    {
+        public NormalizedPackageSelection (
+            IReadOnlyList<string> categories,
+            IReadOnlyList<string> skillNames)
+        {
+            ArgumentNullException.ThrowIfNull(categories);
+            ArgumentNullException.ThrowIfNull(skillNames);
+            var categorySnapshot = categories.ToArray();
+            var skillNameSnapshot = skillNames.ToArray();
+            if (categorySnapshot.Any(static category => category is null)
+                || skillNameSnapshot.Any(static skillName => skillName is null))
+            {
+                throw new ArgumentException("Normalized package selection must not contain null values.");
+            }
 
-    private sealed record NormalizedPruneSelection (
-        IReadOnlyList<SkillTier> ReportTiers,
-        IReadOnlyList<SkillTier> TierFilter,
-        IReadOnlyList<SkillName> SkillNames);
+            Categories = Array.AsReadOnly(categorySnapshot);
+            SkillNames = Array.AsReadOnly(skillNameSnapshot);
+        }
 
-    private sealed record NormalizedTargetRequest (
-        SkillHostDescriptor HostDescriptor,
-        SkillScopeKind Scope,
-        SkillInstallRequest Request);
+        public IReadOnlyList<string> Categories { get; }
 
-    private sealed record NormalizedRepositoryRoot (string? Value);
+        public IReadOnlyList<string> SkillNames { get; }
+    }
 
-    private sealed record PreparedTargetOperation (
-        NormalizedTargetRequest Target,
-        SkillPackageCatalog Catalog);
+    private sealed class NormalizedPruneSelection
+    {
+        public NormalizedPruneSelection (
+            IReadOnlyList<SkillCategory> reportCategories,
+            IReadOnlyList<SkillCategory> categoryFilter,
+            IReadOnlyList<SkillName> skillNames)
+        {
+            ArgumentNullException.ThrowIfNull(reportCategories);
+            ArgumentNullException.ThrowIfNull(categoryFilter);
+            ArgumentNullException.ThrowIfNull(skillNames);
+            var reportCategorySnapshot = reportCategories.ToArray();
+            var categoryFilterSnapshot = categoryFilter.ToArray();
+            var skillNameSnapshot = skillNames.ToArray();
+            if (reportCategorySnapshot.Any(static category => category is null)
+                || categoryFilterSnapshot.Any(static category => category is null)
+                || skillNameSnapshot.Any(static skillName => skillName is null))
+            {
+                throw new ArgumentException("Normalized prune selection contains an invalid value.");
+            }
+
+            ReportCategories = Array.AsReadOnly(reportCategorySnapshot);
+            CategoryFilter = Array.AsReadOnly(categoryFilterSnapshot);
+            SkillNames = Array.AsReadOnly(skillNameSnapshot);
+        }
+
+        public IReadOnlyList<SkillCategory> ReportCategories { get; }
+
+        public IReadOnlyList<SkillCategory> CategoryFilter { get; }
+
+        public IReadOnlyList<SkillName> SkillNames { get; }
+    }
+
+    private sealed class NormalizedTargetRequest
+    {
+        public NormalizedTargetRequest (
+            SkillHostDescriptor hostDescriptor,
+            SkillScopeKind scope,
+            SkillInstallRequest request)
+        {
+            ArgumentNullException.ThrowIfNull(hostDescriptor);
+            ArgumentNullException.ThrowIfNull(request);
+            if (hostDescriptor.Host != request.Host || scope != request.Scope)
+            {
+                throw new ArgumentException("Normalized target values must identify the same host and scope.");
+            }
+
+            HostDescriptor = hostDescriptor;
+            Scope = scope;
+            Request = request;
+        }
+
+        public SkillHostDescriptor HostDescriptor { get; }
+
+        public SkillScopeKind Scope { get; }
+
+        public SkillInstallRequest Request { get; }
+    }
+
+    private sealed class NormalizedRepositoryRoot
+    {
+        public NormalizedRepositoryRoot (string? value)
+        {
+            if (value is not null && !Path.IsPathFullyQualified(value))
+            {
+                throw new ArgumentException("Normalized repository root must be an absolute path.", nameof(value));
+            }
+
+            Value = value is null ? null : Path.GetFullPath(value);
+        }
+
+        public string? Value { get; }
+    }
+
+    private sealed class NormalizedTargetRoot
+    {
+        public NormalizedTargetRoot (string? value)
+        {
+            if (value is not null)
+            {
+                ArgumentException.ThrowIfNullOrWhiteSpace(value);
+            }
+
+            Value = value;
+        }
+
+        public string? Value { get; }
+    }
+
+    private sealed class PreparedTargetOperation
+    {
+        public PreparedTargetOperation (
+            NormalizedTargetRequest target,
+            SkillPackageCatalog catalog)
+        {
+            Target = target ?? throw new ArgumentNullException(nameof(target));
+            Catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
+        }
+
+        public NormalizedTargetRequest Target { get; }
+
+        public SkillPackageCatalog Catalog { get; }
+    }
 }

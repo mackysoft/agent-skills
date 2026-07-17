@@ -1,13 +1,10 @@
+using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Doctor;
 using MackySoft.AgentSkills.Hosting.Commands;
 using MackySoft.AgentSkills.Hosting.Configuration;
 using MackySoft.AgentSkills.Hosting.Reporting;
-using MackySoft.AgentSkills.Hosts.Claude;
-using MackySoft.AgentSkills.Hosts.Contracts;
-using MackySoft.AgentSkills.Hosts.Copilot;
-using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Contracts;
 using MackySoft.AgentSkills.Installation.Diffing;
@@ -42,11 +39,11 @@ public static class AgentSkillsCommandRuntimeServiceCollectionExtensions
 
         var options = new AgentSkillsCommandRuntimeOptions();
         configure(options);
-        var validatedOptions = options.CreateValidatedCopy();
+        var configuration = options.CreateValidatedConfiguration();
 
-        services.AddSingleton(validatedOptions);
+        services.AddSingleton(configuration);
         services.AddAgentSkillsHostServices();
-        services.AddAgentSkillsPackageServices(validatedOptions);
+        services.AddAgentSkillsPackageServices(configuration);
         services.AddAgentSkillsInstallationServices();
         services.AddSingleton<AgentSkillsCommandRunner>();
         services.AddSingleton<IAgentSkillsCommandResultEmitter, AgentSkillsJsonCommandResultEmitter>();
@@ -56,9 +53,6 @@ public static class AgentSkillsCommandRuntimeServiceCollectionExtensions
 
     private static IServiceCollection AddAgentSkillsHostServices (this IServiceCollection services)
     {
-        services.AddSingleton<ISkillHostAdapter, ClaudeSkillHostAdapter>();
-        services.AddSingleton<ISkillHostAdapter, CopilotSkillHostAdapter>();
-        services.AddSingleton<ISkillHostAdapter, OpenAiSkillHostAdapter>();
         services.AddSingleton<SkillHostAdapterSet>();
 
         return services;
@@ -66,14 +60,19 @@ public static class AgentSkillsCommandRuntimeServiceCollectionExtensions
 
     private static IServiceCollection AddAgentSkillsPackageServices (
         this IServiceCollection services,
-        AgentSkillsCommandRuntimeOptions options)
+        AgentSkillsCommandRuntimeConfiguration configuration)
     {
-        services.AddSingleton(_ => new BundledSkillPackageRootResolver(options.PackageBaseDirectory));
+        services.AddSingleton(_ => new BundledSkillPackageRootResolver(configuration.PackageBaseDirectory));
         services.AddSingleton<SkillDigestCalculator>();
         services.AddSingleton<SkillManifestJsonSerializer>();
         services.AddSingleton<SkillManifestDigestCalculator>();
-        services.AddSingleton<SkillManifestValidator>();
+        services.AddSingleton<SkillManifest.Factory>();
+        services.AddSingleton<CanonicalSkillPackage.Factory>();
         services.AddSingleton<CanonicalSkillPackageReader>();
+        services.AddSingleton<SkillBundleJsonSerializer>();
+        services.AddSingleton<SkillBundleDigestCalculator>();
+        services.AddSingleton<CanonicalSkillBundle.Factory>();
+        services.AddSingleton<CanonicalSkillBundleReader>();
         services.AddSingleton<SkillPackageProvider>();
         services.AddSingleton<SkillMaterializationService>();
         services.AddSingleton<SkillExportService>();

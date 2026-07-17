@@ -14,7 +14,7 @@ internal sealed class AgentSkillsListCommand
     private readonly AgentSkillsCommandRunner runner;
     private readonly IAgentSkillsCommandResultEmitter emitter;
 
-    public AgentSkillsListCommand(
+    public AgentSkillsListCommand (
         AgentSkillsCommandRunner runner,
         IAgentSkillsCommandResultEmitter emitter)
     {
@@ -24,13 +24,13 @@ internal sealed class AgentSkillsListCommand
 
     /// <summary> Lists Agent Skills. </summary>
     [Command("list")]
-    public async Task<int> ListAsync(
-        string[]? tier = null,
+    public async Task<int> ListAsync (
+        string[]? category = null,
         string[]? skill = null,
         bool pretty = false,
         CancellationToken cancellationToken = default)
     {
-        var result = await runner.ListAsync(new AgentSkillsListCommandRequest(tier, skill), cancellationToken).ConfigureAwait(false);
+        var result = await runner.ListAsync(new AgentSkillsListCommandRequest(category, skill), cancellationToken).ConfigureAwait(false);
         return await emitter.EmitAsync(result, new AgentSkillsCommandOutputOptions(pretty), cancellationToken).ConfigureAwait(false);
     }
 }

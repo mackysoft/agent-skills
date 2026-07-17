@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "skillBundleVersion": 1,
+  "catalogId": "com.mackysoft.agent-skills",
+  "category": "core",
+  "skillName": "agent-skills-verify-changes",
+  "displayName": "Agent Skills Verify Changes",
+  "description": "Use when verifying Agent Skills-driven Unity changes with agent-skills verify profiles, claim packets, follow-up reads, agent-skills test, logs, artifacts, and opResults evidence after validation, plan, or call execution.",
+  "dependencies": [],
+  "contentDigest": "03ca4496389d78b21dcc6421e7b561b781f12e7be2180ba72740eeb405957f93",
+  "manifestDigest": "dca1037ea0b28f90dfceba7ab7c4f455d75d5cb60092eedf3c45653e7bca59b4",
+  "hostArtifacts": [
+    {
+      "host": "claude",
+      "materializedFrontmatterDigest": "1f755c59717c081ff820761dfe0fb461102b1e594b22a6c4be47441ab3dc3167"
+    },
+    {
+      "host": "copilot",
+      "materializedFrontmatterDigest": "116a7d93cd0675b1bd47d37d10bad9cf99bc449a0d9d65201d6ed69200aa1aad"
+    },
+    {
+      "host": "openai",
+      "path": "agents/openai.yaml",
+      "digest": "f5ed8b267aef51c9814dcfa1a95628fa84a64e97634df05d440d11fdb8bce5b0",
+      "materializedFrontmatterDigest": "fbec63d8bbc7428acae9ed826c65d7cde4dd3a16fee1efe624968efc875f0d9b"
+    }
+  ]
+}

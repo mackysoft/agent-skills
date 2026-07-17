@@ -3,17 +3,13 @@ using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.Commands;
 
 /// <summary> Parses product-independent SKILL command literals into domain values. </summary>
 public static class SkillCommandValueParser
 {
-    private const string ProjectScopeLiteral = "project";
-    private const string UserScopeLiteral = "user";
-    private const string DirectoryExportFormatLiteral = "directory";
-    private const string ZipExportFormatLiteral = "zip";
-
     /// <summary> Parses a host literal and resolves it to a registered host descriptor. </summary>
     /// <param name="host"> The raw host literal. Null, empty, and whitespace values fail with <see cref="SkillFailureCodes.InputInvalid" />. </param>
     /// <param name="hostAdapters"> The registered host adapter set used for case-insensitive host lookup. </param>
@@ -32,7 +28,14 @@ public static class SkillCommandValueParser
                 "SKILL host literal must not be empty.");
         }
 
-        var adapterResult = hostAdapters.GetAdapter(host);
+        if (!ContractLiteralInputParser.TryParseIgnoreCase(host, out SkillHostKind parsedHost))
+        {
+            return SkillOperationResult<SkillHostDescriptor>.FailureResult(
+                SkillFailureCodes.HostUnsupported,
+                $"Unsupported SKILL host: {host}. Supported hosts: {string.Join(", ", ContractLiteralCodec.GetLiterals<SkillHostKind>())}.");
+        }
+
+        var adapterResult = hostAdapters.GetAdapter(parsedHost);
         return adapterResult.IsSuccess
             ? SkillOperationResult<SkillHostDescriptor>.Success(adapterResult.Value!.Descriptor)
             : SkillOperationResult<SkillHostDescriptor>.FailureResult(adapterResult.Failure!.Code, adapterResult.Failure.Message);
@@ -50,61 +53,14 @@ public static class SkillCommandValueParser
                 "SKILL scope literal must not be empty.");
         }
 
-        if (string.Equals(scope, ProjectScopeLiteral, StringComparison.OrdinalIgnoreCase))
+        if (ContractLiteralInputParser.TryParseIgnoreCase(scope, out SkillScopeKind parsedScope))
         {
-            return SkillOperationResult<SkillScopeKind>.Success(SkillScopeKind.Project);
-        }
-
-        if (string.Equals(scope, UserScopeLiteral, StringComparison.OrdinalIgnoreCase))
-        {
-            return SkillOperationResult<SkillScopeKind>.Success(SkillScopeKind.User);
+            return SkillOperationResult<SkillScopeKind>.Success(parsedScope);
         }
 
         return SkillOperationResult<SkillScopeKind>.FailureResult(
             SkillFailureCodes.InputInvalid,
-            $"Unsupported SKILL scope literal: {scope}. Supported scopes: {ProjectScopeLiteral}, {UserScopeLiteral}.");
-    }
-
-    /// <summary> Parses an install scope literal and validates that the selected host supports it. </summary>
-    /// <param name="scope"> The raw scope literal. Null, empty, and whitespace values fail with <see cref="SkillFailureCodes.InputInvalid" />. </param>
-    /// <param name="host"> The selected host descriptor whose project and user scope capabilities are checked. </param>
-    /// <returns> The parsed scope kind, or a structured parsing or host-capability failure. </returns>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="host" /> is <see langword="null" />. </exception>
-    public static SkillOperationResult<SkillScopeKind> ParseScopeLiteral (
-        string? scope,
-        SkillHostDescriptor host)
-    {
-        ArgumentNullException.ThrowIfNull(host);
-
-        var scopeResult = ParseScopeLiteral(scope);
-        return scopeResult.IsSuccess
-            ? ValidateScopeSupport(scopeResult.Value, host)
-            : SkillOperationResult<SkillScopeKind>.FailureResult(scopeResult.Failure!.Code, scopeResult.Failure.Message);
-    }
-
-    /// <summary> Validates that a parsed install scope is supported by the selected host. </summary>
-    /// <param name="scope"> The parsed scope kind. Values outside <see cref="SkillScopeKind.Project" /> and <see cref="SkillScopeKind.User" /> fail with <see cref="SkillFailureCodes.InputInvalid" />. </param>
-    /// <param name="host"> The selected host descriptor whose project and user scope capabilities are checked. </param>
-    /// <returns> The same scope kind when supported, or a structured input or host-capability failure. </returns>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="host" /> is <see langword="null" />. </exception>
-    public static SkillOperationResult<SkillScopeKind> ValidateScopeSupport (
-        SkillScopeKind scope,
-        SkillHostDescriptor host)
-    {
-        ArgumentNullException.ThrowIfNull(host);
-
-        return scope switch
-        {
-            SkillScopeKind.Project => host.SupportsProjectScope
-                ? SkillOperationResult<SkillScopeKind>.Success(SkillScopeKind.Project)
-                : UnsupportedScope(host, scope),
-            SkillScopeKind.User => host.SupportsUserScope
-                ? SkillOperationResult<SkillScopeKind>.Success(SkillScopeKind.User)
-                : UnsupportedScope(host, scope),
-            _ => SkillOperationResult<SkillScopeKind>.FailureResult(
-                SkillFailureCodes.InputInvalid,
-                $"Unsupported SKILL scope value: {scope}."),
-        };
+            $"Unsupported SKILL scope literal: {scope}. Supported scopes: {string.Join(", ", ContractLiteralCodec.GetLiterals<SkillScopeKind>())}.");
     }
 
     /// <summary> Parses an export format literal. </summary>
@@ -119,27 +75,14 @@ public static class SkillCommandValueParser
                 "SKILL export format literal must not be empty.");
         }
 
-        if (string.Equals(format, DirectoryExportFormatLiteral, StringComparison.OrdinalIgnoreCase))
+        if (ContractLiteralInputParser.TryParseIgnoreCase(format, out SkillExportFormat parsedFormat))
         {
-            return SkillOperationResult<SkillExportFormat>.Success(SkillExportFormat.Directory);
-        }
-
-        if (string.Equals(format, ZipExportFormatLiteral, StringComparison.OrdinalIgnoreCase))
-        {
-            return SkillOperationResult<SkillExportFormat>.Success(SkillExportFormat.Zip);
+            return SkillOperationResult<SkillExportFormat>.Success(parsedFormat);
         }
 
         return SkillOperationResult<SkillExportFormat>.FailureResult(
             SkillFailureCodes.InputInvalid,
-            $"Unsupported SKILL export format literal: {format}. Supported formats: {DirectoryExportFormatLiteral}, {ZipExportFormatLiteral}.");
+            $"Unsupported SKILL export format literal: {format}. Supported formats: {string.Join(", ", ContractLiteralCodec.GetLiterals<SkillExportFormat>())}.");
     }
 
-    private static SkillOperationResult<SkillScopeKind> UnsupportedScope (
-        SkillHostDescriptor host,
-        SkillScopeKind scope)
-    {
-        return SkillOperationResult<SkillScopeKind>.FailureResult(
-            SkillFailureCodes.ScopeUnsupported,
-            $"SKILL host '{host.HostKey}' does not support {scope} scope.");
-    }
 }

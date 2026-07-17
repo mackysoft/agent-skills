@@ -24,46 +24,24 @@ public sealed class SkillInstallTargetResolver
 
     /// <summary> Resolves the target root for one install request. </summary>
     /// <param name="request"> The install request. </param>
-    /// <returns> The canonical host target, or a structured failure for invalid input, unsupported host or scope, unavailable user target, or unsafe path use. </returns>
+    /// <returns> The canonical host target, or a structured failure for an unavailable user target or unsafe path use. </returns>
     public SkillOperationResult<SkillResolvedInstallTarget> ResolveTarget (SkillInstallRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var adapterResult = hostAdapters.GetAdapter(request.Host);
-        if (!adapterResult.IsSuccess)
-        {
-            return SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(adapterResult.Failure!.Code, adapterResult.Failure.Message);
-        }
-
-        var descriptor = adapterResult.Value!.Descriptor;
-        return request.Scope switch
-        {
-            SkillScopeKind.Project => descriptor.SupportsProjectScope
-                ? ResolveProjectTarget(request, descriptor.HostKey, descriptor.ProjectDefaultTargetPath!)
-                : UnsupportedScope(descriptor.HostKey, request.Scope),
-            SkillScopeKind.User => descriptor.SupportsUserScope
-                ? ResolveUserTarget(request, descriptor)
-                : UnsupportedScope(descriptor.HostKey, request.Scope),
-            _ => SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(
-                SkillFailureCodes.InputInvalid,
-                $"Unsupported SKILL install scope: {request.Scope}"),
-        };
+        var descriptor = hostAdapters.GetAdapter(request.Host).Value!.Descriptor;
+        return request.Scope == SkillScopeKind.Project
+            ? ResolveProjectTarget(request, descriptor.Host, descriptor.ProjectDefaultTargetPath)
+            : ResolveUserTarget(request, descriptor);
     }
 
     private static SkillOperationResult<SkillResolvedInstallTarget> ResolveProjectTarget (
         SkillInstallRequest request,
-        string host,
+        SkillHostKind host,
         string projectTargetDirectory)
     {
-        if (string.IsNullOrWhiteSpace(request.RepositoryRoot))
-        {
-            return SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
-                "Project-scope SKILL install requires a repository root.");
-        }
-
-        var repositoryRoot = Path.GetFullPath(request.RepositoryRoot);
-        var targetRoot = string.IsNullOrWhiteSpace(request.TargetRoot)
+        var repositoryRoot = request.RepositoryRoot!;
+        var targetRoot = request.TargetRoot is null
             ? Path.Combine(repositoryRoot, projectTargetDirectory)
             : Path.IsPathRooted(request.TargetRoot)
                 ? request.TargetRoot
@@ -79,32 +57,11 @@ public sealed class SkillInstallTargetResolver
         SkillInstallRequest request,
         SkillHostDescriptor descriptor)
     {
-        if (!string.IsNullOrWhiteSpace(request.RepositoryRoot))
+        if (request.TargetRoot is not null)
         {
-            return SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
-                "User-scope SKILL install must not use a repository root.");
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.TargetRoot))
-        {
-            if (!Path.IsPathFullyQualified(request.TargetRoot))
-            {
-                return SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(
-                    SkillFailureCodes.PathUnsafe,
-                    "User-scope SKILL targetDir must be an absolute path.");
-            }
-
-            var fullTargetRootResult = GetFullPath(request.TargetRoot, SkillFailureCodes.PathUnsafe, "User-scope SKILL targetDir is invalid.");
-            if (!fullTargetRootResult.IsSuccess)
-            {
-                return SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(fullTargetRootResult.Failure!.Code, fullTargetRootResult.Failure.Message);
-            }
-
-            var fullTargetRoot = fullTargetRootResult.Value!;
-            var explicitTargetResult = SkillPackagePathBoundary.ResolveUnderRoot(fullTargetRoot, fullTargetRoot);
+            var explicitTargetResult = SkillPackagePathBoundary.ResolveUnderRoot(request.TargetRoot, request.TargetRoot);
             return explicitTargetResult.IsSuccess
-                ? SkillOperationResult<SkillResolvedInstallTarget>.Success(new SkillResolvedInstallTarget(descriptor.HostKey, explicitTargetResult.Value!))
+                ? SkillOperationResult<SkillResolvedInstallTarget>.Success(new SkillResolvedInstallTarget(descriptor.Host, explicitTargetResult.Value!))
                 : SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(explicitTargetResult.Failure!.Code, explicitTargetResult.Failure.Message);
         }
 
@@ -117,31 +74,7 @@ public sealed class SkillInstallTargetResolver
         var targetRoot = defaultTargetResult.Value!;
         var resolvedTargetRoot = SkillPackagePathBoundary.ResolveUnderRoot(targetRoot, targetRoot);
         return resolvedTargetRoot.IsSuccess
-            ? SkillOperationResult<SkillResolvedInstallTarget>.Success(new SkillResolvedInstallTarget(descriptor.HostKey, resolvedTargetRoot.Value!))
+            ? SkillOperationResult<SkillResolvedInstallTarget>.Success(new SkillResolvedInstallTarget(descriptor.Host, resolvedTargetRoot.Value!))
             : SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(resolvedTargetRoot.Failure!.Code, resolvedTargetRoot.Failure.Message);
-    }
-
-    private static SkillOperationResult<SkillResolvedInstallTarget> UnsupportedScope (
-        string host,
-        SkillScopeKind scope)
-    {
-        return SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(
-            SkillFailureCodes.ScopeUnsupported,
-            $"SKILL host '{host}' does not support {scope} scope.");
-    }
-
-    private static SkillOperationResult<string> GetFullPath (
-        string path,
-        SkillFailureCode failureCode,
-        string message)
-    {
-        try
-        {
-            return SkillOperationResult<string>.Success(Path.GetFullPath(path));
-        }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
-        {
-            return SkillOperationResult<string>.FailureResult(failureCode, $"{message} {ex.Message}");
-        }
     }
 }

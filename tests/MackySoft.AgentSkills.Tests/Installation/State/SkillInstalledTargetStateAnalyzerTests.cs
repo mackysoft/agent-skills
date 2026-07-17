@@ -1,8 +1,6 @@
-using MackySoft.AgentSkills.Hosts.Claude;
-using MackySoft.AgentSkills.Hosts.OpenAi;
+using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
-using MackySoft.AgentSkills.Installation.Validation;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
@@ -162,30 +160,13 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task AnalyzeAsync_ClassifiesLegacyManifestWithoutSkillBundleVersionAsCleanOutdated ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "state-legacy-clean-outdated");
-        var (packages, targetRoot) = await InstallOpenAiAsync(scope);
-        var skillDirectory = GetSkillDirectory(targetRoot, packages[0]);
-        SkillTestData.WriteLegacyManifestTextWithoutSkillBundleVersion(skillDirectory, packages[0]);
-
-        var state = await AnalyzeOpenAiAsync(packages[0], skillDirectory);
-
-        Assert.Equal(SkillTargetStateKind.CleanOutdated, state.Kind);
-        Assert.Equal(SkillFailureCodes.InstallTargetOutdated, state.Failure!.Code);
-        Assert.Equal(0, state.InstalledSkillBundleVersion);
-        Assert.Equal(packages[0].Manifest.SkillBundleVersion, state.BundledSkillBundleVersion);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
     public async Task AnalyzeAsync_ClassifiesVersionAheadPackage ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "state-version-ahead");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion + 1);
         var installService = SkillTestData.CreateInstallService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync([aheadPackage], request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
 
@@ -199,31 +180,6 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task AnalyzeAsync_ClassifiesSchemaVersionOneManifestWithoutDependenciesAsCleanOutdatedPackage ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "state-legacy-manifest-clean-outdated");
-        var (packages, targetRoot) = await InstallOpenAiAsync(scope);
-        var package = packages[0];
-        var skillDirectory = GetSkillDirectory(targetRoot, package);
-        var legacySerializer = new SkillInstalledManifestLegacyCompatibilitySerializer();
-        var legacyManifest = package.Manifest with
-        {
-            Dependencies = [],
-        };
-        legacyManifest = legacyManifest with
-        {
-            ManifestDigest = legacySerializer.ComputeSchemaVersionOneWithoutDependenciesManifestDigest(legacyManifest),
-        };
-        File.WriteAllText(Path.Combine(skillDirectory, "agent-skill.json"), legacySerializer.SerializeSchemaVersionOneWithoutDependencies(legacyManifest));
-
-        var state = await AnalyzeOpenAiAsync(package, skillDirectory);
-
-        Assert.Equal(SkillTargetStateKind.CleanOutdated, state.Kind);
-        Assert.Equal(SkillFailureCodes.InstallTargetOutdated, state.Failure!.Code);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
     public async Task AnalyzeAsync_ClassifiesHostConflict ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "state-host-conflict");
@@ -231,11 +187,11 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
             packages,
-            new SkillInstallRequest(ClaudeSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath, "shared-skills"),
+            new SkillInstallRequest(SkillHostKind.Claude, SkillScopeKind.Project, scope.FullPath, "shared-skills"),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
 
-        var state = await AnalyzeAsync(packages[0], GetSkillDirectory(installResult.Value!.TargetRoot, packages[0]), OpenAiSkillHostAdapter.HostKey);
+        var state = await AnalyzeAsync(packages[0], GetSkillDirectory(installResult.Value!.TargetRoot, packages[0]), SkillHostKind.OpenAi);
 
         Assert.Equal(SkillTargetStateKind.HostConflict, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetHostConflict, state.Failure!.Code);
@@ -251,10 +207,9 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
         var targetRoot = scope.CreateDirectory(".agents/skills");
         var skillDirectory = scope.CreateDirectory(Path.Combine(".agents", "skills", package.Manifest.SkillName.Value));
         var serializer = new SkillManifestJsonSerializer();
-        var manifest = SkillTestData.WithComputedManifestDigest(package.Manifest with
-        {
-            SkillName = new SkillName("different-skill"),
-        });
+        var manifest = SkillTestData.WithComputedManifestDigest(SkillTestData.CopyManifest(
+            package.Manifest,
+            skillName: new SkillName("different-skill")));
         File.WriteAllText(Path.Combine(skillDirectory, "agent-skill.json"), serializer.Serialize(manifest));
 
         var state = await AnalyzeOpenAiAsync(package, Path.Combine(targetRoot, package.Manifest.SkillName.Value));
@@ -285,7 +240,7 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
             packages,
-            new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
         return (packages, installResult.Value!.TargetRoot);
@@ -295,13 +250,13 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
         CanonicalSkillPackage package,
         string skillDirectory)
     {
-        return await AnalyzeAsync(package, skillDirectory, OpenAiSkillHostAdapter.HostKey);
+        return await AnalyzeAsync(package, skillDirectory, SkillHostKind.OpenAi);
     }
 
     private static async Task<SkillInstalledTargetState> AnalyzeAsync (
         CanonicalSkillPackage package,
         string skillDirectory,
-        string host)
+        SkillHostKind host)
     {
         var analyzer = SkillTestData.CreateTargetStateAnalyzer();
         var result = await analyzer.AnalyzeAsync(package, skillDirectory, host, CancellationToken.None);

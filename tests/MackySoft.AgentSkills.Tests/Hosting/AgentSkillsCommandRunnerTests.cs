@@ -1,5 +1,8 @@
+using MackySoft.AgentSkills.Bundles;
+using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Hosting.Commands;
 using MackySoft.AgentSkills.Hosting.Composition;
+using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.OperationReports.Contracts;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
@@ -10,11 +13,9 @@ namespace MackySoft.AgentSkills.Tests.Hosting;
 
 public sealed class AgentSkillsCommandRunnerTests
 {
-    private static readonly string[] Tiers = ["basic", "advanced", "developer"];
-
     [Fact]
     [Trait("Size", "Small")]
-    public async Task ListAsync_WhenSelectorsAreOmitted_ReturnsAllConfiguredTiers ()
+    public async Task ListAsync_WhenSelectorsAreOmitted_ReturnsAllBundledCategories ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-hosting", "list-all");
         await WriteFixturePackagesAsync(scope.FullPath);
@@ -27,12 +28,12 @@ public sealed class AgentSkillsCommandRunnerTests
         Assert.Equal("skills.list", result.Command);
         Assert.Equal(0, result.ExitCode);
         var report = Assert.IsType<SkillListReport>(result.Payload);
-        Assert.Equal(Tiers, report.Tiers);
+        Assert.Equal(["core"], report.Categories);
         Assert.Empty(report.SkillNames);
         Assert.Equal(SkillTestData.ExpectedSkillNames, report.Skills.Select(static skill => skill.SkillName).ToArray());
         Assert.Equal(
-            new[] { ("basic", 4), ("advanced", 0), ("developer", 0) },
-            report.AvailableTiers.Select(static tier => (tier.Tier, tier.SkillCount)).ToArray());
+            new[] { ("core", 4) },
+            report.AvailableCategories.Select(static category => (category.Category, category.SkillCount)).ToArray());
     }
 
     [Fact]
@@ -60,31 +61,51 @@ public sealed class AgentSkillsCommandRunnerTests
 
         var result = await runner.InstallAsync(
             new AgentSkillsInstallCommandRequest(
-                Host: "openai",
-                Scope: "project",
-                RepositoryRoot: scope.FullPath),
+                host: "openai",
+                scope: "project",
+                repositoryRoot: scope.FullPath),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(1, result.ExitCode);
         Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
-        Assert.Contains("--tier", result.Failure.Message, StringComparison.Ordinal);
+        Assert.Contains("--category", result.Failure.Message, StringComparison.Ordinal);
         Assert.Contains("--skill", result.Failure.Message, StringComparison.Ordinal);
     }
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task ListAsync_WhenSelectedTierContainsWhitespace_ReturnsInputFailure ()
+    public async Task ListAsync_WhenSelectedCategoryContainsWhitespace_ReturnsInputFailure ()
     {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-hosting", "list-tier-whitespace");
+        using var scope = TestDirectories.CreateTempScope("agent-skills-hosting", "list-category-whitespace");
         await WriteFixturePackagesAsync(scope.FullPath);
         using var provider = CreateProvider(scope.FullPath);
         var runner = provider.GetRequiredService<AgentSkillsCommandRunner>();
 
-        var result = await runner.ListAsync(new AgentSkillsListCommandRequest(Tier: ["advanced "]), CancellationToken.None);
+        var result = await runner.ListAsync(new AgentSkillsListCommandRequest(category: ["core "]), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task InstallAsync_WhenUserTargetIsRelative_ReturnsPathFailureBeforeConstructingRequest ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-hosting", "install-relative-user-target");
+        using var provider = CreateProvider(scope.FullPath);
+        var runner = provider.GetRequiredService<AgentSkillsCommandRunner>();
+
+        var result = await runner.InstallAsync(
+            new AgentSkillsInstallCommandRequest(
+                host: "openai",
+                category: ["core"],
+                scope: "user",
+                targetDir: "relative-target"),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
     }
 
     [Fact]
@@ -101,10 +122,10 @@ public sealed class AgentSkillsCommandRunnerTests
 
         var result = await runner.InstallAsync(
             new AgentSkillsInstallCommandRequest(
-                Host: "openai",
-                Tier: ["basic"],
-                Scope: "project",
-                DryRun: true),
+                host: "openai",
+                category: ["core"],
+                scope: "project",
+                dryRun: true),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
@@ -114,7 +135,7 @@ public sealed class AgentSkillsCommandRunnerTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task DoctorAsync_WhenSelectedTierContainsNoPackages_ReturnsHealthyEmptyReport ()
+    public async Task DoctorAsync_WhenSelectedCategoryIsAbsentFromBundle_ReturnsInputFailure ()
     {
         using var packageScope = TestDirectories.CreateTempScope("agent-skills-hosting", "doctor-empty-package-root");
         using var targetScope = TestDirectories.CreateTempScope("agent-skills-hosting", "doctor-empty-target");
@@ -124,18 +145,15 @@ public sealed class AgentSkillsCommandRunnerTests
 
         var result = await runner.DoctorAsync(
             new AgentSkillsDoctorCommandRequest(
-                Host: "openai",
-                Tier: ["advanced"],
-                Scope: "project",
-                RepositoryRoot: targetScope.FullPath),
+                host: "openai",
+                category: ["removed"],
+                scope: "project",
+                repositoryRoot: targetScope.FullPath),
             CancellationToken.None);
 
-        Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(0, result.ExitCode);
-        var report = Assert.IsType<SkillDoctorReport>(result.Payload);
-        Assert.True(report.IsHealthy);
-        Assert.Equal(["advanced"], report.Tiers);
-        Assert.Empty(report.Diagnostics);
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Contains("Unsupported SKILL category: removed", result.Failure.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -150,29 +168,28 @@ public sealed class AgentSkillsCommandRunnerTests
 
         var installResult = await runner.InstallAsync(
             new AgentSkillsInstallCommandRequest(
-                Host: "openai",
-                Tier: ["basic"],
-                Scope: "project",
-                RepositoryRoot: targetScope.FullPath),
+                host: "openai",
+                category: ["core"],
+                scope: "project",
+                repositoryRoot: targetScope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
 
         var selectedOrphan = packages[0].Manifest.SkillName.Value;
         var unselectedOrphan = packages[1].Manifest.SkillName.Value;
-        Directory.Delete(Path.Combine(packageScope.FullPath, "skills", selectedOrphan), recursive: true);
-        Directory.Delete(Path.Combine(packageScope.FullPath, "skills", unselectedOrphan), recursive: true);
+        await WriteBundleAsync(packageScope.FullPath, CreateBundle(packages.Skip(2).ToArray()));
 
         var pruneResult = await runner.PruneAsync(
             new AgentSkillsPruneCommandRequest(
-                Host: "openai",
-                Skill: [selectedOrphan],
-                Scope: "project",
-                RepositoryRoot: targetScope.FullPath),
+                host: "openai",
+                skill: [selectedOrphan],
+                scope: "project",
+                repositoryRoot: targetScope.FullPath),
             CancellationToken.None);
 
         Assert.True(pruneResult.IsSuccess, pruneResult.Failure?.Message);
         var report = Assert.IsType<SkillOperationReport>(pruneResult.Payload);
-        Assert.Equal(["basic", "advanced", "developer"], report.Tiers);
+        Assert.Equal(["core"], report.Categories);
         Assert.Equal([selectedOrphan], report.SkillNames);
         var action = Assert.Single(report.Actions);
         Assert.Equal(selectedOrphan, action.SkillName);
@@ -187,6 +204,44 @@ public sealed class AgentSkillsCommandRunnerTests
         }
     }
 
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task PruneAsync_WhenCategoryWasRemovedFromBundle_UsesInstalledManifestCategory ()
+    {
+        using var packageScope = TestDirectories.CreateTempScope("agent-skills-hosting", "prune-removed-category-package-root");
+        using var targetScope = TestDirectories.CreateTempScope("agent-skills-hosting", "prune-removed-category-target");
+        var packages = (await SkillTestData.GenerateFixturePackagesAsync()).ToArray();
+        packages[0] = WithCategory(packages[0], new SkillCategory("removed"));
+        await WriteBundleAsync(packageScope.FullPath, CreateBundle(packages));
+        using var provider = CreateProvider(packageScope.FullPath);
+        var runner = provider.GetRequiredService<AgentSkillsCommandRunner>();
+
+        var installResult = await runner.InstallAsync(
+            new AgentSkillsInstallCommandRequest(
+                host: "openai",
+                category: ["removed"],
+                scope: "project",
+                repositoryRoot: targetScope.FullPath),
+            CancellationToken.None);
+        Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
+
+        await WriteBundleAsync(packageScope.FullPath, CreateBundle(packages.Skip(1).ToArray()));
+        var pruneResult = await runner.PruneAsync(
+            new AgentSkillsPruneCommandRequest(
+                host: "openai",
+                category: ["removed"],
+                scope: "project",
+                repositoryRoot: targetScope.FullPath),
+            CancellationToken.None);
+
+        Assert.True(pruneResult.IsSuccess, pruneResult.Failure?.Message);
+        var report = Assert.IsType<SkillOperationReport>(pruneResult.Payload);
+        Assert.Equal(["removed"], report.Categories);
+        var action = Assert.Single(report.Actions);
+        Assert.Equal(packages[0].Manifest.SkillName.Value, action.SkillName);
+        Assert.Equal("deleted", action.Action);
+    }
+
     private static ServiceProvider CreateProvider (
         string packageBaseDirectory,
         string commandRoot = "skills",
@@ -196,8 +251,6 @@ public sealed class AgentSkillsCommandRunnerTests
         services.AddAgentSkillsCommandRuntime(options =>
         {
             options.ProductName = "Example CLI";
-            options.CatalogId = "com.mackysoft.agent-skills";
-            options.Tiers = Tiers;
             options.PackageBaseDirectory = packageBaseDirectory;
             options.CommandRoot = commandRoot;
             if (repositoryRootResolver is not null)
@@ -211,13 +264,54 @@ public sealed class AgentSkillsCommandRunnerTests
 
     private static async Task<IReadOnlyList<CanonicalSkillPackage>> WriteFixturePackagesAsync (string packageBaseDirectory)
     {
-        var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        var result = await new CanonicalSkillPackageWriter().WriteAllAsync(
-            packages,
+        var bundle = await SkillTestData.GenerateFixtureBundleAsync();
+        await WriteBundleAsync(packageBaseDirectory, bundle);
+        return bundle.Packages;
+    }
+
+    private static async Task WriteBundleAsync (
+        string packageBaseDirectory,
+        CanonicalSkillBundle bundle)
+    {
+        var manifestSerializer = new SkillManifestJsonSerializer();
+        var bundleSerializer = new SkillBundleJsonSerializer();
+        var bundleFactory = new CanonicalSkillBundle.Factory(new SkillBundleDigestCalculator(manifestSerializer));
+        var writer = new CanonicalSkillBundleWriter(
+            SkillTestData.CreateCanonicalPackageWriter(),
+            bundleSerializer,
+            new CanonicalSkillBundleReader(
+                SkillTestData.CreatePackageReader(),
+                bundleSerializer,
+                bundleFactory));
+        var result = await writer.WriteAsync(
+            bundle,
             Path.Combine(packageBaseDirectory, "skills"),
-            cleanOutputRoot: true,
             CancellationToken.None);
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        return packages;
+    }
+
+    private static CanonicalSkillBundle CreateBundle (IReadOnlyList<CanonicalSkillPackage> packages)
+    {
+        var identity = Assert.Single(packages.GroupBy(static package => (package.Manifest.CatalogId, package.Manifest.SkillBundleVersion))).Key;
+        var descriptor = new SkillBundleDescriptor(
+            SkillBundleDefinition.CurrentSchemaVersion,
+            identity.CatalogId,
+            identity.SkillBundleVersion,
+            new SkillBundleDigestCalculator(new SkillManifestJsonSerializer()).ComputeDigest(packages));
+        return SkillTestData.CreateCanonicalBundle(descriptor, packages);
+    }
+
+    private static CanonicalSkillPackage WithCategory (
+        CanonicalSkillPackage package,
+        SkillCategory category)
+    {
+        var manifest = SkillTestData.WithComputedManifestDigest(SkillTestData.CopyManifest(package.Manifest, category: category));
+        var manifestText = new SkillManifestJsonSerializer().Serialize(manifest);
+        var files = package.Files
+            .Select(file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal)
+                ? new SkillPackageFile("agent-skill.json", manifestText)
+                : file)
+            .ToArray();
+        return SkillTestData.CreateCanonicalPackage(manifest, files);
     }
 }

@@ -1,46 +1,46 @@
+using MackySoft.AgentSkills.Installation.Results;
+using MackySoft.AgentSkills.Shared;
+
 namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
-/// <summary> Represents a target state with stable literals suitable for product CLI payloads. </summary>
-/// <param name="Kind"> The stable target state literal. </param>
-/// <param name="Code"> The failure code value represented by this state, when present. </param>
-/// <param name="Message"> The failure message represented by this state, when present. </param>
-/// <param name="InstalledSkillBundleVersion"> The installed target SKILL bundle version, when available. </param>
-/// <param name="BundledSkillBundleVersion"> The bundled canonical package SKILL bundle version, when available. </param>
-/// <param name="FileSet"> The structured file-set drift details, when this state represents file-set drift. </param>
-public sealed record SkillTargetStateReport (
-    string Kind,
-    string? Code = null,
-    string? Message = null,
-    int? InstalledSkillBundleVersion = null,
-    int? BundledSkillBundleVersion = null,
-    SkillTargetFileSetReport? FileSet = null)
+/// <summary> Represents a target state suitable for product CLI payloads. </summary>
+public sealed class SkillTargetStateReport
 {
-    /// <summary> Initializes a report using the pre-skillBundleVersion constructor shape. </summary>
-    public SkillTargetStateReport (
-        string Kind,
-        string? Code,
-        string? Message,
-        SkillTargetFileSetReport? FileSet)
-        : this(
-            Kind,
-            Code,
-            Message,
-            null,
-            null,
-            FileSet)
+    /// <summary> Projects one validated action target state into report data. </summary>
+    /// <param name="state"> The validated action target state. </param>
+    internal SkillTargetStateReport (SkillActionTargetState state)
     {
+        ArgumentNullException.ThrowIfNull(state);
+
+        Kind = state.Kind;
+        Code = state.Code?.Value;
+        Message = state.Message;
+        InstalledSkillBundleVersion = state.InstalledSkillBundleVersion;
+        BundledSkillBundleVersion = state.BundledSkillBundleVersion;
+        FileSet = state.FileSet is null
+            ? null
+            : new SkillTargetFileSetReport(
+                state.FileSet.MissingFiles,
+                state.FileSet.ExtraFiles,
+                state.FileSet.ExtraDirectories);
     }
 
-    /// <summary> Deconstructs a report using the pre-skillBundleVersion tuple shape. </summary>
-    public void Deconstruct (
-        out string Kind,
-        out string? Code,
-        out string? Message,
-        out SkillTargetFileSetReport? FileSet)
-    {
-        Kind = this.Kind;
-        Code = this.Code;
-        Message = this.Message;
-        FileSet = this.FileSet;
-    }
+    /// <summary> Gets the target state kind. </summary>
+    public SkillTargetStateKind Kind { get; }
+
+    /// <summary> Gets the failure code value represented by this state, when present. </summary>
+    public string? Code { get; }
+
+    /// <summary> Gets the failure message represented by this state, when present. </summary>
+    public string? Message { get; }
+
+    /// <summary> Gets the installed target SKILL bundle version, when available. </summary>
+    public int? InstalledSkillBundleVersion { get; }
+
+    /// <summary> Gets the bundled canonical package SKILL bundle version, when available. </summary>
+    public int? BundledSkillBundleVersion { get; }
+
+    /// <summary> Gets structured file-set drift details when they were available for this state. </summary>
+    public SkillTargetFileSetReport? FileSet { get; }
+
 }

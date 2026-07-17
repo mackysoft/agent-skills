@@ -215,7 +215,18 @@ public sealed class SkillInstalledFileSetVerifier
         return ValueTask.FromResult(SkillOperationResult<SkillInstalledFileSetVerificationResult>.FailureResult(code, message));
     }
 
-    internal sealed record SkillInstalledFileSetEntries (
-        IReadOnlyList<string> Files,
-        IReadOnlyList<string> Directories);
+    internal sealed class SkillInstalledFileSetEntries
+    {
+        internal SkillInstalledFileSetEntries (
+            IReadOnlyList<string> files,
+            IReadOnlyList<string> directories)
+        {
+            Files = SkillInstalledFileSetPathSnapshot.Create(files, nameof(files));
+            Directories = SkillInstalledFileSetPathSnapshot.Create(directories, nameof(directories));
+        }
+
+        public IReadOnlyList<string> Files { get; }
+
+        public IReadOnlyList<string> Directories { get; }
+    }
 }

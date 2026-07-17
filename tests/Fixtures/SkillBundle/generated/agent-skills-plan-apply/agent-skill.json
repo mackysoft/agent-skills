@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "skillBundleVersion": 1,
+  "catalogId": "com.mackysoft.agent-skills",
+  "category": "core",
+  "skillName": "agent-skills-plan-apply",
+  "displayName": "Agent Skills Plan Apply",
+  "description": "Use when building, validating, planning, and applying a Agent Skills JSON request for Unity changes. Enforces read -> describe -> build request -> validate -> plan -> call -> verify.",
+  "dependencies": [],
+  "contentDigest": "2fa64e89eded4a58696ffb21e6d2b5db1dc276e91ba8b010e083ee8f8d5f003e",
+  "manifestDigest": "d865c34d345bfb4f825bea06a9f1ba95b4a4e8f62d600dff592bb48b268bdc2b",
+  "hostArtifacts": [
+    {
+      "host": "claude",
+      "materializedFrontmatterDigest": "f3ca8ddda342b3492d24603cb7f3ef2077e0a775a3802564ef01275b6e36bf50"
+    },
+    {
+      "host": "copilot",
+      "materializedFrontmatterDigest": "1c1ef569f136b5741b4914ba49ad63554f9e921a4806cdb653550d8e17e2dfd5"
+    },
+    {
+      "host": "openai",
+      "path": "agents/openai.yaml",
+      "digest": "ac0f56316ec4bd4a834b8900b1c82cfcd770b06c74b4b63aabb9a4a3e5a80136",
+      "materializedFrontmatterDigest": "210a40a8d769fddfe76f0b0afa125ab61d1926e7aefd8e91dc622ef161b961ba"
+    }
+  ]
+}

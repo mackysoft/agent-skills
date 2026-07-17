@@ -73,14 +73,14 @@ internal static class SkillOperationActionStatusResolver
         where TActionKind : struct, Enum
     {
         return TryGetDefinition(definitions, actionKind, out var definition)
-            ? definition.Status
+            ? definition!.Status
             : throw new ArgumentOutOfRangeException(parameterName, actionKind, $"Unsupported SKILL {typeof(TActionKind).Name} value.");
     }
 
     private static bool TryGetDefinition<TActionKind> (
         IReadOnlyList<ActionStatusDefinition<TActionKind>> definitions,
         TActionKind actionKind,
-        out ActionStatusDefinition<TActionKind> definition)
+        out ActionStatusDefinition<TActionKind>? definition)
         where TActionKind : struct, Enum
     {
         foreach (var candidate in definitions)
@@ -92,12 +92,33 @@ internal static class SkillOperationActionStatusResolver
             }
         }
 
-        definition = default;
+        definition = null;
         return false;
     }
 
-    private readonly record struct ActionStatusDefinition<TActionKind> (
-        TActionKind Kind,
-        SkillOperationActionStatus Status)
-        where TActionKind : struct, Enum;
+    private sealed class ActionStatusDefinition<TActionKind>
+        where TActionKind : struct, Enum
+    {
+        internal ActionStatusDefinition (
+            TActionKind kind,
+            SkillOperationActionStatus status)
+        {
+            if (!Enum.IsDefined(kind))
+            {
+                throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported action kind.");
+            }
+
+            if (!Enum.IsDefined(status))
+            {
+                throw new ArgumentOutOfRangeException(nameof(status), status, "Unsupported operation action status.");
+            }
+
+            Kind = kind;
+            Status = status;
+        }
+
+        internal TActionKind Kind { get; }
+
+        internal SkillOperationActionStatus Status { get; }
+    }
 }

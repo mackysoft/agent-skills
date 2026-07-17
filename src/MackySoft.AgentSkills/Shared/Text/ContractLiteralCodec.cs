@@ -1,11 +1,20 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
+using System.Runtime.ExceptionServices;
 
 namespace MackySoft.AgentSkills.Shared.Text;
 
 /// <summary> Converts enum-backed contract literals without input normalization. </summary>
+/// <remarks>
+/// A consumed enum must declare at least one member, and every declared member must declare one
+/// <see cref="ContractLiteralAttribute" />. Represent optional values with nullable enums and keep
+/// runtime-only sentinel values in a separate type.
+/// </remarks>
 public static class ContractLiteralCodec
 {
+    private static readonly MethodInfo GetLiteralsMethod = typeof(ContractLiteralCodec)
+        .GetMethod(nameof(GetLiterals), BindingFlags.Public | BindingFlags.Static)!;
+
     /// <summary> Converts one enum value to its canonical contract literal. </summary>
     /// <typeparam name="TEnum"> The enum type. </typeparam>
     /// <param name="value"> The enum value to convert. </param>
@@ -69,6 +78,20 @@ public static class ContractLiteralCodec
         return Cache<TEnum>.Table.IsDefined(value);
     }
 
+    /// <summary> Determines whether one canonical contract literal maps to the specified enum value. </summary>
+    /// <typeparam name="TEnum"> The enum type. </typeparam>
+    /// <param name="literal"> The canonical contract literal. </param>
+    /// <param name="value"> The expected enum value. </param>
+    /// <returns> <see langword="true" /> when <paramref name="literal" /> maps to <paramref name="value" />; otherwise <see langword="false" />. </returns>
+    public static bool Matches<TEnum> (
+        string? literal,
+        TEnum value)
+        where TEnum : struct, Enum
+    {
+        return Cache<TEnum>.Table.TryParse(literal, out var parsedValue)
+            && EqualityComparer<TEnum>.Default.Equals(parsedValue, value);
+    }
+
     /// <summary> Gets the canonical contract literals for one enum type in declaration order. </summary>
     /// <typeparam name="TEnum"> The enum type. </typeparam>
     /// <returns> The canonical contract literal list. </returns>
@@ -78,10 +101,32 @@ public static class ContractLiteralCodec
         return Cache<TEnum>.Table.Literals;
     }
 
-    private static bool HasOuterWhitespace (string value)
+    /// <summary> Validates the complete contract-literal definition for an enum known only at runtime. </summary>
+    /// <param name="enumType"> The enum type to validate. </param>
+    /// <exception cref="ArgumentException"> Thrown when <paramref name="enumType" /> is not an enum. </exception>
+    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="enumType" /> is <see langword="null" />. </exception>
+    /// <exception cref="InvalidOperationException"> Thrown when any enum member does not define a valid, unique contract literal. </exception>
+    internal static void Validate (Type enumType)
     {
-        return value.Length > 0 &&
-            (char.IsWhiteSpace(value[0]) || char.IsWhiteSpace(value[^1]));
+        if (enumType is null)
+        {
+            throw new ArgumentNullException(nameof(enumType));
+        }
+
+        if (!enumType.IsEnum)
+        {
+            throw new ArgumentException($"Type '{enumType.FullName}' is not an enum.", nameof(enumType));
+        }
+
+        try
+        {
+            _ = GetLiteralsMethod.MakeGenericMethod(enumType).Invoke(null, null);
+        }
+        catch (TargetInvocationException exception) when (exception.InnerException is not null)
+        {
+            ExceptionDispatchInfo.Capture(exception.InnerException).Throw();
+            throw;
+        }
     }
 
     private static class Cache<TEnum>
@@ -100,9 +145,16 @@ public static class ContractLiteralCodec
             var valueToLiteral = new Dictionary<TEnum, string>();
             var literalToValue = new Dictionary<string, TEnum>(StringComparer.Ordinal);
             var literals = new List<string>(fields.Length);
+            var declaredValues = new HashSet<TEnum>();
 
             foreach (var field in fields)
             {
+                var value = (TEnum)field.GetValue(null)!;
+                if (!declaredValues.Add(value))
+                {
+                    throw new InvalidOperationException($"Enum type '{enumType.FullName}' defines duplicate enum value '{value}'.");
+                }
+
                 var attribute = field.GetCustomAttribute<ContractLiteralAttribute>(inherit: false);
                 if (attribute is null)
                 {
@@ -110,21 +162,6 @@ public static class ContractLiteralCodec
                 }
 
                 var literal = attribute.Literal;
-                if (string.IsNullOrWhiteSpace(literal))
-                {
-                    throw new InvalidOperationException($"Enum member '{enumType.FullName}.{field.Name}' has an empty contract literal.");
-                }
-
-                if (HasOuterWhitespace(literal))
-                {
-                    throw new InvalidOperationException($"Enum member '{enumType.FullName}.{field.Name}' has a contract literal with leading or trailing whitespace.");
-                }
-
-                var value = (TEnum)field.GetValue(null)!;
-                if (valueToLiteral.ContainsKey(value))
-                {
-                    throw new InvalidOperationException($"Enum type '{enumType.FullName}' defines duplicate enum value '{value}'.");
-                }
 
                 if (literalToValue.ContainsKey(literal))
                 {
@@ -134,6 +171,11 @@ public static class ContractLiteralCodec
                 valueToLiteral.Add(value, literal);
                 literalToValue.Add(literal, value);
                 literals.Add(literal);
+            }
+
+            if (literals.Count == 0)
+            {
+                throw new InvalidOperationException($"Enum type '{enumType.FullName}' does not define any contract literals.");
             }
 
             return new Table<TEnum>(valueToLiteral, literalToValue, literals.AsReadOnly());

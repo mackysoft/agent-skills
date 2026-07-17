@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Catalogs;
@@ -27,7 +28,7 @@ public sealed record SkillCatalogId
     /// <returns> <see langword="true" /> when <paramref name="value" /> is safe; otherwise <see langword="false" />. </returns>
     public static bool TryCreate (
         string? value,
-        out SkillCatalogId? catalogId)
+        [NotNullWhen(true)] out SkillCatalogId? catalogId)
     {
         if (value is not null && IsSafeLiteral(value))
         {

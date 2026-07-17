@@ -20,9 +20,9 @@ public sealed class SkillInstalledFileSetVerifierTests
         var result = await verifier.VerifyAsync(
             skillDirectory,
             [
-                SkillPackageFile.Create("SKILL.md", "# Skill\n"),
-                SkillPackageFile.Create("references/reference.md", "# Reference\n"),
-                SkillPackageFile.Create("agents/openai.yaml", "name: Sample\n"),
+                new SkillPackageFile("SKILL.md", "# Skill\n"),
+                new SkillPackageFile("references/reference.md", "# Reference\n"),
+                new SkillPackageFile("agents/openai.yaml", "name: Sample\n"),
             ],
             CancellationToken.None);
 
@@ -45,9 +45,9 @@ public sealed class SkillInstalledFileSetVerifierTests
         var result = await verifier.VerifyAsync(
             skillDirectory,
             [
-                SkillPackageFile.Create("SKILL.md", "# Skill\n"),
-                SkillPackageFile.Create("references/reference.md", "# Reference\n"),
-                SkillPackageFile.Create("agents/openai.yaml", "name: Sample\n"),
+                new SkillPackageFile("SKILL.md", "# Skill\n"),
+                new SkillPackageFile("references/reference.md", "# Reference\n"),
+                new SkillPackageFile("agents/openai.yaml", "name: Sample\n"),
             ],
             CancellationToken.None);
 
@@ -74,8 +74,8 @@ public sealed class SkillInstalledFileSetVerifierTests
         var result = await verifier.VerifyAsync(
             skillDirectory,
             [
-                SkillPackageFile.Create("SKILL.md", "# Skill\n"),
-                SkillPackageFile.Create("references/reference.md", "# Reference\n"),
+                new SkillPackageFile("SKILL.md", "# Skill\n"),
+                new SkillPackageFile("references/reference.md", "# Reference\n"),
             ],
             CancellationToken.None);
 
@@ -98,7 +98,7 @@ public sealed class SkillInstalledFileSetVerifierTests
 
         var result = await verifier.VerifyAsync(
             skillDirectory,
-            [SkillPackageFile.Create("SKILL.md", "# Expected\n")],
+            [new SkillPackageFile("SKILL.md", "# Expected\n")],
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
@@ -123,8 +123,8 @@ public sealed class SkillInstalledFileSetVerifierTests
         var result = await verifier.VerifyAsync(
             skillDirectory,
             [
-                SkillPackageFile.Create("SKILL.md", "# Expected\n"),
-                SkillPackageFile.Create("references/missing.md", "# Missing\n"),
+                new SkillPackageFile("SKILL.md", "# Expected\n"),
+                new SkillPackageFile("references/missing.md", "# Missing\n"),
             ],
             CancellationToken.None);
 
@@ -148,7 +148,7 @@ public sealed class SkillInstalledFileSetVerifierTests
 
         var result = await verifier.VerifyAsync(
             skillDirectory,
-            [SkillPackageFile.Create("SKILL.md", "# Skill\n")],
+            [new SkillPackageFile("SKILL.md", "# Skill\n")],
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
@@ -157,23 +157,6 @@ public sealed class SkillInstalledFileSetVerifierTests
         Assert.Empty(result.Value.MissingFiles);
         Assert.Empty(result.Value.ExtraFiles);
         Assert.Equal(["empty"], result.Value.ExtraDirectories);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task VerifyAsync_RejectsUnsafeExpectedPath ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "file-set-unsafe-path");
-        var skillDirectory = scope.CreateDirectory("sample-skill");
-        var verifier = new SkillInstalledFileSetVerifier();
-
-        var result = await verifier.VerifyAsync(
-            skillDirectory,
-            [new SkillPackageFile("../escape.md", "# Escape\n")],
-            CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
     }
 
     [Fact]
@@ -187,7 +170,7 @@ public sealed class SkillInstalledFileSetVerifierTests
 
         var result = await verifier.VerifyAsync(
             skillDirectory,
-            [SkillPackageFile.Create("SKILL.md", "# Skill\n")],
+            [new SkillPackageFile("SKILL.md", "# Skill\n")],
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -216,7 +199,7 @@ public sealed class SkillInstalledFileSetVerifierTests
 
         var result = await verifier.VerifyAsync(
             skillDirectory,
-            [SkillPackageFile.Create("SKILL.md", "# Skill\n")],
+            [new SkillPackageFile("SKILL.md", "# Skill\n")],
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -246,7 +229,7 @@ public sealed class SkillInstalledFileSetVerifierTests
 
         var result = await verifier.VerifyAsync(
             skillDirectory,
-            [SkillPackageFile.Create("SKILL.md", "# Skill\n")],
+            [new SkillPackageFile("SKILL.md", "# Skill\n")],
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);

@@ -1,95 +1,87 @@
 # agent-skills-packaging
 
 ## 目的
-完成したエージェントスキルを、対象製品が利用する AgentSkills のソース定義と生成パッケージへ具体化する。
-スキルの責務、発火面、判断、成果、完了状態を保持しながら、製品が所有するカタログ方針と、AgentSkills が所有する定義、生成、ホスト別具体化の契約を整合させる。
 
-## 作業種別
-
-| 作業 | 扱い |
-| --- | --- |
-| 追加 | 完成したスキルを製品のソース定義へ追加し、生成、検証まで行う。 |
-| 更新 | スキル内容または製品方針の変更をソース定義へ反映し、生成物を同期する。 |
-| レビュー | ソース定義、生成物、製品設定の整合を評価し、問題、根拠、必要な差分を返す。修正も求められている場合は更新として進める。 |
+完成したエージェントスキルを、対象製品が所有する Agent Skills 1.0 のソース定義へ反映し、生成物、配布物、標準コマンドから利用できる状態まで整える。
 
 ## フロー
 
-### Phase 1: 適用対象と契約を確定する
-#### AgentSkills の採用を確認する
-対象製品の実行物または配布物を構成する .NET プロジェクトの、評価済みの依存関係を確認する。
-いずれかのプロジェクトが、`MackySoft.AgentSkills` または `MackySoft.AgentSkills.*` のパッケージ、もしくは対応する AgentSkills プロジェクトを直接参照している場合に、AgentSkills を採用していると判断する。
-採用を確認できない場合は、このスキルの対象外として確認した根拠を残し、以降の Phase へ進まない。
+### Phase 1: 採用と正本を確認する
 
-#### 正本を確認する
-対象製品が固定している AgentSkills のバージョンと、そのバージョンの定義契約を確認する。
-製品リポジトリから、ソース定義、生成物、生成コマンド、検証コマンド、パッケージへの収録方法を特定する。
-コマンドの引数や定義形式は、対象製品が固定した AgentSkills とリポジトリの実行可能な契約を正本として扱う。
+対象製品の実行物または配布物を構成する .NET プロジェクトについて、評価済みの `PackageReference` と `ProjectReference` を確認する。`MackySoft.AgentSkills` または `MackySoft.AgentSkills.*` を直接参照している場合だけ、Agent Skills 採用製品として扱う。
 
-#### 製品が所有する値を確認する
-既存の製品設定とソース定義から、`catalogId`、利用可能な `tier`、`skillBundleVersion`、対象ホスト、公開対象を確認する。
-既存値が見つからない場合は、製品が公開するカタログの同一性と選択単位を保てる値を決めるために必要な判断を整理する。
+バンドルルート、固定している CLI バージョン、同期コマンド、検証コマンド、generated の同梱方法を特定する。利用側リポジトリでは `.config/dotnet-tools.json` が固定する CLI を使う。Agent Skills リポジトリ自身では、未公開パッケージへ依存せず、現在のソースを `dotnet run --project src/MackySoft.AgentSkills.Cli/MackySoft.AgentSkills.Cli.csproj -- build --root skills` で実行する。
 
-### Phase 2: ソース定義を評価または更新する
-#### 所有者に従って値を決める
+### Phase 2: 所有境界に従って定義する
 
-| 情報 | 所有者 | 扱い |
-| --- | --- | --- |
-| `skillName`、`displayName`、`description`、本文、`references` | 完成したスキル | 責務と意味を変えずにソース定義へ反映する。 |
-| `dependencies` | スキルの責務設計 | 同じ生成パッケージ集合から提供する必要があるスキルだけを記録する。 |
-| `catalogId`、`tier`、`skillBundleVersion`、公開対象 | 対象製品 | 既存の製品方針と一貫する値を使う。 |
-| スキーマ、ファイル構造、生成物、ホスト別メタデータ | AgentSkills | 対象バージョンの契約に従う。 |
+固定レイアウトを維持する。
 
-具体的な製品値と AgentSkills 固有形式は、選択、生成、配布、ホスト別具体化を決めるソース定義または製品設定に置く。
-完成したスキルの本文には、元の責務、判断、成果、完了状態をそのまま反映する。
+```text
+<root>/
+  bundle.json
+  definitions/
+    <category>/
+      <skill>/
+        skill.json
+        SKILL.md.template
+        references/
+  generated/
+    bundle.json
+    <skill>/
+```
 
-`dependencies` は、責務の上下、関連性、推奨される併用ではなく、対象スキルを選択したときに同じ生成パッケージ集合から提供する必要があるスキルだけを表す。
-`references` は、ソース定義に存在する参照ファイルと一致させる。
+各情報を次の場所だけで所有する。
 
-#### 作業種別に応じて扱う
-追加または更新では、製品リポジトリが定めるソース定義を編集する。
-生成時に付加されるメタデータ、最上位見出し、ホスト別ファイルは AgentSkills の生成へ委ねる。
-名前変更、統合、削除では、現在の定義に対応しない古いソースと生成物が残らないようにする。
-レビューではソース定義を変更せず、完成したスキル、製品設定、AgentSkills の契約との不整合を特定する。
+| 情報 | 正本 |
+| --- | --- |
+| `catalogId`、`skillBundleVersion` | source `bundle.json` |
+| category | `definitions` 直下のディレクトリ名 |
+| `skillName` | category 直下のスキルディレクトリ名 |
+| 表示名、説明、`dependencies` | 個別 `skill.json` |
+| スキル本文と参照名・参照本文 | `SKILL.md.template` と `references/*.md.template` |
+| digest、manifest、ホスト別成果物 | CLI が作る `generated` |
+| schema version | 対象バージョンの Agent Skills コード契約 |
 
-### Phase 3: 生成パッケージを用意する
-追加または更新では、対象製品が用意する生成コマンドを、固定された AgentSkills バージョンで実行し、リポジトリが定める出力先へ生成する。
-レビューではその出力先を変更せず、必要な場合は隔離した一時出力先へ生成して既存の生成物と照合する。
-生成結果を手で整えず、意図した結果にならない場合はソース定義、製品設定、AgentSkills の生成契約のどこを変更すべきか切り分ける。
+個別定義へ `catalogId`、`skillBundleVersion`、category、`skillName`、reference 一覧、旧 `tier` を重複して書かない。`dependencies` には、同じバンドルから必ず一緒に解決するスキル名だけを書く。
 
-生成を行った場合は、ソース定義にあるすべてのスキルが一度の生成結果として揃い、削除または改名したスキルの古い生成物が残っていないことを確認する。
+一方、generated の `agent-skill.json` は単体で配布、選択、依存解決、整合性検証を行う manifest なので最小化しない。source から導出した `category` と `skillName` も含め、バンドル識別情報、表示情報、`dependencies`、digest、`hostArtifacts` を保持する。
 
-### Phase 4: 生成結果を検証する
-#### 定義と生成物を照合する
-次を確認する。
+### Phase 3: 同期する
 
-- ソース定義が、対象バージョンのスキーマとファイル境界を満たしている。
-- `skillName`、`displayName`、`description`、本文、`references`、`dependencies` が、完成したスキルの責務と意味に一致している。
-- 製品設定、生成手順、ホスト固有情報がそれぞれの所有箇所にあり、完成したスキルの本文が元の責務に留まっている。
-- `catalogId`、`tier`、`skillBundleVersion` が、対象製品の設定と一致している。
-- `agent-skill.json` とホスト別成果物が、定義したすべてのスキルに生成されている。
-- `dependencies` が解決でき、循環、欠落、別カタログへの暗黙依存を含まない。
-- 生成物の再生成で差分が出ず、生成元と同期している。
+ソース定義だけを編集し、generated を手で修正しない。利用側では次を実行する。
 
-#### 製品で利用できる状態を確認する
-対象製品が提供する検証を実行する。
-パッケージへ同梱する製品では、ビルドまたはパッケージ検証で生成物が収録されることを確認する。
-インストール、更新、診断を提供する製品では、隔離した検証対象またはドライランを使い、対象ホストと対象スコープで操作が成立し、生成した内容が選択結果へ含まれることを確認する。
+```bash
+dotnet tool run agent-skills -- build --root <root>
+```
 
-#### 契約の不足を切り分ける
-完成したスキルの意味をソース定義で表現できない場合は、必要な意味、現在の定義で失われる情報、影響する生成物を特定する。
-AgentSkills の契約変更に必要な入力として残し、完成したスキルと製品固有値はそれぞれの正本に従う。
+通常の内容変更では、source と generated のバージョンが同じなら CLI が `skillBundleVersion` を1つ進める。内容を変更したうえで source を generated のちょうど1つ先へ手動更新した場合は、その値を維持する。内容を伴わないバージョン変更、巻き戻し、飛び越しは修正せず失敗として扱う。
 
-### Phase 5: 作業状態を残す
-追加または更新では、変更したソース定義、生成物、採用した製品固有値、実行した生成と検証、必要な契約変更を示す。
-レビューでは、成立している点、ソース定義と生成物の不整合、製品設定とのずれ、必要な差分、未検証範囲を示す。
-確認が必要なことには、決めるべき製品方針、今回は適用した値、その選択で変わる配布または選択挙動を含める。
+SHA-256 は小文字16進数64文字で扱い、`sha256:` 接頭辞を付けない。
+
+### Phase 4: 配布境界を整える
+
+製品のビルド出力またはパッケージへ `<root>/generated` の内容を `skills/` として同梱する。標準の list、install、update、uninstall、prune、doctor、export を提供する製品は、同梱先を `PackageBaseDirectory` と一致させる。
+
+自己ホストする Agent Skills CLI では、現在の CLI ソースが source bundle から generated を作り、コミット済み generated をツールパッケージへ収録する。この処理を CLI 自身の MSBuild 中に起動する target にはしない。明示的な同期と検証に分けることで、CLI のビルドが未生成の CLI を要求する循環を作らない。
+
+自己ホスト CLI は依存性の最上位にある composition root とし、Core、Hosting、ConsoleAppFramework adapter を利用する。ConsoleAppFramework は command 型を利用側アセンブリでコンパイルする必要があるため、CLI も adapter の source integration を正本として使う。command wrapper を CLI へ複製せず、adapter や下位ライブラリから CLI を参照させない。
+
+### Phase 5: 検証する
+
+利用側の読み取り専用検証では次を実行する。
+
+```bash
+dotnet tool run agent-skills -- build --root <root> --check
+```
+
+Pull Request では `actions/verify/action.yaml` を使う。branch への自動同期では `contents: write` を与えて `actions/sync/action.yaml` を使う。sync は clean な Git index を要求し、source `bundle.json` と generated だけを bot commit の対象にする。
+
+最後に製品のビルドとパッケージ検証を実行し、同梱された bundle から対象スキルを列挙でき、代表ホストとスコープで install または dry-run が成功することを確認する。
 
 ## 完了条件
-AgentSkills の採用を確認できない場合は、対象外と判断した根拠を残している。
 
-採用を確認できた場合は、次を満たす。
-
-- 製品固有値と AgentSkills の契約を、それぞれの正本に照らしている。
-- ソース定義で表現できない事項が、AgentSkills の契約変更として分離されている。
-- 追加または更新では、完成したスキルの責務、発火面、判断、成果、完了状態がソース定義と生成物で保持され、古い生成物や再生成差分が残らず、製品での利用を検証している。
-- レビューでは、リポジトリが定める出力先を変更せず、成立している点、不整合、必要な差分、未検証範囲を返している。
+- 定義が固定深さの category 構造にあり、共通値を重複所有していない。
+- CLI による再同期後、`build --check` が成功する。
+- generated に古いスキル、旧 manifest、手編集差分が残っていない。
+- 配布物に generated bundle が収録され、標準コマンドから対象スキルを利用できる。
+- 自己ホストの場合、生成は明示コマンドであり、CLI のビルド依存に循環を作っていない。

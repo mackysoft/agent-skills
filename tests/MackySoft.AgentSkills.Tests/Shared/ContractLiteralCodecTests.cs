@@ -1,5 +1,7 @@
+using System.Reflection;
 using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Doctor;
+using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.OperationReports.Literals;
@@ -10,8 +12,17 @@ namespace MackySoft.AgentSkills.Tests.Shared;
 
 public sealed class ContractLiteralCodecTests
 {
+    private static readonly Type[] ContractLiteralEnumTypes = typeof(ContractLiteralAttribute).Assembly
+        .GetTypes()
+        .Where(static type => type.IsEnum && type
+            .GetFields(BindingFlags.Public | BindingFlags.Static)
+            .Any(static field => field.IsDefined(typeof(ContractLiteralAttribute), inherit: false)))
+        .OrderBy(static type => type.FullName, StringComparer.Ordinal)
+        .ToArray();
+
     public static TheoryData<Type, string[]> ContractLiteralEnumContracts => new()
     {
+        { typeof(SkillHostKind), new[] { "claude", "copilot", "openai" } },
         { typeof(SkillScopeKind), new[] { "project", "user" } },
         { typeof(SkillExportFormat), new[] { "directory", "zip" } },
         { typeof(SkillInstallActionKind), new[] { "created", "updated", "noOp", "blockedManagedOverwrite", "blockedLocalModification", "blockedUnmanaged" } },
@@ -75,11 +86,42 @@ public sealed class ContractLiteralCodecTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public void TryToValue_ReportsWhetherValueIsMapped ()
+    {
+        Assert.True(ContractLiteralCodec.TryToValue(SampleLiteral.Second, out var literal));
+        Assert.Equal("second-value", literal);
+
+        Assert.False(ContractLiteralCodec.TryToValue((SampleLiteral)999, out literal));
+        Assert.Null(literal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public void TryParse_ParsesCanonicalLiteralExactly ()
     {
         Assert.True(ContractLiteralCodec.TryParse("firstValue", out SampleLiteral value));
         Assert.Equal(SampleLiteral.First, value);
         Assert.False(ContractLiteralCodec.TryParse("FIRSTVALUE", out value));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void Matches_RequiresCanonicalLiteralAndExpectedValue ()
+    {
+        Assert.True(ContractLiteralCodec.Matches("firstValue", SampleLiteral.First));
+        Assert.False(ContractLiteralCodec.Matches("FIRSTVALUE", SampleLiteral.First));
+        Assert.False(ContractLiteralCodec.Matches("firstValue", SampleLiteral.Second));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void IsDefined_RequiresCanonicalLiteralOrMappedValue ()
+    {
+        Assert.True(ContractLiteralCodec.IsDefined<SampleLiteral>("firstValue"));
+        Assert.False(ContractLiteralCodec.IsDefined<SampleLiteral>("FIRSTVALUE"));
+        Assert.False(ContractLiteralCodec.IsDefined<SampleLiteral>(null));
+        Assert.True(ContractLiteralCodec.IsDefined(SampleLiteral.First));
+        Assert.False(ContractLiteralCodec.IsDefined((SampleLiteral)999));
     }
 
     [Fact]
@@ -103,13 +145,17 @@ public sealed class ContractLiteralCodecTests
         Type enumType,
         string[] expectedLiterals)
     {
-        var method = typeof(ContractLiteralCodec)
-            .GetMethod(nameof(ContractLiteralCodec.GetLiterals), Type.EmptyTypes)!
-            .MakeGenericMethod(enumType);
+        Assert.Equal(expectedLiterals, InvokeGetLiterals(enumType));
+    }
 
-        var literals = (IReadOnlyList<string>)method.Invoke(null, null)!;
-
-        Assert.Equal(expectedLiterals, literals);
+    [Fact]
+    [Trait("Size", "Small")]
+    public void GetLiterals_ForEveryDeclaredContractLiteralEnum_BuildsTable ()
+    {
+        foreach (var enumType in ContractLiteralEnumTypes)
+        {
+            Assert.NotEmpty(InvokeGetLiterals(enumType));
+        }
     }
 
     [Theory]
@@ -141,7 +187,7 @@ public sealed class ContractLiteralCodecTests
         static () => ContractLiteralCodec.GetLiterals<MissingLiteral>(),
         static () => ContractLiteralCodec.GetLiterals<DuplicateLiteral>(),
         static () => ContractLiteralCodec.GetLiterals<DuplicateValue>(),
-        static () => ContractLiteralCodec.GetLiterals<WhitespaceLiteral>(),
+        static () => ContractLiteralCodec.GetLiterals<EmptyLiteralContract>(),
     ];
 
     private enum SampleLiteral
@@ -176,10 +222,8 @@ public sealed class ContractLiteralCodecTests
         Second = 0,
     }
 
-    private enum WhitespaceLiteral
+    private enum EmptyLiteralContract
     {
-        [ContractLiteral(" value")]
-        Value = 0,
     }
 
     private static string InvokeToValue (Enum value)
@@ -190,5 +234,14 @@ public sealed class ContractLiteralCodecTests
             .MakeGenericMethod(value.GetType());
 
         return (string)method.Invoke(null, [value])!;
+    }
+
+    private static IReadOnlyList<string> InvokeGetLiterals (Type enumType)
+    {
+        var method = typeof(ContractLiteralCodec)
+            .GetMethod(nameof(ContractLiteralCodec.GetLiterals), Type.EmptyTypes)!
+            .MakeGenericMethod(enumType);
+
+        return (IReadOnlyList<string>)method.Invoke(null, null)!;
     }
 }

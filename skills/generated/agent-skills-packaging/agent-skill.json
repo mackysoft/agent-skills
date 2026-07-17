@@ -2,27 +2,27 @@
   "schemaVersion": 1,
   "skillBundleVersion": 1,
   "catalogId": "com.mackysoft.agent-skills",
-  "tier": "development",
+  "category": "basic",
   "skillName": "agent-skills-packaging",
   "displayName": "Agent Skills Packaging",
-  "description": "完成したエージェントスキルを AgentSkills のソース定義と生成パッケージへ反映し、製品が所有するカタログ情報、AgentSkills の生成契約、ホスト別成果物、同梱依存、製品での利用を検証する。AgentSkills を利用する製品で完成済みスキルの定義を追加または更新して生成物を同期するとき、あるいはソース定義と生成物をレビューするときに使う。",
+  "description": "完成したエージェントスキルを Agent Skills 1.0 の固定レイアウトへ反映し、生成、検証、配布物への同梱、自己ホスト時の依存境界を整える。Agent Skills を採用する製品でスキル定義を追加または更新するとき、verify と sync の継続的インテグレーション運用を整えるとき、または定義、生成物、配布契約をレビューするときに使う。",
   "dependencies": [],
-  "contentDigest": "8eec9a71278e4dbea3b58d70b13d81a13fe7fabf67febd37fab8075138ef652e",
-  "manifestDigest": "a96db763e724afc1b2a889be2eb22404803797f8766c16e547151f881aae287d",
+  "contentDigest": "ae0196bb75a04ae6e0ee208e1fa323a4d50a7f75470ac7b6b4852a0f97d2fa1e",
+  "manifestDigest": "efa5bec5915ca313783332ead90b636b3328bc771d76c89b89809ecf6dd534a0",
   "hostArtifacts": [
     {
       "host": "claude",
-      "materializedFrontmatterDigest": "10a7e60600a4d72c820b1122a14cca393da22c55aec5620c5ac010a272d6bdbe"
+      "materializedFrontmatterDigest": "6a0ad65b6bfbb0d748bbff6fb2cc05b6aec557bf2c497a97ec884683fadb73bd"
     },
     {
       "host": "copilot",
-      "materializedFrontmatterDigest": "d9836ebe3235c442f6e70098ccf7d600becb4305f1029f57a71199c4f15a8eaa"
+      "materializedFrontmatterDigest": "1b8971cdcf32db905a4087f6d030f8957774701abbb4fdaf9e4264047a024f83"
     },
     {
       "host": "openai",
       "path": "agents/openai.yaml",
-      "digest": "3c9e1f633dc51a6f2bfee422c09cd3ea5c7e5a701a96bb98aeb627e0a2aed0fe",
-      "materializedFrontmatterDigest": "3cbaac0161c4bab7a4c0e2bce00fde29ed3ef50fd268f3c065013862bb5438e2"
+      "digest": "adc7c1b743511491caea105f74f32a3e961b833479f2bba6fdff8defe14ce8a5",
+      "materializedFrontmatterDigest": "f0448f8275c527303428a2616250cfb4215a9710103ea25cc8df67dd3077696b"
     }
   ]
 }

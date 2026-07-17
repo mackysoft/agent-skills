@@ -1,5 +1,4 @@
-using MackySoft.AgentSkills.Hosts.Claude;
-using MackySoft.AgentSkills.Hosts.OpenAi;
+using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Names;
@@ -30,12 +29,12 @@ public sealed class SkillDoctorServiceTests
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
             packages,
-            new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
         var doctor = SkillTestData.CreateDoctorService();
 
-        var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, installResult.Value!.TargetRoot, CancellationToken.None);
+        var result = await doctor.DiagnoseAsync(packages, SkillHostKind.OpenAi, installResult.Value!.TargetRoot, CancellationToken.None);
 
         Assert.True(result.IsHealthy);
         Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == "SKILL_DOCTOR_OK");
@@ -50,7 +49,7 @@ public sealed class SkillDoctorServiceTests
         var doctor = SkillTestData.CreateDoctorService();
         var targetRoot = scope.CreateDirectory(".agents/skills");
 
-        var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, targetRoot, CancellationToken.None);
+        var result = await doctor.DiagnoseAsync(packages, SkillHostKind.OpenAi, targetRoot, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
         Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetUnmanaged);
@@ -65,12 +64,12 @@ public sealed class SkillDoctorServiceTests
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
             packages,
-            new SkillInstallRequest(ClaudeSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath, "shared-skills"),
+            new SkillInstallRequest(SkillHostKind.Claude, SkillScopeKind.Project, scope.FullPath, "shared-skills"),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
         var doctor = SkillTestData.CreateDoctorService();
 
-        var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, installResult.Value!.TargetRoot, CancellationToken.None);
+        var result = await doctor.DiagnoseAsync(packages, SkillHostKind.OpenAi, installResult.Value!.TargetRoot, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
         Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetHostConflict);
@@ -90,7 +89,7 @@ public sealed class SkillDoctorServiceTests
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", $"doctor-shared-{driftCase}");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var package = packages[0];
-        var host = OpenAiSkillHostAdapter.HostKey;
+        var host = SkillHostKind.OpenAi;
         var (targetRoot, skillDirectory) = await PrepareSharedDriftCaseAsync(scope, packages, driftCase);
 
         var stateResult = await SkillTestData.CreateTargetStateAnalyzer().AnalyzeAsync(package, skillDirectory, host, CancellationToken.None);
@@ -100,7 +99,7 @@ public sealed class SkillDoctorServiceTests
         var result = await doctor.DiagnoseAsync(packages, host, targetRoot, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
-        var diagnostic = Assert.Single(result.Diagnostics, diagnostic => diagnostic.SkillName == package.Manifest.SkillName.Value);
+        var diagnostic = Assert.Single(result.Diagnostics, diagnostic => diagnostic.SkillName == package.Manifest.SkillName);
         Assert.Equal(stateResult.Value!.Failure!.Code, diagnostic.Code);
         Assert.Equal(GetExpectedSharedDriftCode(driftCase), diagnostic.Code);
     }
@@ -114,13 +113,13 @@ public sealed class SkillDoctorServiceTests
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
             packages,
-            new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
         File.AppendAllText(Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "SKILL.md"), "\nInjected instruction.\n");
         var doctor = SkillTestData.CreateDoctorService();
 
-        var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, installResult.Value.TargetRoot, CancellationToken.None);
+        var result = await doctor.DiagnoseAsync(packages, SkillHostKind.OpenAi, installResult.Value.TargetRoot, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
         Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetContentDigestMismatch);
@@ -135,13 +134,13 @@ public sealed class SkillDoctorServiceTests
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
             packages,
-            new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
         File.Delete(Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "SKILL.md"));
         var doctor = SkillTestData.CreateDoctorService();
 
-        var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, installResult.Value.TargetRoot, CancellationToken.None);
+        var result = await doctor.DiagnoseAsync(packages, SkillHostKind.OpenAi, installResult.Value.TargetRoot, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
         Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetFileSetMismatch);
@@ -156,18 +155,18 @@ public sealed class SkillDoctorServiceTests
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
             packages,
-            new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
         var manifestPath = Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "agent-skill.json");
         var originalDigest = packages[0].Manifest.HostArtifacts
-            .Single(static artifact => artifact.Host == OpenAiSkillHostAdapter.HostKey)
+            .Single(static artifact => artifact.Host == SkillHostKind.OpenAi)
             .Digest!;
-        var manifestText = File.ReadAllText(manifestPath).Replace(originalDigest, new string('f', 64), StringComparison.Ordinal);
+        var manifestText = File.ReadAllText(manifestPath).Replace(originalDigest.ToString(), new string('f', 64), StringComparison.Ordinal);
         File.WriteAllText(manifestPath, manifestText);
         var doctor = SkillTestData.CreateDoctorService();
 
-        var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, installResult.Value.TargetRoot, CancellationToken.None);
+        var result = await doctor.DiagnoseAsync(packages, SkillHostKind.OpenAi, installResult.Value.TargetRoot, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
         Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetManifestDigestMismatch);
@@ -182,14 +181,14 @@ public sealed class SkillDoctorServiceTests
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
             packages,
-            new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
         var manifestPath = Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "agent-skill.json");
         SkillTestData.TamperManifestDigest(manifestPath);
         var doctor = SkillTestData.CreateDoctorService();
 
-        var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, installResult.Value.TargetRoot, CancellationToken.None);
+        var result = await doctor.DiagnoseAsync(packages, SkillHostKind.OpenAi, installResult.Value.TargetRoot, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
         Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetManifestDigestMismatch);
@@ -204,7 +203,7 @@ public sealed class SkillDoctorServiceTests
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
             packages,
-            new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
         var referencePath = Path.Combine(
@@ -214,7 +213,7 @@ public sealed class SkillDoctorServiceTests
         File.Delete(referencePath);
         var doctor = SkillTestData.CreateDoctorService();
 
-        var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, installResult.Value.TargetRoot, CancellationToken.None);
+        var result = await doctor.DiagnoseAsync(packages, SkillHostKind.OpenAi, installResult.Value.TargetRoot, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
         Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetFileSetMismatch);
@@ -229,13 +228,13 @@ public sealed class SkillDoctorServiceTests
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
             packages,
-            new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
         Directory.CreateDirectory(Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "empty"));
         var doctor = SkillTestData.CreateDoctorService();
 
-        var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, installResult.Value.TargetRoot, CancellationToken.None);
+        var result = await doctor.DiagnoseAsync(packages, SkillHostKind.OpenAi, installResult.Value.TargetRoot, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
         Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetFileSetMismatch);
@@ -250,13 +249,13 @@ public sealed class SkillDoctorServiceTests
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
             packages,
-            new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
         File.AppendAllText(Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "agents", "openai.yaml"), "\n# Drifted metadata.\n");
         var doctor = SkillTestData.CreateDoctorService();
 
-        var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, installResult.Value.TargetRoot, CancellationToken.None);
+        var result = await doctor.DiagnoseAsync(packages, SkillHostKind.OpenAi, installResult.Value.TargetRoot, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
         Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetHostArtifactDigestMismatch);
@@ -271,13 +270,13 @@ public sealed class SkillDoctorServiceTests
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
             packages,
-            new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
         File.Delete(Path.Combine(installResult.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "agents", "openai.yaml"));
         var doctor = SkillTestData.CreateDoctorService();
 
-        var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, installResult.Value.TargetRoot, CancellationToken.None);
+        var result = await doctor.DiagnoseAsync(packages, SkillHostKind.OpenAi, installResult.Value.TargetRoot, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
         Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetHostArtifactDigestMismatch);
@@ -294,15 +293,24 @@ public sealed class SkillDoctorServiceTests
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
             installedPackages,
-            new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
         var doctor = SkillTestData.CreateDoctorService();
 
-        var result = await doctor.DiagnoseAsync(currentPackages, OpenAiSkillHostAdapter.HostKey, installResult.Value!.TargetRoot, CancellationToken.None);
+        var stateResult = await SkillTestData.CreateTargetStateAnalyzer().AnalyzeAsync(
+            updatedPackage,
+            Path.Combine(installResult.Value!.TargetRoot, updatedPackage.Manifest.SkillName.Value),
+            SkillHostKind.OpenAi,
+            CancellationToken.None);
+        Assert.True(stateResult.IsSuccess, stateResult.Failure?.Message);
+
+        var result = await doctor.DiagnoseAsync(currentPackages, SkillHostKind.OpenAi, installResult.Value.TargetRoot, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
-        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetOutdated);
+        var diagnostic = Assert.Single(result.Diagnostics, diagnostic => diagnostic.SkillName == updatedPackage.Manifest.SkillName);
+        Assert.Equal(stateResult.Value!.Failure!.Code, diagnostic.Code);
+        Assert.Equal(stateResult.Value.Failure.Message, diagnostic.Message);
     }
 
     [Fact]
@@ -317,12 +325,12 @@ public sealed class SkillDoctorServiceTests
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
             installedPackages,
-            new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
         var doctor = SkillTestData.CreateDoctorService();
 
-        var result = await doctor.DiagnoseAsync(currentPackages, OpenAiSkillHostAdapter.HostKey, installResult.Value!.TargetRoot, CancellationToken.None);
+        var result = await doctor.DiagnoseAsync(currentPackages, SkillHostKind.OpenAi, installResult.Value!.TargetRoot, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
         Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetOutdated);
@@ -340,12 +348,12 @@ public sealed class SkillDoctorServiceTests
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
             installedPackages,
-            new SkillInstallRequest(ClaudeSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+            new SkillInstallRequest(SkillHostKind.Claude, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
         var doctor = SkillTestData.CreateDoctorService();
 
-        var result = await doctor.DiagnoseAsync(currentPackages, ClaudeSkillHostAdapter.HostKey, installResult.Value!.TargetRoot, CancellationToken.None);
+        var result = await doctor.DiagnoseAsync(currentPackages, SkillHostKind.Claude, installResult.Value!.TargetRoot, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
         Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetOutdated);
@@ -361,7 +369,7 @@ public sealed class SkillDoctorServiceTests
         scope.WriteFile(Path.Combine(".agents", "skills", packages[0].Manifest.SkillName.Value, "agent-skill.json"), "{}");
         var doctor = SkillTestData.CreateDoctorService();
 
-        var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, targetRoot, CancellationToken.None);
+        var result = await doctor.DiagnoseAsync(packages, SkillHostKind.OpenAi, targetRoot, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
         Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.ManifestInvalid);
@@ -397,7 +405,7 @@ public sealed class SkillDoctorServiceTests
 
         var doctor = SkillTestData.CreateDoctorService();
 
-        var result = await doctor.DiagnoseAsync(packages, OpenAiSkillHostAdapter.HostKey, targetRoot, CancellationToken.None);
+        var result = await doctor.DiagnoseAsync(packages, SkillHostKind.OpenAi, targetRoot, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
         Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.PathUnsafe);
@@ -405,16 +413,14 @@ public sealed class SkillDoctorServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task DiagnoseAsync_ReportsUnsupportedHost_WhenHostIsUnknown ()
+    public async Task DiagnoseAsync_RejectsUndefinedHost ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "doctor-unsupported-host");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var doctor = SkillTestData.CreateDoctorService();
 
-        var result = await doctor.DiagnoseAsync(packages, "generic", scope.FullPath, CancellationToken.None);
-
-        Assert.False(result.IsHealthy);
-        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.HostUnsupported);
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await doctor.DiagnoseAsync(packages, (SkillHostKind)42, scope.FullPath, CancellationToken.None));
     }
 
     private static async Task<(string TargetRoot, string SkillDirectory)> PrepareSharedDriftCaseAsync (
@@ -427,7 +433,7 @@ public sealed class SkillDoctorServiceTests
         {
             var claudeInstall = await SkillTestData.CreateInstallService().InstallAsync(
                 packages,
-                new SkillInstallRequest(ClaudeSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath, "shared-skills"),
+                new SkillInstallRequest(SkillHostKind.Claude, SkillScopeKind.Project, scope.FullPath, "shared-skills"),
                 CancellationToken.None);
             Assert.True(claudeInstall.IsSuccess, claudeInstall.Failure?.Message);
             return (claudeInstall.Value!.TargetRoot, Path.Combine(claudeInstall.Value.TargetRoot, package.Manifest.SkillName.Value));
@@ -438,17 +444,16 @@ public sealed class SkillDoctorServiceTests
         if (driftCase == SharedDriftCase.NameCollision)
         {
             Directory.CreateDirectory(skillDirectory);
-            var manifest = SkillTestData.WithComputedManifestDigest(package.Manifest with
-            {
-                SkillName = new SkillName("different-skill"),
-            });
+            var manifest = SkillTestData.WithComputedManifestDigest(SkillTestData.CopyManifest(
+                package.Manifest,
+                skillName: new SkillName("different-skill")));
             File.WriteAllText(Path.Combine(skillDirectory, "agent-skill.json"), new SkillManifestJsonSerializer().Serialize(manifest));
             return (targetRoot, skillDirectory);
         }
 
         var installResult = await SkillTestData.CreateInstallService().InstallAsync(
             packages,
-            new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
         targetRoot = installResult.Value!.TargetRoot;

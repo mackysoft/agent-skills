@@ -1,76 +1,82 @@
+using MackySoft.AgentSkills.Digests;
+
 namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
 /// <summary> Represents product-neutral list data for one canonical skill package. </summary>
-/// <param name="SchemaVersion"> The manifest schema version. </param>
-/// <param name="SkillBundleVersion"> The product-owned SKILL bundle version. </param>
-/// <param name="SkillName"> The skill name. </param>
-/// <param name="DisplayName"> The display name shown by SKILL listing commands. </param>
-/// <param name="Description"> The host-independent SKILL description. </param>
-/// <param name="Dependencies"> The dependent skill name literals. </param>
-/// <param name="Tier"> The product-owned SKILL tier literal. </param>
-/// <param name="CatalogId"> The stable SKILL catalog ID literal. </param>
-/// <param name="ContentDigest"> The host-independent content digest. </param>
-/// <param name="ManifestDigest"> The canonical manifest digest excluding this field. </param>
-/// <param name="HostArtifacts"> The host-specific artifact reports sorted by host key using ordinal comparison. </param>
-public sealed record SkillListSkillReport (
-    int SchemaVersion,
-    int SkillBundleVersion,
-    string SkillName,
-    string DisplayName,
-    string Description,
-    IReadOnlyList<string> Dependencies,
-    string Tier,
-    string CatalogId,
-    string ContentDigest,
-    string ManifestDigest,
-    IReadOnlyList<SkillHostArtifactReport> HostArtifacts)
+public sealed class SkillListSkillReport
 {
-    /// <summary> Initializes a report using the pre-skillBundleVersion constructor shape. </summary>
-    public SkillListSkillReport (
-        int SchemaVersion,
-        string SkillName,
-        string DisplayName,
-        string Description,
-        string Tier,
-        string CatalogId,
-        string ContentDigest,
-        string ManifestDigest,
-        IReadOnlyList<SkillHostArtifactReport> HostArtifacts)
-        : this(
-            SchemaVersion,
-            0,
-            SkillName,
-            DisplayName,
-            Description,
-            [],
-            Tier,
-            CatalogId,
-            ContentDigest,
-            ManifestDigest,
-            HostArtifacts)
+    internal SkillListSkillReport (
+        int schemaVersion,
+        int skillBundleVersion,
+        string skillName,
+        string displayName,
+        string description,
+        IReadOnlyList<string> dependencies,
+        string category,
+        string catalogId,
+        Sha256Digest contentDigest,
+        Sha256Digest manifestDigest,
+        IReadOnlyList<SkillHostArtifactReport> hostArtifacts)
     {
+        if (schemaVersion <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(schemaVersion), schemaVersion, "Manifest schema version must be positive.");
+        }
+
+        if (skillBundleVersion <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(skillBundleVersion), skillBundleVersion, "SKILL bundle version must be positive.");
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(skillName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(description);
+        ArgumentException.ThrowIfNullOrWhiteSpace(category);
+        ArgumentException.ThrowIfNullOrWhiteSpace(catalogId);
+
+        SchemaVersion = schemaVersion;
+        SkillBundleVersion = skillBundleVersion;
+        SkillName = skillName;
+        DisplayName = displayName;
+        Description = description;
+        Dependencies = OperationReportContractGuard.SnapshotRequiredStrings(dependencies, nameof(dependencies));
+        Category = category;
+        CatalogId = catalogId;
+        ContentDigest = contentDigest ?? throw new ArgumentNullException(nameof(contentDigest));
+        ManifestDigest = manifestDigest ?? throw new ArgumentNullException(nameof(manifestDigest));
+        HostArtifacts = OperationReportContractGuard.SnapshotRequiredItems(hostArtifacts, nameof(hostArtifacts));
     }
 
-    /// <summary> Deconstructs a report using the pre-skillBundleVersion tuple shape. </summary>
-    public void Deconstruct (
-        out int SchemaVersion,
-        out string SkillName,
-        out string DisplayName,
-        out string Description,
-        out string Tier,
-        out string CatalogId,
-        out string ContentDigest,
-        out string ManifestDigest,
-        out IReadOnlyList<SkillHostArtifactReport> HostArtifacts)
-    {
-        SchemaVersion = this.SchemaVersion;
-        SkillName = this.SkillName;
-        DisplayName = this.DisplayName;
-        Description = this.Description;
-        Tier = this.Tier;
-        CatalogId = this.CatalogId;
-        ContentDigest = this.ContentDigest;
-        ManifestDigest = this.ManifestDigest;
-        HostArtifacts = this.HostArtifacts;
-    }
+    /// <summary> Gets the manifest schema version. </summary>
+    public int SchemaVersion { get; }
+
+    /// <summary> Gets the SKILL bundle version. </summary>
+    public int SkillBundleVersion { get; }
+
+    /// <summary> Gets the canonical SKILL name. </summary>
+    public string SkillName { get; }
+
+    /// <summary> Gets the display name. </summary>
+    public string DisplayName { get; }
+
+    /// <summary> Gets the host-independent description. </summary>
+    public string Description { get; }
+
+    /// <summary> Gets dependent SKILL name literals. </summary>
+    public IReadOnlyList<string> Dependencies { get; }
+
+    /// <summary> Gets the category literal. </summary>
+    public string Category { get; }
+
+    /// <summary> Gets the catalog ID literal. </summary>
+    public string CatalogId { get; }
+
+    /// <summary> Gets the content digest. </summary>
+    public Sha256Digest ContentDigest { get; }
+
+    /// <summary> Gets the manifest digest. </summary>
+    public Sha256Digest ManifestDigest { get; }
+
+    /// <summary> Gets host-specific artifact reports in canonical host order. </summary>
+    public IReadOnlyList<SkillHostArtifactReport> HostArtifacts { get; }
 }
