@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "skillBundleVersion": 1,
+  "catalogId": "com.mackysoft.agent-skills",
+  "tier": "development",
+  "skillName": "agent-skills-packaging",
+  "displayName": "Agent Skills Packaging",
+  "description": "完成したエージェントスキルを AgentSkills の正規ソース定義へ反映し、製品が所有するカタログ情報と整合させ、正規パッケージの生成、ホスト別成果物、依存関係、インストール可能性を検証する。AgentSkills を利用する製品でスキル定義を追加、更新、レビューし、生成物を同期するときに使う。",
+  "dependencies": [],
+  "contentDigest": "da7b2c8a239bd365e6611ba7251b1222203bf32008b2329e21973e1f7c507029",
+  "manifestDigest": "10ef210a869052a2b5b0f410a6f73a140ea37b9d811251aeb4c2538fca23b886",
+  "hostArtifacts": [
+    {
+      "host": "claude",
+      "materializedFrontmatterDigest": "f3af07f8a632d1a51403a14647cb89bfc46ce7b351747d206631a03df512e92e"
+    },
+    {
+      "host": "copilot",
+      "materializedFrontmatterDigest": "473e72a36085aa9eba5a7b0ebe8b6dd6239dba31188684d2b126bd58b19a3b37"
+    },
+    {
+      "host": "openai",
+      "path": "agents/openai.yaml",
+      "digest": "8b225e0728d942902cdaf3ee213e7ec8a2e23817eb3f65091e76a549a91bfd56",
+      "materializedFrontmatterDigest": "41089efff6d377772843cd9f23d13eb373c47e432a394ae9950a6210c4e2643c"
+    }
+  ]
+}
