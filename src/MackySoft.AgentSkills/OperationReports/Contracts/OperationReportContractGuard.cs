@@ -1,8 +1,67 @@
+using MackySoft.AgentSkills.Installation.Targeting;
+using MackySoft.AgentSkills.Shared;
+using MackySoft.AgentSkills.Shared.FileSystem;
+
 namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
 /// <summary> Validates and snapshots values stored by operation report contracts. </summary>
 internal static class OperationReportContractGuard
 {
+    public static string? NormalizeRepositoryRoot (
+        SkillScopeKind scope,
+        string? repositoryRoot,
+        string parameterName)
+    {
+        if (scope == SkillScopeKind.User)
+        {
+            if (repositoryRoot is not null)
+            {
+                throw new ArgumentException("User-scope reports must not contain a repository root.", parameterName);
+            }
+
+            return null;
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(repositoryRoot, parameterName);
+        return NormalizeAbsolutePath(repositoryRoot, parameterName);
+    }
+
+    public static string NormalizeAbsolutePath (
+        string path,
+        string parameterName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path, parameterName);
+        if (!Path.IsPathFullyQualified(path))
+        {
+            throw new ArgumentException("Report paths must be absolute.", parameterName);
+        }
+
+        return Path.GetFullPath(path);
+    }
+
+    public static string NormalizeTargetRoot (
+        SkillScopeKind scope,
+        string? repositoryRoot,
+        string targetRoot,
+        string parameterName)
+    {
+        var normalizedTargetRoot = NormalizeAbsolutePath(targetRoot, parameterName);
+        var allowedRoot = scope == SkillScopeKind.Project
+            ? repositoryRoot!
+            : normalizedTargetRoot;
+        var result = SkillPathBoundary.ResolveUnderRoot(
+            allowedRoot,
+            normalizedTargetRoot,
+            SkillFailureCodes.PathUnsafe,
+            "Report target path");
+        if (!result.IsSuccess)
+        {
+            throw new ArgumentException(result.Failure!.Message, parameterName);
+        }
+
+        return result.Value!;
+    }
+
     public static IReadOnlyList<string> SnapshotRequiredStrings (
         IReadOnlyList<string> values,
         string parameterName)

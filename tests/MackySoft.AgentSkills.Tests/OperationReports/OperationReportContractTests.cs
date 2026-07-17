@@ -16,6 +16,8 @@ namespace MackySoft.AgentSkills.Tests.OperationReports;
 public sealed class OperationReportContractTests
 {
     private static readonly Sha256Digest Digest = Sha256Digest.Parse(new string('a', 64));
+    private static readonly string RepositoryRoot = Path.GetFullPath("operation-report-repository");
+    private static readonly string TargetRoot = Path.Combine(RepositoryRoot, ".agents", "skills");
 
     [Fact]
     [Trait("Size", "Small")]
@@ -90,7 +92,9 @@ public sealed class OperationReportContractTests
             [],
             [],
             SkillScopeKind.Project,
-            "/target",
+            RepositoryRoot,
+            TargetRoot,
+            "Reload.",
             diagnostics);
 
         diagnostics[0] = new SkillDoctorDiagnosticReport(
@@ -104,11 +108,103 @@ public sealed class OperationReportContractTests
             [],
             [],
             SkillScopeKind.Project,
-            "/target",
+            RepositoryRoot,
+            TargetRoot,
+            "Reload.",
             diagnostics);
 
         Assert.True(healthy.IsHealthy);
         Assert.False(unhealthy.IsHealthy);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void TargetReports_RejectPathsThatDoNotMatchTheirScopeContract ()
+    {
+        Assert.Throws<ArgumentNullException>(() => new SkillDoctorReport(
+            SkillHostKind.OpenAi,
+            [],
+            [],
+            SkillScopeKind.Project,
+            repositoryRoot: null,
+            TargetRoot,
+            "Reload.",
+            []));
+        Assert.Throws<ArgumentException>(() => new SkillDoctorReport(
+            SkillHostKind.OpenAi,
+            [],
+            [],
+            SkillScopeKind.User,
+            RepositoryRoot,
+            TargetRoot,
+            "Reload.",
+            []));
+        Assert.Throws<ArgumentException>(() => new SkillDoctorReport(
+            SkillHostKind.OpenAi,
+            [],
+            [],
+            SkillScopeKind.Project,
+            "relative-repository",
+            TargetRoot,
+            "Reload.",
+            []));
+        Assert.Throws<ArgumentException>(() => new SkillOperationReport(
+            SkillHostKind.OpenAi,
+            [],
+            [],
+            SkillScopeKind.Project,
+            RepositoryRoot,
+            "relative-target",
+            dryRun: false,
+            force: false,
+            reloadGuidance: "Reload.",
+            actions: [],
+            actionCounts: [],
+            statusCounts: []));
+        Assert.Throws<ArgumentException>(() => new SkillDoctorReport(
+            SkillHostKind.OpenAi,
+            [],
+            [],
+            SkillScopeKind.Project,
+            RepositoryRoot,
+            Path.GetFullPath(RepositoryRoot + "-outside"),
+            "Reload.",
+            []));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void TargetReports_NormalizeRepositoryAndTargetPaths ()
+    {
+        var repositoryRootInput = Path.Combine(RepositoryRoot, "nested", "..");
+        var targetRootInput = Path.Combine(repositoryRootInput, ".agents", "nested", "..", "skills");
+        var doctor = new SkillDoctorReport(
+            SkillHostKind.OpenAi,
+            [],
+            [],
+            SkillScopeKind.Project,
+            repositoryRootInput,
+            targetRootInput,
+            "Reload.",
+            []);
+        var operation = new SkillOperationReport(
+            SkillHostKind.OpenAi,
+            [],
+            [],
+            SkillScopeKind.Project,
+            repositoryRootInput,
+            targetRootInput,
+            dryRun: false,
+            force: false,
+            reloadGuidance: "Reload.",
+            actions: [],
+            actionCounts: [],
+            statusCounts: []);
+
+        Assert.Equal(RepositoryRoot, doctor.RepositoryRoot);
+        Assert.Equal(TargetRoot, doctor.TargetRoot);
+        Assert.Equal(RepositoryRoot, operation.RepositoryRoot);
+        Assert.Equal(TargetRoot, operation.TargetRoot);
     }
 
     [Fact]
@@ -120,7 +216,8 @@ public sealed class OperationReportContractTests
             [],
             [],
             SkillScopeKind.Project,
-            "/target",
+            RepositoryRoot,
+            TargetRoot,
             dryRun: false,
             force: false,
             reloadGuidance: "Reload.",
@@ -148,7 +245,9 @@ public sealed class OperationReportContractTests
             [],
             [],
             SkillScopeKind.Project,
-            "/target",
+            RepositoryRoot,
+            TargetRoot,
+            "Reload.",
             [
                 new SkillDoctorDiagnosticReport(
                     SkillDoctorSeverity.Error,
@@ -162,7 +261,7 @@ public sealed class OperationReportContractTests
             [],
             [],
             SkillExportFormat.Zip,
-            "/target/skills.zip",
+            Path.Combine(TargetRoot, "skills.zip"),
             [],
             0,
             "Reload.");
@@ -201,14 +300,18 @@ public sealed class OperationReportContractTests
             [],
             [],
             SkillScopeKind.Project,
-            "/target",
+            RepositoryRoot,
+            TargetRoot,
+            "Reload.",
             []));
         Assert.Throws<ArgumentOutOfRangeException>(() => new SkillDoctorReport(
             SkillHostKind.OpenAi,
             [],
             [],
             (SkillScopeKind)42,
-            "/target",
+            RepositoryRoot,
+            TargetRoot,
+            "Reload.",
             []));
         Assert.Throws<ArgumentOutOfRangeException>(() => new SkillExportReport(
             SkillHostKind.OpenAi,

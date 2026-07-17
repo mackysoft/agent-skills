@@ -114,10 +114,11 @@ public sealed class AgentSkillsCommandRunnerTests
     {
         using var packageScope = TestDirectories.CreateTempScope("agent-skills-hosting", "install-package-root");
         using var targetScope = TestDirectories.CreateTempScope("agent-skills-hosting", "install-resolved-root");
+        var repositoryRootInput = Path.Combine(targetScope.FullPath, "nested", "..");
         await WriteFixturePackagesAsync(packageScope.FullPath);
         using var provider = CreateProvider(
             packageScope.FullPath,
-            repositoryRootResolver: _ => targetScope.FullPath);
+            repositoryRootResolver: _ => repositoryRootInput);
         var runner = provider.GetRequiredService<AgentSkillsCommandRunner>();
 
         var result = await runner.InstallAsync(
@@ -130,7 +131,84 @@ public sealed class AgentSkillsCommandRunnerTests
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var report = Assert.IsType<SkillOperationReport>(result.Payload);
+        Assert.Equal(Path.GetFullPath(repositoryRootInput), report.RepositoryRoot);
         FileSystemAssert.ForPath(report.TargetRoot).EqualsNormalized(Path.Combine(targetScope.FullPath, ".agents", "skills"));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task DoctorAsync_ReturnsNormalizedTargetContextAndReloadGuidance ()
+    {
+        using var packageScope = TestDirectories.CreateTempScope("agent-skills-hosting", "doctor-report-package-root");
+        using var targetScope = TestDirectories.CreateTempScope("agent-skills-hosting", "doctor-report-target-root");
+        await WriteFixturePackagesAsync(packageScope.FullPath);
+        using var provider = CreateProvider(packageScope.FullPath);
+        var runner = provider.GetRequiredService<AgentSkillsCommandRunner>();
+
+        var result = await runner.DoctorAsync(
+            new AgentSkillsDoctorCommandRequest(
+                host: "openai",
+                category: ["core"],
+                scope: "project",
+                repositoryRoot: targetScope.FullPath),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        var report = Assert.IsType<SkillDoctorReport>(result.Payload);
+        FileSystemAssert.ForPath(report.RepositoryRoot!).EqualsNormalized(targetScope.FullPath);
+        FileSystemAssert.ForPath(report.TargetRoot).EqualsNormalized(Path.Combine(targetScope.FullPath, ".agents", "skills"));
+        var adapter = SkillTestData.CreateDefaultHostAdapterSet().GetAdapter(report.Host);
+        Assert.True(adapter.IsSuccess, adapter.Failure?.Message);
+        Assert.Equal(adapter.Value!.Descriptor.ReloadGuidance, report.ReloadGuidance);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task InstallAsync_WhenScopeIsUser_ReturnsNoRepositoryRoot ()
+    {
+        using var packageScope = TestDirectories.CreateTempScope("agent-skills-hosting", "install-user-package-root");
+        using var targetScope = TestDirectories.CreateTempScope("agent-skills-hosting", "install-user-target-root");
+        await WriteFixturePackagesAsync(packageScope.FullPath);
+        using var provider = CreateProvider(packageScope.FullPath);
+        var runner = provider.GetRequiredService<AgentSkillsCommandRunner>();
+
+        var result = await runner.InstallAsync(
+            new AgentSkillsInstallCommandRequest(
+                host: "openai",
+                category: ["core"],
+                scope: "user",
+                targetDir: targetScope.FullPath,
+                dryRun: true),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        var report = Assert.IsType<SkillOperationReport>(result.Payload);
+        Assert.Null(report.RepositoryRoot);
+        FileSystemAssert.ForPath(report.TargetRoot).EqualsNormalized(targetScope.FullPath);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task DoctorAsync_WhenScopeIsUser_ReturnsNoRepositoryRoot ()
+    {
+        using var packageScope = TestDirectories.CreateTempScope("agent-skills-hosting", "doctor-user-package-root");
+        using var targetScope = TestDirectories.CreateTempScope("agent-skills-hosting", "doctor-user-target-root");
+        await WriteFixturePackagesAsync(packageScope.FullPath);
+        using var provider = CreateProvider(packageScope.FullPath);
+        var runner = provider.GetRequiredService<AgentSkillsCommandRunner>();
+
+        var result = await runner.DoctorAsync(
+            new AgentSkillsDoctorCommandRequest(
+                host: "openai",
+                category: ["core"],
+                scope: "user",
+                targetDir: targetScope.FullPath),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        var report = Assert.IsType<SkillDoctorReport>(result.Payload);
+        Assert.Null(report.RepositoryRoot);
+        FileSystemAssert.ForPath(report.TargetRoot).EqualsNormalized(targetScope.FullPath);
     }
 
     [Fact]

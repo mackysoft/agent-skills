@@ -373,9 +373,7 @@ public sealed class AgentSkillsCommandRunner
                 .ConfigureAwait(false);
         var report = SkillOperationReportBuilder.CreateDoctorReport(
             doctorResult,
-            prepared.Target.Scope,
-            prepared.Catalog.SelectedCategories,
-            prepared.Catalog.SelectedSkillNames);
+            CreateReportContext(prepared));
         return AgentSkillsCommandResult.Success(
             commandName,
             report,
@@ -683,6 +681,7 @@ public sealed class AgentSkillsCommandRunner
         return new SkillOperationReportContext(
             target.HostDescriptor,
             target.Scope,
+            target.Request.RepositoryRoot,
             selectedCategories,
             selectedSkillNames);
     }

@@ -502,14 +502,19 @@ public sealed class SkillOperationReportBuilderTests
 
         var report = SkillOperationReportBuilder.CreateDoctorReport(
             result,
-            SkillScopeKind.Project,
-            [new SkillCategory("developer")],
-            [new SkillName("skill-a")]);
+            new SkillOperationReportContext(
+                OpenAiDescriptor,
+                SkillScopeKind.Project,
+                Path.GetFullPath("."),
+                [new SkillCategory("developer")],
+                [new SkillName("skill-a")]));
 
         Assert.False(report.IsHealthy);
         Assert.Equal(["developer"], report.Categories);
         Assert.Equal(["skill-a"], report.SkillNames);
         Assert.Equal(SkillScopeKind.Project, report.Scope);
+        Assert.Equal(Path.GetFullPath("."), report.RepositoryRoot);
+        Assert.Equal(OpenAiDescriptor.ReloadGuidance, report.ReloadGuidance);
         Assert.Equal(new string?[] { null, "skill-a", "skill-a", "skill-a", "skill-b", "skill-c", "skill-d", "skill-e" }, report.Diagnostics.Select(static diagnostic => diagnostic.SkillName).ToArray());
         Assert.Equal(SkillDoctorSeverity.Error, report.Diagnostics[0].Severity);
         Assert.Null(report.Diagnostics[0].TargetState);
@@ -527,7 +532,7 @@ public sealed class SkillOperationReportBuilderTests
     [Trait("Size", "Small")]
     public void OperationReportPublicContracts_DoNotExposeProductEnvelopeFields ()
     {
-        var forbiddenTerms = new[] { "command", "exitCode", "repositoryRoot", "ucli", "dotmet" };
+        var forbiddenTerms = new[] { "command", "exitCode", "ucli", "dotmet" };
         var reportTypes = GetPublicReportContractTypes();
 
         Assert.NotEmpty(reportTypes);
@@ -609,7 +614,9 @@ public sealed class SkillOperationReportBuilderTests
             ("Categories", typeof(IReadOnlyList<string>)),
             ("SkillNames", typeof(IReadOnlyList<string>)),
             ("Scope", typeof(SkillScopeKind)),
+            ("RepositoryRoot", typeof(string)),
             ("TargetRoot", typeof(string)),
+            ("ReloadGuidance", typeof(string)),
             ("IsHealthy", typeof(bool)),
             ("Diagnostics", typeof(IReadOnlyList<SkillDoctorDiagnosticReport>)));
         AssertProperties<SkillExportReport>(
@@ -678,6 +685,7 @@ public sealed class SkillOperationReportBuilderTests
             ("Categories", typeof(IReadOnlyList<string>)),
             ("SkillNames", typeof(IReadOnlyList<string>)),
             ("Scope", typeof(SkillScopeKind)),
+            ("RepositoryRoot", typeof(string)),
             ("TargetRoot", typeof(string)),
             ("DryRun", typeof(bool)),
             ("Force", typeof(bool)),
@@ -755,7 +763,31 @@ public sealed class SkillOperationReportBuilderTests
 
         Assert.Throws<ArgumentException>(() => SkillOperationReportBuilder.CreateInstallReport(
             result,
-            new SkillOperationReportContext(GetHostDescriptor(SkillHostKind.Claude), SkillScopeKind.Project, [new SkillCategory("basic")], [])));
+            new SkillOperationReportContext(
+                GetHostDescriptor(SkillHostKind.Claude),
+                SkillScopeKind.Project,
+                Path.GetFullPath("."),
+                [new SkillCategory("basic")],
+                [])));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void CreateDoctorReport_RejectsMismatchedContextHost ()
+    {
+        var result = new SkillDoctorResult(
+            SkillHostKind.OpenAi,
+            Path.GetFullPath("doctor-report-context-mismatch"),
+            []);
+
+        Assert.Throws<ArgumentException>(() => SkillOperationReportBuilder.CreateDoctorReport(
+            result,
+            new SkillOperationReportContext(
+                GetHostDescriptor(SkillHostKind.Claude),
+                SkillScopeKind.Project,
+                Path.GetFullPath("."),
+                [new SkillCategory("basic")],
+                [])));
     }
 
     [Fact]
@@ -885,14 +917,24 @@ public sealed class SkillOperationReportBuilderTests
         IReadOnlyList<SkillCategory> categories,
         IReadOnlyList<SkillName> skillNames)
     {
-        return new SkillOperationReportContext(OpenAiDescriptor, SkillScopeKind.Project, categories, skillNames);
+        return new SkillOperationReportContext(
+            OpenAiDescriptor,
+            SkillScopeKind.Project,
+            Path.GetFullPath("."),
+            categories,
+            skillNames);
     }
 
     private static SkillOperationReportContext CreateContext (
         SkillScopeKind scope,
         IReadOnlyList<SkillCategory> categories)
     {
-        return new SkillOperationReportContext(OpenAiDescriptor, scope, categories, []);
+        return new SkillOperationReportContext(
+            OpenAiDescriptor,
+            scope,
+            scope == SkillScopeKind.Project ? Path.GetFullPath(".") : null,
+            categories,
+            []);
     }
 
     private static void AssertCount (
