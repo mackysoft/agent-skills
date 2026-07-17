@@ -6,13 +6,38 @@ on:
     branches:
       - master
   workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Commit SHA that a synchronizing workflow expects this run to verify.
+        required: false
+        type: string
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
+  source:
+    name: synchronized source
+    if: inputs.expected_sha != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Guard synchronized commit
+        env:
+          ACTUAL_SHA: ${{ github.sha }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          if [[ "${ACTUAL_SHA}" != "${EXPECTED_SHA}" ]]; then
+            echo "Expected synchronized commit ${EXPECTED_SHA}, but workflow_dispatch resolved ${ACTUAL_SHA}." >&2
+            exit 1
+          fi
+
   test:
+    needs: source
+    if: always() && (needs.source.result == 'success' || needs.source.result == 'skipped')
     uses: ./.github/workflows/dotnet-verify.yaml
     permissions:
       contents: read

@@ -10,6 +10,9 @@ jobs:
     permissions:
       contents: read
 
+    env:
+      SELF_HOSTED_PACKAGE_VERSION: 0.0.0-ci.${{ github.run_id }}.${{ github.run_attempt }}
+
     strategy:
       fail-fast: false
       matrix:
@@ -39,3 +42,14 @@ jobs:
 
       - name: Verify
         run: bash scripts/verify.sh --configuration Release
+
+      - name: Prepare self-hosted Agent Skills CLI
+        run: >-
+          bash scripts/prepare-self-hosted-cli.sh
+          --version "${SELF_HOSTED_PACKAGE_VERSION}"
+          --output "${RUNNER_TEMP}/agent-skills-feed"
+
+      - name: Verify repository skills through the Action
+        uses: ./actions/verify
+        with:
+          root: skills
