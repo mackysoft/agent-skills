@@ -7,8 +7,8 @@
   "displayName": "Agent Skills Packaging",
   "description": "完成したエージェントスキルを AgentSkills の正規ソース定義へ反映し、製品が所有するカタログ情報と整合させ、正規パッケージの生成、ホスト別成果物、依存関係、インストール可能性を検証する。AgentSkills を利用する製品でスキル定義を追加または更新して生成物を同期するとき、あるいは定義と生成物をレビューするときに使う。",
   "dependencies": [],
-  "contentDigest": "8f9bf300467c7132e3190a8b59bd790ddc583ed47120f245dfdf7bc4ac4e624f",
-  "manifestDigest": "f7702e56d2fe7709c18a9fdb84ede9468b9bbf7367a2e5bf93faa45c730b45d6",
+  "contentDigest": "65f713836b26ef77b35d57d151a7c09bd01c7313760e7d942823ba5adee4a922",
+  "manifestDigest": "70b6ca1741613c71a99ff920f55751f106769b07f85aefab689684dd1eaadaa6",
   "hostArtifacts": [
     {
       "host": "claude",
