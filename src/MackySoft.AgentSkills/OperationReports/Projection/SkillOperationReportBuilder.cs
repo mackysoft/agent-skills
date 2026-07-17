@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Doctor;
 using MackySoft.AgentSkills.Hosts.Contracts;
@@ -8,10 +9,8 @@ using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.OperationReports.Contracts;
 using MackySoft.AgentSkills.OperationReports.Literals;
 using MackySoft.AgentSkills.Packaging.Canonical;
-using MackySoft.AgentSkills.Selection;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.AgentSkills.Shared.Text;
-using MackySoft.AgentSkills.Tiers;
 
 namespace MackySoft.AgentSkills.OperationReports.Projection;
 
@@ -28,34 +27,34 @@ public static class SkillOperationReportBuilder
     {
         ArgumentNullException.ThrowIfNull(catalog);
 
-        return CreateListReport(catalog.Packages, hostAdapters, catalog.SelectedTiers, catalog.SelectedSkillNames, catalog.AvailableTiers);
+        return CreateListReport(catalog.Packages, hostAdapters, catalog.SelectedCategories, catalog.SelectedSkillNames, catalog.AvailableCategories);
     }
 
     private static SkillListReport CreateListReport (
         IReadOnlyList<CanonicalSkillPackage> packages,
         SkillHostAdapterSet hostAdapters,
-        IReadOnlyList<SkillTier> selectedTiers,
+        IReadOnlyList<SkillCategory> selectedCategories,
         IReadOnlyList<SkillName> selectedSkillNames,
-        IReadOnlyList<SkillTierPackageCount> availableTiers)
+        IReadOnlyList<SkillCategoryPackageCount> availableCategories)
     {
         ArgumentNullException.ThrowIfNull(packages);
         ArgumentNullException.ThrowIfNull(hostAdapters);
-        ArgumentNullException.ThrowIfNull(selectedTiers);
+        ArgumentNullException.ThrowIfNull(selectedCategories);
         ArgumentNullException.ThrowIfNull(selectedSkillNames);
-        ArgumentNullException.ThrowIfNull(availableTiers);
+        ArgumentNullException.ThrowIfNull(availableCategories);
 
         var skills = packages
             .OrderBy(static package => package.Manifest.SkillName.Value, StringComparer.Ordinal)
             .Select(static package => CreateListSkillReport(package))
             .ToArray();
-        var tierReports = CreateAvailableTierReports(availableTiers);
+        var categoryReports = CreateAvailableCategoryReports(availableCategories);
         var hosts = hostAdapters.Adapters
             .Select(static adapter => adapter.Descriptor)
-            .OrderBy(static descriptor => descriptor.HostKey, StringComparer.Ordinal)
+            .OrderBy(static descriptor => descriptor.Host)
             .Select(static descriptor => CreateHostReport(descriptor))
             .ToArray();
 
-        return new SkillListReport(CreateTierLiterals(selectedTiers), CreateSkillNameLiterals(selectedSkillNames), tierReports, skills, hosts);
+        return new SkillListReport(CreateCategoryLiterals(selectedCategories), CreateSkillNameLiterals(selectedSkillNames), categoryReports, skills, hosts);
     }
 
     /// <summary> Creates export report data from a successful export operation. </summary>
@@ -63,19 +62,19 @@ public static class SkillOperationReportBuilder
     /// <param name="packages"> The exported packages. Must not be <see langword="null" />. </param>
     /// <param name="hostDescriptor"> The descriptor for the host used for export. Must not be <see langword="null" />. </param>
     /// <param name="format"> The export format used for export. </param>
-    /// <param name="selectedTiers"> The selected product-owned SKILL tiers. Must not be <see langword="null" />. </param>
+    /// <param name="selectedCategories"> The selected product-owned SKILL categories. Must not be <see langword="null" />. </param>
     /// <returns> A report whose skill names are sorted using ordinal comparison. </returns>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="packages" />, <paramref name="hostDescriptor" />, <paramref name="selectedTiers" />, or an item in <paramref name="selectedTiers" /> is <see langword="null" />. </exception>
-    /// <exception cref="ArgumentException"> Thrown when <paramref name="outputPath" />, the host key, or reload guidance is null, empty, or whitespace. </exception>
+    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="packages" />, <paramref name="hostDescriptor" />, <paramref name="selectedCategories" />, or an item in <paramref name="selectedCategories" /> is <see langword="null" />. </exception>
+    /// <exception cref="ArgumentException"> Thrown when <paramref name="outputPath" /> is null, empty, or whitespace. </exception>
     /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="format" /> is not a supported export format. </exception>
     public static SkillExportReport CreateExportReport (
         string outputPath,
         IReadOnlyList<CanonicalSkillPackage> packages,
         SkillHostDescriptor hostDescriptor,
         SkillExportFormat format,
-        IReadOnlyList<SkillTier> selectedTiers)
+        IReadOnlyList<SkillCategory> selectedCategories)
     {
-        return CreateExportReport(outputPath, packages, hostDescriptor, format, selectedTiers, []);
+        return CreateExportReport(outputPath, packages, hostDescriptor, format, selectedCategories, []);
     }
 
     /// <summary> Creates export report data from a successful export operation. </summary>
@@ -83,25 +82,25 @@ public static class SkillOperationReportBuilder
     /// <param name="packages"> The exported packages. Must not be <see langword="null" />. </param>
     /// <param name="hostDescriptor"> The descriptor for the host used for export. Must not be <see langword="null" />. </param>
     /// <param name="format"> The export format used for export. </param>
-    /// <param name="selectedTiers"> The selected product-owned SKILL tiers. Must not be <see langword="null" />. </param>
+    /// <param name="selectedCategories"> The selected product-owned SKILL categories. Must not be <see langword="null" />. </param>
     /// <param name="selectedSkillNames"> The exact selected SKILL names. Empty means no name filter. </param>
     /// <returns> A report whose skill names are sorted using ordinal comparison. </returns>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="packages" />, <paramref name="hostDescriptor" />, <paramref name="selectedTiers" />, <paramref name="selectedSkillNames" />, or an item in <paramref name="selectedTiers" /> is <see langword="null" />. </exception>
-    /// <exception cref="ArgumentException"> Thrown when <paramref name="outputPath" />, the host key, reload guidance, or a selected SKILL name is invalid. </exception>
+    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="packages" />, <paramref name="hostDescriptor" />, <paramref name="selectedCategories" />, <paramref name="selectedSkillNames" />, or an item in <paramref name="selectedCategories" /> is <see langword="null" />. </exception>
+    /// <exception cref="ArgumentException"> Thrown when <paramref name="outputPath" /> or a selected SKILL name is invalid. </exception>
     /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="format" /> is not a supported export format. </exception>
     public static SkillExportReport CreateExportReport (
         string outputPath,
         IReadOnlyList<CanonicalSkillPackage> packages,
         SkillHostDescriptor hostDescriptor,
         SkillExportFormat format,
-        IReadOnlyList<SkillTier> selectedTiers,
-        IReadOnlyList<string> selectedSkillNames)
+        IReadOnlyList<SkillCategory> selectedCategories,
+        IReadOnlyList<SkillName> selectedSkillNames)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
         ArgumentNullException.ThrowIfNull(packages);
-        ArgumentNullException.ThrowIfNull(selectedTiers);
+        ArgumentNullException.ThrowIfNull(selectedCategories);
         ArgumentNullException.ThrowIfNull(selectedSkillNames);
-        ValidateHostDescriptor(hostDescriptor);
+        ArgumentNullException.ThrowIfNull(hostDescriptor);
 
         var skills = packages
             .Select(static package => package.Manifest.SkillName)
@@ -110,27 +109,27 @@ public static class SkillOperationReportBuilder
             .ToArray();
 
         return new SkillExportReport(
-            hostDescriptor.HostKey,
-            CreateTierLiterals(selectedTiers),
+            hostDescriptor.Host,
+            CreateCategoryLiterals(selectedCategories),
             CreateSkillNameLiterals(selectedSkillNames),
-            ContractLiteralCodec.ToValue(format),
+            format,
             outputPath,
             skills,
             skills.Length,
             hostDescriptor.ReloadGuidance);
     }
 
-    /// <summary> Creates export report data from a successful export operation for one selected tier. </summary>
+    /// <summary> Creates export report data from a successful export operation for one selected category. </summary>
     public static SkillExportReport CreateExportReport (
         string outputPath,
         IReadOnlyList<CanonicalSkillPackage> packages,
         SkillHostDescriptor hostDescriptor,
         SkillExportFormat format,
-        SkillTier tier)
+        SkillCategory category)
     {
-        ArgumentNullException.ThrowIfNull(tier);
+        ArgumentNullException.ThrowIfNull(category);
 
-        return CreateExportReport(outputPath, packages, hostDescriptor, format, [tier], []);
+        return CreateExportReport(outputPath, packages, hostDescriptor, format, [category], []);
     }
 
     /// <summary> Creates product-neutral report data from a successful install operation. </summary>
@@ -260,78 +259,69 @@ public static class SkillOperationReportBuilder
     /// <summary> Creates product-neutral report data from a doctor result. </summary>
     /// <param name="result"> The doctor result to report. Must not be <see langword="null" />. </param>
     /// <param name="scope"> The install scope used to resolve the diagnosed target root. </param>
-    /// <param name="selectedTiers"> The selected product-owned SKILL tiers. Must not be <see langword="null" />. </param>
+    /// <param name="selectedCategories"> The selected product-owned SKILL categories. Must not be <see langword="null" />. </param>
     /// <returns> A report whose diagnostics are sorted deterministically. </returns>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="result" />, <paramref name="selectedTiers" />, or an item in <paramref name="selectedTiers" /> is <see langword="null" />. </exception>
+    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="result" />, <paramref name="selectedCategories" />, or an item in <paramref name="selectedCategories" /> is <see langword="null" />. </exception>
     /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="scope" /> is not a supported install scope. </exception>
     public static SkillDoctorReport CreateDoctorReport (
         SkillDoctorResult result,
         SkillScopeKind scope,
-        IReadOnlyList<SkillTier> selectedTiers)
+        IReadOnlyList<SkillCategory> selectedCategories)
     {
-        ArgumentNullException.ThrowIfNull(result);
-        ArgumentNullException.ThrowIfNull(selectedTiers);
-
-        var diagnostics = result.Diagnostics
-            .OrderBy(static diagnostic => diagnostic.SkillName is null ? 0 : 1)
-            .ThenBy(static diagnostic => diagnostic.SkillName, StringComparer.Ordinal)
-            .ThenBy(static diagnostic => diagnostic.Code, StringComparer.Ordinal)
-            .ThenBy(static diagnostic => diagnostic.Message, StringComparer.Ordinal)
-            .ThenBy(static diagnostic => (int)diagnostic.Severity)
-            .Select(static diagnostic => new SkillDoctorDiagnosticReport(
-                ContractLiteralCodec.ToValue(diagnostic.Severity),
-                diagnostic.Code,
-                diagnostic.Message,
-                diagnostic.SkillName,
-                ResolveDiagnosticTargetState(diagnostic.Code)))
-            .ToArray();
-
-        return new SkillDoctorReport(
-            result.Host,
-            CreateTierLiterals(selectedTiers),
-            [],
-            ContractLiteralCodec.ToValue(scope),
-            result.TargetRoot,
-            result.IsHealthy,
-            diagnostics);
+        return CreateDoctorReport(result, scope, selectedCategories, []);
     }
 
     /// <summary> Creates product-neutral report data from a doctor result. </summary>
     /// <param name="result"> The doctor result to report. Must not be <see langword="null" />. </param>
     /// <param name="scope"> The install scope used to resolve the diagnosed target root. </param>
-    /// <param name="selectedTiers"> The selected product-owned SKILL tiers. Must not be <see langword="null" />. </param>
+    /// <param name="selectedCategories"> The selected product-owned SKILL categories. Must not be <see langword="null" />. </param>
     /// <param name="selectedSkillNames"> The exact selected SKILL names. Empty means no name filter. </param>
     /// <returns> A report whose diagnostics are sorted deterministically. </returns>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="result" />, <paramref name="selectedTiers" />, <paramref name="selectedSkillNames" />, or an item in <paramref name="selectedTiers" /> is <see langword="null" />. </exception>
+    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="result" />, <paramref name="selectedCategories" />, <paramref name="selectedSkillNames" />, or an item in <paramref name="selectedCategories" /> is <see langword="null" />. </exception>
     /// <exception cref="ArgumentException"> Thrown when a selected SKILL name is invalid. </exception>
     /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="scope" /> is not a supported install scope. </exception>
     public static SkillDoctorReport CreateDoctorReport (
         SkillDoctorResult result,
         SkillScopeKind scope,
-        IReadOnlyList<SkillTier> selectedTiers,
-        IReadOnlyList<string> selectedSkillNames)
+        IReadOnlyList<SkillCategory> selectedCategories,
+        IReadOnlyList<SkillName> selectedSkillNames)
     {
         ArgumentNullException.ThrowIfNull(result);
-        ArgumentNullException.ThrowIfNull(selectedTiers);
+        ArgumentNullException.ThrowIfNull(selectedCategories);
         ArgumentNullException.ThrowIfNull(selectedSkillNames);
 
-        var report = CreateDoctorReport(result, scope, selectedTiers);
+        var diagnostics = result.Diagnostics
+            .OrderBy(static diagnostic => diagnostic.SkillName is null ? 0 : 1)
+            .ThenBy(static diagnostic => diagnostic.SkillName?.Value, StringComparer.Ordinal)
+            .ThenBy(static diagnostic => diagnostic.Code.Value, StringComparer.Ordinal)
+            .ThenBy(static diagnostic => diagnostic.Message, StringComparer.Ordinal)
+            .ThenBy(static diagnostic => (int)diagnostic.Severity)
+            .Select(static diagnostic => new SkillDoctorDiagnosticReport(
+                diagnostic.Severity,
+                diagnostic.Code.Value,
+                diagnostic.Message,
+                diagnostic.SkillName?.Value,
+                ResolveDiagnosticTargetState(diagnostic.Code)))
+            .ToArray();
 
-        return report with
-        {
-            SkillNames = CreateSkillNameLiterals(selectedSkillNames),
-        };
+        return new SkillDoctorReport(
+            result.Host,
+            CreateCategoryLiterals(selectedCategories),
+            CreateSkillNameLiterals(selectedSkillNames),
+            scope,
+            result.TargetRoot,
+            diagnostics);
     }
 
-    /// <summary> Creates product-neutral report data from a doctor result for one selected tier. </summary>
+    /// <summary> Creates product-neutral report data from a doctor result for one selected category. </summary>
     public static SkillDoctorReport CreateDoctorReport (
         SkillDoctorResult result,
         SkillScopeKind scope,
-        SkillTier tier)
+        SkillCategory category)
     {
-        ArgumentNullException.ThrowIfNull(tier);
+        ArgumentNullException.ThrowIfNull(category);
 
-        return CreateDoctorReport(result, scope, [tier]);
+        return CreateDoctorReport(result, scope, [category]);
     }
 
     private static SkillOperationReport CreateOperationReport<TAction> (
@@ -352,7 +342,6 @@ public static class SkillOperationReportBuilder
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(targetRoot);
         ArgumentNullException.ThrowIfNull(actions);
-        ValidateHostDescriptor(context.HostDescriptor);
 
         var projectedActions = actions
             .OrderBy(action => getIdentity(action).SkillName.Value, StringComparer.Ordinal)
@@ -371,47 +360,31 @@ public static class SkillOperationReportBuilder
             .ToArray();
 
         return new SkillOperationReport(
-            context.HostDescriptor.HostKey,
-            CreateTierLiterals(context.SelectedTiers),
+            context.HostDescriptor.Host,
+            CreateCategoryLiterals(context.SelectedCategories),
             CreateSkillNameLiterals(context.SelectedSkillNames),
-            ContractLiteralCodec.ToValue(context.Scope),
+            context.Scope,
             targetRoot,
             dryRun,
             force,
             context.HostDescriptor.ReloadGuidance,
             projectedActions,
             CreateCounts(actionLiteralOrder, projectedActions, static action => action.Action),
-            CreateCounts(
-                ContractLiteralCodec.GetLiterals<SkillOperationActionStatus>(),
-                projectedActions,
-                static action => action.Status));
+            CreateStatusCounts(projectedActions));
     }
 
-    private static IReadOnlyList<string> CreateTierLiterals (IReadOnlyList<SkillTier> tiers)
+    private static IReadOnlyList<string> CreateCategoryLiterals (IReadOnlyList<SkillCategory> categories)
     {
-        ArgumentNullException.ThrowIfNull(tiers);
+        ArgumentNullException.ThrowIfNull(categories);
 
         var literals = new List<string>();
-        foreach (var tier in tiers)
+        foreach (var category in categories)
         {
-            ArgumentNullException.ThrowIfNull(tier);
-            literals.Add(tier.Value);
+            ArgumentNullException.ThrowIfNull(category);
+            literals.Add(category.Value);
         }
 
         return literals;
-    }
-
-    private static IReadOnlyList<string> CreateSkillNameLiterals (IReadOnlyList<string> skillNames)
-    {
-        ArgumentNullException.ThrowIfNull(skillNames);
-
-        var result = SkillNameLiteralParser.ParseOptionalSkillNames(skillNames);
-        if (!result.IsSuccess)
-        {
-            throw new ArgumentException(result.Failure!.Message, nameof(skillNames));
-        }
-
-        return CreateSkillNameLiterals(result.Value!);
     }
 
     private static IReadOnlyList<string> CreateSkillNameLiterals (IReadOnlyList<SkillName> skillNames)
@@ -428,16 +401,16 @@ public static class SkillOperationReportBuilder
         return literals;
     }
 
-    private static IReadOnlyList<SkillListTierReport> CreateAvailableTierReports (IReadOnlyList<SkillTierPackageCount> availableTiers)
+    private static IReadOnlyList<SkillListCategoryReport> CreateAvailableCategoryReports (IReadOnlyList<SkillCategoryPackageCount> availableCategories)
     {
-        ArgumentNullException.ThrowIfNull(availableTiers);
+        ArgumentNullException.ThrowIfNull(availableCategories);
 
-        var reports = new List<SkillListTierReport>(availableTiers.Count);
-        foreach (var availableTier in availableTiers)
+        var reports = new List<SkillListCategoryReport>(availableCategories.Count);
+        foreach (var availableCategory in availableCategories)
         {
-            ArgumentNullException.ThrowIfNull(availableTier);
-            ArgumentNullException.ThrowIfNull(availableTier.Tier);
-            reports.Add(new SkillListTierReport(availableTier.Tier.Value, availableTier.PackageCount));
+            ArgumentNullException.ThrowIfNull(availableCategory);
+            ArgumentNullException.ThrowIfNull(availableCategory.Category);
+            reports.Add(new SkillListCategoryReport(availableCategory.Category.Value, availableCategory.PackageCount));
         }
 
         return reports;
@@ -464,8 +437,8 @@ public static class SkillOperationReportBuilder
         return new SkillOperationActionReport(
             identity.SkillName.Value,
             getActionLiteral(action),
-            ContractLiteralCodec.ToValue(status),
-            blockedReason.HasValue ? ContractLiteralCodec.ToValue(blockedReason.Value) : null,
+            status,
+            blockedReason,
             CreateTargetStateReport(getTargetState(action)),
             CreateFileChangesReport(getFileChanges(action)),
             CreateFileDiffReports(printDiff ? getDiffs(action) : null));
@@ -478,13 +451,7 @@ public static class SkillOperationReportBuilder
             return null;
         }
 
-        return new SkillTargetStateReport(
-            ContractLiteralCodec.ToValue(state.Kind),
-            state.Code.HasValue ? FormatFailureCode(state.Code.Value) : null,
-            state.Message,
-            state.InstalledSkillBundleVersion,
-            state.BundledSkillBundleVersion,
-            CreateTargetFileSetReport(state.FileSet));
+        return new SkillTargetStateReport(state);
     }
 
     private static SkillOperationFileChangesReport? CreateFileChangesReport (SkillActionFileChanges? fileChanges)
@@ -492,18 +459,8 @@ public static class SkillOperationReportBuilder
         return fileChanges is null
             ? null
             : new SkillOperationFileChangesReport(
-                CreateSafeRelativePathReports(fileChanges.ReplacedFiles, nameof(fileChanges)),
-                CreateSafeRelativePathReports(fileChanges.RemovedFiles, nameof(fileChanges)));
-    }
-
-    private static string FormatFailureCode (SkillFailureCode code)
-    {
-        if (!code.IsValid)
-        {
-            throw new ArgumentException("Failure code must be valid.", nameof(code));
-        }
-
-        return code.Value;
+                fileChanges.ReplacedFiles,
+                fileChanges.RemovedFiles);
     }
 
     private static IReadOnlyList<SkillOperationFileDiffReport> CreateFileDiffReports (IReadOnlyList<SkillActionDiff>? diffs)
@@ -517,10 +474,9 @@ public static class SkillOperationReportBuilder
             foreach (var file in diff.Files)
             {
                 ArgumentNullException.ThrowIfNull(file);
-                ValidateSafeRelativePath(file.RelativePath, nameof(diffs));
                 files.Add(new SkillOperationFileDiffReport(
                     file.RelativePath,
-                    ContractLiteralCodec.ToValue(file.ChangeKind),
+                    file.ChangeKind,
                     file.BeforeContent,
                     file.AfterContent));
             }
@@ -528,7 +484,17 @@ public static class SkillOperationReportBuilder
 
         return files
             .OrderBy(static file => file.RelativePath, StringComparer.Ordinal)
-            .ThenBy(static file => file.ChangeKind, StringComparer.Ordinal)
+            .ThenBy(static file => file.ChangeKind)
+            .ToArray();
+    }
+
+    private static IReadOnlyList<SkillOperationCountReport> CreateStatusCounts (
+        IReadOnlyList<SkillOperationActionReport> actions)
+    {
+        return ContractLiteralCodec.GetLiterals<SkillOperationActionStatus>()
+            .Select(literal => new SkillOperationCountReport(
+                literal,
+                actions.Count(action => ContractLiteralCodec.Matches(literal, action.Status))))
             .ToArray();
     }
 
@@ -544,12 +510,11 @@ public static class SkillOperationReportBuilder
             .ToArray();
     }
 
-    private static string? ResolveDiagnosticTargetState (string code)
+    private static SkillTargetStateKind? ResolveDiagnosticTargetState (SkillFailureCode code)
     {
-        return SkillFailureCode.TryCreate(code, out var failureCode)
-            && SkillDiagnosticTargetStateResolver.TryResolve(failureCode, out var stateKind)
-                ? ContractLiteralCodec.ToValue(stateKind)
-                : null;
+        return SkillDiagnosticTargetStateResolver.TryResolve(code, out var stateKind)
+            ? stateKind
+            : null;
     }
 
     private static SkillListSkillReport CreateListSkillReport (CanonicalSkillPackage package)
@@ -562,12 +527,12 @@ public static class SkillOperationReportBuilder
             manifest.DisplayName,
             manifest.Description,
             CreateSkillNameLiterals(manifest.Dependencies),
-            manifest.Tier.Value,
+            manifest.Category.Value,
             manifest.CatalogId.Value,
             manifest.ContentDigest,
             manifest.ManifestDigest,
             manifest.HostArtifacts
-                .OrderBy(static artifact => artifact.Host, StringComparer.Ordinal)
+                .OrderBy(static artifact => artifact.Host)
                 .Select(static artifact => new SkillHostArtifactReport(
                     artifact.Host,
                     artifact.Path,
@@ -578,67 +543,17 @@ public static class SkillOperationReportBuilder
 
     private static SkillHostReport CreateHostReport (SkillHostDescriptor descriptor)
     {
-        ValidateHostDescriptor(descriptor);
 
         return new SkillHostReport(
-            descriptor.HostKey,
-            descriptor.SupportsProjectScope,
-            descriptor.SupportsUserScope,
+            descriptor.Host,
             descriptor.ProjectDefaultTargetPath,
             descriptor.UserDefaultTargetPath,
-            descriptor.UserTargetRootPolicy is null
-                ? null
-                : new SkillUserTargetRootPolicyReport(
-                    descriptor.UserTargetRootPolicy.EnvironmentVariableName,
-                    descriptor.UserTargetRootPolicy.EnvironmentVariableChildDirectory,
-                    descriptor.UserTargetRootPolicy.HomeRelativeDirectory),
-            descriptor.RequiresMetadataArtifact,
+            new SkillUserTargetRootPolicyReport(
+                descriptor.UserTargetRootPolicy.EnvironmentVariableName,
+                descriptor.UserTargetRootPolicy.EnvironmentVariableChildDirectory,
+                descriptor.UserTargetRootPolicy.HomeRelativeDirectory),
             descriptor.MetadataArtifactPath,
             descriptor.ReloadGuidance);
-    }
-
-    private static SkillTargetFileSetReport? CreateTargetFileSetReport (SkillActionTargetFileSet? fileSet)
-    {
-        return fileSet is null
-            ? null
-            : new SkillTargetFileSetReport(
-                CreateSafeRelativePathReports(fileSet.MissingFiles, nameof(fileSet)),
-                CreateSafeRelativePathReports(fileSet.ExtraFiles, nameof(fileSet)),
-                CreateSafeRelativePathReports(fileSet.ExtraDirectories, nameof(fileSet)));
-    }
-
-    private static IReadOnlyList<string> CreateSafeRelativePathReports (
-        IReadOnlyList<string> relativePaths,
-        string parameterName)
-    {
-        ArgumentNullException.ThrowIfNull(relativePaths);
-
-        foreach (var relativePath in relativePaths)
-        {
-            ValidateSafeRelativePath(relativePath, parameterName);
-        }
-
-        return relativePaths
-            .Order(StringComparer.Ordinal)
-            .ToArray();
-    }
-
-    private static void ValidateSafeRelativePath (
-        string relativePath,
-        string parameterName)
-    {
-        if (!IsSafeReportRelativePath(relativePath))
-        {
-            throw new ArgumentException($"Operation report path must be a safe slash-separated relative file path: {relativePath}", parameterName);
-        }
-    }
-
-    private static bool IsSafeReportRelativePath (string? relativePath)
-    {
-        return SkillRelativePath.IsSafeFilePath(relativePath)
-            && relativePath is not null
-            && !relativePath.Contains(':', StringComparison.Ordinal)
-            && !relativePath.Any(char.IsControl);
     }
 
     private static void ValidateIdentity (
@@ -646,7 +561,7 @@ public static class SkillOperationReportBuilder
         string targetRoot,
         SkillOperationReportContext context)
     {
-        if (!string.Equals(identity.Host, context.HostDescriptor.HostKey, StringComparison.Ordinal))
+        if (identity.Host != context.HostDescriptor.Host)
         {
             throw new ArgumentException("Operation report context host must match every action identity host.", nameof(context));
         }
@@ -662,10 +577,4 @@ public static class SkillOperationReportBuilder
         }
     }
 
-    private static void ValidateHostDescriptor (SkillHostDescriptor hostDescriptor)
-    {
-        ArgumentNullException.ThrowIfNull(hostDescriptor);
-        ArgumentException.ThrowIfNullOrWhiteSpace(hostDescriptor.HostKey, nameof(hostDescriptor));
-        ArgumentException.ThrowIfNullOrWhiteSpace(hostDescriptor.ReloadGuidance, nameof(hostDescriptor));
-    }
 }

@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Text;
+using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Materialization;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Packaging.FileSystem;
@@ -29,7 +30,7 @@ public sealed class SkillExportService
     /// <returns> The output root or failure. </returns>
     public ValueTask<SkillOperationResult<string>> ExportAsync (
         IReadOnlyList<CanonicalSkillPackage> packages,
-        string host,
+        SkillHostKind host,
         string outputRoot,
         CancellationToken cancellationToken = default)
     {
@@ -45,9 +46,9 @@ public sealed class SkillExportService
     /// <returns> The output path or failure. </returns>
     public async ValueTask<SkillOperationResult<string>> ExportAsync (
         IReadOnlyList<CanonicalSkillPackage> packages,
-        string host,
+        SkillHostKind host,
         string outputRoot,
-        SkillExportFormat format = SkillExportFormat.Directory,
+        SkillExportFormat format,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(packages);
@@ -66,7 +67,7 @@ public sealed class SkillExportService
 
     private async ValueTask<SkillOperationResult<string>> ExportDirectoryAsync (
         IReadOnlyList<CanonicalSkillPackage> packages,
-        string host,
+        SkillHostKind host,
         string outputRoot,
         CancellationToken cancellationToken)
     {
@@ -108,7 +109,7 @@ public sealed class SkillExportService
 
     private async ValueTask<SkillOperationResult<string>> ExportZipAsync (
         IReadOnlyList<CanonicalSkillPackage> packages,
-        string host,
+        SkillHostKind host,
         string outputPath,
         CancellationToken cancellationToken)
     {
@@ -202,7 +203,23 @@ public sealed class SkillExportService
         }
     }
 
-    private sealed record SkillZipEntry (
-        string EntryPath,
-        string Content);
+    private sealed class SkillZipEntry
+    {
+        public SkillZipEntry (
+            string entryPath,
+            string content)
+        {
+            if (!SkillRelativePath.IsSafeFilePath(entryPath))
+            {
+                throw new ArgumentException("The ZIP entry path must be a safe path relative to the export root.", nameof(entryPath));
+            }
+
+            EntryPath = entryPath;
+            Content = content ?? throw new ArgumentNullException(nameof(content));
+        }
+
+        public string EntryPath { get; }
+
+        public string Content { get; }
+    }
 }

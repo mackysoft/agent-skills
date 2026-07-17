@@ -12,8 +12,9 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>agent-skills</ToolCommandName>
     <PackageId>MackySoft.AgentSkills.Cli</PackageId>
-    <Description>.NET CLI tool for generating canonical agent skill packages from product-owned skill definitions.</Description>
-    <PackageTags>agent;skills;cli;tool;generator</PackageTags>
+    <Description>.NET CLI tool for building, listing, exporting, installing, updating, uninstalling, pruning, and diagnosing agent skill packages.</Description>
+    <PackageTags>agent;skills;cli;tool;generator;installer</PackageTags>
+    <AgentSkillsConsoleAppFrameworkGenerateRegistrar>false</AgentSkillsConsoleAppFrameworkGenerateRegistrar>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,6 +24,18 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
     <ProjectReference Include="../MackySoft.AgentSkills/MackySoft.AgentSkills.csproj" />
+    <ProjectReference Include="../MackySoft.AgentSkills.ConsoleAppFramework/MackySoft.AgentSkills.ConsoleAppFramework.csproj"
+                      ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../MackySoft.AgentSkills.Hosting/MackySoft.AgentSkills.Hosting.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../skills/generated/**/*"
+          Link="skills/%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <Import Project="../MackySoft.AgentSkills.ConsoleAppFramework/buildTransitive/MackySoft.AgentSkills.ConsoleAppFramework.props" />
 
 </Project>

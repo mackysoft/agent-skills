@@ -1,4 +1,4 @@
-using MackySoft.AgentSkills.Hosts.OpenAi;
+using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Contracts;
 using MackySoft.AgentSkills.Installation.Transactions;
 using MackySoft.AgentSkills.Materialization;
@@ -21,10 +21,10 @@ public sealed class SkillMaterializedPackageWriterTests
         var writer = SkillTestData.CreatePackageWriter();
         var package = new SkillMaterializedPackage(
             new SkillName("sample-skill"),
-            OpenAiSkillHostAdapter.HostKey,
+            SkillHostKind.OpenAi,
             [
-                SkillPackageFile.Create("nested", "file"),
-                SkillPackageFile.Create("nested/file.md", "nested"),
+                new SkillPackageFile("nested", "file"),
+                new SkillPackageFile("nested/file.md", "nested"),
             ]);
 
         var result = await writer.WriteAsync(targetRoot, skillDirectory, package, CancellationToken.None);
@@ -47,10 +47,10 @@ public sealed class SkillMaterializedPackageWriterTests
         var writer = new SkillMaterializedPackageWriter(new CommitMoveFailingDirectoryOperations());
         var package = new SkillMaterializedPackage(
             new SkillName("sample-skill"),
-            OpenAiSkillHostAdapter.HostKey,
+            SkillHostKind.OpenAi,
             [
-                SkillPackageFile.Create("SKILL.md", "# New\n"),
-                SkillPackageFile.Create("new.md", "# New file\n"),
+                new SkillPackageFile("SKILL.md", "# New\n"),
+                new SkillPackageFile("new.md", "# New file\n"),
             ]);
 
         var result = await writer.WriteAsync(targetRoot, skillDirectory, package, CancellationToken.None);
@@ -74,9 +74,9 @@ public sealed class SkillMaterializedPackageWriterTests
         var writer = SkillTestData.CreatePackageWriter();
         var package = new SkillMaterializedPackage(
             new SkillName("sample-skill"),
-            OpenAiSkillHostAdapter.HostKey,
+            SkillHostKind.OpenAi,
             [
-                SkillPackageFile.Create("SKILL.md", "# New\n"),
+                new SkillPackageFile("SKILL.md", "# New\n"),
             ]);
         var preconditionCallCount = 0;
 
@@ -110,7 +110,7 @@ public sealed class SkillMaterializedPackageWriterTests
         var result = await writer.WriteAsync(
             targetScope.FullPath,
             outsideSkillDirectory,
-            new SkillMaterializedPackage(new SkillName("skill"), OpenAiSkillHostAdapter.HostKey, []),
+            new SkillMaterializedPackage(new SkillName("skill"), SkillHostKind.OpenAi, []),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);

@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Collections.ObjectModel;
 using System.Security.Cryptography;
 using System.Text;
 using MackySoft.AgentSkills.Digests;
@@ -239,7 +240,7 @@ public sealed class SkillMaterializedPackageDiffBuilder
             AppendSnapshotEntry(hash, "F", file.Key, file.Value);
         }
 
-        return new SkillActionTargetSnapshot(Sha256LowerHex.GetHashAndReset(hash));
+        return new SkillActionTargetSnapshot(Sha256Digest.GetHashAndReset(hash));
     }
 
     private static void AppendSnapshotEntry (
@@ -417,11 +418,48 @@ public sealed class SkillMaterializedPackageDiffBuilder
                 $"Package path is unsafe: {relativePath}");
     }
 
-    internal sealed record SkillMaterializedPackageChangePlan (
-        IReadOnlyList<SkillActionDiff> Diffs,
-        SkillActionFileChangePlan FileChanges);
+    internal sealed class SkillMaterializedPackageChangePlan
+    {
+        public SkillMaterializedPackageChangePlan (
+            IReadOnlyList<SkillActionDiff> diffs,
+            SkillActionFileChangePlan fileChanges)
+        {
+            Diffs = SkillActionContractGuard.Snapshot(diffs, nameof(diffs));
+            FileChanges = fileChanges ?? throw new ArgumentNullException(nameof(fileChanges));
+        }
 
-    private sealed record SkillExistingTargetEntries (
-        IReadOnlyDictionary<string, string> Files,
-        IReadOnlyList<string> Directories);
+        public IReadOnlyList<SkillActionDiff> Diffs { get; }
+
+        public SkillActionFileChangePlan FileChanges { get; }
+    }
+
+    private sealed class SkillExistingTargetEntries
+    {
+        public SkillExistingTargetEntries (
+            IReadOnlyDictionary<string, string> files,
+            IReadOnlyList<string> directories)
+        {
+            ArgumentNullException.ThrowIfNull(files);
+            if (files.Any(static entry => entry.Value is null))
+            {
+                throw new ArgumentException("Existing target file content must not be null.", nameof(files));
+            }
+
+            ArgumentNullException.ThrowIfNull(directories);
+            if (directories.Any(static directory => directory is null))
+            {
+                throw new ArgumentException("Existing target directories must not contain null items.", nameof(directories));
+            }
+
+            Files = new ReadOnlyDictionary<string, string>(files.ToDictionary(
+                static entry => entry.Key,
+                static entry => entry.Value,
+                StringComparer.Ordinal));
+            Directories = Array.AsReadOnly(directories.ToArray());
+        }
+
+        public IReadOnlyDictionary<string, string> Files { get; }
+
+        public IReadOnlyList<string> Directories { get; }
+    }
 }

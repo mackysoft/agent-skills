@@ -1,9 +1,11 @@
 using System.Text.Json;
 using MackySoft.AgentSkills.Catalogs;
+using MackySoft.AgentSkills.Categories;
+using MackySoft.AgentSkills.Digests;
+using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Tiers;
 
 namespace MackySoft.AgentSkills.Tests.Manifests;
 
@@ -34,7 +36,7 @@ public sealed class SkillManifestJsonSerializerTests
         using var document = JsonDocument.Parse(json);
         Assert.Equal(64, document.RootElement.GetProperty("manifestDigest").GetString()?.Length);
         Assert.Equal(
-            new[] { "schemaVersion", "skillBundleVersion", "catalogId", "tier", "skillName", "displayName", "description", "dependencies", "contentDigest", "manifestDigest", "hostArtifacts" },
+            new[] { "schemaVersion", "skillBundleVersion", "catalogId", "category", "skillName", "displayName", "description", "dependencies", "contentDigest", "manifestDigest", "hostArtifacts" },
             document.RootElement.EnumerateObject().Select(static property => property.Name).ToArray());
         Assert.Equal(
             new[] { "a-helper", "z-helper" },
@@ -50,14 +52,14 @@ public sealed class SkillManifestJsonSerializerTests
     [Theory]
     [InlineData("")]
     [InlineData("{}")]
-    [InlineData("{\"schemaVersion\":1}")]
+    [InlineData("{\"schemaVersion\":0}")]
     [InlineData("""
         {
           "schemaVersion": 1,
           "skillName": "sample-skill",
           "displayName": "Sample Skill",
           "description": "Use this sample skill for tests.",
-          "tier": "basic",
+          "category": "core",
           "catalogId": "com.mackysoft.agent-skills",
           "contentDigest": "0000000000000000000000000000000000000000000000000000000000000000",
           "hostArtifacts": []
@@ -76,7 +78,7 @@ public sealed class SkillManifestJsonSerializerTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public void TryDeserialize_ReadsMissingDependenciesAsEmptyForSchemaVersionOneCompatibility ()
+    public void TryDeserialize_RejectsCurrentSchemaManifestWithoutRequiredFields ()
     {
         var serializer = new SkillManifestJsonSerializer();
 
@@ -84,7 +86,7 @@ public sealed class SkillManifestJsonSerializerTests
             {
               "schemaVersion": 1,
               "catalogId": "com.mackysoft.agent-skills",
-              "tier": "basic",
+              "category": "core",
               "contentDigest": "0000000000000000000000000000000000000000000000000000000000000000",
               "manifestDigest": "1111111111111111111111111111111111111111111111111111111111111111",
               "skillName": "sample-skill",
@@ -99,31 +101,35 @@ public sealed class SkillManifestJsonSerializerTests
             }
             """);
 
-        Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Empty(result.Value!.Dependencies);
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
     }
 
     private static SkillManifest CreateManifest ()
     {
         var serializer = new SkillManifestJsonSerializer();
-        var digestCalculator = new SkillManifestDigestCalculator(serializer);
-        var manifest = new SkillManifest(
+        var manifest = new SkillManifestCandidate(
             SkillManifest.CurrentSchemaVersion,
             1,
             new SkillCatalogId("com.mackysoft.agent-skills"),
-            new SkillTier("basic"),
+            new SkillCategory("core"),
             new SkillName("sample-skill"),
             "Sample Skill",
             "Use this sample skill for tests.",
             [new SkillName("z-helper"), new SkillName("a-helper")],
-            new string('0', 64),
-            string.Empty,
+            Digest('0'),
+            Digest('f'),
             [
-                new SkillHostArtifactManifest("openai", "agents/openai.yaml", new string('1', 64), new string('2', 64)),
-                new SkillHostArtifactManifest("claude", null, null, new string('3', 64)),
-                new SkillHostArtifactManifest("copilot", null, null, new string('4', 64)),
+                new SkillHostArtifactManifest(SkillHostKind.OpenAi, "agents/openai.yaml", Digest('1'), Digest('2')),
+                new SkillHostArtifactManifest(SkillHostKind.Claude, null, null, Digest('3')),
+                new SkillHostArtifactManifest(SkillHostKind.Copilot, null, null, Digest('4')),
             ]);
 
-        return digestCalculator.WithComputedManifestDigest(manifest);
+        return SkillTestData.WithComputedManifestDigest(manifest);
+    }
+
+    private static Sha256Digest Digest (char value)
+    {
+        return Sha256Digest.Parse(new string(value, 64));
     }
 }

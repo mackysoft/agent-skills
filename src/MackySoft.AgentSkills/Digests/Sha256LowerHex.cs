@@ -69,7 +69,7 @@ internal static class Sha256LowerHex
     /// <summary> Returns whether the value is a lowercase hexadecimal SHA-256 digest. </summary>
     /// <param name="value"> The digest text. </param>
     /// <returns> <see langword="true" /> when the value is valid; otherwise, <see langword="false" />. </returns>
-    internal static bool IsDigestText (string? value)
+    internal static bool IsLowerHexDigest (string? value)
     {
         return value is not null
             && value.Length == HexCharCount

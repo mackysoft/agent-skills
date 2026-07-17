@@ -3,7 +3,7 @@ using MackySoft.AgentSkills.Shared.Text;
 namespace MackySoft.AgentSkills.OperationReports.Literals;
 
 /// <summary> Defines the coarse status for one operation action. </summary>
-internal enum SkillOperationActionStatus
+public enum SkillOperationActionStatus
 {
     /// <summary> The action creates, updates, replaces, or deletes target files. </summary>
     [ContractLiteral("changed")]

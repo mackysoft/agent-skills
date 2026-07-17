@@ -1,6 +1,3 @@
-using MackySoft.AgentSkills.Digests;
-using MackySoft.AgentSkills.Hosts.Contracts;
-using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Packaging.FileSystem;
 using MackySoft.AgentSkills.Shared;
@@ -10,26 +7,22 @@ namespace MackySoft.AgentSkills.Packaging.Canonical;
 /// <summary> Reads generated canonical SKILL packages from a <c>skills</c> directory. </summary>
 public sealed class CanonicalSkillPackageReader
 {
-    private readonly SkillHostAdapterSet hostAdapters;
-    private readonly SkillDigestCalculator digestCalculator;
     private readonly SkillManifestJsonSerializer manifestSerializer;
-    private readonly SkillManifestValidator manifestValidator;
+    private readonly SkillManifest.Factory manifestFactory;
+    private readonly CanonicalSkillPackage.Factory packageFactory;
 
     /// <summary> Initializes a new instance of the <see cref="CanonicalSkillPackageReader" /> class. </summary>
-    /// <param name="hostAdapters"> The supported host adapter set. </param>
-    /// <param name="digestCalculator"> The digest calculator. </param>
     /// <param name="manifestSerializer"> The manifest serializer. </param>
-    /// <param name="manifestValidator"> The manifest validator. </param>
+    /// <param name="manifestFactory"> The canonical manifest construction boundary. </param>
+    /// <param name="packageFactory"> The canonical package construction boundary. </param>
     public CanonicalSkillPackageReader (
-        SkillHostAdapterSet hostAdapters,
-        SkillDigestCalculator digestCalculator,
         SkillManifestJsonSerializer manifestSerializer,
-        SkillManifestValidator manifestValidator)
+        SkillManifest.Factory manifestFactory,
+        CanonicalSkillPackage.Factory packageFactory)
     {
-        this.hostAdapters = hostAdapters ?? throw new ArgumentNullException(nameof(hostAdapters));
-        this.digestCalculator = digestCalculator ?? throw new ArgumentNullException(nameof(digestCalculator));
         this.manifestSerializer = manifestSerializer ?? throw new ArgumentNullException(nameof(manifestSerializer));
-        this.manifestValidator = manifestValidator ?? throw new ArgumentNullException(nameof(manifestValidator));
+        this.manifestFactory = manifestFactory ?? throw new ArgumentNullException(nameof(manifestFactory));
+        this.packageFactory = packageFactory ?? throw new ArgumentNullException(nameof(packageFactory));
     }
 
     /// <summary> Reads all generated canonical SKILL packages under a package root. </summary>
@@ -49,10 +42,22 @@ public sealed class CanonicalSkillPackageReader
         }
 
         var fullPackageRoot = Path.GetFullPath(packageRoot);
+        if (!SkillPackageFileSystemEntryGuard.IsDirectory(fullPackageRoot))
+        {
+            return Failure($"Generated skills root must be a regular directory: {fullPackageRoot}");
+        }
+
         var packages = new List<CanonicalSkillPackage>();
         foreach (var skillDirectory in Directory.GetDirectories(fullPackageRoot).Order(StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            if (!SkillPackageFileSystemEntryGuard.IsDirectory(skillDirectory))
+            {
+                return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
+                    SkillFailureCodes.PathUnsafe,
+                    $"Generated skills root contains an unsupported non-regular package directory: {Path.GetFileName(skillDirectory)}");
+            }
 
             var result = await ReadOneAsync(fullPackageRoot, skillDirectory, cancellationToken).ConfigureAwait(false);
             if (!result.IsSuccess)
@@ -99,53 +104,31 @@ public sealed class CanonicalSkillPackageReader
             return PackageFailure("Generated SKILL package is missing agent-skill.json.");
         }
 
-        var manifestTextResult = await ReadManifestTextAsync(directoryResult.Value!, cancellationToken).ConfigureAwait(false);
-        if (!manifestTextResult.IsSuccess)
-        {
-            return SkillOperationResult<CanonicalSkillPackage>.FailureResult(
-                manifestTextResult.Failure!.Code,
-                manifestTextResult.Failure.Message);
-        }
-
-        var manifestText = manifestTextResult.Value!;
+        var manifestText = manifestFile.Content;
         var manifestResult = manifestSerializer.TryDeserialize(manifestText);
         if (!manifestResult.IsSuccess)
         {
             return PackageFailure(manifestResult.Failure!.Message);
         }
 
-        var manifest = manifestResult.Value!;
-        var validationResult = manifestValidator.Validate(manifest);
-        if (!validationResult.IsSuccess)
+        var canonicalManifestResult = manifestFactory.CreateCanonical(manifestResult.Value!);
+        if (!canonicalManifestResult.IsSuccess)
         {
-            return PackageFailure(validationResult.Failure!.Message);
+            return PackageFailure(canonicalManifestResult.Failure!.Message);
         }
 
+        var manifest = canonicalManifestResult.Value!;
         if (!string.Equals(Path.GetFileName(directoryResult.Value!), manifest.SkillName.Value, StringComparison.Ordinal))
         {
             return PackageFailure($"agent-skill.json skillName must match generated package directory name: {manifest.SkillName}");
         }
 
-        if (!string.Equals(manifestText, manifestSerializer.Serialize(manifest), StringComparison.Ordinal))
-        {
-            return PackageFailure($"agent-skill.json is not canonical: {manifest.SkillName}");
-        }
-
-        var fileValidationResult = ValidateFiles(files, manifest);
-        if (!fileValidationResult.IsSuccess)
-        {
-            return PackageFailure(fileValidationResult.Failure!.Message);
-        }
-
-        var digestValidationResult = ValidateDigests(files, manifest);
-        if (!digestValidationResult.IsSuccess)
-        {
-            return PackageFailure(digestValidationResult.Failure!.Message);
-        }
-
-        return SkillOperationResult<CanonicalSkillPackage>.Success(new CanonicalSkillPackage(
-            manifest,
-            files));
+        var packageFiles = files
+            .Select(file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal)
+                ? new SkillPackageFile(file.RelativePath, manifestText)
+                : file)
+            .ToArray();
+        return packageFactory.CreateCanonical(new CanonicalSkillPackageCandidate(manifest, packageFiles));
     }
 
     private async ValueTask<SkillOperationResult<IReadOnlyList<SkillPackageFile>>> ReadFilesAsync (
@@ -164,24 +147,6 @@ public sealed class CanonicalSkillPackageReader
         return SkillOperationResult<IReadOnlyList<SkillPackageFile>>.Success(files
             .OrderBy(static file => file.RelativePath, StringComparer.Ordinal)
             .ToArray());
-    }
-
-    private static async ValueTask<SkillOperationResult<string>> ReadManifestTextAsync (
-        string skillDirectory,
-        CancellationToken cancellationToken)
-    {
-        var manifestPathResult = SkillPackagePathBoundary.ResolvePackageFilePath(skillDirectory, "agent-skill.json");
-        if (!manifestPathResult.IsSuccess)
-        {
-            return SkillOperationResult<string>.FailureResult(
-                manifestPathResult.Failure!.Code,
-                manifestPathResult.Failure.Message);
-        }
-
-        return await SkillPackageManifestTextReader.ReadUtf8WithoutByteOrderMarkAsync(
-                manifestPathResult.Value!,
-                cancellationToken)
-            .ConfigureAwait(false);
     }
 
     private async ValueTask<SkillOperationResult<bool>> ReadDirectoryEntriesAsync (
@@ -242,97 +207,15 @@ public sealed class CanonicalSkillPackageReader
                 return SkillOperationResult<bool>.FailureResult(pathResult.Failure!.Code, pathResult.Failure.Message);
             }
 
-            var content = SkillTextNormalizer.NormalizeToLf(await File.ReadAllTextAsync(pathResult.Value!, cancellationToken).ConfigureAwait(false));
-            files.Add(SkillPackageFile.Create(relativePath, content));
-        }
-
-        return SkillOperationResult<bool>.Success(true);
-    }
-
-    private SkillOperationResult<bool> ValidateFiles (
-        IReadOnlyList<SkillPackageFile> files,
-        SkillManifest manifest)
-    {
-        if (!files.Any(static file => string.Equals(file.RelativePath, "SKILL.md", StringComparison.Ordinal)))
-        {
-            return BoolFailure($"Generated SKILL package is missing SKILL.md: {manifest.SkillName}");
-        }
-
-        var hostArtifactPaths = manifest.HostArtifacts
-            .Select(static artifact => artifact.Path)
-            .Where(static path => !string.IsNullOrWhiteSpace(path))
-            .ToHashSet(StringComparer.Ordinal);
-
-        foreach (var file in files)
-        {
-            if (string.Equals(file.RelativePath, "SKILL.md", StringComparison.Ordinal)
-                || string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal)
-                || file.RelativePath.StartsWith("references/", StringComparison.Ordinal)
-                || hostArtifactPaths.Contains(file.RelativePath))
+            var contentResult = await SkillPackageTextFileReader.ReadAsync(pathResult.Value!, cancellationToken).ConfigureAwait(false);
+            if (!contentResult.IsSuccess)
             {
-                continue;
+                return SkillOperationResult<bool>.FailureResult(
+                    contentResult.Failure!.Code,
+                    contentResult.Failure.Message);
             }
 
-            return BoolFailure($"Generated SKILL package contains an unsupported file: {manifest.SkillName}/{file.RelativePath}");
-        }
-
-        return SkillOperationResult<bool>.Success(true);
-    }
-
-    private SkillOperationResult<bool> ValidateDigests (
-        IReadOnlyList<SkillPackageFile> files,
-        SkillManifest manifest)
-    {
-        var contentDigest = digestCalculator.ComputeDigest(files
-            .Where(static file => string.Equals(file.RelativePath, "SKILL.md", StringComparison.Ordinal)
-                || file.RelativePath.StartsWith("references/", StringComparison.Ordinal))
-            .Select(static file => new SkillDigestInputFile(file.RelativePath, file.Content)));
-
-        if (!string.Equals(contentDigest, manifest.ContentDigest, StringComparison.Ordinal))
-        {
-            return BoolFailure($"Generated SKILL contentDigest does not match files: {manifest.SkillName}");
-        }
-
-        var metadata = new SkillHostMetadata(manifest.SkillName, manifest.DisplayName, manifest.Description);
-        var artifactByHost = manifest.HostArtifacts.ToDictionary(static artifact => artifact.Host, StringComparer.Ordinal);
-        foreach (var adapter in hostAdapters.Adapters)
-        {
-            var artifact = artifactByHost[adapter.Descriptor.HostKey];
-            var hostArtifacts = adapter.BuildArtifacts(metadata);
-            var metadataArtifactPath = adapter.Descriptor.MetadataArtifactPath;
-            var frontmatterDigest = digestCalculator.ComputeSingleFileDigest("SKILL.md.frontmatter", hostArtifacts.Frontmatter);
-            if (!string.Equals(frontmatterDigest, artifact.MaterializedFrontmatterDigest, StringComparison.Ordinal))
-            {
-                return BoolFailure($"Generated SKILL host frontmatter digest does not match adapter output: {manifest.SkillName}/{artifact.Host}");
-            }
-
-            if (metadataArtifactPath is null)
-            {
-                continue;
-            }
-
-            var artifactFile = files.SingleOrDefault(file => string.Equals(file.RelativePath, metadataArtifactPath, StringComparison.Ordinal));
-            if (artifactFile is null)
-            {
-                return BoolFailure($"Generated SKILL package is missing host artifact: {manifest.SkillName}/{metadataArtifactPath}");
-            }
-
-            if (hostArtifacts.MetadataContent is null)
-            {
-                return BoolFailure($"Generated SKILL host artifact adapter output is missing: {manifest.SkillName}/{metadataArtifactPath}");
-            }
-
-            var expectedArtifactDigest = digestCalculator.ComputeSingleFileDigest(metadataArtifactPath, hostArtifacts.MetadataContent);
-            if (!string.Equals(expectedArtifactDigest, artifact.Digest, StringComparison.Ordinal))
-            {
-                return BoolFailure($"Generated SKILL host artifact digest does not match adapter output: {manifest.SkillName}/{metadataArtifactPath}");
-            }
-
-            var artifactDigest = digestCalculator.ComputeSingleFileDigest(metadataArtifactPath, artifactFile.Content);
-            if (!string.Equals(artifactDigest, artifact.Digest, StringComparison.Ordinal))
-            {
-                return BoolFailure($"Generated SKILL host artifact digest does not match files: {manifest.SkillName}/{metadataArtifactPath}");
-            }
+            files.Add(new SkillPackageFile(relativePath, contentResult.Value!));
         }
 
         return SkillOperationResult<bool>.Success(true);

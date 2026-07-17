@@ -1,4 +1,4 @@
-using MackySoft.AgentSkills.Hosts.OpenAi;
+using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
@@ -9,29 +9,27 @@ public sealed class SkillInstalledPackageIntegrityVerifierTests
 {
     [Fact]
     [Trait("Size", "Small")]
-    public async Task VerifyAsync_AllowsLegacyManifestWithoutSkillBundleVersion ()
+    public async Task VerifyAsync_RejectsUnsupportedSchemaVersionManifest ()
     {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "integrity-legacy-manifest");
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "integrity-schema-version-one");
         var package = (await SkillTestData.GenerateFixturePackagesAsync()).First();
         var installService = SkillTestData.CreateInstallService();
         var install = await installService.InstallAsync(
             [package],
-            new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
+            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var skillDirectory = Path.Combine(install.Value!.TargetRoot, package.Manifest.SkillName.Value);
-        var legacyManifestText = SkillTestData.CreateLegacyManifestTextWithoutSkillBundleVersion(package);
-        Assert.DoesNotContain("skillBundleVersion", legacyManifestText, StringComparison.Ordinal);
-        Assert.Contains("\"schemaVersion\": 1,\n  \"catalogId\":", legacyManifestText, StringComparison.Ordinal);
-        Assert.Contains("\"contentDigest\":", legacyManifestText, StringComparison.Ordinal);
-        Assert.Contains("\"manifestDigest\":", legacyManifestText, StringComparison.Ordinal);
-        File.WriteAllText(Path.Combine(skillDirectory, "agent-skill.json"), legacyManifestText);
+        var manifestPath = Path.Combine(skillDirectory, "agent-skill.json");
+        var unsupportedSchemaVersionText = File.ReadAllText(manifestPath)
+            .Replace("\"schemaVersion\": 1", "\"schemaVersion\": 0", StringComparison.Ordinal);
+        File.WriteAllText(manifestPath, unsupportedSchemaVersionText);
         var verifier = SkillTestData.CreateInstalledPackageIntegrityVerifier(SkillTestData.CreateDefaultHostAdapterSet());
 
-        var result = await verifier.VerifyAsync(skillDirectory, OpenAiSkillHostAdapter.HostKey, CancellationToken.None);
+        var result = await verifier.VerifyAsync(skillDirectory, SkillHostKind.OpenAi, CancellationToken.None);
 
-        Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(0, result.Value!.SkillBundleVersion);
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -47,7 +45,7 @@ public sealed class SkillInstalledPackageIntegrityVerifierTests
         using var outsideScope = TestDirectories.CreateTempScope("agent-skills-skills", "integrity-reference-directory-symlink-outside");
         var hostAdapters = SkillTestData.CreateDefaultHostAdapterSet();
         var package = (await SkillTestData.GenerateFixturePackagesAsync()).First();
-        var materializedResult = SkillTestData.CreateMaterializationService().Materialize(package, OpenAiSkillHostAdapter.HostKey);
+        var materializedResult = SkillTestData.CreateMaterializationService().Materialize(package, SkillHostKind.OpenAi);
         Assert.True(materializedResult.IsSuccess, materializedResult.Failure?.Message);
         var skillDirectory = scope.CreateDirectory(package.Manifest.SkillName.Value);
         foreach (var file in materializedResult.Value!.Files)
@@ -64,7 +62,7 @@ public sealed class SkillInstalledPackageIntegrityVerifierTests
 
         var verifier = SkillTestData.CreateInstalledPackageIntegrityVerifier(hostAdapters);
 
-        var result = await verifier.VerifyAsync(skillDirectory, OpenAiSkillHostAdapter.HostKey, CancellationToken.None);
+        var result = await verifier.VerifyAsync(skillDirectory, SkillHostKind.OpenAi, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);

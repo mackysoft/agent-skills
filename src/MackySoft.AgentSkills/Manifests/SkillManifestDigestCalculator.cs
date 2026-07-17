@@ -18,24 +18,22 @@ public sealed class SkillManifestDigestCalculator
     /// <summary> Computes the manifest digest from canonical JSON with <c>manifestDigest</c> excluded. </summary>
     /// <param name="manifest"> The manifest. </param>
     /// <returns> The lowercase hexadecimal SHA-256 digest. </returns>
-    public string ComputeManifestDigest (SkillManifest manifest)
+    public Sha256Digest ComputeManifestDigest (SkillManifest manifest)
     {
         ArgumentNullException.ThrowIfNull(manifest);
 
         var json = manifestSerializer.SerializeWithoutManifestDigest(manifest);
-        return Sha256LowerHex.Compute(Encoding.UTF8.GetBytes(json));
+        return Sha256Digest.Compute(Encoding.UTF8.GetBytes(json));
     }
 
-    /// <summary> Returns a manifest whose <c>manifestDigest</c> matches its canonical content. </summary>
-    /// <param name="manifest"> The manifest without a trusted digest. </param>
-    /// <returns> The manifest with the computed digest. </returns>
-    public SkillManifest WithComputedManifestDigest (SkillManifest manifest)
+    /// <summary> Computes the canonical digest for a manifest candidate before it becomes a canonical manifest. </summary>
+    /// <param name="candidate"> The field-valid manifest candidate. </param>
+    /// <returns> The lowercase hexadecimal SHA-256 digest. </returns>
+    internal Sha256Digest ComputeManifestDigest (SkillManifestCandidate candidate)
     {
-        ArgumentNullException.ThrowIfNull(manifest);
+        ArgumentNullException.ThrowIfNull(candidate);
 
-        return manifest with
-        {
-            ManifestDigest = ComputeManifestDigest(manifest),
-        };
+        var json = manifestSerializer.SerializeWithoutManifestDigest(candidate);
+        return Sha256Digest.Compute(Encoding.UTF8.GetBytes(json));
     }
 }

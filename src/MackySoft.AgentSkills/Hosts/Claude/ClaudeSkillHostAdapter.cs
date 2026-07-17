@@ -4,22 +4,16 @@ using MackySoft.AgentSkills.Serialization.Yaml;
 namespace MackySoft.AgentSkills.Hosts.Claude;
 
 /// <summary> Materializes SKILL files for Claude Code. </summary>
-public sealed class ClaudeSkillHostAdapter : ISkillHostAdapter
+internal sealed class ClaudeSkillHostAdapter : ISkillHostAdapter
 {
-    /// <summary> The canonical Claude Code host key. </summary>
-    public const string HostKey = "claude";
-
     /// <inheritdoc />
     public SkillHostDescriptor Descriptor { get; } = new(
-        HostKey: HostKey,
-        SupportsProjectScope: true,
-        SupportsUserScope: true,
-        ProjectDefaultTargetPath: ".claude/skills",
-        UserDefaultTargetPath: "~/.claude/skills",
-        UserTargetRootPolicy: new SkillUserTargetRootPolicy(null, null, ".claude/skills"),
-        RequiresMetadataArtifact: false,
-        MetadataArtifactPath: null,
-        ReloadGuidance: "Claude Code watches existing skill directories. Restart Claude Code if the top-level skills directory was created after the session started.");
+        SkillHostKind.Claude,
+        ".claude/skills",
+        "~/.claude/skills",
+        new SkillUserTargetRootPolicy(null, null, ".claude/skills"),
+        null,
+        "Claude Code watches existing skill directories. Restart Claude Code if the top-level skills directory was created after the session started.");
 
     /// <inheritdoc />
     public SkillHostArtifactSet BuildArtifacts (SkillHostMetadata metadata)

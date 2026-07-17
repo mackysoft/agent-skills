@@ -1,8 +1,22 @@
 namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
 /// <summary> Represents a deterministic count for one stable operation literal. </summary>
-/// <param name="Literal"> The stable action or status literal being counted. </param>
-/// <param name="Count"> The number of projected actions that used <paramref name="Literal" />. </param>
-public sealed record SkillOperationCountReport (
-    string Literal,
-    int Count);
+public sealed class SkillOperationCountReport
+{
+    internal SkillOperationCountReport (
+        string literal,
+        int count)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(literal);
+        ArgumentOutOfRangeException.ThrowIfNegative(count);
+
+        Literal = literal;
+        Count = count;
+    }
+
+    /// <summary> Gets the stable action or status literal being counted. </summary>
+    public string Literal { get; }
+
+    /// <summary> Gets the number of projected actions that used <see cref="Literal" />. </summary>
+    public int Count { get; }
+}

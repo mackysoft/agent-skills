@@ -15,6 +15,12 @@ public static class SkillFailureCodes
     /// <summary> Gets the code emitted when a source definition is missing or invalid. </summary>
     public static readonly SkillFailureCode SourceInvalid = new("SKILL_SOURCE_INVALID");
 
+    /// <summary> Gets the code emitted when source and generated bundle versions cannot be reconciled safely. </summary>
+    public static readonly SkillFailureCode BundleVersionConflict = new("SKILL_BUNDLE_VERSION_CONFLICT");
+
+    /// <summary> Gets the code emitted by a check-only build when canonical generated output requires changes. </summary>
+    public static readonly SkillFailureCode BundleUpdateRequired = new("SKILL_BUNDLE_UPDATE_REQUIRED");
+
     /// <summary> Gets the code emitted when a canonical manifest is missing or invalid. </summary>
     public static readonly SkillFailureCode ManifestInvalid = new("SKILL_MANIFEST_INVALID");
 

@@ -16,8 +16,10 @@ public static class SkillFailureClassifier
     /// <summary> Classifies one SKILL failure code. </summary>
     /// <param name="code"> The failure code to classify. Unknown values are allowed. </param>
     /// <returns> The product-neutral category for <paramref name="code" />, or <see cref="SkillFailureCategory.UnexpectedInternalFailure" /> for unknown codes. </returns>
+    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="code" /> is <see langword="null" />. </exception>
     public static SkillFailureCategory Classify (SkillFailureCode code)
     {
+        ArgumentNullException.ThrowIfNull(code);
         if (code == SkillFailureCodes.InputInvalid)
         {
             return SkillFailureCategory.InvalidInput;
@@ -48,9 +50,15 @@ public static class SkillFailureClassifier
             return SkillFailureCategory.ManifestInvalid;
         }
 
-        if (code == SkillFailureCodes.SourceInvalid)
+        if (code == SkillFailureCodes.SourceInvalid
+            || code == SkillFailureCodes.BundleVersionConflict)
         {
             return SkillFailureCategory.SourceInvalid;
+        }
+
+        if (code == SkillFailureCodes.BundleUpdateRequired)
+        {
+            return SkillFailureCategory.DriftOrLocalModification;
         }
 
         if (IsDriftOrLocalModification(code))

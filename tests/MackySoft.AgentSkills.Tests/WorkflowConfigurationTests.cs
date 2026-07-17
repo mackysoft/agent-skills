@@ -168,6 +168,8 @@ public sealed class WorkflowConfigurationTests
         Assert.Contains("RegisterAgentSkillsCommands", script, StringComparison.Ordinal);
         Assert.Contains("AgentSkillsConsoleAppFrameworkCommandRoot=agent-skills", script, StringComparison.Ordinal);
         Assert.Contains("agent-skills list --pretty", script, StringComparison.Ordinal);
+        Assert.Contains("dotnet tool run agent-skills -- list --pretty", script, StringComparison.Ordinal);
+        Assert.Contains("agent-skills-packaging", script, StringComparison.Ordinal);
     }
 
     [Fact]

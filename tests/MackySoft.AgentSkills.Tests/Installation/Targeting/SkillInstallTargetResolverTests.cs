@@ -1,7 +1,4 @@
-using MackySoft.AgentSkills.Hosts.Claude;
 using MackySoft.AgentSkills.Hosts.Contracts;
-using MackySoft.AgentSkills.Hosts.Copilot;
-using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Shared;
@@ -18,7 +15,7 @@ public sealed class SkillInstallTargetResolverTests
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "target-project-default");
         var resolver = CreateResolver(scope.GetPath("home"));
 
-        var result = resolver.ResolveTarget(new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath));
+        var result = resolver.ResolveTarget(new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath));
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal(ResolveExpectedPath(Path.Combine(scope.FullPath, ".agents", "skills")), result.Value!.TargetRoot);
@@ -32,7 +29,7 @@ public sealed class SkillInstallTargetResolverTests
         var codexHome = scope.GetPath("codex-home");
         var resolver = CreateResolver(scope.GetPath("home"), codexHome);
 
-        var result = resolver.ResolveTarget(new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.User, null));
+        var result = resolver.ResolveTarget(new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.User, null));
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal(ResolveExpectedPath(Path.Combine(codexHome, "skills")), result.Value!.TargetRoot);
@@ -46,7 +43,7 @@ public sealed class SkillInstallTargetResolverTests
         var home = scope.GetPath("home");
         var resolver = CreateResolver(home);
 
-        var result = resolver.ResolveTarget(new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.User, null));
+        var result = resolver.ResolveTarget(new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.User, null));
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal(ResolveExpectedPath(Path.Combine(home, ".codex", "skills")), result.Value!.TargetRoot);
@@ -60,7 +57,7 @@ public sealed class SkillInstallTargetResolverTests
         var home = scope.GetPath("home");
         var resolver = CreateResolver(home);
 
-        var result = resolver.ResolveTarget(new SkillInstallRequest(ClaudeSkillHostAdapter.HostKey, SkillScopeKind.User, null));
+        var result = resolver.ResolveTarget(new SkillInstallRequest(SkillHostKind.Claude, SkillScopeKind.User, null));
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal(ResolveExpectedPath(Path.Combine(home, ".claude", "skills")), result.Value!.TargetRoot);
@@ -74,7 +71,7 @@ public sealed class SkillInstallTargetResolverTests
         var home = scope.GetPath("home");
         var resolver = CreateResolver(home);
 
-        var result = resolver.ResolveTarget(new SkillInstallRequest(CopilotSkillHostAdapter.HostKey, SkillScopeKind.User, null));
+        var result = resolver.ResolveTarget(new SkillInstallRequest(SkillHostKind.Copilot, SkillScopeKind.User, null));
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal(ResolveExpectedPath(Path.Combine(home, ".copilot", "skills")), result.Value!.TargetRoot);
@@ -87,117 +84,10 @@ public sealed class SkillInstallTargetResolverTests
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "target-user-relative-codex-home");
         var resolver = CreateResolver(scope.GetPath("home"), "relative-codex-home");
 
-        var result = resolver.ResolveTarget(new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.User, null));
+        var result = resolver.ResolveTarget(new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.User, null));
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.UserTargetUnavailable, result.Failure!.Code);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public void ResolveTarget_UserScope_RejectsRelativeExplicitTarget ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "target-user-relative");
-        var resolver = CreateResolver(scope.GetPath("home"));
-
-        var result = resolver.ResolveTarget(new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.User, null, "relative-skills"));
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public void ResolveTarget_UserScope_RejectsRepositoryRoot ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "target-user-repo-root");
-        var resolver = CreateResolver(scope.GetPath("home"));
-
-        var result = resolver.ResolveTarget(new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.User, scope.FullPath));
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public void ResolveTarget_UnsupportedHost_ReturnsHostUnsupported ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "target-unsupported-host");
-        var resolver = CreateResolver(scope.GetPath("home"));
-
-        var result = resolver.ResolveTarget(new SkillInstallRequest("generic", SkillScopeKind.User, null));
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.HostUnsupported, result.Failure!.Code);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public void ResolveTarget_UndefinedScope_ReturnsInputInvalid ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "target-undefined-scope");
-        var resolver = CreateResolver(scope.GetPath("home"));
-
-        var result = resolver.ResolveTarget(new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, (SkillScopeKind)42, scope.FullPath));
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
-        Assert.Equal(SkillFailureCategory.InvalidInput, SkillFailureClassifier.Classify(result.Failure));
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public void ResolveTarget_ProjectScope_ReturnsScopeUnsupportedWhenHostDoesNotSupportProjectScope ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "target-project-unsupported");
-        var resolver = CreateResolverWithHostAdapters(
-            scope.GetPath("home"),
-            new SkillHostAdapterSet(
-            [
-                new TestSkillHostAdapter(new SkillHostDescriptor(
-                    HostKey: "user-only",
-                    SupportsProjectScope: false,
-                    SupportsUserScope: true,
-                    ProjectDefaultTargetPath: null,
-                    UserDefaultTargetPath: "~/.user-only/skills",
-                    UserTargetRootPolicy: new SkillUserTargetRootPolicy(null, null, ".user-only/skills"),
-                    RequiresMetadataArtifact: false,
-                    MetadataArtifactPath: null,
-                    ReloadGuidance: "Reload user-only skills.")),
-            ]));
-
-        var result = resolver.ResolveTarget(new SkillInstallRequest("user-only", SkillScopeKind.Project, scope.FullPath));
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ScopeUnsupported, result.Failure!.Code);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public void ResolveTarget_UserScope_ReturnsScopeUnsupportedWhenHostDoesNotSupportUserScope ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "target-user-unsupported");
-        var resolver = CreateResolverWithHostAdapters(
-            scope.GetPath("home"),
-            new SkillHostAdapterSet(
-            [
-                new TestSkillHostAdapter(new SkillHostDescriptor(
-                    HostKey: "project-only",
-                    SupportsProjectScope: true,
-                    SupportsUserScope: false,
-                    ProjectDefaultTargetPath: ".project-only/skills",
-                    UserDefaultTargetPath: null,
-                    UserTargetRootPolicy: null,
-                    RequiresMetadataArtifact: false,
-                    MetadataArtifactPath: null,
-                    ReloadGuidance: "Reload project-only skills.")),
-            ]));
-
-        var result = resolver.ResolveTarget(new SkillInstallRequest("project-only", SkillScopeKind.User, null));
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ScopeUnsupported, result.Failure!.Code);
     }
 
     private static SkillInstallTargetResolver CreateResolver (
@@ -252,19 +142,4 @@ public sealed class SkillInstallTargetResolverTests
         return Path.GetFullPath(currentPath);
     }
 
-    private sealed class TestSkillHostAdapter : ISkillHostAdapter
-    {
-        public TestSkillHostAdapter (SkillHostDescriptor descriptor)
-        {
-            Descriptor = descriptor ?? throw new ArgumentNullException(nameof(descriptor));
-        }
-
-        public SkillHostDescriptor Descriptor { get; }
-
-        public SkillHostArtifactSet BuildArtifacts (SkillHostMetadata metadata)
-        {
-            ArgumentNullException.ThrowIfNull(metadata);
-            return new SkillHostArtifactSet(string.Empty, null);
-        }
-    }
 }

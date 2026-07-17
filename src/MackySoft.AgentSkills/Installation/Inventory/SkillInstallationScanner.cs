@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Installation.Validation;
@@ -38,7 +39,7 @@ public sealed class SkillInstallationScanner
     public async ValueTask<SkillOperationResult<IReadOnlyList<SkillInstalledSkill>>> ScanAsync (
         IReadOnlyList<CanonicalSkillPackage> packages,
         string targetRoot,
-        string host,
+        SkillHostKind host,
         SkillScopeKind scope = SkillScopeKind.Project,
         CancellationToken cancellationToken = default)
     {
@@ -61,7 +62,7 @@ public sealed class SkillInstallationScanner
                 adapterResult.Failure.Message);
         }
 
-        var hostKey = adapterResult.Value!.Descriptor.HostKey;
+        var registeredHost = adapterResult.Value!.Descriptor.Host;
         var fullTargetRoot = Path.GetFullPath(targetRoot);
         if (!Directory.Exists(fullTargetRoot))
         {
@@ -112,7 +113,7 @@ public sealed class SkillInstallationScanner
                     $"Installed SKILL is not part of the canonical package set: {manifest.SkillName}");
             }
 
-            var validationResult = await installedPackageValidator.ValidateAsync(package, resolvedSkillDirectory, hostKey, cancellationToken).ConfigureAwait(false);
+            var validationResult = await installedPackageValidator.ValidateAsync(package, resolvedSkillDirectory, registeredHost, cancellationToken).ConfigureAwait(false);
             if (!validationResult.IsSuccess)
             {
                 return SkillOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
@@ -121,7 +122,7 @@ public sealed class SkillInstallationScanner
             }
 
             installedSkills.Add(new SkillInstalledSkill(
-                new SkillInstallIdentity(hostKey, scope, fullTargetRoot, manifest.SkillName),
+                new SkillInstallIdentity(registeredHost, scope, fullTargetRoot, manifest.SkillName),
                 resolvedSkillDirectory,
                 validationResult.Value!));
         }

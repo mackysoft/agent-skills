@@ -14,7 +14,7 @@ internal sealed class AgentSkillsUninstallCommand
     private readonly AgentSkillsCommandRunner runner;
     private readonly IAgentSkillsCommandResultEmitter emitter;
 
-    public AgentSkillsUninstallCommand(
+    public AgentSkillsUninstallCommand (
         AgentSkillsCommandRunner runner,
         IAgentSkillsCommandResultEmitter emitter)
     {
@@ -27,9 +27,9 @@ internal sealed class AgentSkillsUninstallCommand
     /// <param name="targetDir">Host target directory override.</param>
     /// <param name="dryRun">Report planned changes without writing files.</param>
     [Command("uninstall")]
-    public async Task<int> UninstallAsync(
+    public async Task<int> UninstallAsync (
         string? host = null,
-        string[]? tier = null,
+        string[]? category = null,
         string[]? skill = null,
         string? scope = null,
         string? repositoryRoot = null,
@@ -39,7 +39,7 @@ internal sealed class AgentSkillsUninstallCommand
         bool pretty = false,
         CancellationToken cancellationToken = default)
     {
-        var result = await runner.UninstallAsync(new AgentSkillsUninstallCommandRequest(host, tier, skill, scope, repositoryRoot, targetDir, dryRun, force), cancellationToken).ConfigureAwait(false);
+        var result = await runner.UninstallAsync(new AgentSkillsUninstallCommandRequest(host, category, skill, scope, repositoryRoot, targetDir, dryRun, force), cancellationToken).ConfigureAwait(false);
         return await emitter.EmitAsync(result, new AgentSkillsCommandOutputOptions(pretty), cancellationToken).ConfigureAwait(false);
     }
 }

@@ -1,11 +1,5 @@
-using MackySoft.AgentSkills.Digests;
+using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Generation;
-using MackySoft.AgentSkills.Hosts.Claude;
-using MackySoft.AgentSkills.Hosts.Contracts;
-using MackySoft.AgentSkills.Hosts.Copilot;
-using MackySoft.AgentSkills.Hosts.OpenAi;
-using MackySoft.AgentSkills.Hosts.Registration;
-using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Sources;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,16 +17,12 @@ internal static class BuildServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.AddSingleton<ISkillHostAdapter, ClaudeSkillHostAdapter>();
-        services.AddSingleton<ISkillHostAdapter, CopilotSkillHostAdapter>();
-        services.AddSingleton<ISkillHostAdapter, OpenAiSkillHostAdapter>();
-        services.AddSingleton<SkillHostAdapterSet>();
+        services.AddSingleton<SkillBundleDefinitionReader>();
         services.AddSingleton<SkillSourceDefinitionReader>();
-        services.AddSingleton<SkillDigestCalculator>();
-        services.AddSingleton<SkillManifestJsonSerializer>();
-        services.AddSingleton<SkillManifestDigestCalculator>();
         services.AddSingleton<SkillPackageGenerationService>();
         services.AddSingleton<CanonicalSkillPackageWriter>();
+        services.AddSingleton<CanonicalSkillBundleWriter>();
+        services.AddSingleton<SkillBundleBuildService>();
 
         return services;
     }

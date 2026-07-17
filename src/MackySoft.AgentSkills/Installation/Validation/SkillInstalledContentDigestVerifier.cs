@@ -38,12 +38,13 @@ public sealed class SkillInstalledContentDigestVerifier
             return SkillOperationResult<bool>.FailureResult(skillBodyResult.Failure!.Code, skillBodyResult.Failure.Message);
         }
 
-        if (!skillBodyResult.Value.Exists)
+        var skillBody = skillBodyResult.Value!;
+        if (!skillBody.Exists)
         {
             return SkillOperationResult<bool>.Success(false);
         }
 
-        digestInputs.Add(new SkillDigestInputFile("SKILL.md", skillBodyResult.Value.Body));
+        digestInputs.Add(new SkillDigestInputFile("SKILL.md", skillBody.Body));
         foreach (var reference in package.Files
             .Where(static file => file.RelativePath.StartsWith("references/", StringComparison.Ordinal))
             .OrderBy(static file => file.RelativePath, StringComparer.Ordinal))
@@ -64,7 +65,7 @@ public sealed class SkillInstalledContentDigestVerifier
         }
 
         var actualDigest = digestCalculator.ComputeDigest(digestInputs);
-        return SkillOperationResult<bool>.Success(string.Equals(actualDigest, package.Manifest.ContentDigest, StringComparison.Ordinal));
+        return SkillOperationResult<bool>.Success(actualDigest == package.Manifest.ContentDigest);
     }
 
     private static async ValueTask<SkillOperationResult<InstalledSkillBody>> ReadInstalledSkillBodyAsync (
@@ -94,13 +95,34 @@ public sealed class SkillInstalledContentDigestVerifier
             body = body[1..];
         }
 
-        return SkillOperationResult<InstalledSkillBody>.Success(new InstalledSkillBody(true, body));
+        return SkillOperationResult<InstalledSkillBody>.Success(InstalledSkillBody.Present(body));
     }
 
-    private readonly record struct InstalledSkillBody (
-        bool Exists,
-        string Body)
+    private sealed class InstalledSkillBody
     {
+        private InstalledSkillBody (
+            bool exists,
+            string body)
+        {
+            ArgumentNullException.ThrowIfNull(body);
+            if (!exists && body.Length != 0)
+            {
+                throw new ArgumentException("A missing installed SKILL body must be empty.", nameof(body));
+            }
+
+            Exists = exists;
+            Body = body;
+        }
+
+        public bool Exists { get; }
+
+        public string Body { get; }
+
         public static InstalledSkillBody Missing { get; } = new(false, string.Empty);
+
+        public static InstalledSkillBody Present (string body)
+        {
+            return new InstalledSkillBody(true, body);
+        }
     }
 }

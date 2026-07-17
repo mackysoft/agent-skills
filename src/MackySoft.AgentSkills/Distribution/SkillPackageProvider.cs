@@ -1,34 +1,146 @@
-using MackySoft.AgentSkills.Dependencies;
+using MackySoft.AgentSkills.Bundles;
+using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Selection;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Tiers;
 
 namespace MackySoft.AgentSkills.Distribution;
 
-/// <summary> Provides SKILL packages from bundled generated package files. </summary>
+/// <summary> Provides selected SKILL packages from one validated generated bundle. </summary>
 public sealed class SkillPackageProvider
 {
     private readonly BundledSkillPackageRootResolver packageRootResolver;
-    private readonly CanonicalSkillPackageReader packageReader;
+    private readonly CanonicalSkillBundleReader bundleReader;
 
     /// <summary> Initializes a new instance of the <see cref="SkillPackageProvider" /> class. </summary>
     /// <param name="packageRootResolver"> The bundled generated SKILL package root resolver. </param>
-    /// <param name="packageReader"> The canonical package reader. </param>
+    /// <param name="bundleReader"> The canonical bundle reader. </param>
     public SkillPackageProvider (
         BundledSkillPackageRootResolver packageRootResolver,
-        CanonicalSkillPackageReader packageReader)
+        CanonicalSkillBundleReader bundleReader)
     {
         this.packageRootResolver = packageRootResolver ?? throw new ArgumentNullException(nameof(packageRootResolver));
-        this.packageReader = packageReader ?? throw new ArgumentNullException(nameof(packageReader));
+        this.bundleReader = bundleReader ?? throw new ArgumentNullException(nameof(bundleReader));
     }
 
-    /// <summary> Gets all SKILL packages from bundled generated package files. </summary>
+    /// <summary> Gets every package from the validated bundled SKILL package set. </summary>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
-    /// <returns> The canonical packages, or a package-resolution failure. </returns>
+    /// <returns> The canonical packages, or a bundle-resolution failure. </returns>
     public async ValueTask<SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>> GetPackagesAsync (
         CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var bundleResult = await ReadBundleAsync(cancellationToken).ConfigureAwait(false);
+        return bundleResult.IsSuccess
+            ? SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.Success(bundleResult.Value!.Packages)
+            : SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
+                bundleResult.Failure!.Code,
+                bundleResult.Failure.Message);
+    }
+
+    /// <summary> Gets the complete validated bundled package catalog. </summary>
+    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
+    /// <returns> The complete package catalog, or a bundle-resolution failure. </returns>
+    public ValueTask<SkillOperationResult<SkillPackageCatalog>> GetPackageCatalogAsync (
+        CancellationToken cancellationToken = default)
+    {
+        return GetPackageCatalogAsync([], [], cancellationToken);
+    }
+
+    /// <summary> Gets packages selected by exact category and SKILL-name literals. </summary>
+    /// <param name="selectedCategoryLiterals"> The selected category literals. Empty selects every category present in the bundle. </param>
+    /// <param name="selectedSkillNames"> The exact selected SKILL names. Empty disables the name filter. </param>
+    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
+    /// <returns> The selected root packages and their transitive dependencies, or a selection or bundle failure. </returns>
+    public async ValueTask<SkillOperationResult<SkillPackageCatalog>> GetPackageCatalogAsync (
+        IReadOnlyList<string> selectedCategoryLiterals,
+        IReadOnlyList<string> selectedSkillNames,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(selectedCategoryLiterals);
+        ArgumentNullException.ThrowIfNull(selectedSkillNames);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var skillNameSelectionResult = SkillNameLiteralParser.ParseOptionalSkillNames(selectedSkillNames);
+        if (!skillNameSelectionResult.IsSuccess)
+        {
+            return SkillOperationResult<SkillPackageCatalog>.FailureResult(
+                skillNameSelectionResult.Failure!.Code,
+                skillNameSelectionResult.Failure.Message);
+        }
+
+        var bundleResult = await ReadBundleAsync(cancellationToken).ConfigureAwait(false);
+        if (!bundleResult.IsSuccess)
+        {
+            return SkillOperationResult<SkillPackageCatalog>.FailureResult(
+                bundleResult.Failure!.Code,
+                bundleResult.Failure.Message);
+        }
+
+        return CreatePackageCatalog(
+            bundleResult.Value!,
+            selectedCategoryLiterals,
+            skillNameSelectionResult.Value!);
+    }
+
+    /// <summary> Gets packages selected by exact category literals. </summary>
+    /// <param name="selectedCategoryLiterals"> The selected category literals. Empty selects every category present in the bundle. </param>
+    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
+    /// <returns> The selected root packages and their transitive dependencies, or a selection or bundle failure. </returns>
+    public ValueTask<SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>> GetPackagesAsync (
+        IReadOnlyList<string> selectedCategoryLiterals,
+        CancellationToken cancellationToken = default)
+    {
+        return GetPackagesAsync(selectedCategoryLiterals, [], cancellationToken);
+    }
+
+    /// <summary> Gets packages selected by exact category and SKILL-name literals. </summary>
+    /// <param name="selectedCategoryLiterals"> The selected category literals. Empty selects every category present in the bundle. </param>
+    /// <param name="selectedSkillNames"> The exact selected SKILL names. Empty disables the name filter. </param>
+    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
+    /// <returns> The selected root packages and their transitive dependencies, or a selection or bundle failure. </returns>
+    public async ValueTask<SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>> GetPackagesAsync (
+        IReadOnlyList<string> selectedCategoryLiterals,
+        IReadOnlyList<string> selectedSkillNames,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(selectedCategoryLiterals);
+        ArgumentNullException.ThrowIfNull(selectedSkillNames);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var catalogResult = await GetPackageCatalogAsync(selectedCategoryLiterals, selectedSkillNames, cancellationToken).ConfigureAwait(false);
+        return catalogResult.IsSuccess
+            ? SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.Success(catalogResult.Value!.Packages)
+            : SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
+                catalogResult.Failure!.Code,
+                catalogResult.Failure.Message);
+    }
+
+    /// <summary> Gets packages selected by exact SKILL names across every category. </summary>
+    /// <param name="selectedSkillNames"> The exact selected SKILL names. Empty disables the name filter. </param>
+    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
+    /// <returns> The selected root packages and their transitive dependencies, or a selection or bundle failure. </returns>
+    public ValueTask<SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>> GetPackagesBySkillNamesAsync (
+        IReadOnlyList<string> selectedSkillNames,
+        CancellationToken cancellationToken = default)
+    {
+        return GetPackagesAsync([], selectedSkillNames, cancellationToken);
+    }
+
+    /// <summary> Gets a catalog selected by exact SKILL names across every category. </summary>
+    /// <param name="selectedSkillNames"> The exact selected SKILL names. Empty disables the name filter. </param>
+    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
+    /// <returns> The selected package catalog, or a selection or bundle failure. </returns>
+    public ValueTask<SkillOperationResult<SkillPackageCatalog>> GetPackageCatalogBySkillNamesAsync (
+        IReadOnlyList<string> selectedSkillNames,
+        CancellationToken cancellationToken = default)
+    {
+        return GetPackageCatalogAsync([], selectedSkillNames, cancellationToken);
+    }
+
+    private async ValueTask<SkillOperationResult<CanonicalSkillBundle>> ReadBundleAsync (CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -39,401 +151,81 @@ public sealed class SkillPackageProvider
         }
         catch (DirectoryNotFoundException ex)
         {
-            return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
+            return SkillOperationResult<CanonicalSkillBundle>.FailureResult(
                 SkillFailureCodes.SourceInvalid,
                 ex.Message);
         }
 
-        var packagesResult = await packageReader.ReadAllAsync(packageRoot, cancellationToken).ConfigureAwait(false);
-        if (!packagesResult.IsSuccess)
-        {
-            return packagesResult;
-        }
-
-        var packageIndexResult = CreatePackageIndex(packagesResult.Value!);
-        if (!packageIndexResult.IsSuccess)
-        {
-            return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
-                packageIndexResult.Failure!.Code,
-                packageIndexResult.Failure.Message);
-        }
-
-        return packagesResult;
-    }
-
-    /// <summary> Gets bundled SKILL package inventory validated against product-owned tier literals. </summary>
-    /// <param name="definedTierLiterals"> The complete product-owned tier literals. </param>
-    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
-    /// <returns> The validated package catalog, or a package-resolution failure. </returns>
-    public async ValueTask<SkillOperationResult<SkillPackageCatalog>> GetPackageCatalogAsync (
-        IReadOnlyList<string> definedTierLiterals,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(definedTierLiterals);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var definedTiersResult = SkillTierLiteralParser.ParseDefinedTiers(definedTierLiterals);
-        if (!definedTiersResult.IsSuccess)
-        {
-            return SkillOperationResult<SkillPackageCatalog>.FailureResult(
-                definedTiersResult.Failure!.Code,
-                definedTiersResult.Failure.Message);
-        }
-
-        return await GetPackageCatalogAsync(definedTiersResult.Value!, definedTiersResult.Value!, [], cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary> Gets bundled SKILL package inventory and selected packages validated against exact SKILL names. </summary>
-    /// <param name="definedTierLiterals"> The complete product-owned tier literals. </param>
-    /// <param name="selectedSkillNames"> The exact SKILL names selected by the caller. Empty means no name filter. </param>
-    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
-    /// <returns> The validated package catalog whose packages contain the selected root packages and their transitive dependencies, or a package-resolution failure. </returns>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="definedTierLiterals" /> or <paramref name="selectedSkillNames" /> is <see langword="null" />. </exception>
-    public async ValueTask<SkillOperationResult<SkillPackageCatalog>> GetPackageCatalogBySkillNamesAsync (
-        IReadOnlyList<string> definedTierLiterals,
-        IReadOnlyList<string> selectedSkillNames,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(definedTierLiterals);
-        ArgumentNullException.ThrowIfNull(selectedSkillNames);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var definedTiersResult = SkillTierLiteralParser.ParseDefinedTiers(definedTierLiterals);
-        if (!definedTiersResult.IsSuccess)
-        {
-            return SkillOperationResult<SkillPackageCatalog>.FailureResult(
-                definedTiersResult.Failure!.Code,
-                definedTiersResult.Failure.Message);
-        }
-
-        return await GetPackageCatalogAsync(definedTiersResult.Value!, definedTiersResult.Value!, selectedSkillNames, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary> Gets bundled SKILL package inventory and selected packages validated against product-owned tier literals. </summary>
-    /// <param name="definedTierLiterals"> The complete product-owned tier literals. </param>
-    /// <param name="selectedTiers"> The normalized selected product-owned SKILL tiers. </param>
-    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
-    /// <returns> The validated package catalog whose packages contain the selected root packages and their transitive dependencies, or a package-resolution failure. </returns>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="definedTierLiterals" />, <paramref name="selectedTiers" />, or an item in <paramref name="selectedTiers" /> is <see langword="null" />. </exception>
-    public async ValueTask<SkillOperationResult<SkillPackageCatalog>> GetPackageCatalogAsync (
-        IReadOnlyList<string> definedTierLiterals,
-        IReadOnlyList<SkillTier> selectedTiers,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(definedTierLiterals);
-        ArgumentNullException.ThrowIfNull(selectedTiers);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var definedTiersResult = SkillTierLiteralParser.ParseDefinedTiers(definedTierLiterals);
-        if (!definedTiersResult.IsSuccess)
-        {
-            return SkillOperationResult<SkillPackageCatalog>.FailureResult(
-                definedTiersResult.Failure!.Code,
-                definedTiersResult.Failure.Message);
-        }
-
-        var selectionResult = ValidateSelectedTiers(definedTiersResult.Value!, selectedTiers);
-        if (!selectionResult.IsSuccess)
-        {
-            return SkillOperationResult<SkillPackageCatalog>.FailureResult(
-                selectionResult.Failure!.Code,
-                selectionResult.Failure.Message);
-        }
-
-        return await GetPackageCatalogAsync(definedTiersResult.Value!, selectionResult.Value!, [], cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary> Gets bundled SKILL package inventory and selected packages validated against product-owned tier literals and exact SKILL names. </summary>
-    /// <param name="definedTierLiterals"> The complete product-owned tier literals. </param>
-    /// <param name="selectedTiers"> The normalized selected product-owned SKILL tiers. </param>
-    /// <param name="selectedSkillNames"> The exact SKILL names selected by the caller. Empty means no name filter. </param>
-    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
-    /// <returns> The validated package catalog whose packages contain the selected root packages and their transitive dependencies, or a package-resolution failure. </returns>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="definedTierLiterals" />, <paramref name="selectedTiers" />, <paramref name="selectedSkillNames" />, or an item in <paramref name="selectedTiers" /> is <see langword="null" />. </exception>
-    public async ValueTask<SkillOperationResult<SkillPackageCatalog>> GetPackageCatalogAsync (
-        IReadOnlyList<string> definedTierLiterals,
-        IReadOnlyList<SkillTier> selectedTiers,
-        IReadOnlyList<string> selectedSkillNames,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(definedTierLiterals);
-        ArgumentNullException.ThrowIfNull(selectedTiers);
-        ArgumentNullException.ThrowIfNull(selectedSkillNames);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var definedTiersResult = SkillTierLiteralParser.ParseDefinedTiers(definedTierLiterals);
-        if (!definedTiersResult.IsSuccess)
-        {
-            return SkillOperationResult<SkillPackageCatalog>.FailureResult(
-                definedTiersResult.Failure!.Code,
-                definedTiersResult.Failure.Message);
-        }
-
-        var tierSelectionResult = ValidateSelectedTiers(definedTiersResult.Value!, selectedTiers);
-        if (!tierSelectionResult.IsSuccess)
-        {
-            return SkillOperationResult<SkillPackageCatalog>.FailureResult(
-                tierSelectionResult.Failure!.Code,
-                tierSelectionResult.Failure.Message);
-        }
-
-        return await GetPackageCatalogAsync(definedTiersResult.Value!, tierSelectionResult.Value!, selectedSkillNames, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary> Gets bundled SKILL packages that exactly match selected product-owned tier literals. </summary>
-    /// <param name="definedTierLiterals"> The complete product-owned tier literals. </param>
-    /// <param name="selectedTierLiterals"> The selected product-owned SKILL tier literals. </param>
-    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
-    /// <returns> The selected root packages and their transitive dependencies, an empty list when the selected tiers are valid but have no packages, or a package-resolution failure. </returns>
-    public async ValueTask<SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>> GetPackagesAsync (
-        IReadOnlyList<string> definedTierLiterals,
-        IReadOnlyList<string> selectedTierLiterals,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(definedTierLiterals);
-        ArgumentNullException.ThrowIfNull(selectedTierLiterals);
-
-        var selectionResult = SkillTierLiteralParser.ParseSelectedTiers(definedTierLiterals, selectedTierLiterals);
-        if (!selectionResult.IsSuccess)
-        {
-            return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
-                selectionResult.Failure!.Code,
-                selectionResult.Failure.Message);
-        }
-
-        return await GetPackagesAsync(definedTierLiterals, selectionResult.Value!, [], cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary> Gets bundled SKILL packages that exactly match selected product-owned tier literals and exact SKILL names. </summary>
-    /// <param name="definedTierLiterals"> The complete product-owned tier literals. </param>
-    /// <param name="selectedTierLiterals"> The selected product-owned SKILL tier literals. </param>
-    /// <param name="selectedSkillNames"> The exact SKILL names selected by the caller. Empty means no name filter. </param>
-    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
-    /// <returns> The selected root packages and their transitive dependencies, an empty list when the selected tiers are valid but have no packages, or a package-resolution failure. </returns>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="definedTierLiterals" />, <paramref name="selectedTierLiterals" />, or <paramref name="selectedSkillNames" /> is <see langword="null" />. </exception>
-    public async ValueTask<SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>> GetPackagesAsync (
-        IReadOnlyList<string> definedTierLiterals,
-        IReadOnlyList<string> selectedTierLiterals,
-        IReadOnlyList<string> selectedSkillNames,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(definedTierLiterals);
-        ArgumentNullException.ThrowIfNull(selectedTierLiterals);
-        ArgumentNullException.ThrowIfNull(selectedSkillNames);
-
-        var selectionResult = SkillTierLiteralParser.ParseSelectedTiers(definedTierLiterals, selectedTierLiterals);
-        if (!selectionResult.IsSuccess)
-        {
-            return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
-                selectionResult.Failure!.Code,
-                selectionResult.Failure.Message);
-        }
-
-        return await GetPackagesAsync(definedTierLiterals, selectionResult.Value!, selectedSkillNames, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary> Gets bundled SKILL packages that exactly match selected SKILL names across all defined tiers. </summary>
-    /// <param name="definedTierLiterals"> The complete product-owned tier literals. </param>
-    /// <param name="selectedSkillNames"> The exact SKILL names selected by the caller. Empty means no name filter. </param>
-    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
-    /// <returns> The selected root packages and their transitive dependencies, or a package-resolution failure. </returns>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="definedTierLiterals" /> or <paramref name="selectedSkillNames" /> is <see langword="null" />. </exception>
-    public async ValueTask<SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>> GetPackagesBySkillNamesAsync (
-        IReadOnlyList<string> definedTierLiterals,
-        IReadOnlyList<string> selectedSkillNames,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(definedTierLiterals);
-        ArgumentNullException.ThrowIfNull(selectedSkillNames);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var catalogResult = await GetPackageCatalogBySkillNamesAsync(definedTierLiterals, selectedSkillNames, cancellationToken).ConfigureAwait(false);
-        if (!catalogResult.IsSuccess)
-        {
-            return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
-                catalogResult.Failure!.Code,
-                catalogResult.Failure.Message);
-        }
-
-        return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.Success(catalogResult.Value!.Packages);
-    }
-
-    /// <summary> Gets bundled SKILL packages that exactly match normalized selected product-owned SKILL tiers. </summary>
-    /// <param name="definedTierLiterals"> The complete product-owned tier literals. </param>
-    /// <param name="selectedTiers"> The normalized selected product-owned SKILL tiers. </param>
-    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
-    /// <returns> The selected root packages and their transitive dependencies, an empty list when the selected tiers are valid but have no packages, or a package-resolution failure. </returns>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="definedTierLiterals" />, <paramref name="selectedTiers" />, or an item in <paramref name="selectedTiers" /> is <see langword="null" />. </exception>
-    public async ValueTask<SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>> GetPackagesAsync (
-        IReadOnlyList<string> definedTierLiterals,
-        IReadOnlyList<SkillTier> selectedTiers,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(definedTierLiterals);
-        ArgumentNullException.ThrowIfNull(selectedTiers);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var definedTiersResult = SkillTierLiteralParser.ParseDefinedTiers(definedTierLiterals);
-        if (!definedTiersResult.IsSuccess)
-        {
-            return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
-                definedTiersResult.Failure!.Code,
-                definedTiersResult.Failure.Message);
-        }
-
-        var selectionResult = ValidateSelectedTiers(definedTiersResult.Value!, selectedTiers);
-        if (!selectionResult.IsSuccess)
-        {
-            return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
-                selectionResult.Failure!.Code,
-                selectionResult.Failure.Message);
-        }
-
-        return await GetPackagesAsync(definedTierLiterals, selectionResult.Value!, [], cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary> Gets bundled SKILL packages that exactly match normalized selected product-owned SKILL tiers and exact SKILL names. </summary>
-    /// <param name="definedTierLiterals"> The complete product-owned tier literals. </param>
-    /// <param name="selectedTiers"> The normalized selected product-owned SKILL tiers. </param>
-    /// <param name="selectedSkillNames"> The exact SKILL names selected by the caller. Empty means no name filter. </param>
-    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
-    /// <returns> The selected root packages and their transitive dependencies, an empty list when the selected tiers are valid but have no packages, or a package-resolution failure. </returns>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="definedTierLiterals" />, <paramref name="selectedTiers" />, <paramref name="selectedSkillNames" />, or an item in <paramref name="selectedTiers" /> is <see langword="null" />. </exception>
-    public async ValueTask<SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>> GetPackagesAsync (
-        IReadOnlyList<string> definedTierLiterals,
-        IReadOnlyList<SkillTier> selectedTiers,
-        IReadOnlyList<string> selectedSkillNames,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(definedTierLiterals);
-        ArgumentNullException.ThrowIfNull(selectedTiers);
-        ArgumentNullException.ThrowIfNull(selectedSkillNames);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var catalogResult = await GetPackageCatalogAsync(definedTierLiterals, selectedTiers, selectedSkillNames, cancellationToken).ConfigureAwait(false);
-        if (!catalogResult.IsSuccess)
-        {
-            return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
-                catalogResult.Failure!.Code,
-                catalogResult.Failure.Message);
-        }
-
-        return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.Success(catalogResult.Value!.Packages);
-    }
-
-    private async ValueTask<SkillOperationResult<SkillPackageCatalog>> GetPackageCatalogAsync (
-        IReadOnlyList<SkillTier> definedTiers,
-        IReadOnlyList<SkillTier> selectedTiers,
-        IReadOnlyList<string> selectedSkillNames,
-        CancellationToken cancellationToken)
-    {
-        var skillNameSelectionResult = SkillNameLiteralParser.ParseOptionalSkillNames(selectedSkillNames);
-        if (!skillNameSelectionResult.IsSuccess)
-        {
-            return SkillOperationResult<SkillPackageCatalog>.FailureResult(
-                skillNameSelectionResult.Failure!.Code,
-                skillNameSelectionResult.Failure.Message);
-        }
-
-        var packagesResult = await GetPackagesAsync(cancellationToken).ConfigureAwait(false);
-        if (!packagesResult.IsSuccess)
-        {
-            return SkillOperationResult<SkillPackageCatalog>.FailureResult(
-                packagesResult.Failure!.Code,
-                packagesResult.Failure.Message);
-        }
-
-        return CreatePackageCatalog(definedTiers, selectedTiers, skillNameSelectionResult.Value!, packagesResult.Value!);
+        return await bundleReader.ReadAsync(packageRoot, cancellationToken).ConfigureAwait(false);
     }
 
     private static SkillOperationResult<SkillPackageCatalog> CreatePackageCatalog (
-        IReadOnlyList<SkillTier> definedTiers,
-        IReadOnlyList<SkillTier> selectedTiers,
-        IReadOnlyList<SkillName> selectedSkillNames,
-        IReadOnlyList<CanonicalSkillPackage> packages)
+        CanonicalSkillBundle bundle,
+        IReadOnlyList<string> selectedCategoryLiterals,
+        IReadOnlyList<SkillName> selectedSkillNames)
     {
-        var definedTierSet = definedTiers.ToHashSet();
-        var selectedTierSet = selectedTiers.ToHashSet();
-        var selectedSkillNameSet = selectedSkillNames.ToHashSet();
-        var counts = definedTiers.ToDictionary(static tier => tier, static _ => 0);
-        var packageIndexResult = CreatePackageIndex(packages);
-        if (!packageIndexResult.IsSuccess)
-        {
-            return SkillOperationResult<SkillPackageCatalog>.FailureResult(
-                packageIndexResult.Failure!.Code,
-                packageIndexResult.Failure.Message);
-        }
+        var availableCategories = bundle.Packages
+            .GroupBy(static package => package.Manifest.Category)
+            .OrderBy(static group => group.Key.Value, StringComparer.Ordinal)
+            .Select(static group => new SkillCategoryPackageCount(group.Key, group.Count()))
+            .ToArray();
+        var availableCategoryValues = availableCategories
+            .Select(static item => item.Category)
+            .ToArray();
 
-        var packagesBySkillName = packageIndexResult.Value!;
-        foreach (var package in packages)
+        IReadOnlyList<SkillCategory> selectedCategories;
+        if (selectedCategoryLiterals.Count == 0)
         {
-            if (!definedTierSet.Contains(package.Manifest.Tier))
+            selectedCategories = availableCategoryValues;
+        }
+        else
+        {
+            var categorySelectionResult = SkillCategoryLiteralParser.ParseSelectedCategories(
+                availableCategoryValues,
+                selectedCategoryLiterals);
+            if (!categorySelectionResult.IsSuccess)
             {
                 return SkillOperationResult<SkillPackageCatalog>.FailureResult(
-                    SkillFailureCodes.ManifestInvalid,
-                    $"Generated SKILL package has an undefined tier: {package.Manifest.SkillName.Value}/{package.Manifest.Tier.Value}");
+                    categorySelectionResult.Failure!.Code,
+                    categorySelectionResult.Failure.Message);
             }
 
-            counts[package.Manifest.Tier]++;
+            selectedCategories = categorySelectionResult.Value!;
         }
 
+        var packageIndex = bundle.Packages.ToDictionary(static package => package.Manifest.SkillName);
+        var selectedCategorySet = selectedCategories.ToHashSet();
         foreach (var skillName in selectedSkillNames)
         {
-            if (!packagesBySkillName.TryGetValue(skillName, out var package))
+            if (!packageIndex.TryGetValue(skillName, out var package))
             {
                 return SkillOperationResult<SkillPackageCatalog>.FailureResult(
                     SkillFailureCodes.InputInvalid,
                     $"Selected SKILL name was not found: {skillName.Value}.");
             }
 
-            if (!selectedTierSet.Contains(package.Manifest.Tier))
+            if (!selectedCategorySet.Contains(package.Manifest.Category))
             {
                 return SkillOperationResult<SkillPackageCatalog>.FailureResult(
                     SkillFailureCodes.InputInvalid,
-                    $"Selected SKILL name '{skillName.Value}' does not match selected tiers: {string.Join(", ", selectedTiers.Select(static tier => tier.Value))}. Its tier is: {package.Manifest.Tier.Value}.");
+                    $"Selected SKILL name '{skillName.Value}' does not match selected categories: {string.Join(", ", selectedCategories.Select(static category => category.Value))}. Its category is: {package.Manifest.Category.Value}.");
             }
         }
 
-        var rootPackages = packages
-            .Where(package => selectedTierSet.Contains(package.Manifest.Tier))
+        var selectedSkillNameSet = selectedSkillNames.ToHashSet();
+        var rootPackages = bundle.Packages
+            .Where(package => selectedCategorySet.Contains(package.Manifest.Category))
             .Where(package => selectedSkillNameSet.Count == 0 || selectedSkillNameSet.Contains(package.Manifest.SkillName))
             .OrderBy(static package => package.Manifest.SkillName.Value, StringComparer.Ordinal)
             .ToArray();
-        var resolvedPackages = ResolveDependencyClosure(rootPackages, packagesBySkillName);
-        var availableTiers = definedTiers
-            .Select(tier => new SkillTierPackageCount(tier, counts[tier]))
-            .ToArray();
+        var resolvedPackages = ResolveDependencyClosure(rootPackages, packageIndex);
 
-        return SkillOperationResult<SkillPackageCatalog>.Success(new SkillPackageCatalog(selectedTiers, selectedSkillNames, availableTiers, resolvedPackages));
-    }
-
-    private static SkillOperationResult<Dictionary<SkillName, CanonicalSkillPackage>> CreatePackageIndex (IReadOnlyList<CanonicalSkillPackage> packages)
-    {
-        var packagesBySkillName = new Dictionary<SkillName, CanonicalSkillPackage>();
-        foreach (var package in packages)
-        {
-            if (!packagesBySkillName.TryAdd(package.Manifest.SkillName, package))
-            {
-                return SkillOperationResult<Dictionary<SkillName, CanonicalSkillPackage>>.FailureResult(
-                    SkillFailureCodes.ManifestInvalid,
-                    $"Generated SKILL package has a duplicate skillName: {package.Manifest.SkillName.Value}");
-            }
-        }
-
-        var dependencyGraphResult = SkillDependencyGraphValidator.Validate(
-            packagesBySkillName.ToDictionary(
-                static item => item.Key,
-                static item => item.Value.Manifest.Dependencies),
-            SkillFailureCodes.ManifestInvalid,
-            "Generated SKILL package");
-        if (!dependencyGraphResult.IsSuccess)
-        {
-            return SkillOperationResult<Dictionary<SkillName, CanonicalSkillPackage>>.FailureResult(
-                dependencyGraphResult.Failure!.Code,
-                dependencyGraphResult.Failure.Message);
-        }
-
-        return SkillOperationResult<Dictionary<SkillName, CanonicalSkillPackage>>.Success(packagesBySkillName);
+        return SkillOperationResult<SkillPackageCatalog>.Success(new SkillPackageCatalog(
+            bundle.Descriptor,
+            selectedCategories,
+            selectedSkillNames,
+            availableCategories,
+            resolvedPackages));
     }
 
     private static IReadOnlyList<CanonicalSkillPackage> ResolveDependencyClosure (
@@ -462,43 +254,9 @@ public sealed class SkillPackageProvider
             return;
         }
 
-        foreach (var dependency in packagesBySkillName[skillName].Manifest.Dependencies.OrderBy(static dependency => dependency.Value, StringComparer.Ordinal))
+        foreach (var dependency in packagesBySkillName[skillName].Manifest.Dependencies.OrderBy(static item => item.Value, StringComparer.Ordinal))
         {
             AddPackageAndDependencies(dependency, packagesBySkillName, resolvedSkillNames);
         }
-    }
-
-    private static SkillOperationResult<IReadOnlyList<SkillTier>> ValidateSelectedTiers (
-        IReadOnlyList<SkillTier> definedTiers,
-        IReadOnlyList<SkillTier> selectedTiers)
-    {
-        if (selectedTiers.Count == 0)
-        {
-            return SkillOperationResult<IReadOnlyList<SkillTier>>.FailureResult(
-                SkillFailureCodes.InputInvalid,
-                "At least one SKILL tier must be selected.");
-        }
-
-        var definedTierSet = definedTiers.ToHashSet();
-        var normalizedSelectedTiers = new List<SkillTier>(selectedTiers.Count);
-        var selectedTierSet = new HashSet<SkillTier>();
-        foreach (var selectedTier in selectedTiers)
-        {
-            ArgumentNullException.ThrowIfNull(selectedTier);
-
-            if (!definedTierSet.Contains(selectedTier))
-            {
-                return SkillOperationResult<IReadOnlyList<SkillTier>>.FailureResult(
-                    SkillFailureCodes.InputInvalid,
-                    $"Unsupported SKILL tier: {selectedTier.Value}. Supported tiers: {string.Join(", ", definedTiers.Select(static tier => tier.Value))}.");
-            }
-
-            if (selectedTierSet.Add(selectedTier))
-            {
-                normalizedSelectedTiers.Add(selectedTier);
-            }
-        }
-
-        return SkillOperationResult<IReadOnlyList<SkillTier>>.Success(normalizedSelectedTiers);
     }
 }

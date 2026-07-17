@@ -14,7 +14,7 @@ internal sealed class AgentSkillsExportCommand
     private readonly AgentSkillsCommandRunner runner;
     private readonly IAgentSkillsCommandResultEmitter emitter;
 
-    public AgentSkillsExportCommand(
+    public AgentSkillsExportCommand (
         AgentSkillsCommandRunner runner,
         IAgentSkillsCommandResultEmitter emitter)
     {
@@ -24,16 +24,16 @@ internal sealed class AgentSkillsExportCommand
 
     /// <summary> Exports Agent Skills. </summary>
     [Command("export")]
-    public async Task<int> ExportAsync(
+    public async Task<int> ExportAsync (
         string? host = null,
-        string[]? tier = null,
+        string[]? category = null,
         string[]? skill = null,
         string? output = null,
         string? format = null,
         bool pretty = false,
         CancellationToken cancellationToken = default)
     {
-        var result = await runner.ExportAsync(new AgentSkillsExportCommandRequest(host, tier, skill, output, format), cancellationToken).ConfigureAwait(false);
+        var result = await runner.ExportAsync(new AgentSkillsExportCommandRequest(host, category, skill, output, format), cancellationToken).ConfigureAwait(false);
         return await emitter.EmitAsync(result, new AgentSkillsCommandOutputOptions(pretty), cancellationToken).ConfigureAwait(false);
     }
 }

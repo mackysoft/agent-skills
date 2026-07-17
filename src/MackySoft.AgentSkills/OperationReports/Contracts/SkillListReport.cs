@@ -1,14 +1,34 @@
 namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
 /// <summary> Represents product-neutral list data for generated skills and supported hosts. </summary>
-/// <param name="Tiers"> The selected product-owned SKILL tier literals. </param>
-/// <param name="SkillNames"> The exact SKILL name selection. Empty means no name filter. </param>
-/// <param name="AvailableTiers"> The complete product-owned SKILL tier list with bundled skill counts. </param>
-/// <param name="Skills"> The canonical skill reports sorted by skill name using ordinal comparison. </param>
-/// <param name="SupportedHosts"> The supported host reports sorted by host key using ordinal comparison. </param>
-public sealed record SkillListReport (
-    IReadOnlyList<string> Tiers,
-    IReadOnlyList<string> SkillNames,
-    IReadOnlyList<SkillListTierReport> AvailableTiers,
-    IReadOnlyList<SkillListSkillReport> Skills,
-    IReadOnlyList<SkillHostReport> SupportedHosts);
+public sealed class SkillListReport
+{
+    internal SkillListReport (
+        IReadOnlyList<string> categories,
+        IReadOnlyList<string> skillNames,
+        IReadOnlyList<SkillListCategoryReport> availableCategories,
+        IReadOnlyList<SkillListSkillReport> skills,
+        IReadOnlyList<SkillHostReport> supportedHosts)
+    {
+        Categories = OperationReportContractGuard.SnapshotRequiredStrings(categories, nameof(categories));
+        SkillNames = OperationReportContractGuard.SnapshotRequiredStrings(skillNames, nameof(skillNames));
+        AvailableCategories = OperationReportContractGuard.SnapshotRequiredItems(availableCategories, nameof(availableCategories));
+        Skills = OperationReportContractGuard.SnapshotRequiredItems(skills, nameof(skills));
+        SupportedHosts = OperationReportContractGuard.SnapshotRequiredItems(supportedHosts, nameof(supportedHosts));
+    }
+
+    /// <summary> Gets the selected category literals. </summary>
+    public IReadOnlyList<string> Categories { get; }
+
+    /// <summary> Gets the exact SKILL name selection. Empty means no name filter. </summary>
+    public IReadOnlyList<string> SkillNames { get; }
+
+    /// <summary> Gets all available categories with bundled SKILL counts. </summary>
+    public IReadOnlyList<SkillListCategoryReport> AvailableCategories { get; }
+
+    /// <summary> Gets the canonical SKILL reports in ordinal name order. </summary>
+    public IReadOnlyList<SkillListSkillReport> Skills { get; }
+
+    /// <summary> Gets supported host reports in canonical literal order. </summary>
+    public IReadOnlyList<SkillHostReport> SupportedHosts { get; }
+}

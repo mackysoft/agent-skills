@@ -192,6 +192,15 @@ for index in "${!sorted_expected_package_files[@]}"; do
   fi
 done
 
+consoleappframework_package_files="$(unzip -Z1 "$consoleappframework_package")"
+grep -Fxq 'lib/net8.0/MackySoft.AgentSkills.ConsoleAppFramework.dll' <<< "$consoleappframework_package_files"
+grep -Fxq 'buildTransitive/MackySoft.AgentSkills.ConsoleAppFramework.props' <<< "$consoleappframework_package_files"
+grep -Fxq 'contentFiles/cs/any/MackySoft.AgentSkills.ConsoleAppFramework/AgentSkillsListCommand.cs' <<< "$consoleappframework_package_files"
+
+cli_package_files="$(unzip -Z1 "$cli_package")"
+grep -Fxq 'tools/net8.0/any/skills/bundle.json' <<< "$cli_package_files"
+grep -Fxq 'tools/net8.0/any/skills/agent-skills-packaging/agent-skill.json' <<< "$cli_package_files"
+
 if [ -n "$repository_commit" ]; then
   bash "$script_dir/validate-nuget-package-repository-commit.sh" \
     --package-id MackySoft.AgentSkills \
@@ -223,17 +232,11 @@ dotnet build "$consumer_dir/consumer.csproj" --configuration "$configuration" --
 
 console_consumer_dir="$work_root/console-consumer"
 dotnet new console --output "$console_consumer_dir" --no-restore >/dev/null
-cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/generated" "$console_consumer_dir/skills"
+cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/SkillBundle/generated" "$console_consumer_dir/skills"
 dotnet add "$console_consumer_dir/console-consumer.csproj" package MackySoft.AgentSkills.ConsoleAppFramework \
   --version "$package_version" \
   --source "$package_dir" >/dev/null
 dotnet add "$console_consumer_dir/console-consumer.csproj" package Microsoft.Extensions.Hosting >/dev/null
-mkdir -p "$console_consumer_dir/Properties"
-cat > "$console_consumer_dir/Properties/AssemblyInfo.cs" <<'CS'
-using ConsoleAppFramework;
-
-[assembly: ConsoleAppFrameworkGeneratorOptions(DisableNamingConversion = true)]
-CS
 cat > "$console_consumer_dir/Program.cs" <<'CS'
 using System;
 using System.IO;
@@ -246,8 +249,6 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddAgentSkillsCommandRuntime(options =>
 {
     options.ProductName = "Smoke CLI";
-    options.CatalogId = "com.mackysoft.agent-skills";
-    options.Tiers = ["basic", "advanced", "developer"];
     options.PackageBaseDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
     options.CommandRoot = "agent-skills";
 });
@@ -280,7 +281,7 @@ dotnet run \
   --project "$console_consumer_dir/console-consumer.csproj" \
   --configuration "$configuration" \
   --no-build \
-  -- agent-skills install --host openai --scope project --tier basic --repositoryRoot "$work_root/install-target" --dryRun --pretty > "$work_root/skills-install.json"
+  -- agent-skills install --host openai --scope project --category core --repository-root "$work_root/install-target" --dry-run --pretty > "$work_root/skills-install.json"
 grep -q '"Command": "agent-skills.install"' "$work_root/skills-install.json"
 grep -q '"Status": "ok"' "$work_root/skills-install.json"
 grep -q '"DryRun": true' "$work_root/skills-install.json"
@@ -294,12 +295,31 @@ mkdir -p "$tool_dir"
     --version "$package_version" \
     --add-source "$package_dir" >/dev/null
 
-  generated_dir="$work_root/generated"
-  dotnet tool run agent-skills -- build \
-    --definitionsRoot "$DOTNET_REPO_ROOT/tests/Fixtures/SkillDefinitions" \
-    --generatedRoot "$generated_dir" >/dev/null
+  bundle_root="$work_root/skill-bundle"
+  cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/SkillBundle" "$bundle_root"
+  rm -rf "$bundle_root/generated"
+  dotnet tool run agent-skills -- build --root "$bundle_root" >/dev/null
 
-  diff -ruN "$DOTNET_REPO_ROOT/tests/Fixtures/generated" "$generated_dir"
+  diff -ruN "$DOTNET_REPO_ROOT/tests/Fixtures/SkillBundle/generated" "$bundle_root/generated"
+
+  dotnet tool run agent-skills -- list --pretty > "$work_root/agent-skills-own-list.json"
+  grep -q '"Command": "agent-skills.list"' "$work_root/agent-skills-own-list.json"
+  grep -q '"Status": "ok"' "$work_root/agent-skills-own-list.json"
+  grep -q '"Category": "basic"' "$work_root/agent-skills-own-list.json"
+  grep -q '"SkillName": "agent-skills-packaging"' "$work_root/agent-skills-own-list.json"
+
+  own_install_root="$work_root/agent-skills-own-install"
+  mkdir -p "$own_install_root"
+  dotnet tool run agent-skills -- install \
+    --host openai \
+    --scope project \
+    --category basic \
+    --repositoryRoot "$own_install_root" \
+    --dryRun \
+    --pretty > "$work_root/agent-skills-own-install.json"
+  grep -q '"Command": "agent-skills.install"' "$work_root/agent-skills-own-install.json"
+  grep -q '"Status": "ok"' "$work_root/agent-skills-own-install.json"
+  grep -q '"DryRun": true' "$work_root/agent-skills-own-install.json"
 )
 
 echo "NuGet packages verified: $package_dir"

@@ -14,7 +14,7 @@ internal sealed class AgentSkillsInstallCommand
     private readonly AgentSkillsCommandRunner runner;
     private readonly IAgentSkillsCommandResultEmitter emitter;
 
-    public AgentSkillsInstallCommand(
+    public AgentSkillsInstallCommand (
         AgentSkillsCommandRunner runner,
         IAgentSkillsCommandResultEmitter emitter)
     {
@@ -28,9 +28,9 @@ internal sealed class AgentSkillsInstallCommand
     /// <param name="dryRun">Report planned changes without writing files.</param>
     /// <param name="printDiff">Include file diffs in the operation report.</param>
     [Command("install")]
-    public async Task<int> InstallAsync(
+    public async Task<int> InstallAsync (
         string? host = null,
-        string[]? tier = null,
+        string[]? category = null,
         string[]? skill = null,
         string? scope = null,
         string? repositoryRoot = null,
@@ -41,7 +41,7 @@ internal sealed class AgentSkillsInstallCommand
         bool pretty = false,
         CancellationToken cancellationToken = default)
     {
-        var result = await runner.InstallAsync(new AgentSkillsInstallCommandRequest(host, tier, skill, scope, repositoryRoot, targetDir, dryRun, force, printDiff), cancellationToken).ConfigureAwait(false);
+        var result = await runner.InstallAsync(new AgentSkillsInstallCommandRequest(host, category, skill, scope, repositoryRoot, targetDir, dryRun, force, printDiff), cancellationToken).ConfigureAwait(false);
         return await emitter.EmitAsync(result, new AgentSkillsCommandOutputOptions(pretty), cancellationToken).ConfigureAwait(false);
     }
 }

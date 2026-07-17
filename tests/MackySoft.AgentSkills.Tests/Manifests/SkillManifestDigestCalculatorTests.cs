@@ -1,9 +1,11 @@
 using System.Security.Cryptography;
 using System.Text;
 using MackySoft.AgentSkills.Catalogs;
+using MackySoft.AgentSkills.Categories;
+using MackySoft.AgentSkills.Digests;
+using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Names;
-using MackySoft.AgentSkills.Tiers;
 
 namespace MackySoft.AgentSkills.Tests.Manifests;
 
@@ -18,7 +20,7 @@ public sealed class SkillManifestDigestCalculatorTests
             "  \"schemaVersion\": 1,",
             "  \"skillBundleVersion\": 1,",
             "  \"catalogId\": \"com.mackysoft.agent-skills\",",
-            "  \"tier\": \"basic\",",
+            "  \"category\": \"core\",",
             "  \"skillName\": \"sample-skill\",",
             "  \"displayName\": \"Sample Skill\",",
             "  \"description\": \"Use this sample skill for tests.\",",
@@ -45,21 +47,21 @@ public sealed class SkillManifestDigestCalculatorTests
             "  ]",
             "}",
         ]) + "\n";
-        var manifest = new SkillManifest(
+        var manifest = new SkillManifestCandidate(
             SkillManifest.CurrentSchemaVersion,
             1,
             new SkillCatalogId("com.mackysoft.agent-skills"),
-            new SkillTier("basic"),
+            new SkillCategory("core"),
             new SkillName("sample-skill"),
             "Sample Skill",
             "Use this sample skill for tests.",
             [new SkillName("z-helper"), new SkillName("a-helper")],
-            new string('0', 64),
-            new string('f', 64),
+            Digest('0'),
+            Digest('f'),
             [
-                new SkillHostArtifactManifest("openai", "agents/openai.yaml", new string('3', 64), new string('4', 64)),
-                new SkillHostArtifactManifest("claude", null, null, new string('1', 64)),
-                new SkillHostArtifactManifest("copilot", null, null, new string('2', 64)),
+                new SkillHostArtifactManifest(SkillHostKind.OpenAi, "agents/openai.yaml", Digest('3'), Digest('4')),
+                new SkillHostArtifactManifest(SkillHostKind.Claude, null, null, Digest('1')),
+                new SkillHostArtifactManifest(SkillHostKind.Copilot, null, null, Digest('2')),
             ]);
         var calculator = new SkillManifestDigestCalculator(new SkillManifestJsonSerializer());
         var expectedHash = SHA256.HashData(Encoding.UTF8.GetBytes(expectedDigestInput));
@@ -67,7 +69,12 @@ public sealed class SkillManifestDigestCalculatorTests
 
         var actualDigest = calculator.ComputeManifestDigest(manifest);
 
-        Assert.Equal(expectedDigest, actualDigest);
-        Assert.Equal(actualDigest.ToLowerInvariant(), actualDigest);
+        Assert.Equal(expectedDigest, actualDigest.ToString());
+        Assert.Equal(actualDigest.ToString().ToLowerInvariant(), actualDigest.ToString());
+    }
+
+    private static Sha256Digest Digest (char value)
+    {
+        return Sha256Digest.Parse(new string(value, 64));
     }
 }

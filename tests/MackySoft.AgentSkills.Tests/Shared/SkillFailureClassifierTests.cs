@@ -55,6 +55,8 @@ public sealed class SkillFailureClassifierTests
             [SkillFailureCodes.UserTargetUnavailable] = SkillFailureCategory.UserTargetUnavailable,
             [SkillFailureCodes.ManifestInvalid] = SkillFailureCategory.ManifestInvalid,
             [SkillFailureCodes.SourceInvalid] = SkillFailureCategory.SourceInvalid,
+            [SkillFailureCodes.BundleVersionConflict] = SkillFailureCategory.SourceInvalid,
+            [SkillFailureCodes.BundleUpdateRequired] = SkillFailureCategory.DriftOrLocalModification,
             [SkillFailureCodes.InstallTargetDigestMismatch] = SkillFailureCategory.DriftOrLocalModification,
             [SkillFailureCodes.InstallTargetManifestDigestMismatch] = SkillFailureCategory.DriftOrLocalModification,
             [SkillFailureCodes.InstallTargetContentDigestMismatch] = SkillFailureCategory.DriftOrLocalModification,

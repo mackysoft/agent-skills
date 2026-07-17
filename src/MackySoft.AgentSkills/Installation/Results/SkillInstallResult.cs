@@ -1,14 +1,40 @@
 namespace MackySoft.AgentSkills.Installation.Results;
 
 /// <summary> Represents a planned or completed SKILL install operation. </summary>
-/// <param name="TargetRoot"> The canonical absolute target root. </param>
-/// <param name="Actions"> The per-skill install actions. </param>
-/// <param name="DryRun"> Whether the result represents a plan without writes. </param>
-/// <param name="Force"> Whether the operation was planned or executed with install force semantics enabled. </param>
-/// <param name="PrintDiff"> Whether diff payloads were requested. </param>
-public sealed record SkillInstallResult (
-    string TargetRoot,
-    IReadOnlyList<SkillInstallAction> Actions,
-    bool DryRun = false,
-    bool Force = false,
-    bool PrintDiff = false);
+public sealed class SkillInstallResult
+{
+    /// <summary> Initializes one planned or completed install operation. </summary>
+    internal SkillInstallResult (
+        string targetRoot,
+        IReadOnlyList<SkillInstallAction> actions,
+        bool dryRun,
+        bool force,
+        bool printDiff)
+    {
+        TargetRoot = SkillActionContractGuard.ValidateTargetRoot(targetRoot, nameof(targetRoot));
+        Actions = SkillActionContractGuard.Snapshot(actions, nameof(actions));
+        foreach (var action in Actions)
+        {
+            SkillActionContractGuard.ValidateTargetRootMatchesIdentity(TargetRoot, action.Identity, nameof(actions));
+        }
+
+        DryRun = dryRun;
+        Force = force;
+        PrintDiff = printDiff;
+    }
+
+    /// <summary> Gets the canonical absolute target root. </summary>
+    public string TargetRoot { get; }
+
+    /// <summary> Gets an immutable snapshot of per-SKILL install actions. </summary>
+    public IReadOnlyList<SkillInstallAction> Actions { get; }
+
+    /// <summary> Gets whether the result represents a plan without writes. </summary>
+    public bool DryRun { get; }
+
+    /// <summary> Gets whether install force semantics were enabled. </summary>
+    public bool Force { get; }
+
+    /// <summary> Gets whether structured diff payloads were requested. </summary>
+    public bool PrintDiff { get; }
+}

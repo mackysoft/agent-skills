@@ -25,7 +25,8 @@ public sealed class SkillFailureCodeTests
     public void Constructor_RejectsBlankValue (string? value)
     {
         Assert.ThrowsAny<ArgumentException>(() => new SkillFailureCode(value!));
-        Assert.False(SkillFailureCode.TryCreate(value, out _));
+        Assert.False(SkillFailureCode.TryCreate(value, out var code));
+        Assert.Null(code);
     }
 
     [Fact]

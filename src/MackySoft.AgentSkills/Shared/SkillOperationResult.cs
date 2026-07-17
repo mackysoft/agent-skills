@@ -2,12 +2,22 @@ namespace MackySoft.AgentSkills.Shared;
 
 /// <summary> Represents a SKILL library operation result. </summary>
 /// <typeparam name="T"> The successful value type. </typeparam>
-/// <param name="Value"> The successful value, or <see langword="null" /> when failed. </param>
-/// <param name="Failure"> The failure, or <see langword="null" /> when succeeded. </param>
-public sealed record SkillOperationResult<T> (
-    T? Value,
-    SkillFailure? Failure)
+public sealed class SkillOperationResult<T>
 {
+    private SkillOperationResult (
+        T? value,
+        SkillFailure? failure)
+    {
+        Value = value;
+        Failure = failure;
+    }
+
+    /// <summary> Gets the successful value, or <see langword="null" /> when failed. </summary>
+    public T? Value { get; }
+
+    /// <summary> Gets the failure, or <see langword="null" /> when succeeded. </summary>
+    public SkillFailure? Failure { get; }
+
     /// <summary> Gets a value indicating whether this result succeeded. </summary>
     public bool IsSuccess => Failure is null;
 

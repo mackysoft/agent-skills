@@ -1,27 +1,33 @@
 namespace MackySoft.AgentSkills.Shared;
 
 /// <summary> Represents one deterministic text file in a SKILL package. </summary>
-/// <param name="RelativePath"> The slash-separated package-relative path. </param>
-/// <param name="Content"> The UTF-8 text content normalized to LF line endings. </param>
-public sealed record SkillPackageFile (
-    string RelativePath,
-    string Content)
+public sealed class SkillPackageFile
 {
-    /// <summary> Creates one package file after validating path and content. </summary>
+    /// <summary> Initializes one package file with a safe path and canonical text content. </summary>
     /// <param name="relativePath"> The slash-separated package-relative path. </param>
-    /// <param name="content"> The file content. </param>
-    /// <returns> The package file. </returns>
-    public static SkillPackageFile Create (
+    /// <param name="content"> The UTF-8 text content, normalized to LF line endings. </param>
+    public SkillPackageFile (
         string relativePath,
         string content)
     {
-        ArgumentNullException.ThrowIfNull(content);
-
         if (!SkillRelativePath.IsSafeFilePath(relativePath))
         {
             throw new ArgumentException("Package file path must be a safe slash-separated relative path.", nameof(relativePath));
         }
 
-        return new SkillPackageFile(relativePath, SkillTextNormalizer.NormalizeToLf(content));
+        ArgumentNullException.ThrowIfNull(content);
+        if (content.StartsWith('\uFEFF'))
+        {
+            throw new ArgumentException("Package file content must not start with a UTF-8 byte order mark.", nameof(content));
+        }
+
+        RelativePath = relativePath;
+        Content = SkillTextNormalizer.NormalizeToLf(content);
     }
+
+    /// <summary> Gets the slash-separated package-relative path. </summary>
+    public string RelativePath { get; }
+
+    /// <summary> Gets the text content normalized to LF line endings. </summary>
+    public string Content { get; }
 }

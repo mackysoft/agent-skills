@@ -20,7 +20,7 @@ public sealed class SkillMaterializationServiceTests
         {
             foreach (var adapter in adapters)
             {
-                var host = adapter.Descriptor.HostKey;
+                var host = adapter.Descriptor.Host;
                 var first = service.Materialize(package, host);
                 var second = service.Materialize(package, host);
 
@@ -28,7 +28,9 @@ public sealed class SkillMaterializationServiceTests
                 Assert.True(second.IsSuccess, second.Failure?.Message);
                 Assert.Equal(package.Manifest.SkillName.Value, first.Value!.SkillName.Value);
                 Assert.Equal(host, first.Value.Host);
-                Assert.Equal(first.Value!.Files, second.Value!.Files);
+                Assert.Equal(
+                    first.Value!.Files.Select(static file => (file.RelativePath, file.Content)),
+                    second.Value!.Files.Select(static file => (file.RelativePath, file.Content)));
                 var materializedFiles = first.Value.Files;
                 var materializedPaths = materializedFiles.Select(static file => file.RelativePath).ToArray();
 
@@ -52,7 +54,7 @@ public sealed class SkillMaterializationServiceTests
 
             foreach (var adapter in adapters)
             {
-                var result = service.Materialize(package, adapter.Descriptor.HostKey);
+                var result = service.Materialize(package, adapter.Descriptor.Host);
 
                 Assert.True(result.IsSuccess, result.Failure?.Message);
                 AssertFileMapEqual(canonicalContent, GetMaterializedHostIndependentContent(package, adapter, result.Value!.Files));
@@ -73,7 +75,7 @@ public sealed class SkillMaterializationServiceTests
 
             foreach (var adapter in GetSupportedAdapters())
             {
-                var result = service.Materialize(package, adapter.Descriptor.HostKey);
+                var result = service.Materialize(package, adapter.Descriptor.Host);
 
                 Assert.True(result.IsSuccess, result.Failure?.Message);
                 var materializedPaths = result.Value!.Files.Select(static file => file.RelativePath).ToArray();
@@ -101,7 +103,7 @@ public sealed class SkillMaterializationServiceTests
         {
             foreach (var adapter in adapters)
             {
-                var result = service.Materialize(package, adapter.Descriptor.HostKey);
+                var result = service.Materialize(package, adapter.Descriptor.Host);
 
                 Assert.True(result.IsSuccess, result.Failure?.Message);
                 var hostArtifactPaths = GetHostArtifactPaths(package);
@@ -109,14 +111,15 @@ public sealed class SkillMaterializationServiceTests
                     .Select(static file => file.RelativePath)
                     .Where(hostArtifactPaths.Contains)
                     .ToArray();
-                var expectedMetadataArtifactPaths = adapter.MetadataArtifactPath is null ? [] : new[] { adapter.MetadataArtifactPath };
+                var metadataArtifactPath = adapter.Descriptor.MetadataArtifactPath;
+                var expectedMetadataArtifactPaths = metadataArtifactPath is null ? [] : new[] { metadataArtifactPath };
 
                 Assert.Equal(expectedMetadataArtifactPaths, actualMetadataArtifactPaths);
 
-                if (adapter.MetadataArtifactPath is not null)
+                if (metadataArtifactPath is not null)
                 {
                     var expectedMetadata = adapter.BuildArtifacts(CreateHostMetadata(package)).MetadataContent;
-                    var actualMetadata = result.Value.Files.Single(file => string.Equals(file.RelativePath, adapter.MetadataArtifactPath, StringComparison.Ordinal)).Content;
+                    var actualMetadata = result.Value.Files.Single(file => string.Equals(file.RelativePath, metadataArtifactPath, StringComparison.Ordinal)).Content;
                     Assert.Equal(expectedMetadata, actualMetadata);
                 }
             }
@@ -130,7 +133,7 @@ public sealed class SkillMaterializationServiceTests
         var package = (await SkillTestData.GenerateFixturePackagesAsync()).First();
         var service = SkillTestData.CreateMaterializationService();
 
-        var result = service.Materialize(package, "generic");
+        var result = service.Materialize(package, (SkillHostKind)42);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.HostUnsupported, result.Failure!.Code);
@@ -150,7 +153,7 @@ public sealed class SkillMaterializationServiceTests
         return package.Files
             .Where(file => !hostArtifactPaths.Contains(file.RelativePath))
             .Select(static file => file.RelativePath)
-            .Concat(adapter.MetadataArtifactPath is null ? [] : [adapter.MetadataArtifactPath])
+            .Concat(adapter.Descriptor.MetadataArtifactPath is null ? [] : [adapter.Descriptor.MetadataArtifactPath])
             .Order(StringComparer.Ordinal)
             .ToArray();
     }

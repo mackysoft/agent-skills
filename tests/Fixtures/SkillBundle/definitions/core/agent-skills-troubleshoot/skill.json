@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "displayName": "Agent Skills Troubleshoot",
+  "description": "Use when diagnosing Agent Skills daemon, lifecycle, readIndex freshness, timeout, compile or domain reload, logs, IPC, and Unity execution failures.",
+  "dependencies": []
+}

@@ -8,7 +8,7 @@ public static class SkillNameLiteralParser
 {
     /// <summary> Parses selected SKILL name literals. </summary>
     /// <param name="selectedSkillNames"> The exact SKILL name literals selected by the caller. </param>
-    /// <returns> The normalized selected SKILL names, or an input failure. Duplicate values are removed after their first occurrence. </returns>
+    /// <returns> An immutable snapshot of the normalized selected SKILL names, or an input failure. Duplicate values are removed after their first occurrence. </returns>
     /// <exception cref="ArgumentNullException"> Thrown when <paramref name="selectedSkillNames" /> is <see langword="null" />. </exception>
     public static SkillOperationResult<IReadOnlyList<SkillName>> ParseSelectedSkillNames (IReadOnlyList<string> selectedSkillNames)
     {
@@ -45,6 +45,7 @@ public static class SkillNameLiteralParser
             }
         }
 
-        return SkillOperationResult<IReadOnlyList<SkillName>>.Success(normalizedSkillNames);
+        return SkillOperationResult<IReadOnlyList<SkillName>>.Success(
+            Array.AsReadOnly(normalizedSkillNames.ToArray()));
     }
 }

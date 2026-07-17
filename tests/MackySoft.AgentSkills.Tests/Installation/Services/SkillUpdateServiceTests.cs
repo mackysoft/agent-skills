@@ -1,5 +1,4 @@
-using MackySoft.AgentSkills.Hosts.Claude;
-using MackySoft.AgentSkills.Hosts.OpenAi;
+using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Contracts;
 using MackySoft.AgentSkills.Installation.Requests;
 using MackySoft.AgentSkills.Installation.Results;
@@ -19,7 +18,7 @@ public sealed class SkillUpdateServiceTests
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "update-create-noop");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var service = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
 
         var created = await service.UpdateAsync(new SkillUpdateInput(packages, request), CancellationToken.None);
         var noOp = await service.UpdateAsync(new SkillUpdateInput(packages, request), CancellationToken.None);
@@ -43,7 +42,7 @@ public sealed class SkillUpdateServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var updatedPackages = SkillTestData.ReplacePackage(packages, SkillTestData.CreatePackageWithUpdatedBody(packages[0]));
@@ -68,7 +67,7 @@ public sealed class SkillUpdateServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var updatedPackages = SkillTestData.ReplacePackage(packages, SkillTestData.CreatePackageWithUpdatedOpenAiMetadata(packages[0]));
@@ -97,8 +96,8 @@ public sealed class SkillUpdateServiceTests
         var result = await service.UpdateAsync(
             new SkillUpdateInput(
                 packages,
-                new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
-                Force: true),
+                new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
+                force: true),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -119,8 +118,8 @@ public sealed class SkillUpdateServiceTests
         var result = await service.UpdateAsync(
             new SkillUpdateInput(
                 packages,
-                new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
-                Force: true),
+                new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
+                force: true),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -135,7 +134,7 @@ public sealed class SkillUpdateServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         File.AppendAllText(Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "SKILL.md"), "\nInjected instruction.\n");
@@ -154,7 +153,7 @@ public sealed class SkillUpdateServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var skillPath = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "SKILL.md");
@@ -174,7 +173,7 @@ public sealed class SkillUpdateServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         File.AppendAllText(Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "agents", "openai.yaml"), "\n# Drifted metadata.\n");
@@ -193,7 +192,7 @@ public sealed class SkillUpdateServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var manifestPath = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "agent-skill.json");
@@ -217,7 +216,7 @@ public sealed class SkillUpdateServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var manifestPath = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "agent-skill.json");
@@ -237,7 +236,7 @@ public sealed class SkillUpdateServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var manifestPath = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "agent-skill.json");
@@ -261,9 +260,9 @@ public sealed class SkillUpdateServiceTests
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "update-dry-run-create");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var service = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
 
-        var result = await service.UpdateAsync(new SkillUpdateInput([packages[0]], request, DryRun: true, PrintDiff: true), CancellationToken.None);
+        var result = await service.UpdateAsync(new SkillUpdateInput([packages[0]], request, dryRun: true, printDiff: true), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
@@ -284,14 +283,14 @@ public sealed class SkillUpdateServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync([packages[0]], request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var manifestPath = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "agent-skill.json");
         var originalManifest = File.ReadAllText(manifestPath);
         var updatedPackage = SkillTestData.CreatePackageWithUpdatedBody(packages[0]);
 
-        var result = await updateService.UpdateAsync(new SkillUpdateInput([updatedPackage], request, DryRun: true, PrintDiff: true), CancellationToken.None);
+        var result = await updateService.UpdateAsync(new SkillUpdateInput([updatedPackage], request, dryRun: true, printDiff: true), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
@@ -313,14 +312,14 @@ public sealed class SkillUpdateServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var skillPath = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "SKILL.md");
         File.AppendAllText(skillPath, "\nInjected instruction.\n");
         var modifiedSkill = File.ReadAllText(skillPath);
 
-        var result = await updateService.UpdateAsync(new SkillUpdateInput(packages, request, DryRun: true, PrintDiff: true), CancellationToken.None);
+        var result = await updateService.UpdateAsync(new SkillUpdateInput(packages, request, dryRun: true, printDiff: true), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single(action => action.Identity.SkillName.Value == packages[0].Manifest.SkillName.Value);
@@ -341,13 +340,13 @@ public sealed class SkillUpdateServiceTests
         var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion + 1);
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync([aheadPackage], request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var manifestPath = Path.Combine(install.Value!.TargetRoot, aheadPackage.Manifest.SkillName.Value, "agent-skill.json");
         var aheadManifest = File.ReadAllText(manifestPath);
 
-        var result = await updateService.UpdateAsync(new SkillUpdateInput([packages[0]], request, DryRun: true, PrintDiff: true), CancellationToken.None);
+        var result = await updateService.UpdateAsync(new SkillUpdateInput([packages[0]], request, dryRun: true, printDiff: true), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
@@ -370,11 +369,11 @@ public sealed class SkillUpdateServiceTests
         var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion + 1);
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync([aheadPackage], request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
 
-        var result = await updateService.UpdateAsync(new SkillUpdateInput([packages[0]], request, Force: true), CancellationToken.None);
+        var result = await updateService.UpdateAsync(new SkillUpdateInput([packages[0]], request, force: true), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
@@ -392,13 +391,13 @@ public sealed class SkillUpdateServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var skillPath = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "SKILL.md");
         File.AppendAllText(skillPath, "\nInjected instruction.\n");
 
-        var result = await updateService.UpdateAsync(new SkillUpdateInput(packages, request, Force: true, PrintDiff: true), CancellationToken.None);
+        var result = await updateService.UpdateAsync(new SkillUpdateInput(packages, request, force: true, printDiff: true), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single(action => action.Identity.SkillName.Value == packages[0].Manifest.SkillName.Value);
@@ -417,14 +416,14 @@ public sealed class SkillUpdateServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var skillDirectory = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value);
         var extraFile = Path.Combine(skillDirectory, "local-note.md");
         File.WriteAllText(extraFile, "# Local note\n");
 
-        var result = await updateService.UpdateAsync(new SkillUpdateInput([packages[0]], request, DryRun: true, Force: true), CancellationToken.None);
+        var result = await updateService.UpdateAsync(new SkillUpdateInput([packages[0]], request, dryRun: true, force: true), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
@@ -443,13 +442,13 @@ public sealed class SkillUpdateServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var skillPath = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "SKILL.md");
         File.AppendAllText(skillPath, "\nInjected instruction.\n");
 
-        var result = await updateService.UpdateAsync(new SkillUpdateInput([packages[0]], request, DryRun: true, Force: true), CancellationToken.None);
+        var result = await updateService.UpdateAsync(new SkillUpdateInput([packages[0]], request, dryRun: true, force: true), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
@@ -467,14 +466,14 @@ public sealed class SkillUpdateServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var skillDirectory = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value);
         var extraFile = Path.Combine(skillDirectory, "local-note.md");
         File.WriteAllText(extraFile, "# Local note\n");
 
-        var result = await updateService.UpdateAsync(new SkillUpdateInput([packages[0]], request, Force: true), CancellationToken.None);
+        var result = await updateService.UpdateAsync(new SkillUpdateInput([packages[0]], request, force: true), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
@@ -497,10 +496,10 @@ public sealed class SkillUpdateServiceTests
         var result = await service.UpdateAsync(
             new SkillUpdateInput(
                 [packages[0]],
-                new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath),
-                DryRun: true,
-                Force: true,
-                PrintDiff: true),
+                new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
+                dryRun: true,
+                force: true,
+                printDiff: true),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
@@ -520,7 +519,7 @@ public sealed class SkillUpdateServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService(new FailingPackageWriter());
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var updatedPackages = SkillTestData.ReplacePackage(packages, SkillTestData.CreatePackageWithUpdatedBody(packages[0]));
@@ -539,7 +538,7 @@ public sealed class SkillUpdateServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync([packages[0]], request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var manifestPath = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "agent-skill.json");
@@ -562,16 +561,16 @@ public sealed class SkillUpdateServiceTests
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "update-target-race");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
-        var updateService = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync([packages[0], packages[1]], request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var skillPath = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "SKILL.md");
         var updatedPackage = SkillTestData.CreatePackageWithUpdatedBody(packages[0]);
-        var secondPackage = SkillTestData.WithFileEnumerationCallback(packages[1], () =>
-            File.AppendAllText(skillPath, "\nInjected after planning.\n"));
+        var updateService = SkillTestData.CreateUpdateService(new MutatingSkillMaterializedPackageWriter(
+            SkillTestData.CreatePackageWriter(),
+            skillDirectory => File.AppendAllText(Path.Combine(skillDirectory, "SKILL.md"), "\nInjected after planning.\n")));
 
-        var result = await updateService.UpdateAsync(new SkillUpdateInput([updatedPackage, secondPackage], request), CancellationToken.None);
+        var result = await updateService.UpdateAsync(new SkillUpdateInput([updatedPackage, packages[1]], request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
@@ -587,18 +586,18 @@ public sealed class SkillUpdateServiceTests
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "update-force-target-race");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
-        var updateService = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync([packages[0], packages[1]], request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var skillDirectory = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value);
         var skillPath = Path.Combine(skillDirectory, "SKILL.md");
         var lateFile = Path.Combine(skillDirectory, "late-local-note.md");
         File.AppendAllText(skillPath, "\nInjected before planning.\n");
-        var secondPackage = SkillTestData.WithFileEnumerationCallback(packages[1], () =>
-            File.WriteAllText(lateFile, "# Late local note\n"));
+        var updateService = SkillTestData.CreateUpdateService(new MutatingSkillMaterializedPackageWriter(
+            SkillTestData.CreatePackageWriter(),
+            targetDirectory => File.WriteAllText(Path.Combine(targetDirectory, "late-local-note.md"), "# Late local note\n")));
 
-        var result = await updateService.UpdateAsync(new SkillUpdateInput([packages[0], secondPackage], request, Force: true), CancellationToken.None);
+        var result = await updateService.UpdateAsync(new SkillUpdateInput(packages, request, force: true), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, result.Failure!.Code);
@@ -613,49 +612,23 @@ public sealed class SkillUpdateServiceTests
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "update-force-empty-directory-race");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
-        var updateService = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync([packages[0], packages[1]], request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var skillDirectory = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value);
         var skillPath = Path.Combine(skillDirectory, "SKILL.md");
         var lateDirectory = Path.Combine(skillDirectory, "late-local-notes");
         File.AppendAllText(skillPath, "\nInjected before planning.\n");
-        var secondPackage = SkillTestData.WithFileEnumerationCallback(packages[1], () =>
-            Directory.CreateDirectory(lateDirectory));
+        var updateService = SkillTestData.CreateUpdateService(new MutatingSkillMaterializedPackageWriter(
+            SkillTestData.CreatePackageWriter(),
+            targetDirectory => Directory.CreateDirectory(Path.Combine(targetDirectory, "late-local-notes"))));
 
-        var result = await updateService.UpdateAsync(new SkillUpdateInput([packages[0], secondPackage], request, Force: true), CancellationToken.None);
+        var result = await updateService.UpdateAsync(new SkillUpdateInput(packages, request, force: true), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, result.Failure!.Code);
         Assert.Contains("Injected before planning.", File.ReadAllText(skillPath), StringComparison.Ordinal);
         Assert.True(Directory.Exists(lateDirectory));
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task UpdateAsync_WhenLaterTargetChangesAfterPlanning_ReturnsFailureWithoutUpdatingEarlierTarget ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "update-later-target-race");
-        var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        var installService = SkillTestData.CreateInstallService();
-        var updateService = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
-        var install = await installService.InstallAsync([packages[0], packages[1]], request, CancellationToken.None);
-        Assert.True(install.IsSuccess, install.Failure?.Message);
-        var firstSkillPath = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "SKILL.md");
-        var secondSkillPath = Path.Combine(install.Value.TargetRoot, packages[1].Manifest.SkillName.Value, "SKILL.md");
-        var firstUpdatedPackage = SkillTestData.CreatePackageWithUpdatedBody(packages[0]);
-        var secondUpdatedPackage = SkillTestData.WithFileEnumerationCallback(
-            SkillTestData.CreatePackageWithUpdatedBody(packages[1]),
-            () => File.AppendAllText(secondSkillPath, "\nInjected after planning.\n"));
-
-        var result = await updateService.UpdateAsync(new SkillUpdateInput([firstUpdatedPackage, secondUpdatedPackage], request), CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
-        Assert.DoesNotContain("Fixture update.", File.ReadAllText(firstSkillPath), StringComparison.Ordinal);
-        Assert.Contains("Injected after planning.", File.ReadAllText(secondSkillPath), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -666,7 +639,7 @@ public sealed class SkillUpdateServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var localDirectory = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "local-notes");
@@ -693,7 +666,7 @@ public sealed class SkillUpdateServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService();
-        var request = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var skillDirectory = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value);
@@ -732,15 +705,15 @@ public sealed class SkillUpdateServiceTests
         var updateService = SkillTestData.CreateUpdateService();
         var install = await installService.InstallAsync(
             packages,
-            new SkillInstallRequest(ClaudeSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath, "shared-skills"),
+            new SkillInstallRequest(SkillHostKind.Claude, SkillScopeKind.Project, scope.FullPath, "shared-skills"),
             CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
 
         var result = await updateService.UpdateAsync(
             new SkillUpdateInput(
                 packages,
-                new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath, "shared-skills"),
-                Force: true),
+                new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath, "shared-skills"),
+                force: true),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -755,8 +728,8 @@ public sealed class SkillUpdateServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService();
-        var openAiRequest = new SkillInstallRequest(OpenAiSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
-        var claudeRequest = new SkillInstallRequest(ClaudeSkillHostAdapter.HostKey, SkillScopeKind.Project, scope.FullPath);
+        var openAiRequest = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
+        var claudeRequest = new SkillInstallRequest(SkillHostKind.Claude, SkillScopeKind.Project, scope.FullPath);
         var openAi = await installService.InstallAsync(packages, openAiRequest, CancellationToken.None);
         var claude = await installService.InstallAsync(packages, claudeRequest, CancellationToken.None);
         Assert.True(openAi.IsSuccess, openAi.Failure?.Message);

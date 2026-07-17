@@ -1,8 +1,10 @@
 using MackySoft.AgentSkills.Digests;
+using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Packaging.FileSystem;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.Installation.Validation;
 
@@ -32,7 +34,7 @@ public sealed class SkillHostMaterializationInspector
     public async ValueTask<SkillOperationResult<bool>> MatchesHostAsync (
         string skillDirectory,
         SkillManifest manifest,
-        string host,
+        SkillHostKind host,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
@@ -48,12 +50,14 @@ public sealed class SkillHostMaterializationInspector
         }
 
         var adapter = adapterResult.Value!;
-        var hostKey = adapter.Descriptor.HostKey;
+        var registeredHost = adapter.Descriptor.Host;
         var descriptorMetadataArtifactPath = adapter.Descriptor.MetadataArtifactPath;
-        var expectedArtifact = manifest.HostArtifacts.SingleOrDefault(artifact => string.Equals(artifact.Host, hostKey, StringComparison.Ordinal));
+        var expectedArtifact = manifest.HostArtifacts.SingleOrDefault(artifact => artifact.Host == registeredHost);
         if (expectedArtifact is null)
         {
-            return SkillOperationResult<bool>.FailureResult(SkillFailureCodes.ManifestInvalid, $"Manifest does not contain host artifact '{hostKey}'.");
+            return SkillOperationResult<bool>.FailureResult(
+                SkillFailureCodes.ManifestInvalid,
+                $"Manifest does not contain host artifact '{ContractLiteralCodec.ToValue(registeredHost)}'.");
         }
 
         var skillPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, "SKILL.md");
@@ -75,7 +79,7 @@ public sealed class SkillHostMaterializationInspector
         }
 
         var actualFrontmatterDigest = digestCalculator.ComputeSingleFileDigest("SKILL.md.frontmatter", frontmatter);
-        if (!string.Equals(actualFrontmatterDigest, expectedArtifact.MaterializedFrontmatterDigest, StringComparison.Ordinal))
+        if (actualFrontmatterDigest != expectedArtifact.MaterializedFrontmatterDigest)
         {
             return SkillOperationResult<bool>.Success(false);
         }
@@ -86,18 +90,18 @@ public sealed class SkillHostMaterializationInspector
                 ? SkillOperationResult<bool>.Success(true)
                 : SkillOperationResult<bool>.FailureResult(
                     SkillFailureCodes.ManifestInvalid,
-                    $"Manifest host artifact '{hostKey}' must not contain metadata artifact fields.");
+                    $"Manifest host artifact '{ContractLiteralCodec.ToValue(registeredHost)}' must not contain metadata artifact fields.");
         }
 
         var metadataArtifactPath = expectedArtifact.Path;
         var metadataArtifactDigest = expectedArtifact.Digest;
         if (metadataArtifactPath is null
             || !string.Equals(metadataArtifactPath, descriptorMetadataArtifactPath, StringComparison.Ordinal)
-            || string.IsNullOrWhiteSpace(metadataArtifactDigest))
+            || metadataArtifactDigest is null)
         {
             return SkillOperationResult<bool>.FailureResult(
                 SkillFailureCodes.ManifestInvalid,
-                $"Manifest host artifact '{hostKey}' must contain metadata artifact fields.");
+                $"Manifest host artifact '{ContractLiteralCodec.ToValue(registeredHost)}' must contain metadata artifact fields.");
         }
 
         var metadataPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, metadataArtifactPath);
@@ -113,7 +117,7 @@ public sealed class SkillHostMaterializationInspector
 
         var metadata = SkillTextNormalizer.NormalizeToLf(await File.ReadAllTextAsync(metadataPathResult.Value!, cancellationToken).ConfigureAwait(false));
         var actualDigest = digestCalculator.ComputeSingleFileDigest(metadataArtifactPath, metadata);
-        return SkillOperationResult<bool>.Success(string.Equals(actualDigest, metadataArtifactDigest, StringComparison.Ordinal));
+        return SkillOperationResult<bool>.Success(actualDigest == metadataArtifactDigest);
     }
 
     /// <summary> Determines whether a skill directory is materialized for a supported host other than the requested host. </summary>
@@ -125,7 +129,7 @@ public sealed class SkillHostMaterializationInspector
     public async ValueTask<SkillOperationResult<bool>> MatchesDifferentHostAsync (
         string skillDirectory,
         SkillManifest manifest,
-        string host,
+        SkillHostKind host,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
@@ -140,18 +144,18 @@ public sealed class SkillHostMaterializationInspector
                 requestedAdapterResult.Failure.Message);
         }
 
-        var requestedHostKey = requestedAdapterResult.Value!.Descriptor.HostKey;
+        var requestedHost = requestedAdapterResult.Value!.Descriptor.Host;
         foreach (var adapter in hostAdapters.Adapters)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var hostKey = adapter.Descriptor.HostKey;
-            if (string.Equals(hostKey, requestedHostKey, StringComparison.Ordinal))
+            var candidateHost = adapter.Descriptor.Host;
+            if (candidateHost == requestedHost)
             {
                 continue;
             }
 
-            var matchResult = await MatchesHostAsync(skillDirectory, manifest, hostKey, cancellationToken).ConfigureAwait(false);
+            var matchResult = await MatchesHostAsync(skillDirectory, manifest, candidateHost, cancellationToken).ConfigureAwait(false);
             if (!matchResult.IsSuccess)
             {
                 return SkillOperationResult<bool>.FailureResult(matchResult.Failure!.Code, matchResult.Failure.Message);

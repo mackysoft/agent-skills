@@ -7,25 +7,19 @@ public sealed class SkillDefinitionSourceTests
     private const UnixFileMode ExecutableFileModes =
         UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute;
 
-    private static readonly string[] ExpectedSkillNames =
-    [
-        "agent-skills-plan-apply",
-        "agent-skills-read-project",
-        "agent-skills-troubleshoot",
-        "agent-skills-verify-changes",
-    ];
-
-    private static readonly string[] ExpectedJsonProperties =
+    private static readonly string[] ExpectedBundleJsonProperties =
     [
         "schemaVersion",
-        "skillBundleVersion",
         "catalogId",
-        "tier",
-        "skillName",
+        "skillBundleVersion",
+    ];
+
+    private static readonly string[] ExpectedSkillJsonProperties =
+    [
+        "schemaVersion",
         "displayName",
         "description",
         "dependencies",
-        "references",
     ];
 
     private static readonly string[] ForbiddenCanonicalSchemaTerms =
@@ -52,34 +46,53 @@ public sealed class SkillDefinitionSourceTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public void SkillDefinitions_HaveExpectedSourceMetadata ()
+    public void SkillBundle_HasExpectedSourceMetadata ()
     {
-        var definitionsRoot = GetDefinitionsRoot();
-        var directories = Directory.GetDirectories(definitionsRoot)
+        using var document = JsonDocument.Parse(File.ReadAllText(Path.Combine(SkillTestData.GetSkillBundleRoot(), "bundle.json")));
+        var root = document.RootElement;
+
+        Assert.Equal(ExpectedBundleJsonProperties, root.EnumerateObject().Select(static property => property.Name).ToArray());
+        Assert.Equal(1, root.GetProperty("schemaVersion").GetInt32());
+        Assert.Equal("com.mackysoft.agent-skills", root.GetProperty("catalogId").GetString());
+        Assert.Equal(1, root.GetProperty("skillBundleVersion").GetInt32());
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void SkillDefinitions_HaveExpectedCategoryAndSourceMetadata ()
+    {
+        var definitionsRoot = SkillTestData.GetDefinitionsRoot();
+        var categories = Directory.GetDirectories(definitionsRoot)
             .Select(Path.GetFileName)
             .Where(static name => !string.IsNullOrWhiteSpace(name))
+            .Select(static name => name!)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        Assert.Equal([SkillTestData.ExpectedCategory], categories);
+
+        var categoryRoot = Path.Combine(definitionsRoot, SkillTestData.ExpectedCategory);
+        var skillNames = Directory.GetDirectories(categoryRoot)
+            .Select(Path.GetFileName)
+            .Where(static name => !string.IsNullOrWhiteSpace(name))
+            .Select(static name => name!)
             .Order(StringComparer.Ordinal)
             .ToArray();
 
-        Assert.Equal(ExpectedSkillNames, directories);
+        Assert.Equal(SkillTestData.ExpectedSkillNames, skillNames);
 
-        foreach (var skillName in ExpectedSkillNames)
+        foreach (var skillName in SkillTestData.ExpectedSkillNames)
         {
-            using var document = JsonDocument.Parse(File.ReadAllText(Path.Combine(definitionsRoot, skillName, "skill.json")));
+            using var document = JsonDocument.Parse(File.ReadAllText(Path.Combine(categoryRoot, skillName, "skill.json")));
             var root = document.RootElement;
 
-            Assert.Equal(ExpectedJsonProperties, root.EnumerateObject().Select(static property => property.Name).ToArray());
+            Assert.Equal(ExpectedSkillJsonProperties, root.EnumerateObject().Select(static property => property.Name).ToArray());
             Assert.Equal(1, root.GetProperty("schemaVersion").GetInt32());
-            Assert.Equal(1, root.GetProperty("skillBundleVersion").GetInt32());
-            Assert.Equal(skillName, root.GetProperty("skillName").GetString());
             Assert.False(string.IsNullOrWhiteSpace(root.GetProperty("displayName").GetString()));
             Assert.Empty(root.GetProperty("dependencies").EnumerateArray());
 
             var description = root.GetProperty("description").GetString();
             Assert.False(string.IsNullOrWhiteSpace(description));
             Assert.InRange(description.Length, 1, 1024);
-            Assert.Equal("basic", root.GetProperty("tier").GetString());
-            Assert.Equal("com.mackysoft.agent-skills", root.GetProperty("catalogId").GetString());
         }
     }
 
@@ -87,23 +100,21 @@ public sealed class SkillDefinitionSourceTests
     [Trait("Size", "Small")]
     public void SkillDefinitions_HaveExistingReferenceTemplates ()
     {
-        var definitionsRoot = GetDefinitionsRoot();
+        var definitionsRoot = SkillTestData.GetDefinitionsRoot();
 
-        foreach (var skillName in ExpectedSkillNames)
+        foreach (var skillName in SkillTestData.ExpectedSkillNames)
         {
-            var skillDirectory = Path.Combine(definitionsRoot, skillName);
-            using var document = JsonDocument.Parse(File.ReadAllText(Path.Combine(skillDirectory, "skill.json")));
-            var references = document.RootElement.GetProperty("references").EnumerateArray().Select(static element => element.GetString()).ToArray();
+            var skillDirectory = Path.Combine(definitionsRoot, SkillTestData.ExpectedCategory, skillName);
+            var references = GetReferenceTemplatePaths(skillDirectory);
 
             Assert.NotEmpty(references);
 
-            foreach (var reference in references)
+            foreach (var referencePath in references)
             {
-                Assert.False(string.IsNullOrWhiteSpace(reference));
-                Assert.EndsWith(".md", reference, StringComparison.Ordinal);
+                var reference = Path.GetFileName(referencePath);
+                Assert.EndsWith(".md.template", reference, StringComparison.Ordinal);
                 Assert.DoesNotContain("/", reference, StringComparison.Ordinal);
                 Assert.DoesNotContain("\\", reference, StringComparison.Ordinal);
-                Assert.True(File.Exists(Path.Combine(skillDirectory, "references", reference + ".template")), reference);
             }
         }
     }
@@ -112,11 +123,12 @@ public sealed class SkillDefinitionSourceTests
     [Trait("Size", "Small")]
     public void SkillDefinitions_KeepInstructionGuardrails ()
     {
-        var definitionsRoot = GetDefinitionsRoot();
+        var definitionsRoot = SkillTestData.GetDefinitionsRoot();
 
-        foreach (var skillName in ExpectedSkillNames)
+        foreach (var skillName in SkillTestData.ExpectedSkillNames)
         {
-            var template = File.ReadAllText(Path.Combine(definitionsRoot, skillName, "SKILL.md.template"));
+            var skillDirectory = Path.Combine(definitionsRoot, SkillTestData.ExpectedCategory, skillName);
+            var template = File.ReadAllText(Path.Combine(skillDirectory, "SKILL.md.template"));
 
             Assert.False(template.TrimStart().StartsWith("---", StringComparison.Ordinal));
             Assert.False(template.TrimStart().StartsWith("# ", StringComparison.Ordinal));
@@ -142,8 +154,8 @@ public sealed class SkillDefinitionSourceTests
             }
 
             Assert.False(ContainsOperationCatalogTableCopy(template), skillName);
-            Assert.False(Directory.Exists(Path.Combine(definitionsRoot, skillName, "scripts")), skillName);
-            Assert.False(Directory.Exists(Path.Combine(definitionsRoot, skillName, "assets")), skillName);
+            Assert.False(Directory.Exists(Path.Combine(skillDirectory, "scripts")), skillName);
+            Assert.False(Directory.Exists(Path.Combine(skillDirectory, "assets")), skillName);
         }
     }
 
@@ -151,19 +163,15 @@ public sealed class SkillDefinitionSourceTests
     [Trait("Size", "Small")]
     public void SkillDefinitions_KeepReferenceTemplatesBoundedAndNonCanonical ()
     {
-        var definitionsRoot = GetDefinitionsRoot();
+        var definitionsRoot = SkillTestData.GetDefinitionsRoot();
 
-        foreach (var skillName in ExpectedSkillNames)
+        foreach (var skillName in SkillTestData.ExpectedSkillNames)
         {
-            var skillDirectory = Path.Combine(definitionsRoot, skillName);
-            using var document = JsonDocument.Parse(File.ReadAllText(Path.Combine(skillDirectory, "skill.json")));
-            var references = document.RootElement.GetProperty("references").EnumerateArray().Select(static element => element.GetString()).ToArray();
+            var skillDirectory = Path.Combine(definitionsRoot, SkillTestData.ExpectedCategory, skillName);
+            var referencePaths = GetReferenceTemplatePaths(skillDirectory);
 
-            foreach (var reference in references)
+            foreach (var referencePath in referencePaths)
             {
-                Assert.False(string.IsNullOrWhiteSpace(reference));
-
-                var referencePath = Path.Combine(skillDirectory, "references", reference + ".template");
                 var template = File.ReadAllText(referencePath);
 
                 Assert.InRange(CountLogicalLines(template), 1, 999);
@@ -178,7 +186,7 @@ public sealed class SkillDefinitionSourceTests
                     Assert.DoesNotContain(forbiddenTerm, template, StringComparison.OrdinalIgnoreCase);
                 }
 
-                Assert.False(ContainsOperationCatalogTableCopy(template), reference);
+                Assert.False(ContainsOperationCatalogTableCopy(template), Path.GetFileName(referencePath));
             }
         }
     }
@@ -192,31 +200,12 @@ public sealed class SkillDefinitionSourceTests
             return;
         }
 
-        var definitionsRoot = GetDefinitionsRoot();
+        var definitionsRoot = SkillTestData.GetDefinitionsRoot();
 
         foreach (var path in Directory.EnumerateFiles(definitionsRoot, "*", SearchOption.AllDirectories))
         {
             Assert.Equal((UnixFileMode)0, File.GetUnixFileMode(path) & ExecutableFileModes);
         }
-    }
-
-    private static string GetDefinitionsRoot ()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-
-        while (directory is not null)
-        {
-            var candidate = Path.Combine(directory.FullName, "tests", "Fixtures", "SkillDefinitions");
-
-            if (Directory.Exists(candidate))
-            {
-                return candidate;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new DirectoryNotFoundException("Could not locate tests/Fixtures/SkillDefinitions from the test output directory.");
     }
 
     private static int CountLogicalLines (string text)
@@ -230,6 +219,14 @@ public sealed class SkillDefinitionSourceTests
         }
 
         return lineCount;
+    }
+
+    private static IReadOnlyList<string> GetReferenceTemplatePaths (string skillDirectory)
+    {
+        var referencesRoot = Path.Combine(skillDirectory, "references");
+        return Directory.GetFiles(referencesRoot, "*.md.template", SearchOption.TopDirectoryOnly)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
     }
 
     private static bool ContainsOperationCatalogTableCopy (string text)

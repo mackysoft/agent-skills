@@ -4,22 +4,16 @@ using MackySoft.AgentSkills.Serialization.Yaml;
 namespace MackySoft.AgentSkills.Hosts.Copilot;
 
 /// <summary> Materializes SKILL files for GitHub Copilot CLI. </summary>
-public sealed class CopilotSkillHostAdapter : ISkillHostAdapter
+internal sealed class CopilotSkillHostAdapter : ISkillHostAdapter
 {
-    /// <summary> The canonical GitHub Copilot CLI host key. </summary>
-    public const string HostKey = "copilot";
-
     /// <inheritdoc />
     public SkillHostDescriptor Descriptor { get; } = new(
-        HostKey: HostKey,
-        SupportsProjectScope: true,
-        SupportsUserScope: true,
-        ProjectDefaultTargetPath: ".github/skills",
-        UserDefaultTargetPath: "~/.copilot/skills",
-        UserTargetRootPolicy: new SkillUserTargetRootPolicy(null, null, ".copilot/skills"),
-        RequiresMetadataArtifact: false,
-        MetadataArtifactPath: null,
-        ReloadGuidance: "Run /skills reload in GitHub Copilot CLI to load newly installed or updated skills.");
+        SkillHostKind.Copilot,
+        ".github/skills",
+        "~/.copilot/skills",
+        new SkillUserTargetRootPolicy(null, null, ".copilot/skills"),
+        null,
+        "Run /skills reload in GitHub Copilot CLI to load newly installed or updated skills.");
 
     /// <inheritdoc />
     public SkillHostArtifactSet BuildArtifacts (SkillHostMetadata metadata)

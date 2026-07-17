@@ -37,7 +37,7 @@
 
 3. SemVer の次 version を決める。
 
-   pre-1.0 の間でも、公開 API の追加や契約変更を含む場合は minor version を上げます。patch version は、互換性のある修正だけに使います。
+   1.0.0 以降は、互換性のない公開 API や契約の変更で major version、互換性のある機能追加で minor version、互換性のある修正で patch version を上げます。
 
 ## Release 準備 PR
 1. `origin/master` から release 準備 branch を作成する。

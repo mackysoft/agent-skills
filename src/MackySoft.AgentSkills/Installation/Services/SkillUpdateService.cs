@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Contracts;
 using MackySoft.AgentSkills.Installation.Diffing;
 using MackySoft.AgentSkills.Installation.Requests;
@@ -50,8 +51,6 @@ public sealed class SkillUpdateService
     {
         cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(input);
-        ArgumentNullException.ThrowIfNull(input.Packages);
-        ArgumentNullException.ThrowIfNull(input.TargetRequest);
 
         var targetRequest = input.TargetRequest;
         var targetResult = targetResolver.ResolveTarget(targetRequest);
@@ -164,7 +163,7 @@ public sealed class SkillUpdateService
 
     private async ValueTask<SkillOperationResult<SkillUpdateActionPlan>> CreateActionPlanAsync (
         CanonicalSkillPackage package,
-        string host,
+        SkillHostKind host,
         string skillDirectory,
         SkillInstallIdentity identity,
         SkillInstalledTargetState state,
@@ -186,9 +185,16 @@ public sealed class SkillUpdateService
                     .ConfigureAwait(false);
             case SkillTargetStateKind.Current:
                 return SkillOperationResult<SkillUpdateActionPlan>.Success(new SkillUpdateActionPlan(
-                    new SkillUpdateAction(identity, SkillUpdateActionKind.NoOp, TargetState: SkillActionTargetStateProjection.Create(state)),
+                    new SkillUpdateAction(
+                        identity,
+                        SkillUpdateActionKind.NoOp,
+                        SkillActionTargetStateProjection.Create(state),
+                        blockedReason: null,
+                        diffs: null,
+                        fileChanges: null),
                     skillDirectory,
                     package,
+                    null,
                     null));
             case SkillTargetStateKind.CleanOutdated:
                 return await CreateWriteActionPlanAsync(
@@ -211,7 +217,7 @@ public sealed class SkillUpdateService
                         input,
                         cancellationToken)
                     .ConfigureAwait(false);
-            case var kind when SkillInstalledTargetStateClassifier.IsLocalModificationDrift(kind):
+            case var kind when SkillTargetStateClassifier.IsLocalModificationDrift(kind):
                 return await CreateLocalModificationActionPlanAsync(
                         package,
                         host,
@@ -252,7 +258,7 @@ public sealed class SkillUpdateService
 
     private async ValueTask<SkillOperationResult<SkillUpdateActionPlan>> CreateVersionAheadActionPlanAsync (
         CanonicalSkillPackage package,
-        string host,
+        SkillHostKind host,
         string skillDirectory,
         SkillInstallIdentity identity,
         SkillInstalledTargetState state,
@@ -295,7 +301,7 @@ public sealed class SkillUpdateService
 
     private async ValueTask<SkillOperationResult<SkillUpdateActionPlan>> CreateLocalModificationActionPlanAsync (
         CanonicalSkillPackage package,
-        string host,
+        SkillHostKind host,
         string skillDirectory,
         SkillInstallIdentity identity,
         SkillInstalledTargetState state,
@@ -338,7 +344,7 @@ public sealed class SkillUpdateService
 
     private async ValueTask<SkillOperationResult<SkillUpdateActionPlan>> CreateWriteActionPlanAsync (
         CanonicalSkillPackage package,
-        string host,
+        SkillHostKind host,
         string skillDirectory,
         SkillInstallIdentity identity,
         SkillUpdateActionKind actionKind,
@@ -357,12 +363,10 @@ public sealed class SkillUpdateService
             new SkillUpdateAction(
                 identity,
                 actionKind,
+                SkillActionTargetStateProjection.Create(state),
                 null,
                 packagePlan.Diffs,
-                SkillActionTargetStateProjection.Create(state))
-            {
-                FileChanges = packagePlan.FileChanges,
-            },
+                packagePlan.FileChanges),
             skillDirectory,
             package,
             packagePlan.MaterializedPackage,
@@ -371,7 +375,7 @@ public sealed class SkillUpdateService
 
     private async ValueTask<SkillOperationResult<SkillUpdateActionPlan>> CreateBlockedActionPlanAsync (
         CanonicalSkillPackage package,
-        string host,
+        SkillHostKind host,
         string skillDirectory,
         SkillInstallIdentity identity,
         SkillUpdateActionKind actionKind,
@@ -383,16 +387,23 @@ public sealed class SkillUpdateService
         var packagePlanResult = await CreateMaterializedPackagePlanAsync(package, host, skillDirectory, printDiff, cancellationToken).ConfigureAwait(false);
         return packagePlanResult.IsSuccess
             ? SkillOperationResult<SkillUpdateActionPlan>.Success(new SkillUpdateActionPlan(
-                new SkillUpdateAction(identity, actionKind, blockedReason, packagePlanResult.Value!.Diffs, SkillActionTargetStateProjection.Create(state)),
+                new SkillUpdateAction(
+                    identity,
+                    actionKind,
+                    SkillActionTargetStateProjection.Create(state),
+                    blockedReason,
+                    packagePlanResult.Value!.Diffs,
+                    fileChanges: null),
                 skillDirectory,
                 package,
+                null,
                 null))
             : SkillOperationResult<SkillUpdateActionPlan>.FailureResult(packagePlanResult.Failure!.Code, packagePlanResult.Failure.Message);
     }
 
     private async ValueTask<SkillOperationResult<bool>> ValidateWritePreconditionAsync (
         CanonicalSkillPackage package,
-        string host,
+        SkillHostKind host,
         string skillDirectory,
         SkillUpdateActionKind actionKind,
         SkillActionTargetSnapshot? targetSnapshot,
@@ -470,7 +481,7 @@ public sealed class SkillUpdateService
 
     private async ValueTask<SkillOperationResult<SkillMaterializedPackagePlan>> CreateMaterializedPackagePlanAsync (
         CanonicalSkillPackage package,
-        string host,
+        SkillHostKind host,
         string skillDirectory,
         bool printDiff,
         CancellationToken cancellationToken)
@@ -489,7 +500,7 @@ public sealed class SkillUpdateService
 
     private async ValueTask<SkillOperationResult<SkillMaterializedPackageWritePlan>> CreateMaterializedPackageWritePlanAsync (
         CanonicalSkillPackage package,
-        string host,
+        SkillHostKind host,
         string skillDirectory,
         bool printDiff,
         CancellationToken cancellationToken)
@@ -514,20 +525,74 @@ public sealed class SkillUpdateService
             changePlan.FileChanges.TargetSnapshot));
     }
 
-    private sealed record SkillMaterializedPackagePlan (
-        SkillMaterializedPackage MaterializedPackage,
-        IReadOnlyList<SkillActionDiff> Diffs);
+    private sealed class SkillMaterializedPackagePlan
+    {
+        public SkillMaterializedPackagePlan (
+            SkillMaterializedPackage materializedPackage,
+            IReadOnlyList<SkillActionDiff> diffs)
+        {
+            MaterializedPackage = materializedPackage ?? throw new ArgumentNullException(nameof(materializedPackage));
+            Diffs = SkillActionContractGuard.Snapshot(diffs, nameof(diffs));
+        }
 
-    private sealed record SkillMaterializedPackageWritePlan (
-        SkillMaterializedPackage MaterializedPackage,
-        IReadOnlyList<SkillActionDiff> Diffs,
-        SkillActionFileChanges FileChanges,
-        SkillActionTargetSnapshot TargetSnapshot);
+        public SkillMaterializedPackage MaterializedPackage { get; }
 
-    private sealed record SkillUpdateActionPlan (
-        SkillUpdateAction Action,
-        string SkillDirectory,
-        CanonicalSkillPackage Package,
-        SkillMaterializedPackage? MaterializedPackage,
-        SkillActionTargetSnapshot? TargetSnapshot = null);
+        public IReadOnlyList<SkillActionDiff> Diffs { get; }
+    }
+
+    private sealed class SkillMaterializedPackageWritePlan
+    {
+        public SkillMaterializedPackageWritePlan (
+            SkillMaterializedPackage materializedPackage,
+            IReadOnlyList<SkillActionDiff> diffs,
+            SkillActionFileChanges fileChanges,
+            SkillActionTargetSnapshot targetSnapshot)
+        {
+            MaterializedPackage = materializedPackage ?? throw new ArgumentNullException(nameof(materializedPackage));
+            Diffs = SkillActionContractGuard.Snapshot(diffs, nameof(diffs));
+            FileChanges = fileChanges ?? throw new ArgumentNullException(nameof(fileChanges));
+            TargetSnapshot = targetSnapshot ?? throw new ArgumentNullException(nameof(targetSnapshot));
+        }
+
+        public SkillMaterializedPackage MaterializedPackage { get; }
+
+        public IReadOnlyList<SkillActionDiff> Diffs { get; }
+
+        public SkillActionFileChanges FileChanges { get; }
+
+        public SkillActionTargetSnapshot TargetSnapshot { get; }
+    }
+
+    private sealed class SkillUpdateActionPlan
+    {
+        public SkillUpdateActionPlan (
+            SkillUpdateAction action,
+            string skillDirectory,
+            CanonicalSkillPackage package,
+            SkillMaterializedPackage? materializedPackage,
+            SkillActionTargetSnapshot? targetSnapshot)
+        {
+            Action = action ?? throw new ArgumentNullException(nameof(action));
+            ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+            if ((materializedPackage is null) != (targetSnapshot is null))
+            {
+                throw new ArgumentException("A materialized package and its target snapshot must be provided together.", nameof(targetSnapshot));
+            }
+
+            SkillDirectory = skillDirectory;
+            Package = package ?? throw new ArgumentNullException(nameof(package));
+            MaterializedPackage = materializedPackage;
+            TargetSnapshot = targetSnapshot;
+        }
+
+        public SkillUpdateAction Action { get; }
+
+        public string SkillDirectory { get; }
+
+        public CanonicalSkillPackage Package { get; }
+
+        public SkillMaterializedPackage? MaterializedPackage { get; }
+
+        public SkillActionTargetSnapshot? TargetSnapshot { get; }
+    }
 }

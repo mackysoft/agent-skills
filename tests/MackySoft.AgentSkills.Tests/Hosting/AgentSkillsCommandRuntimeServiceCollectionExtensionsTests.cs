@@ -19,20 +19,17 @@ public sealed class AgentSkillsCommandRuntimeServiceCollectionExtensionsTests
         services.AddAgentSkillsCommandRuntime(options =>
         {
             options.ProductName = "Example CLI";
-            options.CatalogId = "com.example.skills";
-            options.Tiers = ["basic", "advanced"];
             options.PackageBaseDirectory = scope.FullPath;
         });
 
         using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<AgentSkillsCommandRuntimeOptions>();
+        var configuration = provider.GetRequiredService<AgentSkillsCommandRuntimeConfiguration>();
 
-        Assert.Equal("Example CLI", options.ProductName);
-        Assert.Equal("com.example.skills", options.CatalogId);
-        Assert.Equal(["basic", "advanced"], options.Tiers);
-        Assert.Equal(Path.GetFullPath(scope.FullPath), options.PackageBaseDirectory);
-        Assert.Equal("skills", options.CommandRoot);
-        Assert.Equal(Directory.GetCurrentDirectory(), options.RepositoryRootResolver(Directory.GetCurrentDirectory()));
+        Assert.Equal("Example CLI", configuration.ProductName);
+        Assert.Equal(Path.GetFullPath(scope.FullPath), configuration.PackageBaseDirectory);
+        Assert.Equal("skills", configuration.CommandRoot);
+        Assert.Equal(Directory.GetCurrentDirectory(), configuration.RepositoryRootResolver(Directory.GetCurrentDirectory()));
+        Assert.All(configuration.GetType().GetProperties(), static property => Assert.Null(property.SetMethod));
         Assert.NotNull(provider.GetRequiredService<AgentSkillsCommandRunner>());
         Assert.IsType<AgentSkillsJsonCommandResultEmitter>(provider.GetRequiredService<IAgentSkillsCommandResultEmitter>());
     }
@@ -47,8 +44,6 @@ public sealed class AgentSkillsCommandRuntimeServiceCollectionExtensionsTests
         services.AddAgentSkillsCommandRuntime(options =>
         {
             options.ProductName = "Example CLI";
-            options.CatalogId = "com.example.skills";
-            options.Tiers = ["basic", "advanced"];
             options.PackageBaseDirectory = scope.FullPath;
         });
         services.AddSingleton<IAgentSkillsCommandResultEmitter, TestCommandResultEmitter>();
@@ -60,23 +55,28 @@ public sealed class AgentSkillsCommandRuntimeServiceCollectionExtensionsTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public void AddAgentSkillsCommandRuntime_WhenTierIsInvalid_ThrowsArgumentException ()
+    public void AddAgentSkillsCommandRuntime_DoesNotExposeMutableOptionsAsRuntimeState ()
     {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-hosting", "invalid-tier");
+        using var scope = TestDirectories.CreateTempScope("agent-skills-hosting", "immutable-configuration");
         var services = new ServiceCollection();
+        AgentSkillsCommandRuntimeOptions? configuredOptions = null;
 
-        var exception = Assert.Throws<ArgumentException>(() =>
+        services.AddAgentSkillsCommandRuntime(options =>
         {
-            services.AddAgentSkillsCommandRuntime(options =>
-            {
-                options.ProductName = "Example CLI";
-                options.CatalogId = "com.example.skills";
-                options.Tiers = ["Basic"];
-                options.PackageBaseDirectory = scope.FullPath;
-            });
+            options.ProductName = "Example CLI";
+            options.PackageBaseDirectory = scope.FullPath;
+            configuredOptions = options;
         });
 
-        Assert.Contains("tier", exception.Message, StringComparison.OrdinalIgnoreCase);
+        configuredOptions!.ProductName = string.Empty;
+        configuredOptions.PackageBaseDirectory = string.Empty;
+
+        using var provider = services.BuildServiceProvider();
+        var configuration = provider.GetRequiredService<AgentSkillsCommandRuntimeConfiguration>();
+
+        Assert.Equal("Example CLI", configuration.ProductName);
+        Assert.Equal(Path.GetFullPath(scope.FullPath), configuration.PackageBaseDirectory);
+        Assert.Null(provider.GetService<AgentSkillsCommandRuntimeOptions>());
     }
 
     [Theory]
@@ -95,8 +95,6 @@ public sealed class AgentSkillsCommandRuntimeServiceCollectionExtensionsTests
             services.AddAgentSkillsCommandRuntime(options =>
             {
                 options.ProductName = "Example CLI";
-                options.CatalogId = "com.example.skills";
-                options.Tiers = ["basic"];
                 options.PackageBaseDirectory = scope.FullPath;
                 options.CommandRoot = commandRoot;
             });
@@ -117,8 +115,6 @@ public sealed class AgentSkillsCommandRuntimeServiceCollectionExtensionsTests
             services.AddAgentSkillsCommandRuntime(options =>
             {
                 options.ProductName = "Example CLI";
-                options.CatalogId = "com.example.skills";
-                options.Tiers = ["basic"];
                 options.PackageBaseDirectory = scope.FullPath;
                 options.RepositoryRootResolver = null!;
             });
