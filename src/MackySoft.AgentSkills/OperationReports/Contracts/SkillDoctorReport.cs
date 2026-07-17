@@ -13,7 +13,9 @@ public sealed class SkillDoctorReport
         IReadOnlyList<string> categories,
         IReadOnlyList<string> skillNames,
         SkillScopeKind scope,
+        string? repositoryRoot,
         string targetRoot,
+        string reloadGuidance,
         IReadOnlyList<SkillDoctorDiagnosticReport> diagnostics)
     {
         if (!ContractLiteralCodec.IsDefined(host))
@@ -26,13 +28,15 @@ public sealed class SkillDoctorReport
             throw new ArgumentOutOfRangeException(nameof(scope), scope, "Unsupported install scope.");
         }
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(targetRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(reloadGuidance);
 
         Host = host;
         Categories = OperationReportContractGuard.SnapshotRequiredStrings(categories, nameof(categories));
         SkillNames = OperationReportContractGuard.SnapshotRequiredStrings(skillNames, nameof(skillNames));
         Scope = scope;
-        TargetRoot = targetRoot;
+        RepositoryRoot = OperationReportContractGuard.NormalizeRepositoryRoot(scope, repositoryRoot, nameof(repositoryRoot));
+        TargetRoot = OperationReportContractGuard.NormalizeTargetRoot(scope, RepositoryRoot, targetRoot, nameof(targetRoot));
+        ReloadGuidance = reloadGuidance;
         Diagnostics = OperationReportContractGuard.SnapshotRequiredItems(diagnostics, nameof(diagnostics));
     }
 
@@ -48,8 +52,14 @@ public sealed class SkillDoctorReport
     /// <summary> Gets the install scope. </summary>
     public SkillScopeKind Scope { get; }
 
+    /// <summary> Gets the canonical absolute repository root for project scope, or <see langword="null" /> for user scope. </summary>
+    public string? RepositoryRoot { get; }
+
     /// <summary> Gets the canonical absolute target root. </summary>
     public string TargetRoot { get; }
+
+    /// <summary> Gets host-specific guidance for reloading installed SKILLs. </summary>
+    public string ReloadGuidance { get; }
 
     /// <summary> Gets whether no error diagnostics were reported. </summary>
     public bool IsHealthy => Diagnostics.All(static diagnostic => diagnostic.Severity != SkillDoctorSeverity.Error);

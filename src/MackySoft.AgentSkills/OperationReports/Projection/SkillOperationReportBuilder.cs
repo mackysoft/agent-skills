@@ -258,37 +258,20 @@ public static class SkillOperationReportBuilder
 
     /// <summary> Creates product-neutral report data from a doctor result. </summary>
     /// <param name="result"> The doctor result to report. Must not be <see langword="null" />. </param>
-    /// <param name="scope"> The install scope used to resolve the diagnosed target root. </param>
-    /// <param name="selectedCategories"> The selected product-owned SKILL categories. Must not be <see langword="null" />. </param>
+    /// <param name="context"> The normalized target and package selection used for the doctor operation. Must not be <see langword="null" />. </param>
     /// <returns> A report whose diagnostics are sorted deterministically. </returns>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="result" />, <paramref name="selectedCategories" />, or an item in <paramref name="selectedCategories" /> is <see langword="null" />. </exception>
-    /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="scope" /> is not a supported install scope. </exception>
+    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="result" /> or <paramref name="context" /> is <see langword="null" />. </exception>
+    /// <exception cref="ArgumentException"> Thrown when the result host does not match <paramref name="context" />, or when a project-scope target root is outside the context repository root. </exception>
     public static SkillDoctorReport CreateDoctorReport (
         SkillDoctorResult result,
-        SkillScopeKind scope,
-        IReadOnlyList<SkillCategory> selectedCategories)
-    {
-        return CreateDoctorReport(result, scope, selectedCategories, []);
-    }
-
-    /// <summary> Creates product-neutral report data from a doctor result. </summary>
-    /// <param name="result"> The doctor result to report. Must not be <see langword="null" />. </param>
-    /// <param name="scope"> The install scope used to resolve the diagnosed target root. </param>
-    /// <param name="selectedCategories"> The selected product-owned SKILL categories. Must not be <see langword="null" />. </param>
-    /// <param name="selectedSkillNames"> The exact selected SKILL names. Empty means no name filter. </param>
-    /// <returns> A report whose diagnostics are sorted deterministically. </returns>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="result" />, <paramref name="selectedCategories" />, <paramref name="selectedSkillNames" />, or an item in <paramref name="selectedCategories" /> is <see langword="null" />. </exception>
-    /// <exception cref="ArgumentException"> Thrown when a selected SKILL name is invalid. </exception>
-    /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="scope" /> is not a supported install scope. </exception>
-    public static SkillDoctorReport CreateDoctorReport (
-        SkillDoctorResult result,
-        SkillScopeKind scope,
-        IReadOnlyList<SkillCategory> selectedCategories,
-        IReadOnlyList<SkillName> selectedSkillNames)
+        SkillOperationReportContext context)
     {
         ArgumentNullException.ThrowIfNull(result);
-        ArgumentNullException.ThrowIfNull(selectedCategories);
-        ArgumentNullException.ThrowIfNull(selectedSkillNames);
+        ArgumentNullException.ThrowIfNull(context);
+        if (result.Host != context.HostDescriptor.Host)
+        {
+            throw new ArgumentException("Doctor result host must match the report context host.", nameof(context));
+        }
 
         var diagnostics = result.Diagnostics
             .OrderBy(static diagnostic => diagnostic.SkillName is null ? 0 : 1)
@@ -306,22 +289,13 @@ public static class SkillOperationReportBuilder
 
         return new SkillDoctorReport(
             result.Host,
-            CreateCategoryLiterals(selectedCategories),
-            CreateSkillNameLiterals(selectedSkillNames),
-            scope,
+            CreateCategoryLiterals(context.SelectedCategories),
+            CreateSkillNameLiterals(context.SelectedSkillNames),
+            context.Scope,
+            context.RepositoryRoot,
             result.TargetRoot,
+            context.HostDescriptor.ReloadGuidance,
             diagnostics);
-    }
-
-    /// <summary> Creates product-neutral report data from a doctor result for one selected category. </summary>
-    public static SkillDoctorReport CreateDoctorReport (
-        SkillDoctorResult result,
-        SkillScopeKind scope,
-        SkillCategory category)
-    {
-        ArgumentNullException.ThrowIfNull(category);
-
-        return CreateDoctorReport(result, scope, [category]);
     }
 
     private static SkillOperationReport CreateOperationReport<TAction> (
@@ -364,6 +338,7 @@ public static class SkillOperationReportBuilder
             CreateCategoryLiterals(context.SelectedCategories),
             CreateSkillNameLiterals(context.SelectedSkillNames),
             context.Scope,
+            context.RepositoryRoot,
             targetRoot,
             dryRun,
             force,
