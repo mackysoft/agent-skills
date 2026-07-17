@@ -1,0 +1,29 @@
+name: Sync Agent Skills
+description: Reconcile, commit, and push a fixed-layout Agent Skills bundle from a branch workflow.
+
+inputs:
+  root:
+    description: Bundle root relative to the GitHub workspace. It must resolve inside a checked-out Git worktree.
+    required: false
+    default: skills
+
+outputs:
+  changed:
+    description: Whether synchronization updated bundle.json or generated output.
+    value: ${{ steps.sync.outputs.changed }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Sync Agent Skills bundle
+      id: sync
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        AGENT_SKILLS_ROOT: ${{ inputs.root }}
+      run: bash "${GITHUB_ACTION_PATH}/../run-bundle-operation.sh" sync
