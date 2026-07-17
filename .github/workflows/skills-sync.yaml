@@ -1,0 +1,90 @@
+name: skills-sync
+
+on:
+  push:
+    paths:
+      - skills/bundle.json
+      - skills/definitions/**
+      - .config/dotnet-tools.json
+      - .github/workflows/skills-sync.yaml
+      - Directory.Build.props
+      - actions/**
+      - scripts/dotnet-common.sh
+      - scripts/prepare-self-hosted-cli.sh
+      - src/**
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: sync
+    if: github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      changed: ${{ steps.skills.outputs.changed }}
+      synchronized_sha: ${{ steps.synchronized.outputs.sha }}
+
+    env:
+      SELF_HOSTED_PACKAGE_VERSION: 0.0.0-ci.${{ github.run_id }}.${{ github.run_attempt }}
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('AgentSkills.slnx', '**/*.csproj') }}
+
+      - name: Prepare self-hosted Agent Skills CLI
+        run: >-
+          bash scripts/prepare-self-hosted-cli.sh
+          --version "${SELF_HOSTED_PACKAGE_VERSION}"
+          --output "${RUNNER_TEMP}/agent-skills-feed"
+
+      - name: Sync repository skills
+        id: skills
+        uses: ./actions/sync
+        with:
+          root: skills
+
+      - name: Capture synchronized commit
+        id: synchronized
+        if: steps.skills.outputs.changed == 'true'
+        run: echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
+
+  dispatch:
+    name: dispatch verification
+    needs: sync
+    if: needs.sync.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+
+    steps:
+      - name: Dispatch verification for synchronized commit
+        env:
+          EXPECTED_SHA: ${{ needs.sync.outputs.synchronized_sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh workflow run ci.yaml
+          --repo "${GITHUB_REPOSITORY}"
+          --ref "${GITHUB_REF_NAME}"
+          --field expected_sha="${EXPECTED_SHA}"

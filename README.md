@@ -27,7 +27,43 @@ Agent Skills separates skill source files from generated packages. Keep the sour
 
 ### Define Source Skills
 
-Use the [Agent Skills source definition contract](skills/generated/agent-skills-packaging/references/source-definition-contract.md) shipped with the `agent-skills-packaging` skill. It is the public contract for source-input layout, metadata, naming, dependencies, and content.
+Create `bundle.json` at the bundle root. The source file contains exactly these properties in this order:
+
+```json
+{
+  "schemaVersion": 1,
+  "catalogId": "com.example.skills",
+  "skillBundleVersion": 1
+}
+```
+
+| Property | JSON type | Meaning |
+| --- | --- | --- |
+| `schemaVersion` | 32-bit integer | Selects the source bundle contract. The current value is `1`. |
+| `catalogId` | string | Provides the stable identity shared by the source definition, generated packages, and managed installations. |
+| `skillBundleVersion` | 32-bit integer | Identifies one generated bundle revision. A new bundle starts at `1`. |
+
+For each skill, create `definitions/<category>/<skill-name>/skill.json`. The category and skill name come from those two directory names and are not repeated in the file. The source metadata contains exactly these properties in this order:
+
+```json
+{
+  "schemaVersion": 1,
+  "displayName": "Example Review",
+  "description": "Review a completed example.",
+  "dependencies": []
+}
+```
+
+| Property | JSON type | Meaning |
+| --- | --- | --- |
+| `schemaVersion` | 32-bit integer | Selects the source skill contract. The current value is `1`. |
+| `displayName` | string | Provides the name shown to users. |
+| `description` | string | Provides the host-independent description used for selection and materialization. |
+| `dependencies` | array of strings | Names same-bundle skills that must be resolved together with this skill. |
+
+Do not add `catalogId`, `skillBundleVersion`, `category`, `skillName`, a reference-file list, digests, or host-artifact metadata to `skill.json`. Bundle-wide values belong to `bundle.json`; category and skill name come from the directory structure; reference names come from files under `references`; integrity and host-materialization metadata are generated.
+
+Use the [Agent Skills source definition contract](skills/generated/agent-skills-packaging/references/source-definition-contract.md) shipped with the `agent-skills-packaging` skill as the complete source-input contract for layout, metadata, naming, dependencies, content, and canonical file encoding. The examples and tables above show the authored schema shape and ownership boundary; the linked contract is the normative source for all input constraints.
 
 ### Generate Shipped Packages
 
@@ -47,6 +83,43 @@ dotnet tool run agent-skills -- build --root skills
 The command reads `bundle.json` and `definitions` under the bundle root and replaces its `generated` directory. Do not edit generated files manually; edit the source bundle and run the build again. When packaging the product CLI, ship the generated directory as `<PackageBaseDirectory>/skills`.
 
 `skillBundleVersion` identifies the product's generated skill set. When source changes require new generated output, the build advances the current generated version by one. A manually advanced source value is accepted only when it is exactly one greater than the current generated version and the source content changed.
+
+### Generated Package Metadata
+
+The generator owns `generated/bundle.json`, every generated `agent-skill.json`, and all generated package files. Do not edit them manually.
+
+The generated root `bundle.json` contains exactly these properties in canonical order:
+
+| Property | Purpose |
+| --- | --- |
+| `schemaVersion` | Selects the generated bundle contract. It is `1`. |
+| `catalogId` | Identifies the owning catalog. It matches the source descriptor. |
+| `skillBundleVersion` | Identifies the generated bundle revision. It matches every generated skill manifest. |
+| `bundleDigest` | Binds the complete generated package set independently of the bundle version. |
+
+The bundle digest is canonical lowercase SHA-256 text without a prefix.
+
+Each `<skill-name>/agent-skill.json` contains exactly these properties in canonical order:
+
+| Property | Purpose |
+| --- | --- |
+| `schemaVersion` | Selects the generated manifest contract. It is `1`. |
+| `skillBundleVersion` | Identifies the generated skill set and supports installed-version comparisons. It matches the generated root descriptor. |
+| `catalogId` | Identifies the owning catalog and prevents operations such as prune from treating another catalog's skills as its own. It matches the generated root descriptor. |
+| `category` | Preserves the source category after packages are flattened by skill name and supports category selection and reporting. |
+| `skillName` | Identifies the package, dependency graph node, and install directory. The manifest value and directory name must match. |
+| `displayName` | Supplies the user-facing name used by reports and host materialization. |
+| `description` | Supplies the host-independent description used by reports and host materialization. |
+| `dependencies` | Lists the same-bundle skills that must be resolved with this package. |
+| `contentDigest` | Binds the paths and normalized contents of `SKILL.md` and `references` files. |
+| `manifestDigest` | Binds the canonical manifest fields other than itself, allowing manifest drift to be distinguished from file-content drift. It is an integrity value, not a signature. |
+| `hostArtifacts` | Records the generated metadata needed to validate each supported host's materialized frontmatter and optional host-specific file. |
+
+Each `hostArtifacts` entry contains `host` and `materializedFrontmatterDigest`. Hosts that generate a separate metadata file also contain `path` and `digest`; those two properties are either both present or both absent. All digest values use canonical lowercase SHA-256 text without a prefix.
+
+The manifest does not repeat reference file names and does not contain `bundleDigest`, source paths, generation timestamps, Agent Skills tool or NuGet package versions, Git commits, install target paths, reload guidance, or host capability definitions. Reference file names come from the files under `references` in the package set, `bundleDigest` belongs to the generated root descriptor, and the remaining values belong to the source repository or runtime.
+
+### Verify and Synchronize Generated Packages
 
 When generated output already matches the source definition and bundle version, the command does not write any files. To verify committed output without changing the working tree, use:
 

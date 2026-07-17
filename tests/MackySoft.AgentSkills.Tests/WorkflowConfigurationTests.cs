@@ -18,6 +18,9 @@ public sealed class WorkflowConfigurationTests
         Assert.Contains("          - macos-latest", workflow, StringComparison.Ordinal);
         Assert.Contains("uses: actions/setup-dotnet@v5", workflow, StringComparison.Ordinal);
         Assert.Contains("run: bash scripts/verify.sh --configuration Release", workflow, StringComparison.Ordinal);
+        Assert.Contains("bash scripts/prepare-self-hosted-cli.sh", workflow, StringComparison.Ordinal);
+        Assert.Contains("uses: ./actions/verify", workflow, StringComparison.Ordinal);
+        Assert.Contains("root: skills", workflow, StringComparison.Ordinal);
         Assert.Equal(1, CountOccurrences(workflow, "run: bash scripts/verify.sh --configuration Release"));
     }
 
@@ -31,12 +34,84 @@ public sealed class WorkflowConfigurationTests
         Assert.Contains("pull_request:", workflow, StringComparison.Ordinal);
         Assert.Contains("push:\n    branches:\n      - master", workflow, StringComparison.Ordinal);
         Assert.Contains("workflow_dispatch:", workflow, StringComparison.Ordinal);
-        Assert.Contains("test:\n    uses: ./.github/workflows/dotnet-verify.yaml", workflow, StringComparison.Ordinal);
+        Assert.Contains("expected_sha:", workflow, StringComparison.Ordinal);
+        Assert.Contains("source:\n    name: synchronized source", workflow, StringComparison.Ordinal);
+        Assert.Contains("ACTUAL_SHA: ${{ github.sha }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("EXPECTED_SHA: ${{ inputs.expected_sha }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("if [[ -n \"${EXPECTED_SHA}\" && \"${ACTUAL_SHA}\" != \"${EXPECTED_SHA}\" ]]; then", workflow, StringComparison.Ordinal);
+        Assert.Contains("test:\n    needs: source", workflow, StringComparison.Ordinal);
+        Assert.Contains("uses: ./.github/workflows/dotnet-verify.yaml", workflow, StringComparison.Ordinal);
         Assert.Contains("package:\n    name: package\n    needs: test", workflow, StringComparison.Ordinal);
         Assert.Contains("run: bash scripts/verify-packages.sh --configuration Release", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("NuGet/login", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("dotnet nuget push", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("Mirror packages to GitHub Release", workflow, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void Skills_sync_workflow_uses_the_repository_action_and_dispatches_CI_for_a_synchronized_commit ()
+    {
+        var workflow = ReadNormalizedText(".github/workflows/skills-sync.yaml");
+        var toolManifest = ReadNormalizedText(".config/dotnet-tools.json");
+
+        Assert.Contains("name: skills-sync", workflow, StringComparison.Ordinal);
+        Assert.Contains("push:\n    paths:\n      - skills/bundle.json\n      - skills/definitions/**", workflow, StringComparison.Ordinal);
+        Assert.Contains("      - .config/dotnet-tools.json", workflow, StringComparison.Ordinal);
+        Assert.Contains("      - .github/workflows/skills-sync.yaml", workflow, StringComparison.Ordinal);
+        Assert.Contains("      - actions/**", workflow, StringComparison.Ordinal);
+        Assert.Contains("      - scripts/prepare-self-hosted-cli.sh", workflow, StringComparison.Ordinal);
+        Assert.Contains("      - src/**", workflow, StringComparison.Ordinal);
+        Assert.Contains("workflow_dispatch:", workflow, StringComparison.Ordinal);
+        Assert.Contains("actions: write", workflow, StringComparison.Ordinal);
+        Assert.Contains("contents: write", workflow, StringComparison.Ordinal);
+        Assert.Contains("if: github.ref_type == 'branch'", workflow, StringComparison.Ordinal);
+        Assert.Contains("SELF_HOSTED_PACKAGE_VERSION: 0.0.0-ci.${{ github.run_id }}.${{ github.run_attempt }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("uses: ./actions/sync", workflow, StringComparison.Ordinal);
+        Assert.Contains("root: skills", workflow, StringComparison.Ordinal);
+        Assert.Contains("bash scripts/prepare-self-hosted-cli.sh", workflow, StringComparison.Ordinal);
+        Assert.Contains("--version \"${SELF_HOSTED_PACKAGE_VERSION}\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("changed: ${{ steps.skills.outputs.changed }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("synchronized_sha: ${{ steps.synchronized.outputs.sha }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("if: steps.skills.outputs.changed == 'true'", workflow, StringComparison.Ordinal);
+        Assert.Contains("run: echo \"sha=$(git rev-parse HEAD)\" >> \"${GITHUB_OUTPUT}\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("if: needs.sync.outputs.changed == 'true'", workflow, StringComparison.Ordinal);
+        Assert.Contains("EXPECTED_SHA: ${{ needs.sync.outputs.synchronized_sha }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("gh workflow run ci.yaml", workflow, StringComparison.Ordinal);
+        Assert.Contains("--repo \"${GITHUB_REPOSITORY}\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("--ref \"${GITHUB_REF_NAME}\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("--field expected_sha=\"${EXPECTED_SHA}\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("\"mackysoft.agentskills.cli\"", toolManifest, StringComparison.Ordinal);
+        Assert.Contains("\"rollForward\": false", toolManifest, StringComparison.Ordinal);
+
+        var syncJobStart = workflow.IndexOf("  sync:\n", StringComparison.Ordinal);
+        var dispatchJobStart = workflow.IndexOf("  dispatch:\n", StringComparison.Ordinal);
+        Assert.True(syncJobStart >= 0);
+        Assert.True(dispatchJobStart > syncJobStart);
+        var syncJob = workflow[syncJobStart..dispatchJobStart];
+        var dispatchJob = workflow[dispatchJobStart..];
+        Assert.Contains("contents: write", syncJob, StringComparison.Ordinal);
+        Assert.DoesNotContain("actions: write", syncJob, StringComparison.Ordinal);
+        Assert.Contains("actions: write", dispatchJob, StringComparison.Ordinal);
+        Assert.DoesNotContain("contents: write", dispatchJob, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void Self_hosted_CLI_preparation_packs_the_current_project_and_updates_the_local_tool ()
+    {
+        var script = ReadNormalizedText("scripts/prepare-self-hosted-cli.sh");
+
+        Assert.Contains("src/MackySoft.AgentSkills.Cli/MackySoft.AgentSkills.Cli.csproj", script, StringComparison.Ordinal);
+        Assert.Contains("dotnet pack \"$cli_project\"", script, StringComparison.Ordinal);
+        Assert.Contains("-p:Version=\"$package_version\"", script, StringComparison.Ordinal);
+        Assert.Contains("-p:PackageVersion=\"$package_version\"", script, StringComparison.Ordinal);
+        Assert.Contains("dotnet nuget add source \"$package_output\"", script, StringComparison.Ordinal);
+        Assert.Contains("dotnet tool update MackySoft.AgentSkills.Cli", script, StringComparison.Ordinal);
+        Assert.Contains("--version \"$package_version\"", script, StringComparison.Ordinal);
+        Assert.Contains("--add-source \"$package_output\"", script, StringComparison.Ordinal);
+        Assert.Contains("--allow-downgrade", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("verify-packages.sh", script, StringComparison.Ordinal);
     }
 
     [Fact]

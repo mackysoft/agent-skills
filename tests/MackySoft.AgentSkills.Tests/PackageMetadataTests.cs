@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Xml.Linq;
 
 namespace MackySoft.AgentSkills.Tests;
@@ -105,6 +106,22 @@ public sealed class PackageMetadataTests
             item.Include == "$(MSBuildThisFileDirectory)README.md"
             && item.Pack == "true"
             && item.PackagePath == string.Empty);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void Repository_tool_manifest_pins_the_current_CLI_package_version ()
+    {
+        var centralProperties = XDocument.Load(ToRepositoryPath("Directory.Build.props"));
+        var packageVersion = centralProperties.Descendants("Version").Single().Value;
+        using var toolManifest = JsonDocument.Parse(File.ReadAllText(ToRepositoryPath(".config/dotnet-tools.json")));
+        var cliTool = toolManifest.RootElement
+            .GetProperty("tools")
+            .GetProperty("mackysoft.agentskills.cli");
+
+        Assert.Equal(packageVersion, cliTool.GetProperty("version").GetString());
+        Assert.Equal(["agent-skills"], cliTool.GetProperty("commands").EnumerateArray().Select(static item => item.GetString()!).ToArray());
+        Assert.False(cliTool.GetProperty("rollForward").GetBoolean());
     }
 
     [Fact]
