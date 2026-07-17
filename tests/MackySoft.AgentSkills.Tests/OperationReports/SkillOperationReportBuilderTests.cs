@@ -462,9 +462,10 @@ public sealed class SkillOperationReportBuilderTests
     [Trait("Size", "Small")]
     public void CreateDoctorReport_ProjectsSeverityAndTargetStateFromDiagnostics ()
     {
+        var targetRoot = Path.GetFullPath("agent-skills-doctor");
         var result = new SkillDoctorResult(
             SkillHostKind.OpenAi,
-            "/tmp/agent-skills-doctor",
+            targetRoot,
             [
                 SkillDoctorDiagnostic.Error(
                     SkillFailureCodes.InstallTargetHostArtifactDigestMismatch,
