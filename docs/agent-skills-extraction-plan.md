@@ -1,7 +1,5 @@
 # agent-skills 分離計画
 
-> 状態: 分離作業の経緯を残す歴史的な計画です。現在の定義配置、生成、バージョン調停の契約は [Agent Skills 1.0 バンドル運用設計](agent-skills-bundle-1.0-plan.md) を参照してください。
-
 ## Summary
 uCLI 内の `src/Ucli.Skills` と `tools/Ucli.SkillGenerator` から、SKILL 生成・配布・導入・診断の共通基盤を `/Users/makihiro/Repositories/agent-skills` へ移植する。uCLI 側には SKILL のロジックを残さず、uCLI 固有の定義・生成済み成果物・CLI 接続コードだけを残す。
 
@@ -18,7 +16,7 @@ AgentSkills.slnx
 ```
 
 - `MackySoft.AgentSkills` は manifest、digest、source definition reader、canonical package reader/writer、host adapter、materialization、install/update/uninstall/export/doctor を持つ。
-- `MackySoft.AgentSkills.Cli` は `agent-skills build --root <path>` を提供し、各プロダクトの固定構造バンドルを調停する。更新の必要性だけを検証する場合は `agent-skills build --root <path> --check` を使う。
+- `MackySoft.AgentSkills.Cli` は `agent-skills build --definitionsRoot <path> --generatedRoot <path>` を提供し、各プロダクトの `skills/definitions` から `skills/generated` を生成する。
 - uCLI 固有名を排除し、namespace は `MackySoft.AgentSkills.*`、canonical manifest 名は `agent-skill.json` にする。
 - 初期段階では NuGet 配布を前提にしない。uCLI からは `ProjectReference` で参照する。
 
@@ -28,10 +26,7 @@ AgentSkills.slnx
 
 ```text
 skills/
-  bundle.json
   definitions/
-    <category>/
-      <skill>/
   generated/
 ```
 
@@ -62,5 +57,5 @@ skills/
 ## Assumptions
 - 汎用リポジトリ名は `agent-skills`、主要 namespace は `MackySoft.AgentSkills` とする。
 - 初期導入では NuGet 配布を行わず、submodule + `ProjectReference` で利用する。
-- uCLI / dotmet の SKILL 本文と metadata は各プロダクト側の `skills/definitions/<category>/<skill>` に置く。
+- uCLI / dotmet の SKILL 本文と metadata は各プロダクト側の `skills/definitions` に置く。
 - `skills/generated` は生成済み配布物であり、手編集しない。
