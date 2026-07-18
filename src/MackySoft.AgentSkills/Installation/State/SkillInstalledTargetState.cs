@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Installation.State;
@@ -9,8 +10,8 @@ public sealed class SkillInstalledTargetState
         SkillTargetStateKind kind,
         SkillFailure? failure,
         SkillInstalledTargetFileSet? fileSet,
-        int? installedSkillBundleVersion,
-        int? bundledSkillBundleVersion)
+        SkillBundleVersion? installedSkillBundleVersion,
+        SkillBundleVersion? bundledSkillBundleVersion)
     {
         if (!IsAnalyzedStateKind(kind))
         {
@@ -28,7 +29,7 @@ public sealed class SkillInstalledTargetState
         BundledSkillBundleVersion = bundledSkillBundleVersion;
     }
 
-    internal static SkillInstalledTargetState Missing (int bundledSkillBundleVersion)
+    internal static SkillInstalledTargetState Missing (SkillBundleVersion bundledSkillBundleVersion)
     {
         return new SkillInstalledTargetState(
             SkillTargetStateKind.Missing,
@@ -39,8 +40,8 @@ public sealed class SkillInstalledTargetState
     }
 
     internal static SkillInstalledTargetState Current (
-        int installedSkillBundleVersion,
-        int bundledSkillBundleVersion)
+        SkillBundleVersion installedSkillBundleVersion,
+        SkillBundleVersion bundledSkillBundleVersion)
     {
         return new SkillInstalledTargetState(
             SkillTargetStateKind.Current,
@@ -52,8 +53,8 @@ public sealed class SkillInstalledTargetState
 
     internal static SkillInstalledTargetState CleanOutdated (
         SkillFailure failure,
-        int installedSkillBundleVersion,
-        int bundledSkillBundleVersion)
+        SkillBundleVersion installedSkillBundleVersion,
+        SkillBundleVersion bundledSkillBundleVersion)
     {
         return new SkillInstalledTargetState(
             SkillTargetStateKind.CleanOutdated,
@@ -65,8 +66,8 @@ public sealed class SkillInstalledTargetState
 
     internal static SkillInstalledTargetState VersionAhead (
         SkillFailure failure,
-        int installedSkillBundleVersion,
-        int bundledSkillBundleVersion)
+        SkillBundleVersion installedSkillBundleVersion,
+        SkillBundleVersion bundledSkillBundleVersion)
     {
         return new SkillInstalledTargetState(
             SkillTargetStateKind.VersionAhead,
@@ -96,7 +97,7 @@ public sealed class SkillInstalledTargetState
     internal static SkillInstalledTargetState Drift (
         SkillTargetStateKind kind,
         SkillFailure failure,
-        int bundledSkillBundleVersion)
+        SkillBundleVersion bundledSkillBundleVersion)
     {
         if (!SkillTargetStateClassifier.IsLocalModificationDrift(kind)
             || kind == SkillTargetStateKind.FileSetDrift)
@@ -115,7 +116,7 @@ public sealed class SkillInstalledTargetState
     internal static SkillInstalledTargetState FileSetDrift (
         SkillFailure failure,
         SkillInstalledTargetFileSet fileSet,
-        int bundledSkillBundleVersion)
+        SkillBundleVersion bundledSkillBundleVersion)
     {
         return new SkillInstalledTargetState(
             SkillTargetStateKind.FileSetDrift,
@@ -135,10 +136,10 @@ public sealed class SkillInstalledTargetState
     public SkillInstalledTargetFileSet? FileSet { get; }
 
     /// <summary> Gets the installed manifest SKILL bundle version, when available. </summary>
-    public int? InstalledSkillBundleVersion { get; }
+    public SkillBundleVersion? InstalledSkillBundleVersion { get; }
 
     /// <summary> Gets the bundled canonical package SKILL bundle version, when available. </summary>
-    public int? BundledSkillBundleVersion { get; }
+    public SkillBundleVersion? BundledSkillBundleVersion { get; }
 
     private static bool IsAnalyzedStateKind (SkillTargetStateKind kind)
     {
@@ -209,25 +210,9 @@ public sealed class SkillInstalledTargetState
 
     private static void ValidateVersions (
         SkillTargetStateKind kind,
-        int? installedSkillBundleVersion,
-        int? bundledSkillBundleVersion)
+        SkillBundleVersion? installedSkillBundleVersion,
+        SkillBundleVersion? bundledSkillBundleVersion)
     {
-        if (installedSkillBundleVersion <= 0)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(installedSkillBundleVersion),
-                installedSkillBundleVersion,
-                "Installed SKILL bundle version must be positive when supplied.");
-        }
-
-        if (bundledSkillBundleVersion <= 0)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(bundledSkillBundleVersion),
-                bundledSkillBundleVersion,
-                "Bundled SKILL bundle version must be positive when supplied.");
-        }
-
         if (kind == SkillTargetStateKind.Missing)
         {
             if (installedSkillBundleVersion is not null || bundledSkillBundleVersion is null)
@@ -261,13 +246,13 @@ public sealed class SkillInstalledTargetState
             }
 
             if (kind == SkillTargetStateKind.VersionAhead
-                && installedSkillBundleVersion <= bundledSkillBundleVersion)
+                && installedSkillBundleVersion.CompareTo(bundledSkillBundleVersion) <= 0)
             {
                 throw new ArgumentException("A version-ahead target must have a newer installed SKILL bundle version.");
             }
 
             if (kind == SkillTargetStateKind.CleanOutdated
-                && installedSkillBundleVersion > bundledSkillBundleVersion)
+                && installedSkillBundleVersion.CompareTo(bundledSkillBundleVersion) > 0)
             {
                 throw new ArgumentException("A clean-outdated target must not have a newer installed SKILL bundle version.");
             }

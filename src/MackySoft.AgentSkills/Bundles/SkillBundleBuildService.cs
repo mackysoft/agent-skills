@@ -42,13 +42,28 @@ public sealed class SkillBundleBuildService
         this.publisher = publisher ?? throw new ArgumentNullException(nameof(publisher));
     }
 
-    /// <summary> Reconciles generated output and advances the source bundle version exactly when content changed. </summary>
+    /// <summary> Reconciles generated output at the authored bundle version. </summary>
     /// <param name="bundleRoot"> The root containing <c>bundle.json</c>, <c>definitions</c>, and fixed <c>generated</c> output. </param>
+    /// <param name="check"> Whether to fail without writing when reconciliation would change files. </param>
+    /// <param name="cancellationToken"> The cancellation token propagated through source access and publication. </param>
+    /// <returns> The resulting descriptor and whether files changed, or a structured source, generated, or version failure. </returns>
+    public ValueTask<SkillOperationResult<SkillBundleBuildResult>> BuildAsync (
+        string bundleRoot,
+        bool check = false,
+        CancellationToken cancellationToken = default)
+    {
+        return BuildAsync(bundleRoot, skillBundleVersion: null, check, cancellationToken);
+    }
+
+    /// <summary> Reconciles generated output at an explicitly selected bundle version. </summary>
+    /// <param name="bundleRoot"> The root containing <c>bundle.json</c>, <c>definitions</c>, and fixed <c>generated</c> output. </param>
+    /// <param name="skillBundleVersion"> The exact target bundle version, or <see langword="null" /> to preserve the authored version. </param>
     /// <param name="check"> Whether to fail without writing when reconciliation would change files. </param>
     /// <param name="cancellationToken"> The cancellation token propagated through source access and publication. </param>
     /// <returns> The resulting descriptor and whether files changed, or a structured source, generated, or version failure. </returns>
     public async ValueTask<SkillOperationResult<SkillBundleBuildResult>> BuildAsync (
         string bundleRoot,
+        int? skillBundleVersion,
         bool check = false,
         CancellationToken cancellationToken = default)
     {
@@ -64,7 +79,29 @@ public sealed class SkillBundleBuildService
 
         var source = sourceResult.Value!;
         var authoredVersion = source.BundleDefinition.SkillBundleVersion;
-        var candidate = generationService.GenerateAll(source, authoredVersion);
+        SkillBundleVersion targetVersion;
+        if (skillBundleVersion is null)
+        {
+            targetVersion = authoredVersion;
+        }
+        else if (!SkillBundleVersion.TryCreate(skillBundleVersion.Value, out var requestedVersion))
+        {
+            return SkillOperationResult<SkillBundleBuildResult>.FailureResult(
+                SkillFailureCodes.InputInvalid,
+                $"skillBundleVersion must be a positive integer: {skillBundleVersion.Value}");
+        }
+        else
+        {
+            targetVersion = requestedVersion;
+        }
+
+        var targetVersionFailure = ValidateTargetVersion(authoredVersion, targetVersion);
+        if (targetVersionFailure is not null)
+        {
+            return BuildFailure(targetVersionFailure);
+        }
+
+        var candidate = generationService.GenerateAll(source, targetVersion);
         var generatedRoot = Path.Combine(fullBundleRoot, "generated");
         CanonicalSkillBundle? generatedBundle = null;
 
@@ -93,14 +130,11 @@ public sealed class SkillBundleBuildService
             generatedBundle = generatedResult.Value!;
         }
 
-        var planResult = CreatePlan(candidate.Descriptor, generatedBundle?.Descriptor);
-        if (!planResult.IsSuccess)
-        {
-            return BuildFailure(planResult.Failure!);
-        }
-
-        var plan = planResult.Value!;
-        if (!plan.HasChanges)
+        var updatesSourceDefinition = targetVersion != authoredVersion;
+        var generatedIsCurrent = generatedBundle is not null
+            && generatedBundle.Descriptor.SkillBundleVersion == targetVersion
+            && generatedBundle.Descriptor.BundleDigest == candidate.Descriptor.BundleDigest;
+        if (!updatesSourceDefinition && generatedIsCurrent)
         {
             return SkillOperationResult<SkillBundleBuildResult>.Success(
                 new SkillBundleBuildResult(changed: false, candidate.Descriptor));
@@ -110,31 +144,28 @@ public sealed class SkillBundleBuildService
         {
             return SkillOperationResult<SkillBundleBuildResult>.FailureResult(
                 SkillFailureCodes.BundleUpdateRequired,
-                $"Canonical SKILL bundle requires generation at version {plan.TargetSkillBundleVersion}: {fullBundleRoot}");
+                $"Canonical SKILL bundle requires generation at version {targetVersion}: {fullBundleRoot}");
         }
 
-        var finalBundle = plan.TargetSkillBundleVersion == authoredVersion
-            ? candidate
-            : generationService.GenerateAll(source, plan.TargetSkillBundleVersion);
         SkillOperationResult<string> publicationResult;
-        if (plan.UpdatesSourceDefinition)
+        if (updatesSourceDefinition)
         {
             var authoredBundle = source.BundleDefinition;
             var finalSourceDefinition = new SkillBundleDefinition(
                 authoredBundle.SchemaVersion,
                 authoredBundle.CatalogId,
-                plan.TargetSkillBundleVersion);
+                targetVersion);
             publicationResult = await publisher.PublishSourceAndGeneratedAsync(
                     fullBundleRoot,
                     finalSourceDefinition,
-                    finalBundle,
+                    candidate,
                     cancellationToken)
                 .ConfigureAwait(false);
         }
         else
         {
             publicationResult = await publisher.PublishGeneratedAsync(
-                    finalBundle,
+                    candidate,
                     generatedRoot,
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -146,115 +177,33 @@ public sealed class SkillBundleBuildService
         }
 
         return SkillOperationResult<SkillBundleBuildResult>.Success(
-            new SkillBundleBuildResult(changed: true, finalBundle.Descriptor));
+            new SkillBundleBuildResult(changed: true, candidate.Descriptor));
     }
 
-    private static SkillOperationResult<SkillBundleBuildPlan> CreatePlan (
-        SkillBundleDescriptor candidate,
-        SkillBundleDescriptor? generated)
+    private static SkillFailure? ValidateTargetVersion (
+        SkillBundleVersion authoredVersion,
+        SkillBundleVersion targetVersion)
     {
-        ArgumentNullException.ThrowIfNull(candidate);
-        if (generated is null)
+        if (targetVersion.CompareTo(authoredVersion) < 0)
         {
-            return SkillOperationResult<SkillBundleBuildPlan>.Success(
-                new SkillBundleBuildPlan(candidate.SkillBundleVersion, SkillBundleBuildChangeKind.Generated));
+            return SkillFailure.Create(
+                SkillFailureCodes.InputInvalid,
+                $"Requested skillBundleVersion {targetVersion} cannot be lower than the authored version {authoredVersion}.");
         }
 
-        var authoredVersion = candidate.SkillBundleVersion;
-        var generatedVersion = generated.SkillBundleVersion;
-        var contentMatches = candidate.BundleDigest == generated.BundleDigest;
-
-        if (authoredVersion == generatedVersion)
+        if (targetVersion != authoredVersion
+            && targetVersion != authoredVersion.Next())
         {
-            if (contentMatches)
-            {
-                return SkillOperationResult<SkillBundleBuildPlan>.Success(
-                    new SkillBundleBuildPlan(authoredVersion, SkillBundleBuildChangeKind.None));
-            }
-
-            if (generatedVersion == int.MaxValue)
-            {
-                return VersionConflict(
-                    authoredVersion,
-                    generatedVersion,
-                    "The generated version cannot be incremented because it is already Int32.MaxValue.");
-            }
-
-            return SkillOperationResult<SkillBundleBuildPlan>.Success(
-                new SkillBundleBuildPlan(generatedVersion + 1, SkillBundleBuildChangeKind.SourceAndGenerated));
+            return SkillFailure.Create(
+                SkillFailureCodes.InputInvalid,
+                $"Requested skillBundleVersion must equal the authored version {authoredVersion} or its next revision.");
         }
 
-        if (contentMatches)
-        {
-            return VersionConflict(
-                authoredVersion,
-                generatedVersion,
-                "Bundle content is unchanged while source and generated versions differ.");
-        }
-
-        if (authoredVersion > 1 && generatedVersion == authoredVersion - 1)
-        {
-            return SkillOperationResult<SkillBundleBuildPlan>.Success(
-                new SkillBundleBuildPlan(authoredVersion, SkillBundleBuildChangeKind.Generated));
-        }
-
-        return VersionConflict(
-            authoredVersion,
-            generatedVersion,
-            "Changed bundle content requires the source version to equal the generated version or advance it by exactly one.");
-    }
-
-    private static SkillOperationResult<SkillBundleBuildPlan> VersionConflict (
-        int authoredVersion,
-        int generatedVersion,
-        string reason)
-    {
-        return SkillOperationResult<SkillBundleBuildPlan>.FailureResult(
-            SkillFailureCodes.BundleVersionConflict,
-            $"SKILL bundle version conflict (source: {authoredVersion}, generated: {generatedVersion}). {reason}");
+        return null;
     }
 
     private static SkillOperationResult<SkillBundleBuildResult> BuildFailure (SkillFailure failure)
     {
         return SkillOperationResult<SkillBundleBuildResult>.FailureResult(failure.Code, failure.Message);
-    }
-
-    private enum SkillBundleBuildChangeKind
-    {
-        None = 0,
-        Generated = 1,
-        SourceAndGenerated = 2,
-    }
-
-    private sealed class SkillBundleBuildPlan
-    {
-        internal SkillBundleBuildPlan (
-            int targetSkillBundleVersion,
-            SkillBundleBuildChangeKind changeKind)
-        {
-            if (targetSkillBundleVersion <= 0)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(targetSkillBundleVersion),
-                    targetSkillBundleVersion,
-                    "Target SKILL bundle version must be positive.");
-            }
-
-            if (!Enum.IsDefined(changeKind))
-            {
-                throw new ArgumentOutOfRangeException(nameof(changeKind), changeKind, "SKILL bundle build change kind is not supported.");
-            }
-
-            TargetSkillBundleVersion = targetSkillBundleVersion;
-            ChangeKind = changeKind;
-        }
-
-        internal int TargetSkillBundleVersion { get; }
-
-        internal SkillBundleBuildChangeKind ChangeKind { get; }
-
-        internal bool HasChanges => ChangeKind != SkillBundleBuildChangeKind.None;
-
-        internal bool UpdatesSourceDefinition => ChangeKind == SkillBundleBuildChangeKind.SourceAndGenerated;
     }
 }

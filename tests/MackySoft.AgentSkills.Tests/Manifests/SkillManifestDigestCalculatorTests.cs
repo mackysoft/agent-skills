@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Digests;
@@ -49,7 +50,7 @@ public sealed class SkillManifestDigestCalculatorTests
         ]) + "\n";
         var manifest = new SkillManifestCandidate(
             SkillManifest.CurrentSchemaVersion,
-            1,
+            new SkillBundleVersion(1),
             new SkillCatalogId("com.mackysoft.agent-skills"),
             new SkillCategory("core"),
             new SkillName("sample-skill"),

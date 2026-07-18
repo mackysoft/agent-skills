@@ -111,7 +111,7 @@ public sealed class SkillPackageCatalogTests
         var foreignDescriptor = new SkillBundleDescriptor(
             bundle.Descriptor.SchemaVersion,
             bundle.Descriptor.CatalogId,
-            bundle.Descriptor.SkillBundleVersion + 1,
+            bundle.Descriptor.SkillBundleVersion.Next(),
             bundle.Descriptor.BundleDigest);
 
         var exception = Assert.Throws<ArgumentException>(() => CreateCatalog(foreignDescriptor, bundle.Packages));

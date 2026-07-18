@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Digests;
@@ -86,7 +87,7 @@ public sealed class SkillManifestFactoryTests
     {
         return new SkillManifestCandidate(
             SkillManifest.CurrentSchemaVersion,
-            1,
+            new SkillBundleVersion(1),
             new SkillCatalogId("com.mackysoft.agent-skills"),
             new SkillCategory("core"),
             new SkillName(skillName),

@@ -144,7 +144,7 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task AnalyzeAsync_ClassifiesCleanOutdatedPackage ()
+    public async Task AnalyzeAsync_ClassifiesCleanOutdatedPackage_WhenBundleVersionAdvances ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "state-clean-outdated");
         var (packages, targetRoot) = await InstallOpenAiAsync(scope);
@@ -160,11 +160,30 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task AnalyzeAsync_ClassifiesCleanOutdatedPackage_WhenCanonicalContentChangesAtSameVersion ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "state-clean-outdated-same-version");
+        var (packages, targetRoot) = await InstallOpenAiAsync(scope);
+        var installedPackage = packages[0];
+        var updatedPackage = SkillTestData.CreatePackageWithUpdatedBody(
+            installedPackage,
+            installedPackage.Manifest.SkillBundleVersion.Value);
+
+        var state = await AnalyzeOpenAiAsync(updatedPackage, GetSkillDirectory(targetRoot, installedPackage));
+
+        Assert.Equal(SkillTargetStateKind.CleanOutdated, state.Kind);
+        Assert.Equal(SkillFailureCodes.InstallTargetOutdated, state.Failure!.Code);
+        Assert.Equal(installedPackage.Manifest.SkillBundleVersion, state.InstalledSkillBundleVersion);
+        Assert.Equal(installedPackage.Manifest.SkillBundleVersion, state.BundledSkillBundleVersion);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task AnalyzeAsync_ClassifiesVersionAheadPackage ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "state-version-ahead");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion + 1);
+        var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion.Next().Value);
         var installService = SkillTestData.CreateInstallService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync([aheadPackage], request, CancellationToken.None);

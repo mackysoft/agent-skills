@@ -95,7 +95,7 @@ public sealed class SkillInstallServiceTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "install-dry-run-version-ahead");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion + 1);
+        var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion.Next().Value);
         var service = SkillTestData.CreateInstallService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await service.InstallAsync([aheadPackage], request, CancellationToken.None);
@@ -120,7 +120,7 @@ public sealed class SkillInstallServiceTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "install-force-version-ahead");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion + 1);
+        var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion.Next().Value);
         var service = SkillTestData.CreateInstallService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
         var install = await service.InstallAsync([aheadPackage], request, CancellationToken.None);
@@ -134,8 +134,8 @@ public sealed class SkillInstallServiceTests
         Assert.Equal(SkillInstallActionKind.Updated, action.ActionKind);
         Assert.Equal(SkillTargetStateKind.VersionAhead, action.TargetState!.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetVersionAhead, action.TargetState.Code);
-        Assert.Equal(aheadPackage.Manifest.SkillBundleVersion, action.TargetState.InstalledSkillBundleVersion);
-        Assert.Equal(packages[0].Manifest.SkillBundleVersion, action.TargetState.BundledSkillBundleVersion);
+        Assert.Equal(aheadPackage.Manifest.SkillBundleVersion.Value, action.TargetState.InstalledSkillBundleVersion);
+        Assert.Equal(packages[0].Manifest.SkillBundleVersion.Value, action.TargetState.BundledSkillBundleVersion);
         Assert.Equal(packages[0].Files.Single(static file => file.RelativePath == "agent-skill.json").Content, File.ReadAllText(manifestPath));
     }
 

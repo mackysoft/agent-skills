@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Digests;
@@ -10,7 +11,7 @@ internal sealed class SkillManifestCandidate
 {
     internal SkillManifestCandidate (
         int schemaVersion,
-        int skillBundleVersion,
+        SkillBundleVersion skillBundleVersion,
         SkillCatalogId catalogId,
         SkillCategory category,
         SkillName skillName,
@@ -26,11 +27,7 @@ internal sealed class SkillManifestCandidate
             throw new ArgumentOutOfRangeException(nameof(schemaVersion), schemaVersion, $"Manifest schema version must be {SkillManifest.CurrentSchemaVersion}.");
         }
 
-        if (skillBundleVersion <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(skillBundleVersion), skillBundleVersion, "SKILL bundle version must be positive.");
-        }
-
+        SkillBundleVersion = skillBundleVersion ?? throw new ArgumentNullException(nameof(skillBundleVersion));
         CatalogId = catalogId ?? throw new ArgumentNullException(nameof(catalogId));
         Category = category ?? throw new ArgumentNullException(nameof(category));
         SkillName = skillName ?? throw new ArgumentNullException(nameof(skillName));
@@ -78,7 +75,6 @@ internal sealed class SkillManifestCandidate
         }
 
         SchemaVersion = schemaVersion;
-        SkillBundleVersion = skillBundleVersion;
         DisplayName = displayName;
         Description = description;
         Dependencies = Array.AsReadOnly(dependencySnapshot);
@@ -89,7 +85,7 @@ internal sealed class SkillManifestCandidate
 
     internal int SchemaVersion { get; }
 
-    internal int SkillBundleVersion { get; }
+    internal SkillBundleVersion SkillBundleVersion { get; }
 
     internal SkillCatalogId CatalogId { get; }
 

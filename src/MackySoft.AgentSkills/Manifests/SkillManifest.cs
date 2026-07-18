@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Digests;
@@ -37,7 +38,7 @@ public sealed class SkillManifest
     public int SchemaVersion { get; }
 
     /// <summary> Gets the product-owned SKILL bundle version. </summary>
-    public int SkillBundleVersion { get; }
+    public SkillBundleVersion SkillBundleVersion { get; }
 
     /// <summary> Gets the stable SKILL catalog ID. </summary>
     public SkillCatalogId CatalogId { get; }

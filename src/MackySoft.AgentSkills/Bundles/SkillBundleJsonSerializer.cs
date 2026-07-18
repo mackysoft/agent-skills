@@ -57,7 +57,7 @@ public sealed class SkillBundleJsonSerializer
         return new SkillBundleDefinition(
             root.GetProperty("schemaVersion").GetInt32(),
             new SkillCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty),
-            root.GetProperty("skillBundleVersion").GetInt32());
+            new SkillBundleVersion(root.GetProperty("skillBundleVersion").GetInt32()));
     }
 
     /// <summary> Reads the generated runtime form. Shape and canonical-text validation remain the reader's responsibility. </summary>
@@ -75,7 +75,7 @@ public sealed class SkillBundleJsonSerializer
         return new SkillBundleDescriptor(
             root.GetProperty("schemaVersion").GetInt32(),
             new SkillCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty),
-            root.GetProperty("skillBundleVersion").GetInt32(),
+            new SkillBundleVersion(root.GetProperty("skillBundleVersion").GetInt32()),
             Sha256Digest.Parse(root.GetProperty("bundleDigest").GetString() ?? string.Empty));
     }
 
@@ -97,10 +97,10 @@ public sealed class SkillBundleJsonSerializer
         Utf8JsonWriter writer,
         int schemaVersion,
         SkillCatalogId catalogId,
-        int skillBundleVersion)
+        SkillBundleVersion skillBundleVersion)
     {
         writer.WriteNumber("schemaVersion", schemaVersion);
         writer.WriteString("catalogId", catalogId.Value);
-        writer.WriteNumber("skillBundleVersion", skillBundleVersion);
+        writer.WriteNumber("skillBundleVersion", skillBundleVersion.Value);
     }
 }

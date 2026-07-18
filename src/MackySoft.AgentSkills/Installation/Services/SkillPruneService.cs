@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Hosts.Contracts;
@@ -644,14 +645,14 @@ public sealed class SkillPruneService
     private static SkillActionTargetState CreateTargetState (
         SkillTargetStateKind kind,
         SkillFailure failure,
-        int? installedSkillBundleVersion = null)
+        SkillBundleVersion? installedSkillBundleVersion = null)
     {
         return new SkillActionTargetState(
             kind,
             failure.Code,
             failure.Message,
             fileSet: null,
-            installedSkillBundleVersion,
+            installedSkillBundleVersion?.Value,
             bundledSkillBundleVersion: null);
     }
 

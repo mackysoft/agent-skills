@@ -6,6 +6,9 @@ inputs:
     description: Bundle root relative to the GitHub workspace. It must resolve inside a checked-out Git worktree.
     required: false
     default: skills
+  skill-bundle-version:
+    description: Exact target bundle version. Omit it to preserve the version authored in bundle.json.
+    required: false
 
 outputs:
   changed:
@@ -26,4 +29,5 @@ runs:
       working-directory: ${{ github.workspace }}
       env:
         AGENT_SKILLS_ROOT: ${{ inputs.root }}
+        AGENT_SKILLS_SKILL_BUNDLE_VERSION: ${{ inputs.skill-bundle-version }}
       run: bash "${GITHUB_ACTION_PATH}/../run-bundle-operation.sh" sync

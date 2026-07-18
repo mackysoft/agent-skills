@@ -18,18 +18,20 @@ internal sealed class BuildCommand
 
     /// <summary> Reconciles a canonical runtime bundle from a fixed-layout source bundle root. </summary>
     /// <param name="root"> The root containing <c>bundle.json</c>, <c>definitions</c>, and generated output. </param>
+    /// <param name="skillBundleVersion">--skill-bundle-version, The exact target bundle version. Omit it to preserve the version authored in bundle.json.</param>
     /// <param name="check"> Whether to fail without writing when generated output requires changes. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The process exit code. </returns>
     [Command(AgentSkillsCommandNames.Build)]
     public async Task<int> BuildAsync (
         string root = "skills",
+        int? skillBundleVersion = null,
         bool check = false,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var result = await buildService.BuildAsync(root, check, cancellationToken).ConfigureAwait(false);
+        var result = await buildService.BuildAsync(root, skillBundleVersion, check, cancellationToken).ConfigureAwait(false);
         if (!result.IsSuccess)
         {
             Console.Error.WriteLine(result.Failure!.Message);
