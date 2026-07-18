@@ -17,7 +17,7 @@ public sealed class SkillBundleDefinitionReaderTests
         var definition = new SkillBundleDefinition(
             SkillBundleDefinition.CurrentSchemaVersion,
             new SkillCatalogId("com.mackysoft.agent-skills"),
-            3);
+            new SkillBundleVersion(3));
         scope.WriteFile("bundle.json", serializer.SerializeDefinition(definition));
         var reader = CreateReader(serializer);
 
@@ -39,7 +39,7 @@ public sealed class SkillBundleDefinitionReaderTests
         var definition = new SkillBundleDefinition(
             SkillBundleDefinition.CurrentSchemaVersion,
             new SkillCatalogId("com.mackysoft.agent-skills"),
-            3);
+            new SkillBundleVersion(3));
         scope.WriteFile(
             "bundle.json",
             serializer.SerializeDescriptor(new SkillBundleDescriptor(
@@ -71,7 +71,7 @@ public sealed class SkillBundleDefinitionReaderTests
         var definition = new SkillBundleDefinition(
             SkillBundleDefinition.CurrentSchemaVersion,
             new SkillCatalogId("com.mackysoft.agent-skills"),
-            3);
+            new SkillBundleVersion(3));
         var outsideBundlePath = outsideScope.WriteFile("bundle.json", serializer.SerializeDefinition(definition));
         if (!TryCreateFileSymbolicLink(scope.GetPath("bundle.json"), outsideBundlePath))
         {

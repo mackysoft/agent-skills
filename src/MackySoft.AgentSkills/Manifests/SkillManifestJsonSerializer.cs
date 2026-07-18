@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Digests;
@@ -81,7 +82,7 @@ public sealed class SkillManifestJsonSerializer
 
         return new SkillManifestCandidate(
             root.GetProperty("schemaVersion").GetInt32(),
-            root.GetProperty("skillBundleVersion").GetInt32(),
+            new SkillBundleVersion(root.GetProperty("skillBundleVersion").GetInt32()),
             new SkillCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty),
             new SkillCategory(root.GetProperty("category").GetString() ?? string.Empty),
             new SkillName(root.GetProperty("skillName").GetString() ?? string.Empty),
@@ -164,7 +165,7 @@ public sealed class SkillManifestJsonSerializer
     private static void WriteManifest (
         Utf8JsonWriter writer,
         int schemaVersion,
-        int skillBundleVersion,
+        SkillBundleVersion skillBundleVersion,
         SkillCatalogId catalogId,
         SkillCategory category,
         SkillName skillName,
@@ -181,7 +182,7 @@ public sealed class SkillManifestJsonSerializer
         writer.WriteNumber("schemaVersion", schemaVersion);
         if (includeSkillBundleVersion)
         {
-            writer.WriteNumber("skillBundleVersion", skillBundleVersion);
+            writer.WriteNumber("skillBundleVersion", skillBundleVersion.Value);
         }
 
         writer.WriteString("catalogId", catalogId.Value);

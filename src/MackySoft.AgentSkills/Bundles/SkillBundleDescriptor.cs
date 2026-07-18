@@ -14,7 +14,7 @@ public sealed class SkillBundleDescriptor
     public SkillBundleDescriptor (
         int schemaVersion,
         SkillCatalogId catalogId,
-        int skillBundleVersion,
+        SkillBundleVersion skillBundleVersion,
         Sha256Digest bundleDigest)
     {
         if (schemaVersion != SkillBundleDefinition.CurrentSchemaVersion)
@@ -22,14 +22,9 @@ public sealed class SkillBundleDescriptor
             throw new ArgumentOutOfRangeException(nameof(schemaVersion), schemaVersion, $"Bundle schema version must be {SkillBundleDefinition.CurrentSchemaVersion}.");
         }
 
-        if (skillBundleVersion <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(skillBundleVersion), skillBundleVersion, "SKILL bundle version must be positive.");
-        }
-
         SchemaVersion = schemaVersion;
         CatalogId = catalogId ?? throw new ArgumentNullException(nameof(catalogId));
-        SkillBundleVersion = skillBundleVersion;
+        SkillBundleVersion = skillBundleVersion ?? throw new ArgumentNullException(nameof(skillBundleVersion));
         BundleDigest = bundleDigest ?? throw new ArgumentNullException(nameof(bundleDigest));
     }
 
@@ -40,7 +35,7 @@ public sealed class SkillBundleDescriptor
     public SkillCatalogId CatalogId { get; }
 
     /// <summary> Gets the release version shared by every package in the bundle. </summary>
-    public int SkillBundleVersion { get; }
+    public SkillBundleVersion SkillBundleVersion { get; }
 
     /// <summary> Gets the digest of the version-independent canonical package set. </summary>
     public Sha256Digest BundleDigest { get; }

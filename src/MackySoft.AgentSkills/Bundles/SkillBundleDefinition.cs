@@ -15,21 +15,16 @@ public sealed class SkillBundleDefinition
     public SkillBundleDefinition (
         int schemaVersion,
         SkillCatalogId catalogId,
-        int skillBundleVersion)
+        SkillBundleVersion skillBundleVersion)
     {
         if (schemaVersion != CurrentSchemaVersion)
         {
             throw new ArgumentOutOfRangeException(nameof(schemaVersion), schemaVersion, $"Bundle schema version must be {CurrentSchemaVersion}.");
         }
 
-        if (skillBundleVersion <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(skillBundleVersion), skillBundleVersion, "SKILL bundle version must be positive.");
-        }
-
         SchemaVersion = schemaVersion;
         CatalogId = catalogId ?? throw new ArgumentNullException(nameof(catalogId));
-        SkillBundleVersion = skillBundleVersion;
+        SkillBundleVersion = skillBundleVersion ?? throw new ArgumentNullException(nameof(skillBundleVersion));
     }
 
     /// <summary> Gets the source bundle schema version. </summary>
@@ -39,5 +34,5 @@ public sealed class SkillBundleDefinition
     public SkillCatalogId CatalogId { get; }
 
     /// <summary> Gets the release version stamped into every generated package. </summary>
-    public int SkillBundleVersion { get; }
+    public SkillBundleVersion SkillBundleVersion { get; }
 }

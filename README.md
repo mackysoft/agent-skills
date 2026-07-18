@@ -41,7 +41,7 @@ Create `bundle.json` at the bundle root. The source file contains exactly these 
 | --- | --- | --- |
 | `schemaVersion` | 32-bit integer | Selects the source bundle contract. The current value is `1`. |
 | `catalogId` | string | Provides the stable identity shared by the source definition, generated packages, and managed installations. |
-| `skillBundleVersion` | 32-bit integer | Identifies one generated bundle revision. A new bundle starts at `1`. |
+| `skillBundleVersion` | 32-bit integer | Identifies the target generated bundle revision. A new bundle starts at `1`. |
 
 For each skill, create `definitions/<category>/<skill-name>/skill.json`. The category and skill name come from those two directory names and are not repeated in the file. The source metadata contains exactly these properties in this order:
 
@@ -82,7 +82,13 @@ dotnet tool run agent-skills -- build --root skills
 
 The command reads `bundle.json` and `definitions` under the bundle root and replaces its `generated` directory. Do not edit generated files manually; edit the source bundle and run the build again. When packaging the product CLI, ship the generated directory as `<PackageBaseDirectory>/skills`.
 
-`skillBundleVersion` identifies the product's generated skill set. When source changes require new generated output, the build advances the current generated version by one. A manually advanced source value is accepted only when it is exactly one greater than the current generated version and the source content changed.
+By default, the build uses the `skillBundleVersion` authored in `bundle.json` and never infers a new version from source changes. To advance the bundle, provide the exact target version:
+
+```bash
+dotnet tool run agent-skills -- build --root skills --skill-bundle-version 2
+```
+
+The target must equal the authored version or its next revision. When the next revision is selected, the command updates `bundle.json` and generated output together. Repeating the same exact target is a no-op after the bundle is current. A version-only change preserves `bundleDigest` and each package's `contentDigest`, but changes each `manifestDigest` because it covers `skillBundleVersion`.
 
 ### Generated Package Metadata
 
@@ -127,7 +133,7 @@ When generated output already matches the source definition and bundle version, 
 dotnet tool run agent-skills -- build --root skills --check
 ```
 
-The repository provides separate `verify` and `sync` composite GitHub Actions. Each Action accepts only `root`, a bundle root relative to the GitHub workspace that resolves inside the checked-out Git worktree. Both restore the CLI version pinned by the caller's .NET tool manifest.
+The repository provides separate `verify` and `sync` composite GitHub Actions. Both accept `root`, a bundle root relative to the GitHub workspace that resolves inside the checked-out Git worktree, and restore the CLI version pinned by the caller's .NET tool manifest. `sync` also accepts an optional exact `skill-bundle-version`.
 
 Use `verify` for pull requests and other read-only checks. It runs `build --check`, fails when committed output is stale, and never generates or commits files.
 
@@ -141,7 +147,7 @@ Use `verify` for pull requests and other read-only checks. It runs `build --chec
     root: skills
 ```
 
-Use `sync` only from a branch workflow with `contents: write`. When reconciliation is required, it requires a clean Git index, updates the source bundle and generated output, stages only `<root>/bundle.json` and `<root>/generated`, creates a `github-actions[bot]` commit, and pushes that commit to the current branch. Its `changed` output is `true` only after that push succeeds.
+Use `sync` only from a branch workflow with `contents: write`. When reconciliation is required, it requires a clean Git index, synchronizes generated output, updates `bundle.json` when the exact next version is selected, stages only `<root>/bundle.json` and `<root>/generated`, creates a `github-actions[bot]` commit, and pushes that commit to the current branch. Its `changed` output is `true` only after that push succeeds.
 
 ```yaml
 permissions:
@@ -156,7 +162,10 @@ steps:
     uses: mackysoft/agent-skills/actions/sync@1.0.0
     with:
       root: skills
+      skill-bundle-version: 2
 ```
+
+Omit `skill-bundle-version` when synchronization should preserve the value authored in `bundle.json`.
 
 Pushes made with the default `GITHUB_TOKEN` do not trigger another workflow run. If the caller supplies credentials that do trigger workflows, the synchronized bundle makes the next run a no-op because `build --check` passes. Branch protection still applies; use `verify` when direct bot pushes are not permitted.
 

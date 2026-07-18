@@ -39,7 +39,7 @@ public sealed class SkillBundleDigestCalculatorTests
                 package,
                 SkillTestData.CopyManifest(
                     package.Manifest,
-                    skillBundleVersion: package.Manifest.SkillBundleVersion + 1,
+                    skillBundleVersion: package.Manifest.SkillBundleVersion.Next().Value,
                     manifestDigest: Sha256Digest.Parse(new string('f', 64))),
                 manifestSerializer))
             .ToArray();

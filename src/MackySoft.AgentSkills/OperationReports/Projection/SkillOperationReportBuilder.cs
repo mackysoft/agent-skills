@@ -497,7 +497,7 @@ public static class SkillOperationReportBuilder
         var manifest = package.Manifest;
         return new SkillListSkillReport(
             manifest.SchemaVersion,
-            manifest.SkillBundleVersion,
+            manifest.SkillBundleVersion.Value,
             manifest.SkillName.Value,
             manifest.DisplayName,
             manifest.Description,

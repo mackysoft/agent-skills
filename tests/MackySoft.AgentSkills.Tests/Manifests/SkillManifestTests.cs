@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Digests;
@@ -11,19 +12,16 @@ public sealed class SkillManifestCandidateTests
 {
     [Theory]
     [Trait("Size", "Small")]
-    [InlineData(0, 1, "Sample Skill", "Use this sample skill for tests.")]
-    [InlineData(1, 0, "Sample Skill", "Use this sample skill for tests.")]
-    [InlineData(1, 1, "", "Use this sample skill for tests.")]
-    [InlineData(1, 1, "Sample Skill", "")]
+    [InlineData(0, "Sample Skill", "Use this sample skill for tests.")]
+    [InlineData(1, "", "Use this sample skill for tests.")]
+    [InlineData(1, "Sample Skill", "")]
     public void Candidate_RejectsInvalidScalarContract (
         int schemaVersion,
-        int skillBundleVersion,
         string displayName,
         string description)
     {
         Assert.ThrowsAny<ArgumentException>(() => CreateManifest(
             schemaVersion,
-            skillBundleVersion,
             new SkillName("sample-skill"),
             displayName,
             description,
@@ -37,7 +35,6 @@ public sealed class SkillManifestCandidateTests
     {
         Assert.Throws<ArgumentException>(() => CreateManifest(
             SkillManifest.CurrentSchemaVersion,
-            1,
             new SkillName("sample-skill"),
             "Sample Skill",
             "Use this sample skill for tests.",
@@ -45,7 +42,6 @@ public sealed class SkillManifestCandidateTests
             []));
         Assert.Throws<ArgumentException>(() => CreateManifest(
             SkillManifest.CurrentSchemaVersion,
-            1,
             new SkillName("sample-skill"),
             "Sample Skill",
             "Use this sample skill for tests.",
@@ -53,7 +49,6 @@ public sealed class SkillManifestCandidateTests
             []));
         Assert.Throws<ArgumentException>(() => CreateManifest(
             SkillManifest.CurrentSchemaVersion,
-            1,
             new SkillName("sample-skill"),
             "Sample Skill",
             "Use this sample skill for tests.",
@@ -85,7 +80,7 @@ public sealed class SkillManifestCandidateTests
     {
         Assert.Throws<ArgumentNullException>(() => new SkillManifestCandidate(
             SkillManifest.CurrentSchemaVersion,
-            1,
+            new SkillBundleVersion(1),
             new SkillCatalogId("com.mackysoft.agent-skills"),
             new SkillCategory("core"),
             new SkillName("sample-skill"),
@@ -129,7 +124,6 @@ public sealed class SkillManifestCandidateTests
     {
         return CreateManifest(
             SkillManifest.CurrentSchemaVersion,
-            1,
             new SkillName("sample-skill"),
             "Sample Skill",
             "Use this sample skill for tests.",
@@ -139,7 +133,6 @@ public sealed class SkillManifestCandidateTests
 
     private static SkillManifestCandidate CreateManifest (
         int schemaVersion,
-        int skillBundleVersion,
         SkillName skillName,
         string displayName,
         string description,
@@ -148,7 +141,7 @@ public sealed class SkillManifestCandidateTests
     {
         return new SkillManifestCandidate(
             schemaVersion,
-            skillBundleVersion,
+            new SkillBundleVersion(1),
             new SkillCatalogId("com.mackysoft.agent-skills"),
             new SkillCategory("core"),
             skillName,

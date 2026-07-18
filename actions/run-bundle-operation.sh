@@ -55,13 +55,18 @@ fi
 cd -- "${repository_root}"
 dotnet tool restore
 
+build_arguments=(tool run agent-skills -- build --root "${cli_root}")
+if [[ -n "${AGENT_SKILLS_SKILL_BUNDLE_VERSION:-}" ]]; then
+  build_arguments+=(--skill-bundle-version "${AGENT_SKILLS_SKILL_BUNDLE_VERSION}")
+fi
+
 if [[ "${operation}" == "verify" ]]; then
-  dotnet tool run agent-skills -- build --root "${cli_root}" --check
+  dotnet "${build_arguments[@]}" --check
   exit 0
 fi
 
 : "${GITHUB_OUTPUT:?The sync action requires GITHUB_OUTPUT.}"
-if dotnet tool run agent-skills -- build --root "${cli_root}" --check; then
+if dotnet "${build_arguments[@]}" --check; then
   echo "changed=false" >> "${GITHUB_OUTPUT}"
   exit 0
 fi
@@ -77,7 +82,7 @@ if [[ "${GITHUB_REF:-}" != refs/heads/* ]]; then
 fi
 branch_name="${GITHUB_REF#refs/heads/}"
 
-dotnet tool run agent-skills -- build --root "${cli_root}"
+dotnet "${build_arguments[@]}"
 
 git add --all --force -- "${cli_root}/bundle.json" "${cli_root}/generated"
 if git diff --cached --quiet; then

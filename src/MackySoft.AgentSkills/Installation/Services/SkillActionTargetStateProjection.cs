@@ -26,7 +26,7 @@ internal static class SkillActionTargetStateProjection
             state.Failure?.Code,
             state.Failure?.Message,
             fileSet,
-            state.InstalledSkillBundleVersion,
-            state.BundledSkillBundleVersion);
+            state.InstalledSkillBundleVersion?.Value,
+            state.BundledSkillBundleVersion?.Value);
     }
 }
