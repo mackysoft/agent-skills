@@ -1,3 +1,4 @@
+using System.Reflection;
 using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Generation;
 using MackySoft.AgentSkills.Manifests;
@@ -18,7 +19,12 @@ public sealed class BundleApiContractTests
         Assert.Null(typeof(SkillSourceDefinitionReader).GetMethod(nameof(SkillSourceDefinitionReader.ReadOneAsync)));
         Assert.Null(typeof(CanonicalSkillPackageWriter).GetMethod(nameof(CanonicalSkillPackageWriter.WriteToStagingAsync)));
         Assert.Null(typeof(CanonicalSkillBundleWriter).GetMethod(nameof(CanonicalSkillBundleWriter.WriteAsync)));
-        Assert.NotNull(typeof(SkillBundleBuildService).GetMethod(nameof(SkillBundleBuildService.BuildAsync)));
+        var buildServiceMethod = Assert.Single(typeof(SkillBundleBuildService).GetMethods(
+            BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly));
+        Assert.Equal(nameof(SkillBundleBuildService.BuildAsync), buildServiceMethod.Name);
+        Assert.Equal(
+            [typeof(string), typeof(int?), typeof(bool), typeof(CancellationToken)],
+            buildServiceMethod.GetParameters().Select(static parameter => parameter.ParameterType));
     }
 
     [Fact]

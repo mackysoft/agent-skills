@@ -23,11 +23,15 @@ public sealed class ActionDefinitionTests
         Assert.Contains("run-bundle-operation.sh\" sync", syncAction, StringComparison.Ordinal);
         Assert.Contains("outputs:", syncAction, StringComparison.Ordinal);
         Assert.Contains("changed:", syncAction, StringComparison.Ordinal);
+        Assert.Contains("skill-bundle-version:", syncAction, StringComparison.Ordinal);
+        Assert.Contains("AGENT_SKILLS_SKILL_BUNDLE_VERSION: ${{ inputs.skill-bundle-version }}", syncAction, StringComparison.Ordinal);
         Assert.DoesNotContain("mode:", syncAction, StringComparison.Ordinal);
 
         Assert.Contains("dotnet tool restore", runner, StringComparison.Ordinal);
-        Assert.Contains("dotnet tool run agent-skills -- build --root \"${cli_root}\" --check", runner, StringComparison.Ordinal);
-        Assert.Contains("dotnet tool run agent-skills -- build --root \"${cli_root}\"", runner, StringComparison.Ordinal);
+        Assert.Contains("build_arguments=(tool run agent-skills -- build --root \"${cli_root}\")", runner, StringComparison.Ordinal);
+        Assert.Contains("build_arguments+=(--skill-bundle-version \"${AGENT_SKILLS_SKILL_BUNDLE_VERSION}\")", runner, StringComparison.Ordinal);
+        Assert.Contains("dotnet \"${build_arguments[@]}\" --check", runner, StringComparison.Ordinal);
+        Assert.Contains("dotnet \"${build_arguments[@]}\"", runner, StringComparison.Ordinal);
         Assert.DoesNotContain("git status", runner, StringComparison.Ordinal);
         Assert.Contains("git add --all --force", runner, StringComparison.Ordinal);
         Assert.Contains("git commit", runner, StringComparison.Ordinal);
@@ -132,11 +136,18 @@ public sealed class ActionDefinitionTests
         var outputPath = scope.GetPath("github-output.txt");
         var environment = CreateActionEnvironment(scope, fakeBin, dotnetLog, outputPath);
         environment["GITHUB_REF"] = "refs/heads/main";
+        environment["AGENT_SKILLS_SKILL_BUNDLE_VERSION"] = "2";
 
         await RunProcessAsync("bash", [GetRunnerPath(), "sync"], scope.FullPath, environment);
 
         Assert.Equal("changed=true\n", File.ReadAllText(outputPath).ReplaceLineEndings("\n"));
-        Assert.Contains("tool run agent-skills -- build --root ./skills --check", File.ReadAllText(dotnetLog), StringComparison.Ordinal);
+        Assert.Equal(
+            [
+                "tool restore",
+                "tool run agent-skills -- build --root ./skills --skill-bundle-version 2 --check",
+                "tool run agent-skills -- build --root ./skills --skill-bundle-version 2",
+            ],
+            File.ReadAllLines(dotnetLog));
         Assert.True(File.Exists(scope.GetPath("skills/generated/result.txt")));
         await RunProcessAsync("git", ["check-ignore", "--no-index", "--quiet", "skills/generated/result.txt"], scope.FullPath);
         Assert.Equal(

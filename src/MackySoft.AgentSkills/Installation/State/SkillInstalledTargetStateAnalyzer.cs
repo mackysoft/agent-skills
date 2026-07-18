@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Validation;
 using MackySoft.AgentSkills.Packaging.Canonical;
@@ -163,27 +164,28 @@ public sealed class SkillInstalledTargetStateAnalyzer
     }
 
     private static SkillTargetStateKind ResolveCleanManagedMismatchKind (
-        int installedSkillBundleVersion,
-        int bundledSkillBundleVersion)
+        SkillBundleVersion installedSkillBundleVersion,
+        SkillBundleVersion bundledSkillBundleVersion)
     {
-        return installedSkillBundleVersion > bundledSkillBundleVersion
+        return installedSkillBundleVersion.CompareTo(bundledSkillBundleVersion) > 0
             ? SkillTargetStateKind.VersionAhead
             : SkillTargetStateKind.CleanOutdated;
     }
 
     private static SkillFailure CreateCleanManagedMismatchFailure (
         string skillName,
-        int installedSkillBundleVersion,
-        int bundledSkillBundleVersion)
+        SkillBundleVersion installedSkillBundleVersion,
+        SkillBundleVersion bundledSkillBundleVersion)
     {
-        if (installedSkillBundleVersion > bundledSkillBundleVersion)
+        var comparison = installedSkillBundleVersion.CompareTo(bundledSkillBundleVersion);
+        if (comparison > 0)
         {
             return SkillFailure.Create(
                 SkillFailureCodes.InstallTargetVersionAhead,
                 $"Installed SKILL package was generated from a newer skillBundleVersion for '{skillName}': installed {installedSkillBundleVersion}, bundled {bundledSkillBundleVersion}.");
         }
 
-        if (installedSkillBundleVersion == bundledSkillBundleVersion)
+        if (comparison == 0)
         {
             return SkillFailure.Create(
                 SkillFailureCodes.InstallTargetOutdated,

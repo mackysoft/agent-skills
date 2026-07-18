@@ -301,7 +301,9 @@ internal static class SkillTestData
             .ToArray();
     }
 
-    internal static CanonicalSkillPackage CreatePackageWithUpdatedBody (CanonicalSkillPackage package)
+    internal static CanonicalSkillPackage CreatePackageWithUpdatedBody (
+        CanonicalSkillPackage package,
+        int? skillBundleVersion = null)
     {
         var files = package.Files
             .Select(static file => string.Equals(file.RelativePath, "SKILL.md", StringComparison.Ordinal)
@@ -314,7 +316,7 @@ internal static class SkillTestData
             .Select(static file => new SkillDigestInputFile(file.RelativePath, file.Content)));
         var manifestCandidate = CopyManifest(
             package.Manifest,
-            skillBundleVersion: package.Manifest.SkillBundleVersion + 1,
+            skillBundleVersion: skillBundleVersion ?? package.Manifest.SkillBundleVersion.Next().Value,
             contentDigest: contentDigest);
         var manifest = WithComputedManifestDigest(manifestCandidate);
         var manifestText = new SkillManifestJsonSerializer().Serialize(manifest);
@@ -393,7 +395,7 @@ internal static class SkillTestData
 
         var manifest = WithComputedManifestDigest(new SkillManifestCandidate(
             SkillManifest.CurrentSchemaVersion,
-            1,
+            new SkillBundleVersion(1),
             new SkillCatalogId("com.mackysoft.agent-skills"),
             new SkillCategory(ExpectedCategory),
             new SkillName(SkillName),
@@ -417,7 +419,7 @@ internal static class SkillTestData
     {
         var manifestCandidate = CopyManifest(
             package.Manifest,
-            skillBundleVersion: package.Manifest.SkillBundleVersion + 1,
+            skillBundleVersion: package.Manifest.SkillBundleVersion.Next().Value,
             displayName: package.Manifest.DisplayName + " Updated");
         var metadata = new SkillHostMetadata(manifestCandidate.SkillName, manifestCandidate.DisplayName, manifestCandidate.Description);
         var hostAdapters = CreateDefaultHostAdapterSet();
@@ -593,7 +595,7 @@ internal static class SkillTestData
 
         return new SkillManifestCandidate(
             schemaVersion ?? source.SchemaVersion,
-            skillBundleVersion ?? source.SkillBundleVersion,
+            skillBundleVersion is null ? source.SkillBundleVersion : new SkillBundleVersion(skillBundleVersion.Value),
             catalogId ?? source.CatalogId,
             category ?? source.Category,
             skillName ?? source.SkillName,
@@ -623,7 +625,7 @@ internal static class SkillTestData
 
         return new SkillManifestCandidate(
             schemaVersion ?? source.SchemaVersion,
-            skillBundleVersion ?? source.SkillBundleVersion,
+            skillBundleVersion is null ? source.SkillBundleVersion : new SkillBundleVersion(skillBundleVersion.Value),
             catalogId ?? source.CatalogId,
             category ?? source.Category,
             skillName ?? source.SkillName,

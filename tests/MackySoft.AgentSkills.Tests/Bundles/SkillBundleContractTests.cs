@@ -12,33 +12,27 @@ public sealed class SkillBundleContractTests
     private static readonly Sha256Digest Digest = Sha256Digest.Parse(new string('a', 64));
 
     [Theory]
-    [InlineData(0, 1)]
-    [InlineData(2, 1)]
-    [InlineData(1, 0)]
+    [InlineData(0)]
+    [InlineData(2)]
     [Trait("Size", "Small")]
-    public void Definition_RejectsUnsupportedSchemaOrNonPositiveVersion (
-        int schemaVersion,
-        int skillBundleVersion)
+    public void Definition_RejectsUnsupportedSchema (int schemaVersion)
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => new SkillBundleDefinition(
             schemaVersion,
             CatalogId,
-            skillBundleVersion));
+            new SkillBundleVersion(1)));
     }
 
     [Theory]
-    [InlineData(0, 1)]
-    [InlineData(2, 1)]
-    [InlineData(1, 0)]
+    [InlineData(0)]
+    [InlineData(2)]
     [Trait("Size", "Small")]
-    public void Descriptor_RejectsUnsupportedSchemaOrNonPositiveVersion (
-        int schemaVersion,
-        int skillBundleVersion)
+    public void Descriptor_RejectsUnsupportedSchema (int schemaVersion)
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => new SkillBundleDescriptor(
             schemaVersion,
             CatalogId,
-            skillBundleVersion,
+            new SkillBundleVersion(1),
             Digest));
     }
 
@@ -49,7 +43,7 @@ public sealed class SkillBundleContractTests
         Assert.Throws<ArgumentNullException>(() => new SkillBundleDescriptor(
             SkillBundleDefinition.CurrentSchemaVersion,
             CatalogId,
-            1,
+            new SkillBundleVersion(1),
             null!));
     }
 

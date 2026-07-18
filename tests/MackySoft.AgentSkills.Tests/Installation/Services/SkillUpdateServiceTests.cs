@@ -43,7 +43,7 @@ public sealed class SkillUpdateServiceTests
         var installedPackage = packages[0];
         var updatedPackage = SkillTestData.CreatePackageWithSkillBundleVersion(
             SkillTestData.CreatePackageWithUpdatedBody(installedPackage),
-            installedPackage.Manifest.SkillBundleVersion + 1);
+            installedPackage.Manifest.SkillBundleVersion.Next().Value);
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService();
         var flatRequest = new SkillInstallRequest(
@@ -80,7 +80,7 @@ public sealed class SkillUpdateServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task UpdateAsync_UpdatesCleanOutdatedPackage ()
+    public async Task UpdateAsync_UpdatesCleanOutdatedPackage_WhenBundleVersionAdvances ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "update-outdated");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
@@ -101,6 +101,42 @@ public sealed class SkillUpdateServiceTests
         var expectedManifest = updatedPackages[0].Files.Single(static file => file.RelativePath == "agent-skill.json").Content;
         var actualManifest = File.ReadAllText(Path.Combine(result.Value.TargetRoot, packages[0].Manifest.SkillName.Value, "agent-skill.json"));
         Assert.Equal(expectedManifest, actualManifest);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task UpdateAsync_UpdatesCleanOutdatedPackage_WhenCanonicalContentChangesAtSameVersion ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "update-outdated-same-version");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var installService = SkillTestData.CreateInstallService();
+        var updateService = SkillTestData.CreateUpdateService();
+        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
+        var install = await installService.InstallAsync(
+            packages[0].Manifest.CatalogId,
+            packages,
+            request,
+            CancellationToken.None);
+        Assert.True(install.IsSuccess, install.Failure?.Message);
+        var installedPackage = packages[0];
+        var updatedPackage = SkillTestData.CreatePackageWithUpdatedBody(
+            installedPackage,
+            installedPackage.Manifest.SkillBundleVersion.Value);
+        var updatedPackages = SkillTestData.ReplacePackage(packages, updatedPackage);
+
+        var result = await updateService.UpdateAsync(
+            new SkillUpdateInput(updatedPackages[0].Manifest.CatalogId, updatedPackages, request),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        var action = result.Value!.Actions.Single(item =>
+            item.Identity.SkillName.Value == installedPackage.Manifest.SkillName.Value);
+        Assert.Equal(SkillUpdateActionKind.Updated, action.ActionKind);
+        var installedBody = File.ReadAllText(Path.Combine(result.Value.TargetRoot, installedPackage.Manifest.SkillName.Value, "SKILL.md"));
+        Assert.Contains("Fixture update.", installedBody, StringComparison.Ordinal);
+        var expectedManifest = updatedPackage.Files.Single(static file => file.RelativePath == "agent-skill.json").Content;
+        var installedManifest = File.ReadAllText(Path.Combine(result.Value.TargetRoot, installedPackage.Manifest.SkillName.Value, "agent-skill.json"));
+        Assert.Equal(expectedManifest, installedManifest);
     }
 
     [Fact]
@@ -385,7 +421,7 @@ public sealed class SkillUpdateServiceTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "update-dry-run-version-ahead");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion + 1);
+        var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion.Next().Value);
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
@@ -402,8 +438,8 @@ public sealed class SkillUpdateServiceTests
         Assert.Equal(SkillBlockedReason.InstalledVersionAhead, action.BlockedReason);
         Assert.Equal(SkillTargetStateKind.VersionAhead, action.TargetState!.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetVersionAhead, action.TargetState.Code);
-        Assert.Equal(aheadPackage.Manifest.SkillBundleVersion, action.TargetState.InstalledSkillBundleVersion);
-        Assert.Equal(packages[0].Manifest.SkillBundleVersion, action.TargetState.BundledSkillBundleVersion);
+        Assert.Equal(aheadPackage.Manifest.SkillBundleVersion.Value, action.TargetState.InstalledSkillBundleVersion);
+        Assert.Equal(packages[0].Manifest.SkillBundleVersion.Value, action.TargetState.BundledSkillBundleVersion);
         Assert.NotEmpty(action.Diffs!);
         Assert.Equal(aheadManifest, File.ReadAllText(manifestPath));
     }
@@ -414,7 +450,7 @@ public sealed class SkillUpdateServiceTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "update-force-version-ahead");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion + 1);
+        var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion.Next().Value);
         var installService = SkillTestData.CreateInstallService();
         var updateService = SkillTestData.CreateUpdateService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);

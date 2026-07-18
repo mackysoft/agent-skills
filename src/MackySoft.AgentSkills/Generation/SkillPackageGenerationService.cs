@@ -136,13 +136,10 @@ public sealed class SkillPackageGenerationService
     /// <returns> The complete canonical bundle for the requested release version. </returns>
     internal CanonicalSkillBundle GenerateAll (
         SkillPackageGenerationSource source,
-        int skillBundleVersion)
+        SkillBundleVersion skillBundleVersion)
     {
         ArgumentNullException.ThrowIfNull(source);
-        if (skillBundleVersion <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(skillBundleVersion), skillBundleVersion, "SKILL bundle version must be positive.");
-        }
+        ArgumentNullException.ThrowIfNull(skillBundleVersion);
 
         var authoredBundle = source.BundleDefinition;
         var bundle = authoredBundle.SkillBundleVersion == skillBundleVersion

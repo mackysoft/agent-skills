@@ -28,7 +28,7 @@ public sealed class SkillPackageGenerationServiceTests
             Assert.Contains(package.Files, static file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal));
             Assert.Contains(package.Files, static file => string.Equals(file.RelativePath, "agents/openai.yaml", StringComparison.Ordinal));
             Assert.Equal(SkillManifest.CurrentSchemaVersion, package.Manifest.SchemaVersion);
-            Assert.Equal(1, package.Manifest.SkillBundleVersion);
+            Assert.Equal(1, package.Manifest.SkillBundleVersion.Value);
             Assert.False(string.IsNullOrWhiteSpace(package.Manifest.DisplayName));
             Assert.False(string.IsNullOrWhiteSpace(package.Manifest.Description));
             Assert.Empty(package.Manifest.Dependencies);
@@ -384,11 +384,11 @@ public sealed class SkillPackageGenerationServiceTests
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal("com.mackysoft.agent-skills", result.Value!.Descriptor.CatalogId.Value);
-        Assert.Equal(7, result.Value.Descriptor.SkillBundleVersion);
+        Assert.Equal(7, result.Value.Descriptor.SkillBundleVersion.Value);
         Assert.All(result.Value.Packages, static package =>
         {
             Assert.Equal("com.mackysoft.agent-skills", package.Manifest.CatalogId.Value);
-            Assert.Equal(7, package.Manifest.SkillBundleVersion);
+            Assert.Equal(7, package.Manifest.SkillBundleVersion.Value);
         });
     }
 
@@ -442,7 +442,7 @@ public sealed class SkillPackageGenerationServiceTests
         return new SkillBundleDefinition(
             SkillBundleDefinition.CurrentSchemaVersion,
             new SkillCatalogId("com.mackysoft.agent-skills"),
-            skillBundleVersion);
+            new SkillBundleVersion(skillBundleVersion));
     }
 
     private static void WriteBundle (

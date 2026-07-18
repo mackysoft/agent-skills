@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Shared;
 
@@ -37,7 +38,7 @@ public sealed class SkillInstalledTargetStateTests
         Assert.Throws<ArgumentOutOfRangeException>(() => SkillInstalledTargetState.Drift(
             SkillTargetStateKind.FileSetDrift,
             failure,
-            bundledSkillBundleVersion: 1));
+            bundledSkillBundleVersion: Version(1)));
     }
 
     [Fact]
@@ -50,7 +51,7 @@ public sealed class SkillInstalledTargetStateTests
         Assert.Throws<ArgumentException>(() => SkillInstalledTargetState.FileSetDrift(
             failure,
             emptyFileSet,
-            bundledSkillBundleVersion: 1));
+            bundledSkillBundleVersion: Version(1)));
     }
 
     [Fact]
@@ -61,11 +62,11 @@ public sealed class SkillInstalledTargetStateTests
 
         Assert.Throws<ArgumentException>(() => SkillInstalledTargetState.VersionAhead(
             failure,
-            installedSkillBundleVersion: 1,
-            bundledSkillBundleVersion: 1));
+            installedSkillBundleVersion: Version(1),
+            bundledSkillBundleVersion: Version(1)));
         Assert.Throws<ArgumentException>(() => SkillInstalledTargetState.Current(
-            installedSkillBundleVersion: 1,
-            bundledSkillBundleVersion: 2));
+            installedSkillBundleVersion: Version(1),
+            bundledSkillBundleVersion: Version(2)));
     }
 
     [Fact]
@@ -89,13 +90,13 @@ public sealed class SkillInstalledTargetStateTests
         var drift = SkillInstalledTargetState.Drift(
             SkillTargetStateKind.CommonContentDrift,
             driftFailure,
-            bundledSkillBundleVersion: 1);
+            bundledSkillBundleVersion: Version(1));
         var blocking = SkillInstalledTargetState.Blocking(
             SkillTargetStateKind.Unmanaged,
             blockingFailure);
 
         Assert.Null(drift.InstalledSkillBundleVersion);
-        Assert.Equal(1, drift.BundledSkillBundleVersion);
+        Assert.Equal(1, drift.BundledSkillBundleVersion!.Value);
         Assert.Null(blocking.InstalledSkillBundleVersion);
         Assert.Null(blocking.BundledSkillBundleVersion);
     }
@@ -108,9 +109,14 @@ public sealed class SkillInstalledTargetStateTests
 
         var state = SkillInstalledTargetState.CleanOutdated(
             failure,
-            installedSkillBundleVersion: 1,
-            bundledSkillBundleVersion: 1);
+            installedSkillBundleVersion: Version(1),
+            bundledSkillBundleVersion: Version(1));
 
         Assert.Equal(SkillTargetStateKind.CleanOutdated, state.Kind);
+    }
+
+    private static SkillBundleVersion Version (int value)
+    {
+        return new SkillBundleVersion(value);
     }
 }

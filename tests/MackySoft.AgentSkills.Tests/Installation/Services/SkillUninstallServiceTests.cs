@@ -113,7 +113,7 @@ public sealed class SkillUninstallServiceTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "uninstall-dry-run-version-ahead");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion + 1);
+        var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion.Next().Value);
         var installService = SkillTestData.CreateInstallService();
         var uninstallService = SkillTestData.CreateUninstallService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
@@ -128,8 +128,8 @@ public sealed class SkillUninstallServiceTests
         Assert.Equal(SkillUninstallActionKind.Deleted, action.ActionKind);
         Assert.Equal(SkillTargetStateKind.VersionAhead, action.TargetState!.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetVersionAhead, action.TargetState.Code);
-        Assert.Equal(aheadPackage.Manifest.SkillBundleVersion, action.TargetState.InstalledSkillBundleVersion);
-        Assert.Equal(packages[0].Manifest.SkillBundleVersion, action.TargetState.BundledSkillBundleVersion);
+        Assert.Equal(aheadPackage.Manifest.SkillBundleVersion.Value, action.TargetState.InstalledSkillBundleVersion);
+        Assert.Equal(packages[0].Manifest.SkillBundleVersion.Value, action.TargetState.BundledSkillBundleVersion);
         Assert.True(Directory.Exists(skillDirectory));
     }
 
@@ -139,7 +139,7 @@ public sealed class SkillUninstallServiceTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "uninstall-version-ahead");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion + 1);
+        var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion.Next().Value);
         var installService = SkillTestData.CreateInstallService();
         var uninstallService = SkillTestData.CreateUninstallService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
