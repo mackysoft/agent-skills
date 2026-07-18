@@ -49,25 +49,25 @@ internal sealed class SkillBundleBuildPublisher
 
         var fullBundleRoot = Path.GetFullPath(bundleRoot);
         var generatedRoot = Path.Combine(fullBundleRoot, "generated");
-        if (!fileSystem.DirectoryExists(generatedRoot))
-        {
-            throw new DirectoryNotFoundException($"Generated SKILL bundle disappeared before publication: {generatedRoot}");
-        }
-
         var sourceBundlePath = Path.Combine(fullBundleRoot, "bundle.json");
         var backupRoot = Path.Combine(fullBundleRoot, $".generated.build-backup.{Guid.NewGuid():N}");
-        var backupCreated = false;
+        string? previousGeneratedRoot = null;
+        var publicationStarted = false;
 
         try
         {
-            fileSystem.MoveDirectory(generatedRoot, backupRoot);
-            backupCreated = true;
+            if (fileSystem.DirectoryExists(generatedRoot))
+            {
+                fileSystem.MoveDirectory(generatedRoot, backupRoot);
+                previousGeneratedRoot = backupRoot;
+            }
 
+            publicationStarted = true;
             var generatedResult = await bundleWriter.WriteAsync(bundle, generatedRoot, cancellationToken).ConfigureAwait(false);
             if (!generatedResult.IsSuccess)
             {
-                RestoreGeneratedBundle(generatedRoot, backupRoot);
-                backupCreated = false;
+                RestoreGeneratedBundle(generatedRoot, previousGeneratedRoot);
+                publicationStarted = false;
                 return generatedResult;
             }
 
@@ -77,22 +77,27 @@ internal sealed class SkillBundleBuildPublisher
                     cancellationToken)
                 .ConfigureAwait(false);
 
-            backupCreated = false;
-            TryDeleteDirectory(backupRoot);
+            publicationStarted = false;
+            if (previousGeneratedRoot is not null)
+            {
+                TryDeleteDirectory(previousGeneratedRoot);
+            }
+
             return generatedResult;
         }
         catch (Exception publicationException)
         {
-            if (backupCreated)
+            if (publicationStarted)
             {
                 try
                 {
-                    RestoreGeneratedBundle(generatedRoot, backupRoot);
+                    RestoreGeneratedBundle(generatedRoot, previousGeneratedRoot);
                 }
                 catch (Exception rollbackException)
                 {
+                    var rollbackLocation = previousGeneratedRoot ?? generatedRoot;
                     throw new IOException(
-                        $"SKILL bundle publication and rollback failed. The previous generated bundle remains at: {backupRoot}",
+                        $"SKILL bundle publication and rollback failed. Inspect the generated bundle state at: {rollbackLocation}",
                         new AggregateException(publicationException, rollbackException));
                 }
             }
@@ -115,19 +120,24 @@ internal sealed class SkillBundleBuildPublisher
 
     private void RestoreGeneratedBundle (
         string generatedRoot,
-        string backupRoot)
+        string? previousGeneratedRoot)
     {
         if (fileSystem.DirectoryExists(generatedRoot))
         {
             fileSystem.DeleteDirectory(generatedRoot);
         }
 
-        if (!fileSystem.DirectoryExists(backupRoot))
+        if (previousGeneratedRoot is null)
         {
-            throw new DirectoryNotFoundException($"Previous generated SKILL bundle backup is missing: {backupRoot}");
+            return;
         }
 
-        fileSystem.MoveDirectory(backupRoot, generatedRoot);
+        if (!fileSystem.DirectoryExists(previousGeneratedRoot))
+        {
+            throw new DirectoryNotFoundException($"Previous generated SKILL bundle backup is missing: {previousGeneratedRoot}");
+        }
+
+        fileSystem.MoveDirectory(previousGeneratedRoot, generatedRoot);
     }
 
     private void TryDeleteDirectory (string path)
