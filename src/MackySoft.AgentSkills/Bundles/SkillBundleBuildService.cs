@@ -42,20 +42,7 @@ public sealed class SkillBundleBuildService
         this.publisher = publisher ?? throw new ArgumentNullException(nameof(publisher));
     }
 
-    /// <summary> Reconciles generated output at the authored bundle version. </summary>
-    /// <param name="bundleRoot"> The root containing <c>bundle.json</c>, <c>definitions</c>, and fixed <c>generated</c> output. </param>
-    /// <param name="check"> Whether to fail without writing when reconciliation would change files. </param>
-    /// <param name="cancellationToken"> The cancellation token propagated through source access and publication. </param>
-    /// <returns> The resulting descriptor and whether files changed, or a structured source, generated, or version failure. </returns>
-    public ValueTask<SkillOperationResult<SkillBundleBuildResult>> BuildAsync (
-        string bundleRoot,
-        bool check = false,
-        CancellationToken cancellationToken = default)
-    {
-        return BuildAsync(bundleRoot, skillBundleVersion: null, check, cancellationToken);
-    }
-
-    /// <summary> Reconciles generated output at an explicitly selected bundle version. </summary>
+    /// <summary> Reconciles generated output at the authored or explicitly selected bundle version. </summary>
     /// <param name="bundleRoot"> The root containing <c>bundle.json</c>, <c>definitions</c>, and fixed <c>generated</c> output. </param>
     /// <param name="skillBundleVersion"> The exact target bundle version, or <see langword="null" /> to preserve the authored version. </param>
     /// <param name="check"> Whether to fail without writing when reconciliation would change files. </param>
@@ -63,7 +50,7 @@ public sealed class SkillBundleBuildService
     /// <returns> The resulting descriptor and whether files changed, or a structured source, generated, or version failure. </returns>
     public async ValueTask<SkillOperationResult<SkillBundleBuildResult>> BuildAsync (
         string bundleRoot,
-        int? skillBundleVersion,
+        int? skillBundleVersion = null,
         bool check = false,
         CancellationToken cancellationToken = default)
     {

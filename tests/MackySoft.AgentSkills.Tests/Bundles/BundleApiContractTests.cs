@@ -19,12 +19,12 @@ public sealed class BundleApiContractTests
         Assert.Null(typeof(SkillSourceDefinitionReader).GetMethod(nameof(SkillSourceDefinitionReader.ReadOneAsync)));
         Assert.Null(typeof(CanonicalSkillPackageWriter).GetMethod(nameof(CanonicalSkillPackageWriter.WriteToStagingAsync)));
         Assert.Null(typeof(CanonicalSkillBundleWriter).GetMethod(nameof(CanonicalSkillBundleWriter.WriteAsync)));
-        var buildServiceMethods = typeof(SkillBundleBuildService).GetMethods(
-            BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
-        Assert.NotEmpty(buildServiceMethods);
-        Assert.All(
-            buildServiceMethods,
-            static method => Assert.Equal(nameof(SkillBundleBuildService.BuildAsync), method.Name));
+        var buildServiceMethod = Assert.Single(typeof(SkillBundleBuildService).GetMethods(
+            BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly));
+        Assert.Equal(nameof(SkillBundleBuildService.BuildAsync), buildServiceMethod.Name);
+        Assert.Equal(
+            [typeof(string), typeof(int?), typeof(bool), typeof(CancellationToken)],
+            buildServiceMethod.GetParameters().Select(static parameter => parameter.ParameterType));
     }
 
     [Fact]
