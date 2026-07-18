@@ -7,7 +7,7 @@ namespace MackySoft.AgentSkills.Installation.Transactions;
 internal static class SkillPackageTransactionLock
 {
     /// <summary> Acquires an exclusive lock file under the transaction directory. </summary>
-    /// <param name="targetRoot"> The resolved host target root. </param>
+    /// <param name="targetRoot"> The resolved bundle target root. </param>
     /// <param name="transactionRoot"> The transaction directory under the target root. </param>
     /// <returns> A disposable lock handle or a write failure. </returns>
     public static SkillOperationResult<IDisposable> Acquire (

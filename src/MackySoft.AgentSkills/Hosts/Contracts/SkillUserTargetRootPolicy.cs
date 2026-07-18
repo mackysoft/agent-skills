@@ -2,10 +2,10 @@ using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Hosts.Contracts;
 
-/// <summary> Describes how a host default user-scope target root is resolved. </summary>
+/// <summary> Describes how a host default user-scope SKILL root is resolved. </summary>
 public sealed class SkillUserTargetRootPolicy
 {
-    /// <summary> Initializes one immutable user target root policy. </summary>
+    /// <summary> Initializes one immutable user-scope host SKILL root policy. </summary>
     internal SkillUserTargetRootPolicy (
         string? environmentVariableName,
         string? environmentVariableChildDirectory,
@@ -39,12 +39,12 @@ public sealed class SkillUserTargetRootPolicy
         HomeRelativeDirectory = homeRelativeDirectory;
     }
 
-    /// <summary> Gets the optional environment variable that overrides the home-relative target root. </summary>
+    /// <summary> Gets the optional environment variable that overrides the home-relative host SKILL root. </summary>
     public string? EnvironmentVariableName { get; }
 
     /// <summary> Gets the child directory appended to the environment variable value when present. </summary>
     public string? EnvironmentVariableChildDirectory { get; }
 
-    /// <summary> Gets the home-relative fallback target directory. </summary>
+    /// <summary> Gets the home-relative fallback host SKILL root directory. </summary>
     public string HomeRelativeDirectory { get; }
 }

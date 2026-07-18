@@ -86,6 +86,11 @@ public static class SkillFailureClassifier
             return SkillFailureCategory.HostConflict;
         }
 
+        if (code == SkillFailureCodes.InstallTargetRootConflict)
+        {
+            return SkillFailureCategory.TargetRootConflict;
+        }
+
         if (code == SkillFailureCodes.InstallTargetReadFailed)
         {
             return SkillFailureCategory.ReadFailure;

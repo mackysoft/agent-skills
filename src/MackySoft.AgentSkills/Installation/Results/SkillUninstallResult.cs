@@ -21,7 +21,7 @@ public sealed class SkillUninstallResult
         Force = force;
     }
 
-    /// <summary> Gets the canonical absolute target root. </summary>
+    /// <summary> Gets the canonical absolute bundle target root. </summary>
     public string TargetRoot { get; }
 
     /// <summary> Gets an immutable snapshot of per-SKILL uninstall actions. </summary>

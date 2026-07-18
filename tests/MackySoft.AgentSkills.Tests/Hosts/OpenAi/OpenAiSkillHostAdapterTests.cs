@@ -19,6 +19,8 @@ public sealed class OpenAiSkillHostAdapterTests
         Assert.Equal("CODEX_HOME", descriptor.UserTargetRootPolicy.EnvironmentVariableName);
         Assert.Equal("skills", descriptor.UserTargetRootPolicy.EnvironmentVariableChildDirectory);
         Assert.Equal(".codex/skills", descriptor.UserTargetRootPolicy.HomeRelativeDirectory);
+        Assert.Equal(SkillBundleTargetRootLayout.CatalogDirectory, descriptor.BundleTargetRootLayout);
+        Assert.Equal([SkillBundleTargetRootLayout.Flat], descriptor.CompatiblePreviousBundleTargetRootLayouts);
         Assert.Equal("agents/openai.yaml", descriptor.MetadataArtifactPath);
         Assert.False(string.IsNullOrWhiteSpace(descriptor.ReloadGuidance));
     }

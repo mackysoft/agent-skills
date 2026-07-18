@@ -3,6 +3,7 @@ using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Contracts;
 using MackySoft.AgentSkills.Installation.Diffing;
+using MackySoft.AgentSkills.Installation.Inventory;
 using MackySoft.AgentSkills.Installation.Requests;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Installation.Targeting;
@@ -17,26 +18,26 @@ namespace MackySoft.AgentSkills.Installation.Services;
 /// <summary> Prunes installed managed SKILL packages that no longer exist in a product catalog. </summary>
 public sealed class SkillPruneService
 {
-    private readonly SkillInstallTargetResolver targetResolver;
+    private readonly SkillCatalogTargetRootSelector targetSelector;
     private readonly SkillInstalledManifestReader installedManifestReader;
     private readonly SkillInstalledPackageIntegrityVerifier installedPackageIntegrityVerifier;
     private readonly ISkillInstalledPackageRemover packageRemover;
     private readonly SkillMaterializedPackageDiffBuilder diffBuilder;
 
     /// <summary> Initializes a new instance of the <see cref="SkillPruneService" /> class. </summary>
-    /// <param name="targetResolver"> The target resolver. </param>
+    /// <param name="targetSelector"> The installed-catalog-aware target selector. </param>
     /// <param name="installedManifestReader"> The installed manifest reader. </param>
     /// <param name="installedPackageIntegrityVerifier"> The installed package integrity verifier. </param>
     /// <param name="packageRemover"> The installed package remover. </param>
     /// <param name="diffBuilder"> The structured diff builder. </param>
     public SkillPruneService (
-        SkillInstallTargetResolver targetResolver,
+        SkillCatalogTargetRootSelector targetSelector,
         SkillInstalledManifestReader installedManifestReader,
         SkillInstalledPackageIntegrityVerifier installedPackageIntegrityVerifier,
         ISkillInstalledPackageRemover packageRemover,
         SkillMaterializedPackageDiffBuilder diffBuilder)
     {
-        this.targetResolver = targetResolver ?? throw new ArgumentNullException(nameof(targetResolver));
+        this.targetSelector = targetSelector ?? throw new ArgumentNullException(nameof(targetSelector));
         this.installedManifestReader = installedManifestReader ?? throw new ArgumentNullException(nameof(installedManifestReader));
         this.installedPackageIntegrityVerifier = installedPackageIntegrityVerifier ?? throw new ArgumentNullException(nameof(installedPackageIntegrityVerifier));
         this.packageRemover = packageRemover ?? throw new ArgumentNullException(nameof(packageRemover));
@@ -57,7 +58,17 @@ public sealed class SkillPruneService
         var currentCatalogSkillNames = input.CurrentCatalogPackages
             .Select(static package => package.Manifest.SkillName)
             .ToHashSet();
-        var targetResult = targetResolver.ResolveTarget(input.TargetRequest);
+        var targetSkillNames = input.CurrentCatalogPackages
+            .Select(static package => package.Manifest.SkillName)
+            .Concat(input.SelectedSkillNames ?? [])
+            .Distinct()
+            .ToArray();
+        var targetResult = await targetSelector.SelectTargetAsync(
+                input.TargetRequest,
+                input.CatalogId,
+                targetSkillNames,
+                cancellationToken)
+            .ConfigureAwait(false);
         if (!targetResult.IsSuccess)
         {
             return SkillOperationResult<SkillPruneResult>.FailureResult(targetResult.Failure!.Code, targetResult.Failure.Message);

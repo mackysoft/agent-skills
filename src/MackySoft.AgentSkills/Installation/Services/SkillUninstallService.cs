@@ -1,6 +1,7 @@
 using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Contracts;
 using MackySoft.AgentSkills.Installation.Diffing;
+using MackySoft.AgentSkills.Installation.Inventory;
 using MackySoft.AgentSkills.Installation.Requests;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Installation.State;
@@ -11,26 +12,26 @@ using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Installation.Services;
 
-/// <summary> Uninstalls SKILL packages from a host target root. </summary>
+/// <summary> Uninstalls SKILL packages from a bundle target root. </summary>
 public sealed class SkillUninstallService
 {
-    private readonly SkillInstallTargetResolver targetResolver;
+    private readonly SkillCatalogTargetRootSelector targetSelector;
     private readonly SkillInstalledTargetStateAnalyzer targetStateAnalyzer;
     private readonly ISkillInstalledPackageRemover packageRemover;
     private readonly SkillMaterializedPackageDiffBuilder diffBuilder;
 
     /// <summary> Initializes a new instance of the <see cref="SkillUninstallService" /> class. </summary>
-    /// <param name="targetResolver"> The target resolver. </param>
+    /// <param name="targetSelector"> The installed-catalog-aware target selector. </param>
     /// <param name="targetStateAnalyzer"> The installed target state analyzer. </param>
     /// <param name="packageRemover"> The installed package remover. </param>
     /// <param name="diffBuilder"> The structured diff builder. </param>
     public SkillUninstallService (
-        SkillInstallTargetResolver targetResolver,
+        SkillCatalogTargetRootSelector targetSelector,
         SkillInstalledTargetStateAnalyzer targetStateAnalyzer,
         ISkillInstalledPackageRemover packageRemover,
         SkillMaterializedPackageDiffBuilder diffBuilder)
     {
-        this.targetResolver = targetResolver ?? throw new ArgumentNullException(nameof(targetResolver));
+        this.targetSelector = targetSelector ?? throw new ArgumentNullException(nameof(targetSelector));
         this.targetStateAnalyzer = targetStateAnalyzer ?? throw new ArgumentNullException(nameof(targetStateAnalyzer));
         this.packageRemover = packageRemover ?? throw new ArgumentNullException(nameof(packageRemover));
         this.diffBuilder = diffBuilder ?? throw new ArgumentNullException(nameof(diffBuilder));
@@ -48,7 +49,12 @@ public sealed class SkillUninstallService
         ArgumentNullException.ThrowIfNull(input);
 
         var targetRequest = input.TargetRequest;
-        var targetResult = targetResolver.ResolveTarget(targetRequest);
+        var targetResult = await targetSelector.SelectTargetAsync(
+                targetRequest,
+                input.CatalogId,
+                input.Packages.Select(static package => package.Manifest.SkillName).ToArray(),
+                cancellationToken)
+            .ConfigureAwait(false);
         if (!targetResult.IsSuccess)
         {
             return SkillOperationResult<SkillUninstallResult>.FailureResult(targetResult.Failure!.Code, targetResult.Failure.Message);

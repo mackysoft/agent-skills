@@ -4,7 +4,7 @@ using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Installation.Transactions;
 
-/// <summary> Deletes installed SKILL package directories under a resolved host target root. </summary>
+/// <summary> Deletes installed SKILL package directories under a resolved bundle target root. </summary>
 public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
 {
     private readonly ISkillPackageDirectoryOperations directoryOperations;
@@ -186,7 +186,7 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
     }
 
     /// <summary> Deletes one installed SKILL package directory without an execution precondition. </summary>
-    /// <param name="targetRoot"> The resolved host target root. </param>
+    /// <param name="targetRoot"> The resolved bundle target root. </param>
     /// <param name="skillDirectory"> The resolved skill package directory. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> Success when the directory is deleted or already absent; otherwise a failure. </returns>

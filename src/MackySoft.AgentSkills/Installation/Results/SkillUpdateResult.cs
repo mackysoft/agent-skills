@@ -23,7 +23,7 @@ public sealed class SkillUpdateResult
         PrintDiff = printDiff;
     }
 
-    /// <summary> Gets the canonical absolute target root. </summary>
+    /// <summary> Gets the canonical absolute bundle target root. </summary>
     public string TargetRoot { get; }
 
     /// <summary> Gets an immutable snapshot of per-SKILL update actions. </summary>

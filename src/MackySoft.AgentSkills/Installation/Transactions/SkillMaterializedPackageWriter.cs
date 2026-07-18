@@ -5,7 +5,7 @@ using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Installation.Transactions;
 
-/// <summary> Writes materialized SKILL packages under a resolved host target root. </summary>
+/// <summary> Writes materialized SKILL packages under a resolved bundle target root. </summary>
 public sealed class SkillMaterializedPackageWriter : ISkillMaterializedPackageWriter
 {
     private readonly ISkillPackageDirectoryOperations directoryOperations;
@@ -232,7 +232,7 @@ public sealed class SkillMaterializedPackageWriter : ISkillMaterializedPackageWr
     }
 
     /// <summary> Writes all files for one materialized package using the legacy upsert behavior. </summary>
-    /// <param name="targetRoot"> The resolved host target root. </param>
+    /// <param name="targetRoot"> The resolved bundle target root. </param>
     /// <param name="skillDirectory"> The resolved skill package directory. </param>
     /// <param name="materializedPackage"> The materialized package to write. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>

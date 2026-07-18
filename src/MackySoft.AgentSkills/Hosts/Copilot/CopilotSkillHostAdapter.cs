@@ -12,6 +12,8 @@ internal sealed class CopilotSkillHostAdapter : ISkillHostAdapter
         ".github/skills",
         "~/.copilot/skills",
         new SkillUserTargetRootPolicy(null, null, ".copilot/skills"),
+        SkillBundleTargetRootLayout.CatalogDirectory,
+        [SkillBundleTargetRootLayout.Flat],
         null,
         "Run /skills reload in GitHub Copilot CLI to load newly installed or updated skills.");
 

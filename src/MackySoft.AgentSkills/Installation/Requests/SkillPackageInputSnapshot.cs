@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 
@@ -6,9 +7,11 @@ namespace MackySoft.AgentSkills.Installation.Requests;
 internal static class SkillPackageInputSnapshot
 {
     internal static IReadOnlyList<CanonicalSkillPackage> Create (
+        SkillCatalogId catalogId,
         IReadOnlyList<CanonicalSkillPackage> packages,
         string parameterName)
     {
+        ArgumentNullException.ThrowIfNull(catalogId);
         ArgumentNullException.ThrowIfNull(packages, parameterName);
 
         var snapshot = new List<CanonicalSkillPackage>(packages.Count);
@@ -24,6 +27,13 @@ internal static class SkillPackageInputSnapshot
             {
                 throw new ArgumentException(
                     $"SKILL packages must contain unique SKILL names: {package.Manifest.SkillName.Value}",
+                    parameterName);
+            }
+
+            if (package.Manifest.CatalogId != catalogId)
+            {
+                throw new ArgumentException(
+                    $"SKILL package belongs to another catalog: {package.Manifest.SkillName.Value}",
                     parameterName);
             }
 

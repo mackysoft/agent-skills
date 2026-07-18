@@ -9,7 +9,7 @@ public sealed class AgentSkillsUninstallCommandRequest
     /// <param name="skill"> The raw exact SKILL name option values. Required when <paramref name="category" /> is omitted. </param>
     /// <param name="scope"> The required scope literal. </param>
     /// <param name="repositoryRoot"> The optional repository root for project scope. </param>
-    /// <param name="targetDir"> The optional host target root override. </param>
+    /// <param name="targetDir"> The optional exact bundle target root override. </param>
     /// <param name="dryRun"> Whether to return the uninstall plan without deleting files. </param>
     /// <param name="force"> Whether force semantics are enabled. </param>
     /// <exception cref="ArgumentException"> Thrown when an option collection contains a <see langword="null" /> item. </exception>
@@ -48,7 +48,7 @@ public sealed class AgentSkillsUninstallCommandRequest
     /// <summary> Gets the optional repository root for project scope. </summary>
     public string? RepositoryRoot { get; }
 
-    /// <summary> Gets the optional host target root override. </summary>
+    /// <summary> Gets the optional exact bundle target root override. </summary>
     public string? TargetDir { get; }
 
     /// <summary> Gets whether to return the uninstall plan without deleting files. </summary>

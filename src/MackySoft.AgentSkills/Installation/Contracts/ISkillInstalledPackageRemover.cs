@@ -2,11 +2,11 @@ using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Installation.Contracts;
 
-/// <summary> Deletes one installed SKILL package directory under a resolved host target root. </summary>
+/// <summary> Deletes one installed SKILL package directory under a resolved bundle target root. </summary>
 public interface ISkillInstalledPackageRemover
 {
     /// <summary> Deletes one installed SKILL package directory. </summary>
-    /// <param name="targetRoot"> The resolved host target root. </param>
+    /// <param name="targetRoot"> The resolved bundle target root. </param>
     /// <param name="skillDirectory"> The resolved skill package directory. </param>
     /// <param name="precondition"> The optional validation invoked for the target path immediately before move and for the moved tree before commit. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>

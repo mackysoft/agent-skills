@@ -15,7 +15,7 @@ public enum SkillFailureCategory
     /// <summary> The requested install scope is not supported by the selected host. </summary>
     UnsupportedScope = 3,
 
-    /// <summary> The user-scope target root cannot be resolved from the current environment. </summary>
+    /// <summary> The user-scope host SKILL root cannot be resolved from the current environment. </summary>
     UserTargetUnavailable = 4,
 
     /// <summary> A canonical or installed SKILL manifest is missing, malformed, or inconsistent. </summary>
@@ -47,4 +47,7 @@ public enum SkillFailureCategory
 
     /// <summary> An installed managed target belongs to the product catalog but is no longer bundled by it. </summary>
     RemovedFromCatalog = 14,
+
+    /// <summary> One safe bundle target root cannot be selected from the compatible layouts. </summary>
+    TargetRootConflict = 15,
 }

@@ -19,6 +19,8 @@ public sealed class CopilotSkillHostAdapterTests
         Assert.Null(descriptor.UserTargetRootPolicy.EnvironmentVariableName);
         Assert.Null(descriptor.UserTargetRootPolicy.EnvironmentVariableChildDirectory);
         Assert.Equal(".copilot/skills", descriptor.UserTargetRootPolicy.HomeRelativeDirectory);
+        Assert.Equal(SkillBundleTargetRootLayout.CatalogDirectory, descriptor.BundleTargetRootLayout);
+        Assert.Equal([SkillBundleTargetRootLayout.Flat], descriptor.CompatiblePreviousBundleTargetRootLayouts);
         Assert.Null(descriptor.MetadataArtifactPath);
         Assert.False(string.IsNullOrWhiteSpace(descriptor.ReloadGuidance));
     }

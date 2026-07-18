@@ -12,6 +12,8 @@ internal sealed class OpenAiSkillHostAdapter : ISkillHostAdapter
         ".agents/skills",
         "${CODEX_HOME}/skills or ~/.codex/skills",
         new SkillUserTargetRootPolicy("CODEX_HOME", "skills", ".codex/skills"),
+        SkillBundleTargetRootLayout.CatalogDirectory,
+        [SkillBundleTargetRootLayout.Flat],
         "agents/openai.yaml",
         "Restart the Codex session or app to reload installed or updated skills.");
 

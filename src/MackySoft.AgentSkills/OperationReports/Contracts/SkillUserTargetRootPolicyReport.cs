@@ -1,6 +1,6 @@
 namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
-/// <summary> Represents product-neutral user-scope target root resolution data for one host. </summary>
+/// <summary> Represents product-neutral user-scope host SKILL root resolution data. </summary>
 public sealed class SkillUserTargetRootPolicyReport
 {
     internal SkillUserTargetRootPolicyReport (
@@ -27,12 +27,12 @@ public sealed class SkillUserTargetRootPolicyReport
         HomeRelativeDirectory = homeRelativeDirectory;
     }
 
-    /// <summary> Gets the optional environment variable that overrides the home-relative target root. </summary>
+    /// <summary> Gets the optional environment variable that overrides the home-relative host SKILL root. </summary>
     public string? EnvironmentVariableName { get; }
 
     /// <summary> Gets the child directory appended to the environment variable value when present. </summary>
     public string? EnvironmentVariableChildDirectory { get; }
 
-    /// <summary> Gets the home-relative fallback target directory. </summary>
+    /// <summary> Gets the home-relative fallback host SKILL root directory. </summary>
     public string HomeRelativeDirectory { get; }
 }

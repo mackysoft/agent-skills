@@ -3,7 +3,7 @@ using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Installation.Targeting;
 
-/// <summary> Resolves host-specific user-scope SKILL target roots. </summary>
+/// <summary> Resolves host-specific user-scope SKILL roots. </summary>
 public sealed class SkillUserTargetRootResolver
 {
     private readonly Func<string?> homeDirectoryProvider;
@@ -20,9 +20,9 @@ public sealed class SkillUserTargetRootResolver
         this.environmentVariableProvider = environmentVariableProvider ?? throw new ArgumentNullException(nameof(environmentVariableProvider));
     }
 
-    /// <summary> Resolves the default user-scope target root for one host. </summary>
-    /// <param name="descriptor"> The host descriptor that owns the user target policy. </param>
-    /// <returns> The full target root or an environment failure. </returns>
+    /// <summary> Resolves the default user-scope SKILL root for one host. </summary>
+    /// <param name="descriptor"> The host descriptor that owns the user-root policy. </param>
+    /// <returns> The full host SKILL root or an environment failure. </returns>
     public SkillOperationResult<string> ResolveDefaultTargetRoot (SkillHostDescriptor descriptor)
     {
         ArgumentNullException.ThrowIfNull(descriptor);

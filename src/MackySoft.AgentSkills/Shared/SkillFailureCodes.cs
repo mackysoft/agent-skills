@@ -27,7 +27,7 @@ public static class SkillFailureCodes
     /// <summary> Gets the code emitted when a requested path escapes the allowed target boundary. </summary>
     public static readonly SkillFailureCode PathUnsafe = new("SKILL_PATH_UNSAFE");
 
-    /// <summary> Gets the code emitted when a user-scope target root cannot be resolved from the current environment. </summary>
+    /// <summary> Gets the code emitted when a user-scope host SKILL root cannot be resolved from the current environment. </summary>
     public static readonly SkillFailureCode UserTargetUnavailable = new("SKILL_USER_TARGET_UNAVAILABLE");
 
     /// <summary> Gets the code emitted when the target directory is not managed by a canonical Agent Skills SKILL manifest. </summary>
@@ -65,6 +65,9 @@ public static class SkillFailureCodes
 
     /// <summary> Gets the code emitted when the target root appears to contain materialized output for another host. </summary>
     public static readonly SkillFailureCode InstallTargetHostConflict = new("SKILL_INSTALL_TARGET_HOST_CONFLICT");
+
+    /// <summary> Gets the code emitted when one safe bundle target root cannot be selected because compatible roots are split or a catalog directory is occupied by a flat SKILL. </summary>
+    public static readonly SkillFailureCode InstallTargetRootConflict = new("SKILL_INSTALL_TARGET_ROOT_CONFLICT");
 
     /// <summary> Gets the code emitted when an installed package contains local modifications. </summary>
     public static readonly SkillFailureCode InstallTargetLocalModification = new("SKILL_INSTALL_TARGET_LOCAL_MODIFICATION");

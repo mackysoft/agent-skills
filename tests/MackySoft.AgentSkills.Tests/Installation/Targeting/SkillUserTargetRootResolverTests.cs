@@ -20,6 +20,8 @@ public sealed class SkillUserTargetRootResolverTests
             ".test/project-skills",
             "${TEST_SKILLS_HOME}",
             new SkillUserTargetRootPolicy("TEST_SKILLS_HOME", null, ".test/skills"),
+            SkillBundleTargetRootLayout.Flat,
+            [],
             null,
             "Reload test skills.");
 

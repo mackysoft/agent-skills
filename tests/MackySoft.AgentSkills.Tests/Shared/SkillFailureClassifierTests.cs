@@ -70,6 +70,7 @@ public sealed class SkillFailureClassifierTests
             [SkillFailureCodes.InstallTargetUnmanaged] = SkillFailureCategory.UnmanagedTarget,
             [SkillFailureCodes.InstallTargetNameCollision] = SkillFailureCategory.NameCollision,
             [SkillFailureCodes.InstallTargetHostConflict] = SkillFailureCategory.HostConflict,
+            [SkillFailureCodes.InstallTargetRootConflict] = SkillFailureCategory.TargetRootConflict,
             [SkillFailureCodes.InstallTargetReadFailed] = SkillFailureCategory.ReadFailure,
             [SkillFailureCodes.InstallTargetWriteFailed] = SkillFailureCategory.WriteOrFileSystemFailure,
         };

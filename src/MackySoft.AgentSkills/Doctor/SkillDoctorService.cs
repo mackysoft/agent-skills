@@ -25,10 +25,10 @@ public sealed class SkillDoctorService
         this.targetStateAnalyzer = targetStateAnalyzer ?? throw new ArgumentNullException(nameof(targetStateAnalyzer));
     }
 
-    /// <summary> Diagnoses one host target root against canonical packages. </summary>
+    /// <summary> Diagnoses one bundle target root against canonical packages. </summary>
     /// <param name="packages"> The canonical packages. </param>
     /// <param name="host"> The target host. </param>
-    /// <param name="targetRoot"> The host target root. </param>
+    /// <param name="targetRoot"> The bundle target root. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The doctor result. </returns>
     public async ValueTask<SkillDoctorResult> DiagnoseAsync (

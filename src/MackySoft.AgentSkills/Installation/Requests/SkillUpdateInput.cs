@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Packaging.Canonical;
 
@@ -7,6 +8,7 @@ namespace MackySoft.AgentSkills.Installation.Requests;
 public sealed class SkillUpdateInput
 {
     /// <summary> Initializes one SKILL update service input. </summary>
+    /// <param name="catalogId"> The product-owned catalog being updated. </param>
     /// <param name="packages"> The canonical packages to reconcile. </param>
     /// <param name="targetRequest"> The host target request. </param>
     /// <param name="dryRun"> Whether to return a plan without writing to the file system. </param>
@@ -15,21 +17,26 @@ public sealed class SkillUpdateInput
     /// force does not allow replacing unmanaged targets, name collisions, host conflicts, or path-safety failures.
     /// </param>
     /// <param name="printDiff"> Whether per-file diff payloads should be included. </param>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="packages" /> or <paramref name="targetRequest" /> is <see langword="null" />. </exception>
-    /// <exception cref="ArgumentException"> Thrown when <paramref name="packages" /> contains <see langword="null" /> or duplicate SKILL names. </exception>
+    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="catalogId" />, <paramref name="packages" />, or <paramref name="targetRequest" /> is <see langword="null" />. </exception>
+    /// <exception cref="ArgumentException"> Thrown when <paramref name="packages" /> contains <see langword="null" />, a foreign catalog, or duplicate SKILL names. </exception>
     public SkillUpdateInput (
+        SkillCatalogId catalogId,
         IReadOnlyList<CanonicalSkillPackage> packages,
         SkillInstallRequest targetRequest,
         bool dryRun = false,
         bool force = false,
         bool printDiff = false)
     {
-        Packages = SkillPackageInputSnapshot.Create(packages, nameof(packages));
+        CatalogId = catalogId ?? throw new ArgumentNullException(nameof(catalogId));
+        Packages = SkillPackageInputSnapshot.Create(CatalogId, packages, nameof(packages));
         TargetRequest = targetRequest ?? throw new ArgumentNullException(nameof(targetRequest));
         DryRun = dryRun;
         Force = force;
         PrintDiff = printDiff;
     }
+
+    /// <summary> Gets the product-owned catalog being updated. </summary>
+    public SkillCatalogId CatalogId { get; }
 
     /// <summary> Gets an immutable snapshot of the canonical packages to reconcile. </summary>
     public IReadOnlyList<CanonicalSkillPackage> Packages { get; }

@@ -527,6 +527,10 @@ public static class SkillOperationReportBuilder
                 descriptor.UserTargetRootPolicy.EnvironmentVariableName,
                 descriptor.UserTargetRootPolicy.EnvironmentVariableChildDirectory,
                 descriptor.UserTargetRootPolicy.HomeRelativeDirectory),
+            ContractLiteralCodec.ToValue(descriptor.BundleTargetRootLayout),
+            descriptor.CompatiblePreviousBundleTargetRootLayouts
+                .Select(ContractLiteralCodec.ToValue)
+                .ToArray(),
             descriptor.MetadataArtifactPath,
             descriptor.ReloadGuidance);
     }

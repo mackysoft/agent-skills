@@ -34,6 +34,28 @@ internal static class SkillPathBoundary
 
     private static string ResolveExistingPathSegments (string path)
     {
+        var pathComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        var visitedPaths = new HashSet<string>(pathComparer);
+        var currentPath = Path.GetFullPath(path);
+        while (true)
+        {
+            if (!visitedPaths.Add(currentPath))
+            {
+                throw new IOException($"Symbolic-link path resolution contains a cycle: {path}");
+            }
+
+            var resolvedPath = ResolveExistingPathSegmentsOnce(currentPath);
+            if (pathComparer.Equals(currentPath, resolvedPath))
+            {
+                return resolvedPath;
+            }
+
+            currentPath = resolvedPath;
+        }
+    }
+
+    private static string ResolveExistingPathSegmentsOnce (string path)
+    {
         var root = Path.GetPathRoot(path);
         if (string.IsNullOrWhiteSpace(root))
         {

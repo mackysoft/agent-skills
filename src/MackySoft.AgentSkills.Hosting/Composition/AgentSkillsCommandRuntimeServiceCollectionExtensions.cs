@@ -85,8 +85,9 @@ public static class AgentSkillsCommandRuntimeServiceCollectionExtensions
         services.AddSingleton(_ => new SkillUserTargetRootResolver(
             static () => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             Environment.GetEnvironmentVariable));
-        services.AddSingleton<SkillInstallTargetResolver>();
         services.AddSingleton<SkillInstalledManifestReader>();
+        services.AddSingleton<SkillInstallTargetResolver>();
+        services.AddSingleton<SkillCatalogTargetRootSelector>();
         services.AddSingleton<SkillInstalledContentDigestVerifier>();
         services.AddSingleton<SkillInstalledFileSetVerifier>();
         services.AddSingleton<SkillHostMaterializationInspector>();

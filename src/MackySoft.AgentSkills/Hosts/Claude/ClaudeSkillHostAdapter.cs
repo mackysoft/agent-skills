@@ -12,6 +12,8 @@ internal sealed class ClaudeSkillHostAdapter : ISkillHostAdapter
         ".claude/skills",
         "~/.claude/skills",
         new SkillUserTargetRootPolicy(null, null, ".claude/skills"),
+        SkillBundleTargetRootLayout.Flat,
+        [],
         null,
         "Claude Code watches existing skill directories. Restart Claude Code if the top-level skills directory was created after the session started.");
 

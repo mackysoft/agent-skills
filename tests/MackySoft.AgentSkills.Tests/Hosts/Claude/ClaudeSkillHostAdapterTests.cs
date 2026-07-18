@@ -19,6 +19,8 @@ public sealed class ClaudeSkillHostAdapterTests
         Assert.Null(descriptor.UserTargetRootPolicy.EnvironmentVariableName);
         Assert.Null(descriptor.UserTargetRootPolicy.EnvironmentVariableChildDirectory);
         Assert.Equal(".claude/skills", descriptor.UserTargetRootPolicy.HomeRelativeDirectory);
+        Assert.Equal(SkillBundleTargetRootLayout.Flat, descriptor.BundleTargetRootLayout);
+        Assert.Empty(descriptor.CompatiblePreviousBundleTargetRootLayouts);
         Assert.Null(descriptor.MetadataArtifactPath);
         Assert.False(string.IsNullOrWhiteSpace(descriptor.ReloadGuidance));
     }

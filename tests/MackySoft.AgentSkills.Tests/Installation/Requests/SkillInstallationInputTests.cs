@@ -17,18 +17,23 @@ public sealed class SkillInstallationInputTests
     public void InstallInput_CapturesPackageSnapshot ()
     {
         var packages = new List<CanonicalSkillPackage>();
-        var input = new SkillInstallInput(packages, CreateTargetRequest());
+        var catalogId = new SkillCatalogId("catalog");
+        var input = new SkillInstallInput(catalogId, packages, CreateTargetRequest());
 
         packages.Add(null!);
 
         Assert.Empty(input.Packages);
+        Assert.Equal(catalogId, input.CatalogId);
     }
 
     [Fact]
     [Trait("Size", "Small")]
     public void InstallInput_RejectsNullPackageItem ()
     {
-        Assert.Throws<ArgumentException>(() => new SkillInstallInput([null!], CreateTargetRequest()));
+        Assert.Throws<ArgumentException>(() => new SkillInstallInput(
+            new SkillCatalogId("catalog"),
+            [null!],
+            CreateTargetRequest()));
     }
 
     [Fact]
@@ -37,7 +42,10 @@ public sealed class SkillInstallationInputTests
     {
         var packages = await CreateDistinctPackagesWithSameSkillNameAsync();
 
-        var exception = Assert.Throws<ArgumentException>(() => new SkillInstallInput(packages, CreateTargetRequest()));
+        var exception = Assert.Throws<ArgumentException>(() => new SkillInstallInput(
+            packages[0].Manifest.CatalogId,
+            packages,
+            CreateTargetRequest()));
 
         Assert.Contains(packages[0].Manifest.SkillName.Value, exception.Message, StringComparison.Ordinal);
     }
@@ -48,7 +56,10 @@ public sealed class SkillInstallationInputTests
     {
         var packages = await CreateDistinctPackagesWithSameSkillNameAsync();
 
-        var exception = Assert.Throws<ArgumentException>(() => new SkillUpdateInput(packages, CreateTargetRequest()));
+        var exception = Assert.Throws<ArgumentException>(() => new SkillUpdateInput(
+            packages[0].Manifest.CatalogId,
+            packages,
+            CreateTargetRequest()));
 
         Assert.Contains(packages[0].Manifest.SkillName.Value, exception.Message, StringComparison.Ordinal);
     }
@@ -59,7 +70,10 @@ public sealed class SkillInstallationInputTests
     {
         var packages = await CreateDistinctPackagesWithSameSkillNameAsync();
 
-        var exception = Assert.Throws<ArgumentException>(() => new SkillUninstallInput(packages, CreateTargetRequest()));
+        var exception = Assert.Throws<ArgumentException>(() => new SkillUninstallInput(
+            packages[0].Manifest.CatalogId,
+            packages,
+            CreateTargetRequest()));
 
         Assert.Contains(packages[0].Manifest.SkillName.Value, exception.Message, StringComparison.Ordinal);
     }
@@ -100,22 +114,25 @@ public sealed class SkillInstallationInputTests
     public async Task PruneInput_RejectsPackageFromAnotherCatalog ()
     {
         var package = (await SkillTestData.GenerateFixturePackagesAsync())[0];
-        var foreignManifest = SkillTestData.CopyManifest(
-            package.Manifest,
-            catalogId: new SkillCatalogId("foreign-catalog"));
-        var foreignCanonicalManifest = SkillTestData.WithComputedManifestDigest(foreignManifest);
-        var manifestText = new SkillManifestJsonSerializer().Serialize(foreignCanonicalManifest);
-        var foreignFiles = package.Files
-            .Select(file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal)
-                ? new SkillPackageFile(file.RelativePath, manifestText)
-                : file)
-            .ToArray();
-        var foreignPackage = SkillTestData.CreateCanonicalPackage(foreignCanonicalManifest, foreignFiles);
+        var foreignPackage = CopyPackageWithCatalogId(package, new SkillCatalogId("foreign-catalog"));
 
         Assert.Throws<ArgumentException>(() => new SkillPruneInput(
             package.Manifest.CatalogId,
             [foreignPackage],
             CreateTargetRequest()));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task OperationInputs_RejectPackageFromAnotherCatalog ()
+    {
+        var package = (await SkillTestData.GenerateFixturePackagesAsync())[0];
+        var foreignPackage = CopyPackageWithCatalogId(package, new SkillCatalogId("foreign-catalog"));
+        var request = CreateTargetRequest();
+
+        Assert.Throws<ArgumentException>(() => new SkillInstallInput(package.Manifest.CatalogId, [foreignPackage], request));
+        Assert.Throws<ArgumentException>(() => new SkillUpdateInput(package.Manifest.CatalogId, [foreignPackage], request));
+        Assert.Throws<ArgumentException>(() => new SkillUninstallInput(package.Manifest.CatalogId, [foreignPackage], request));
     }
 
     [Fact]
@@ -142,5 +159,20 @@ public sealed class SkillInstallationInputTests
 
         Assert.NotSame(package, duplicateNamePackage);
         return [package, duplicateNamePackage];
+    }
+
+    private static CanonicalSkillPackage CopyPackageWithCatalogId (
+        CanonicalSkillPackage package,
+        SkillCatalogId catalogId)
+    {
+        var foreignManifest = SkillTestData.CopyManifest(package.Manifest, catalogId: catalogId);
+        var foreignCanonicalManifest = SkillTestData.WithComputedManifestDigest(foreignManifest);
+        var manifestText = new SkillManifestJsonSerializer().Serialize(foreignCanonicalManifest);
+        var foreignFiles = package.Files
+            .Select(file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal)
+                ? new SkillPackageFile(file.RelativePath, manifestText)
+                : file)
+            .ToArray();
+        return SkillTestData.CreateCanonicalPackage(foreignCanonicalManifest, foreignFiles);
     }
 }

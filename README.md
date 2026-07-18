@@ -332,7 +332,7 @@ example skills doctor --host openai --scope project --category core
 | `--category` | all commands | Select packages by bundled category. |
 | `--skill` | all commands | Select exact skill names. |
 | `--repository-root` | project scope | Project root. Defaults to the configured repository-root resolver for project scope. |
-| `--target-dir` | install, update, uninstall, prune, doctor | Override the host target directory. |
+| `--target-dir` | install, update, uninstall, prune, doctor | Use an exact bundle target directory instead of the host default. |
 | `--dry-run` | install, update, uninstall, prune | Report planned changes without writing files. |
 | `--force` | install, update, uninstall, prune | Allow supported overwrite or delete operations that otherwise require confirmation. |
 | `--print-diff` | install, update | Include file diffs in the operation report. |
@@ -340,11 +340,17 @@ example skills doctor --host openai --scope project --category core
 
 ### Supported Hosts
 
-| Host literal | Host | Project target | User target |
+| Host literal | Host | Project bundle target | User bundle target |
 | --- | --- | --- | --- |
-| `openai` | OpenAI / Codex | `.agents/skills` | `${CODEX_HOME}/skills` or `~/.codex/skills` |
+| `openai` | OpenAI / Codex | `.agents/skills/<catalogId>` | `${CODEX_HOME}/skills/<catalogId>` or `~/.codex/skills/<catalogId>` |
 | `claude` | Claude Code | `.claude/skills` | `~/.claude/skills` |
-| `copilot` | GitHub Copilot CLI | `.github/skills` | `~/.copilot/skills` |
+| `copilot` | GitHub Copilot CLI | `.github/skills/<catalogId>` | `~/.copilot/skills/<catalogId>` |
+
+OpenAI / Codex and GitHub Copilot CLI discover skills below an additional catalog directory, so Agent Skills uses that directory as the managed bundle boundary. Claude Code uses a flat skills directory because its plain skill discovery does not treat an arbitrary parent directory as a package boundary. Each skill is installed directly below the bundle target shown above.
+
+For a default target, Agent Skills first checks the current layout and the host adapter's compatible previous layouts. If exactly one target root already contains the same managed `catalogId`, install, update, uninstall, prune, and doctor continue to use that root. A new catalog uses the current layout. The operation stops instead of choosing arbitrarily if the same catalog exists under multiple compatible roots or the current catalog directory is already occupied by a flat skill.
+
+`--target-dir` identifies the bundle target itself. Agent Skills does not append `<catalogId>` to an explicit target, regardless of host or scope. The catalog directory separates managed files on disk; it does not namespace the skill name exposed to the host.
 
 ### Prune Removed Skills
 
