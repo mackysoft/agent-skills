@@ -18,11 +18,13 @@ public sealed class SkillUninstallServiceTests
         var installService = SkillTestData.CreateInstallService();
         var uninstallService = SkillTestData.CreateUninstallService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
-        var install = await installService.InstallAsync(packages, request, CancellationToken.None);
+        var install = await installService.InstallAsync(packages[0].Manifest.CatalogId, packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
-        var unmanagedPath = scope.WriteFile(Path.Combine(".agents", "skills", "custom-skill", "SKILL.md"), "# Custom\n");
+        var unmanagedPath = scope.WriteFile(
+            Path.Combine(".agents", "skills", packages[0].Manifest.CatalogId.Value, "custom-skill", "SKILL.md"),
+            "# Custom\n");
 
-        var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages, request), CancellationToken.None);
+        var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages[0].Manifest.CatalogId, packages, request), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.All(result.Value!.Actions, static action => Assert.Equal(SkillUninstallActionKind.Deleted, action.ActionKind));
@@ -36,6 +38,46 @@ public sealed class SkillUninstallServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task UninstallAsync_DefaultTargetDeletesManagedSkillFromCompatiblePreviousLayout ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "uninstall-compatible-previous-layout");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        var package = packages[0];
+        var installService = SkillTestData.CreateInstallService();
+        var uninstallService = SkillTestData.CreateUninstallService();
+        var flatTargetRoot = scope.GetPath(Path.Combine(".agents", "skills"));
+        var explicitFlatRequest = new SkillInstallRequest(
+            SkillHostKind.OpenAi,
+            SkillScopeKind.Project,
+            scope.FullPath,
+            flatTargetRoot);
+        var install = await installService.InstallAsync(
+            package.Manifest.CatalogId,
+            [package],
+            explicitFlatRequest,
+            CancellationToken.None);
+        Assert.True(install.IsSuccess, install.Failure?.Message);
+        var resolvedFlatTargetRoot = install.Value!.TargetRoot;
+        var skillDirectory = Path.Combine(resolvedFlatTargetRoot, package.Manifest.SkillName.Value);
+        var preferredTargetRoot = Path.Combine(resolvedFlatTargetRoot, package.Manifest.CatalogId.Value);
+
+        var result = await uninstallService.UninstallAsync(
+            new SkillUninstallInput(
+                package.Manifest.CatalogId,
+                [package],
+                new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath)),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.Equal(resolvedFlatTargetRoot, result.Value!.TargetRoot);
+        Assert.Equal(SkillUninstallActionKind.Deleted, result.Value.Actions.Single().ActionKind);
+        Assert.False(Directory.Exists(skillDirectory));
+        Assert.True(Directory.Exists(resolvedFlatTargetRoot));
+        Assert.False(Directory.Exists(preferredTargetRoot));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task UninstallAsync_DryRunReturnsDeletedPlanWithoutDeleting ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "uninstall-dry-run-delete");
@@ -43,10 +85,10 @@ public sealed class SkillUninstallServiceTests
         var installService = SkillTestData.CreateInstallService();
         var uninstallService = SkillTestData.CreateUninstallService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
-        var install = await installService.InstallAsync(packages, request, CancellationToken.None);
+        var install = await installService.InstallAsync(packages[0].Manifest.CatalogId, packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
 
-        var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages, request, dryRun: true), CancellationToken.None);
+        var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages[0].Manifest.CatalogId, packages, request, dryRun: true), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.True(result.Value!.DryRun);
@@ -75,11 +117,11 @@ public sealed class SkillUninstallServiceTests
         var installService = SkillTestData.CreateInstallService();
         var uninstallService = SkillTestData.CreateUninstallService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
-        var install = await installService.InstallAsync([aheadPackage], request, CancellationToken.None);
+        var install = await installService.InstallAsync(aheadPackage.Manifest.CatalogId, [aheadPackage], request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var skillDirectory = Path.Combine(install.Value!.TargetRoot, aheadPackage.Manifest.SkillName.Value);
 
-        var result = await uninstallService.UninstallAsync(new SkillUninstallInput([packages[0]], request, dryRun: true), CancellationToken.None);
+        var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages[0].Manifest.CatalogId, [packages[0]], request, dryRun: true), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
@@ -101,11 +143,11 @@ public sealed class SkillUninstallServiceTests
         var installService = SkillTestData.CreateInstallService();
         var uninstallService = SkillTestData.CreateUninstallService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
-        var install = await installService.InstallAsync([aheadPackage], request, CancellationToken.None);
+        var install = await installService.InstallAsync(aheadPackage.Manifest.CatalogId, [aheadPackage], request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var skillDirectory = Path.Combine(install.Value!.TargetRoot, aheadPackage.Manifest.SkillName.Value);
 
-        var result = await uninstallService.UninstallAsync(new SkillUninstallInput([packages[0]], request), CancellationToken.None);
+        var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages[0].Manifest.CatalogId, [packages[0]], request), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
@@ -123,7 +165,7 @@ public sealed class SkillUninstallServiceTests
         var installService = SkillTestData.CreateInstallService();
         var uninstallService = SkillTestData.CreateUninstallService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
-        var install = await installService.InstallAsync(packages, request, CancellationToken.None);
+        var install = await installService.InstallAsync(packages[0].Manifest.CatalogId, packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var skillDirectory = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value);
         var skillPath = Path.Combine(skillDirectory, "SKILL.md");
@@ -132,7 +174,7 @@ public sealed class SkillUninstallServiceTests
         File.WriteAllText(extraFile, "# Local note\n");
 
         var result = await uninstallService.UninstallAsync(
-            new SkillUninstallInput([packages[0]], request, dryRun: true, force: true),
+            new SkillUninstallInput(packages[0].Manifest.CatalogId, [packages[0]], request, dryRun: true, force: true),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
@@ -157,6 +199,7 @@ public sealed class SkillUninstallServiceTests
 
         var result = await service.UninstallAsync(
             new SkillUninstallInput(
+                packages[0].Manifest.CatalogId,
                 packages,
                 new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath)),
             CancellationToken.None);
@@ -174,11 +217,11 @@ public sealed class SkillUninstallServiceTests
         var installService = SkillTestData.CreateInstallService();
         var uninstallService = SkillTestData.CreateUninstallService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
-        var install = await installService.InstallAsync(packages, request, CancellationToken.None);
+        var install = await installService.InstallAsync(packages[0].Manifest.CatalogId, packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         Directory.Delete(Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value), recursive: true);
 
-        var result = await uninstallService.UninstallAsync(new SkillUninstallInput([packages[0]], request), CancellationToken.None);
+        var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages[0].Manifest.CatalogId, [packages[0]], request), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal(SkillUninstallActionKind.NoOp, result.Value!.Actions.Single().ActionKind);
@@ -191,10 +234,13 @@ public sealed class SkillUninstallServiceTests
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "uninstall-unmanaged");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var service = SkillTestData.CreateUninstallService();
-        var unmanagedPath = scope.WriteFile(Path.Combine(".agents", "skills", packages[0].Manifest.SkillName.Value, "SKILL.md"), "# Existing\n");
+        var unmanagedPath = scope.WriteFile(
+            Path.Combine(".agents", "skills", packages[0].Manifest.CatalogId.Value, packages[0].Manifest.SkillName.Value, "SKILL.md"),
+            "# Existing\n");
 
         var result = await service.UninstallAsync(
             new SkillUninstallInput(
+                packages[0].Manifest.CatalogId,
                 [packages[0]],
                 new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
                 force: true),
@@ -214,11 +260,12 @@ public sealed class SkillUninstallServiceTests
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "uninstall-name-collision");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var service = SkillTestData.CreateUninstallService();
-        var targetRoot = scope.CreateDirectory(".agents/skills");
+        var targetRoot = scope.CreateDirectory(Path.Combine(".agents", "skills", packages[0].Manifest.CatalogId.Value));
         SkillTestData.WriteNameCollisionManifest(targetRoot, packages[0]);
 
         var result = await service.UninstallAsync(
             new SkillUninstallInput(
+                packages[0].Manifest.CatalogId,
                 [packages[0]],
                 new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
                 force: true),
@@ -237,11 +284,11 @@ public sealed class SkillUninstallServiceTests
         var installService = SkillTestData.CreateInstallService();
         var uninstallService = SkillTestData.CreateUninstallService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
-        var install = await installService.InstallAsync(packages, request, CancellationToken.None);
+        var install = await installService.InstallAsync(packages[0].Manifest.CatalogId, packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         File.AppendAllText(Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "SKILL.md"), "\nInjected instruction.\n");
 
-        var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages, request), CancellationToken.None);
+        var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages[0].Manifest.CatalogId, packages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
@@ -256,13 +303,13 @@ public sealed class SkillUninstallServiceTests
         var installService = SkillTestData.CreateInstallService();
         var uninstallService = SkillTestData.CreateUninstallService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
-        var install = await installService.InstallAsync([packages[0], packages[1]], request, CancellationToken.None);
+        var install = await installService.InstallAsync(packages[0].Manifest.CatalogId, [packages[0], packages[1]], request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var firstSkillDirectory = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value);
         var modifiedSkillDirectory = Path.Combine(install.Value.TargetRoot, packages[1].Manifest.SkillName.Value);
         File.AppendAllText(Path.Combine(modifiedSkillDirectory, "SKILL.md"), "\nInjected instruction.\n");
 
-        var result = await uninstallService.UninstallAsync(new SkillUninstallInput([packages[0], packages[1]], request), CancellationToken.None);
+        var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages[0].Manifest.CatalogId, [packages[0], packages[1]], request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
@@ -278,7 +325,7 @@ public sealed class SkillUninstallServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
-        var install = await installService.InstallAsync([packages[0], packages[1]], request, CancellationToken.None);
+        var install = await installService.InstallAsync(packages[0].Manifest.CatalogId, [packages[0], packages[1]], request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var skillDirectory = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value);
         var skillPath = Path.Combine(skillDirectory, "SKILL.md");
@@ -286,7 +333,7 @@ public sealed class SkillUninstallServiceTests
             SkillTestData.CreatePackageRemover(),
             targetDirectory => File.AppendAllText(Path.Combine(targetDirectory, "SKILL.md"), "\nInjected after planning.\n")));
 
-        var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages, request), CancellationToken.None);
+        var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages[0].Manifest.CatalogId, packages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
@@ -303,12 +350,12 @@ public sealed class SkillUninstallServiceTests
         var installService = SkillTestData.CreateInstallService();
         var uninstallService = SkillTestData.CreateUninstallService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
-        var install = await installService.InstallAsync(packages, request, CancellationToken.None);
+        var install = await installService.InstallAsync(packages[0].Manifest.CatalogId, packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var skillDirectory = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value);
         File.AppendAllText(Path.Combine(skillDirectory, "SKILL.md"), "\nInjected instruction.\n");
 
-        var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages, request, dryRun: true), CancellationToken.None);
+        var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages[0].Manifest.CatalogId, packages, request, dryRun: true), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single(action => action.Identity.SkillName.Value == packages[0].Manifest.SkillName.Value);
@@ -328,12 +375,12 @@ public sealed class SkillUninstallServiceTests
         var installService = SkillTestData.CreateInstallService();
         var uninstallService = SkillTestData.CreateUninstallService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
-        var install = await installService.InstallAsync(packages, request, CancellationToken.None);
+        var install = await installService.InstallAsync(packages[0].Manifest.CatalogId, packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var skillDirectory = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value);
         File.AppendAllText(Path.Combine(skillDirectory, "SKILL.md"), "\nInjected instruction.\n");
 
-        var result = await uninstallService.UninstallAsync(new SkillUninstallInput([packages[0]], request, force: true), CancellationToken.None);
+        var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages[0].Manifest.CatalogId, [packages[0]], request, force: true), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
@@ -353,13 +400,13 @@ public sealed class SkillUninstallServiceTests
         var installService = SkillTestData.CreateInstallService();
         var uninstallService = SkillTestData.CreateUninstallService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
-        var install = await installService.InstallAsync(packages, request, CancellationToken.None);
+        var install = await installService.InstallAsync(packages[0].Manifest.CatalogId, packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var skillDirectory = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value);
         var extraFile = Path.Combine(skillDirectory, "local-note.md");
         File.WriteAllText(extraFile, "# Local note\n");
 
-        var result = await uninstallService.UninstallAsync(new SkillUninstallInput([packages[0]], request, force: true), CancellationToken.None);
+        var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages[0].Manifest.CatalogId, [packages[0]], request, force: true), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
@@ -378,7 +425,7 @@ public sealed class SkillUninstallServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
-        var install = await installService.InstallAsync([packages[0], packages[1]], request, CancellationToken.None);
+        var install = await installService.InstallAsync(packages[0].Manifest.CatalogId, [packages[0], packages[1]], request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var skillDirectory = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value);
         var skillPath = Path.Combine(skillDirectory, "SKILL.md");
@@ -389,7 +436,7 @@ public sealed class SkillUninstallServiceTests
             targetDirectory => File.WriteAllText(Path.Combine(targetDirectory, "late-local-note.md"), "# Late local note\n")));
 
         var result = await uninstallService.UninstallAsync(
-            new SkillUninstallInput(packages, request, force: true),
+            new SkillUninstallInput(packages[0].Manifest.CatalogId, packages, request, force: true),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -407,7 +454,7 @@ public sealed class SkillUninstallServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
-        var install = await installService.InstallAsync([packages[0], packages[1]], request, CancellationToken.None);
+        var install = await installService.InstallAsync(packages[0].Manifest.CatalogId, [packages[0], packages[1]], request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var skillDirectory = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value);
         var skillPath = Path.Combine(skillDirectory, "SKILL.md");
@@ -418,7 +465,7 @@ public sealed class SkillUninstallServiceTests
             targetDirectory => Directory.CreateDirectory(Path.Combine(targetDirectory, "late-local-notes"))));
 
         var result = await uninstallService.UninstallAsync(
-            new SkillUninstallInput(packages, request, force: true),
+            new SkillUninstallInput(packages[0].Manifest.CatalogId, packages, request, force: true),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -437,12 +484,12 @@ public sealed class SkillUninstallServiceTests
         var installService = SkillTestData.CreateInstallService();
         var uninstallService = SkillTestData.CreateUninstallService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
-        var install = await installService.InstallAsync(packages, request, CancellationToken.None);
+        var install = await installService.InstallAsync(packages[0].Manifest.CatalogId, packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var localDirectory = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value, "local-notes");
         Directory.CreateDirectory(localDirectory);
 
-        var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages, request), CancellationToken.None);
+        var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages[0].Manifest.CatalogId, packages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, result.Failure!.Code);
@@ -463,7 +510,7 @@ public sealed class SkillUninstallServiceTests
         var installService = SkillTestData.CreateInstallService();
         var uninstallService = SkillTestData.CreateUninstallService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
-        var install = await installService.InstallAsync(packages, request, CancellationToken.None);
+        var install = await installService.InstallAsync(packages[0].Manifest.CatalogId, packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
         var skillDirectory = Path.Combine(install.Value!.TargetRoot, packages[0].Manifest.SkillName.Value);
         var allowedDirectory = Path.Combine(skillDirectory, "agents");
@@ -482,7 +529,7 @@ public sealed class SkillUninstallServiceTests
             return;
         }
 
-        var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages, request, force: true), CancellationToken.None);
+        var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages[0].Manifest.CatalogId, packages, request, force: true), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
@@ -498,6 +545,7 @@ public sealed class SkillUninstallServiceTests
         var installService = SkillTestData.CreateInstallService();
         var uninstallService = SkillTestData.CreateUninstallService();
         var install = await installService.InstallAsync(
+            packages[0].Manifest.CatalogId,
             packages,
             new SkillInstallRequest(SkillHostKind.Claude, SkillScopeKind.Project, scope.FullPath, "shared-skills"),
             CancellationToken.None);
@@ -505,6 +553,7 @@ public sealed class SkillUninstallServiceTests
 
         var result = await uninstallService.UninstallAsync(
             new SkillUninstallInput(
+                packages[0].Manifest.CatalogId,
                 packages,
                 new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath, "shared-skills"),
                 force: true),
@@ -523,10 +572,12 @@ public sealed class SkillUninstallServiceTests
         var installService = SkillTestData.CreateInstallService();
         var uninstallService = SkillTestData.CreateUninstallService();
         var openAi = await installService.InstallAsync(
+            packages[0].Manifest.CatalogId,
             packages,
             new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         var claude = await installService.InstallAsync(
+            packages[0].Manifest.CatalogId,
             packages,
             new SkillInstallRequest(SkillHostKind.Claude, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
@@ -535,6 +586,7 @@ public sealed class SkillUninstallServiceTests
 
         var result = await uninstallService.UninstallAsync(
             new SkillUninstallInput(
+                packages[0].Manifest.CatalogId,
                 packages,
                 new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath)),
             CancellationToken.None);
@@ -559,8 +611,12 @@ public sealed class SkillUninstallServiceTests
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "uninstall-manifest-symlink");
         using var outsideScope = TestDirectories.CreateTempScope("agent-skills-skills", "uninstall-manifest-symlink-outside");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        var targetRoot = scope.CreateDirectory(".agents/skills");
-        scope.CreateDirectory(Path.Combine(".agents", "skills", packages[0].Manifest.SkillName.Value));
+        var targetRoot = scope.CreateDirectory(Path.Combine(".agents", "skills", packages[0].Manifest.CatalogId.Value));
+        scope.CreateDirectory(Path.Combine(
+            ".agents",
+            "skills",
+            packages[0].Manifest.CatalogId.Value,
+            packages[0].Manifest.SkillName.Value));
         var outsideManifest = outsideScope.WriteFile("agent-skill.json", packages[0].Files.Single(static file => file.RelativePath == "agent-skill.json").Content);
         try
         {
@@ -579,6 +635,7 @@ public sealed class SkillUninstallServiceTests
 
         var result = await service.UninstallAsync(
             new SkillUninstallInput(
+                packages[0].Manifest.CatalogId,
                 [packages[0]],
                 new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
                 force: true),

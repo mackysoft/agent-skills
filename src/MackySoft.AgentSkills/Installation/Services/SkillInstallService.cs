@@ -1,6 +1,8 @@
+using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Contracts;
 using MackySoft.AgentSkills.Installation.Diffing;
+using MackySoft.AgentSkills.Installation.Inventory;
 using MackySoft.AgentSkills.Installation.Requests;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Installation.State;
@@ -12,46 +14,48 @@ using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Installation.Services;
 
-/// <summary> Installs SKILL packages into a host target root. </summary>
+/// <summary> Installs SKILL packages into a bundle target root. </summary>
 public sealed class SkillInstallService
 {
-    private readonly SkillInstallTargetResolver targetResolver;
+    private readonly SkillCatalogTargetRootSelector targetSelector;
     private readonly SkillMaterializationService materializationService;
     private readonly SkillInstalledTargetStateAnalyzer targetStateAnalyzer;
     private readonly ISkillMaterializedPackageWriter packageWriter;
     private readonly SkillMaterializedPackageDiffBuilder diffBuilder;
 
     /// <summary> Initializes a new instance of the <see cref="SkillInstallService" /> class. </summary>
-    /// <param name="targetResolver"> The target resolver. </param>
+    /// <param name="targetSelector"> The installed-catalog-aware target selector. </param>
     /// <param name="materializationService"> The materialization service. </param>
     /// <param name="targetStateAnalyzer"> The installed target state analyzer. </param>
     /// <param name="packageWriter"> The materialized package writer. </param>
     /// <param name="diffBuilder"> The structured diff builder. </param>
     public SkillInstallService (
-        SkillInstallTargetResolver targetResolver,
+        SkillCatalogTargetRootSelector targetSelector,
         SkillMaterializationService materializationService,
         SkillInstalledTargetStateAnalyzer targetStateAnalyzer,
         ISkillMaterializedPackageWriter packageWriter,
         SkillMaterializedPackageDiffBuilder diffBuilder)
     {
-        this.targetResolver = targetResolver ?? throw new ArgumentNullException(nameof(targetResolver));
+        this.targetSelector = targetSelector ?? throw new ArgumentNullException(nameof(targetSelector));
         this.materializationService = materializationService ?? throw new ArgumentNullException(nameof(materializationService));
         this.targetStateAnalyzer = targetStateAnalyzer ?? throw new ArgumentNullException(nameof(targetStateAnalyzer));
         this.packageWriter = packageWriter ?? throw new ArgumentNullException(nameof(packageWriter));
         this.diffBuilder = diffBuilder ?? throw new ArgumentNullException(nameof(diffBuilder));
     }
 
-    /// <summary> Installs SKILL packages. </summary>
+    /// <summary> Installs SKILL packages for an explicit catalog. </summary>
+    /// <param name="catalogId"> The product-owned catalog being installed. </param>
     /// <param name="packages"> The canonical packages. </param>
     /// <param name="request"> The install request. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The install result or failure. </returns>
     public ValueTask<SkillOperationResult<SkillInstallResult>> InstallAsync (
+        SkillCatalogId catalogId,
         IReadOnlyList<CanonicalSkillPackage> packages,
         SkillInstallRequest request,
         CancellationToken cancellationToken = default)
     {
-        return InstallAsync(new SkillInstallInput(packages, request), cancellationToken);
+        return InstallAsync(new SkillInstallInput(catalogId, packages, request), cancellationToken);
     }
 
     /// <summary> Installs SKILL packages. </summary>
@@ -65,7 +69,12 @@ public sealed class SkillInstallService
         ArgumentNullException.ThrowIfNull(input);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var targetResult = targetResolver.ResolveTarget(input.TargetRequest);
+        var targetResult = await targetSelector.SelectTargetAsync(
+                input.TargetRequest,
+                input.CatalogId,
+                input.Packages.Select(static package => package.Manifest.SkillName).ToArray(),
+                cancellationToken)
+            .ConfigureAwait(false);
         if (!targetResult.IsSuccess)
         {
             return SkillOperationResult<SkillInstallResult>.FailureResult(targetResult.Failure!.Code, targetResult.Failure.Message);

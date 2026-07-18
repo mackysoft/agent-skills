@@ -390,6 +390,8 @@ public sealed class SkillOperationReportBuilderTests
         Assert.All(report.Skills, static skill => Assert.Equal("com.mackysoft.agent-skills", skill.CatalogId));
         Assert.Equal([SkillHostKind.Claude, SkillHostKind.Copilot, SkillHostKind.OpenAi], report.SupportedHosts.Select(static host => host.Host).ToArray());
         var openAi = report.SupportedHosts.Single(static host => host.Host == SkillHostKind.OpenAi);
+        Assert.Equal("catalog-directory", openAi.BundleTargetRootLayout);
+        Assert.Equal(["flat"], openAi.CompatiblePreviousBundleTargetRootLayouts);
         Assert.Equal("agents/openai.yaml", openAi.MetadataArtifactPath);
         Assert.Equal(
             [SkillHostKind.Claude, SkillHostKind.Copilot, SkillHostKind.OpenAi],
@@ -638,6 +640,8 @@ public sealed class SkillOperationReportBuilderTests
             ("ProjectDefaultTargetPath", typeof(string)),
             ("UserDefaultTargetPath", typeof(string)),
             ("UserTargetRootPolicy", typeof(SkillUserTargetRootPolicyReport)),
+            ("BundleTargetRootLayout", typeof(string)),
+            ("CompatiblePreviousBundleTargetRootLayouts", typeof(IReadOnlyList<string>)),
             ("MetadataArtifactPath", typeof(string)),
             ("ReloadGuidance", typeof(string)));
         AssertProperties<SkillListReport>(

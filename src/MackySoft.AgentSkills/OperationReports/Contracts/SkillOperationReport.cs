@@ -62,7 +62,7 @@ public sealed class SkillOperationReport
     /// <summary> Gets the canonical absolute repository root for project scope, or <see langword="null" /> for user scope. </summary>
     public string? RepositoryRoot { get; }
 
-    /// <summary> Gets the canonical absolute target root. </summary>
+    /// <summary> Gets the canonical absolute bundle target root. </summary>
     public string TargetRoot { get; }
 
     /// <summary> Gets whether the report describes a dry-run plan. </summary>

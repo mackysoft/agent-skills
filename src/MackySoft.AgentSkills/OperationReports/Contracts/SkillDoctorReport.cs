@@ -55,7 +55,7 @@ public sealed class SkillDoctorReport
     /// <summary> Gets the canonical absolute repository root for project scope, or <see langword="null" /> for user scope. </summary>
     public string? RepositoryRoot { get; }
 
-    /// <summary> Gets the canonical absolute target root. </summary>
+    /// <summary> Gets the canonical absolute bundle target root. </summary>
     public string TargetRoot { get; }
 
     /// <summary> Gets host-specific guidance for reloading installed SKILLs. </summary>

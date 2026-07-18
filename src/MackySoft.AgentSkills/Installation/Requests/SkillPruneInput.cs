@@ -30,34 +30,10 @@ public sealed class SkillPruneInput
         IReadOnlyList<SkillName>? SelectedSkillNames = null)
     {
         this.CatalogId = CatalogId ?? throw new ArgumentNullException(nameof(CatalogId));
-        ArgumentNullException.ThrowIfNull(CurrentCatalogPackages);
-        if (CurrentCatalogPackages.Any(static package => package is null))
-        {
-            throw new ArgumentException("Current catalog packages must not contain null items.", nameof(CurrentCatalogPackages));
-        }
-
-        var packageSnapshot = CurrentCatalogPackages.ToArray();
-        foreach (var package in packageSnapshot)
-        {
-            if (package.Manifest.CatalogId != CatalogId)
-            {
-                throw new ArgumentException(
-                    $"Current catalog package belongs to another catalog: {package.Manifest.SkillName.Value}",
-                    nameof(CurrentCatalogPackages));
-            }
-        }
-
-        var duplicateSkillName = packageSnapshot
-            .GroupBy(static package => package.Manifest.SkillName)
-            .FirstOrDefault(static group => group.Count() > 1);
-        if (duplicateSkillName is not null)
-        {
-            throw new ArgumentException(
-                $"Current catalog packages contain a duplicate SKILL name: {duplicateSkillName.Key.Value}",
-                nameof(CurrentCatalogPackages));
-        }
-
-        this.CurrentCatalogPackages = Array.AsReadOnly(packageSnapshot);
+        this.CurrentCatalogPackages = SkillPackageInputSnapshot.Create(
+            this.CatalogId,
+            CurrentCatalogPackages,
+            nameof(CurrentCatalogPackages));
         this.TargetRequest = TargetRequest ?? throw new ArgumentNullException(nameof(TargetRequest));
         this.DryRun = DryRun;
         this.Force = Force;

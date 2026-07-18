@@ -183,9 +183,12 @@ internal static class SkillTestData
         var hostAdapters = CreateDefaultHostAdapterSet();
         var installedPackageValidator = CreateInstalledPackageValidator(hostAdapters);
         return new SkillInstallService(
-            new SkillInstallTargetResolver(hostAdapters, CreateUserTargetRootResolver()),
+            CreateCatalogTargetRootSelector(hostAdapters),
             new SkillMaterializationService(hostAdapters),
-            new SkillInstalledTargetStateAnalyzer(installedPackageValidator, CreateInstalledPackageIntegrityVerifier(hostAdapters)),
+            new SkillInstalledTargetStateAnalyzer(
+                CreateInstalledManifestReader(hostAdapters),
+                installedPackageValidator,
+                CreateInstalledPackageIntegrityVerifier(hostAdapters)),
             packageWriter ?? CreatePackageWriter(),
             new SkillMaterializedPackageDiffBuilder());
     }
@@ -195,9 +198,12 @@ internal static class SkillTestData
         var hostAdapters = CreateDefaultHostAdapterSet();
         var installedPackageValidator = CreateInstalledPackageValidator(hostAdapters);
         return new SkillUpdateService(
-            new SkillInstallTargetResolver(hostAdapters, CreateUserTargetRootResolver()),
+            CreateCatalogTargetRootSelector(hostAdapters),
             new SkillMaterializationService(hostAdapters),
-            new SkillInstalledTargetStateAnalyzer(installedPackageValidator, CreateInstalledPackageIntegrityVerifier(hostAdapters)),
+            new SkillInstalledTargetStateAnalyzer(
+                CreateInstalledManifestReader(hostAdapters),
+                installedPackageValidator,
+                CreateInstalledPackageIntegrityVerifier(hostAdapters)),
             packageWriter ?? CreatePackageWriter(),
             new SkillMaterializedPackageDiffBuilder());
     }
@@ -207,8 +213,11 @@ internal static class SkillTestData
         var hostAdapters = CreateDefaultHostAdapterSet();
         var installedPackageValidator = CreateInstalledPackageValidator(hostAdapters);
         return new SkillUninstallService(
-            new SkillInstallTargetResolver(hostAdapters, CreateUserTargetRootResolver()),
-            new SkillInstalledTargetStateAnalyzer(installedPackageValidator, CreateInstalledPackageIntegrityVerifier(hostAdapters)),
+            CreateCatalogTargetRootSelector(hostAdapters),
+            new SkillInstalledTargetStateAnalyzer(
+                CreateInstalledManifestReader(hostAdapters),
+                installedPackageValidator,
+                CreateInstalledPackageIntegrityVerifier(hostAdapters)),
             packageRemover ?? CreatePackageRemover(),
             new SkillMaterializedPackageDiffBuilder());
     }
@@ -217,7 +226,7 @@ internal static class SkillTestData
     {
         var hostAdapters = CreateDefaultHostAdapterSet();
         return new SkillPruneService(
-            new SkillInstallTargetResolver(hostAdapters, CreateUserTargetRootResolver()),
+            CreateCatalogTargetRootSelector(hostAdapters),
             CreateInstalledManifestReader(hostAdapters),
             CreateInstalledPackageIntegrityVerifier(hostAdapters),
             packageRemover ?? CreatePackageRemover(),
@@ -250,6 +259,22 @@ internal static class SkillTestData
             Environment.GetEnvironmentVariable);
     }
 
+    internal static SkillInstallTargetResolver CreateInstallTargetResolver (SkillHostAdapterSet? hostAdapters = null)
+    {
+        hostAdapters ??= CreateDefaultHostAdapterSet();
+        return new SkillInstallTargetResolver(
+            hostAdapters,
+            CreateUserTargetRootResolver());
+    }
+
+    internal static SkillCatalogTargetRootSelector CreateCatalogTargetRootSelector (SkillHostAdapterSet? hostAdapters = null)
+    {
+        hostAdapters ??= CreateDefaultHostAdapterSet();
+        return new SkillCatalogTargetRootSelector(
+            CreateInstallTargetResolver(hostAdapters),
+            CreateInstalledManifestReader(hostAdapters));
+    }
+
     internal static SkillDoctorService CreateDoctorService ()
     {
         var hostAdapters = CreateDefaultHostAdapterSet();
@@ -261,7 +286,10 @@ internal static class SkillTestData
     internal static SkillInstalledTargetStateAnalyzer CreateTargetStateAnalyzer (SkillHostAdapterSet? hostAdapters = null)
     {
         hostAdapters ??= CreateDefaultHostAdapterSet();
-        return new SkillInstalledTargetStateAnalyzer(CreateInstalledPackageValidator(hostAdapters), CreateInstalledPackageIntegrityVerifier(hostAdapters));
+        return new SkillInstalledTargetStateAnalyzer(
+            CreateInstalledManifestReader(hostAdapters),
+            CreateInstalledPackageValidator(hostAdapters),
+            CreateInstalledPackageIntegrityVerifier(hostAdapters));
     }
 
     internal static IReadOnlyList<CanonicalSkillPackage> ReplacePackage (
@@ -293,6 +321,26 @@ internal static class SkillTestData
         var manifest = WithComputedManifestDigest(manifestCandidate);
         var manifestText = new SkillManifestJsonSerializer().Serialize(manifest);
         files = files
+            .Select(file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal)
+                ? new SkillPackageFile("agent-skill.json", manifestText)
+                : file)
+            .ToArray();
+
+        return CreateCanonicalPackage(manifest, files);
+    }
+
+    internal static CanonicalSkillPackage CreatePackageWithCatalogId (
+        CanonicalSkillPackage package,
+        SkillCatalogId catalogId)
+    {
+        ArgumentNullException.ThrowIfNull(package);
+        ArgumentNullException.ThrowIfNull(catalogId);
+
+        var manifest = WithComputedManifestDigest(CopyManifest(
+            package.Manifest,
+            catalogId: catalogId));
+        var manifestText = new SkillManifestJsonSerializer().Serialize(manifest);
+        var files = package.Files
             .Select(file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal)
                 ? new SkillPackageFile("agent-skill.json", manifestText)
                 : file)

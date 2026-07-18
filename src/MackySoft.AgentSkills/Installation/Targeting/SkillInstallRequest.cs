@@ -10,7 +10,7 @@ public sealed class SkillInstallRequest
     /// <param name="host"> The target host. </param>
     /// <param name="scope"> The install scope. </param>
     /// <param name="repositoryRoot"> The canonical absolute repository root required for project scope; <see langword="null" /> for user scope. </param>
-    /// <param name="targetRoot"> The optional explicit target root. User-scope roots must be absolute. </param>
+    /// <param name="targetRoot"> The optional explicit bundle target root. User-scope roots must be absolute. </param>
     /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="host" /> or <paramref name="scope" /> is unsupported. </exception>
     /// <exception cref="ArgumentException"> Thrown when the paths do not satisfy the selected scope contract. </exception>
     public SkillInstallRequest (
@@ -68,7 +68,10 @@ public sealed class SkillInstallRequest
     /// <summary> Gets the canonical absolute repository root for project scope, or <see langword="null" /> for user scope. </summary>
     public string? RepositoryRoot { get; }
 
-    /// <summary> Gets the optional explicit target root. User-scope roots are canonical and absolute. </summary>
+    /// <summary>
+    /// Gets the optional explicit bundle target root. The host-specific catalog-directory layout is applied only when
+    /// this value is <see langword="null" />. User-scope roots are canonical and absolute.
+    /// </summary>
     public string? TargetRoot { get; }
 
     private static string? NormalizeProjectTargetRoot (string? targetRoot)

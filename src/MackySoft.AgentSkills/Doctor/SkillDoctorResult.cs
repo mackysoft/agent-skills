@@ -8,7 +8,7 @@ public sealed class SkillDoctorResult
 {
     /// <summary> Initializes one immutable doctor result. </summary>
     /// <param name="host"> The diagnosed host. </param>
-    /// <param name="targetRoot"> The diagnosed target root. </param>
+    /// <param name="targetRoot"> The diagnosed bundle target root. </param>
     /// <param name="diagnostics"> The complete diagnostics. </param>
     public SkillDoctorResult (
         SkillHostKind host,
@@ -41,7 +41,7 @@ public sealed class SkillDoctorResult
     /// <summary> Gets the diagnosed host. </summary>
     public SkillHostKind Host { get; }
 
-    /// <summary> Gets the diagnosed target root. </summary>
+    /// <summary> Gets the diagnosed bundle target root. </summary>
     public string TargetRoot { get; }
 
     /// <summary> Gets an immutable snapshot of diagnostics. </summary>

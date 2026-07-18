@@ -13,6 +13,8 @@ namespace MackySoft.AgentSkills.Tests.Hosting;
 
 public sealed class AgentSkillsCommandRunnerTests
 {
+    private const string FixtureCatalogId = "com.mackysoft.agent-skills";
+
     [Fact]
     [Trait("Size", "Small")]
     public async Task ListAsync_WhenSelectorsAreOmitted_ReturnsAllBundledCategories ()
@@ -132,7 +134,7 @@ public sealed class AgentSkillsCommandRunnerTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var report = Assert.IsType<SkillOperationReport>(result.Payload);
         Assert.Equal(Path.GetFullPath(repositoryRootInput), report.RepositoryRoot);
-        FileSystemAssert.ForPath(report.TargetRoot).EqualsNormalized(Path.Combine(targetScope.FullPath, ".agents", "skills"));
+        FileSystemAssert.ForPath(report.TargetRoot).EqualsNormalized(Path.Combine(targetScope.FullPath, ".agents", "skills", FixtureCatalogId));
     }
 
     [Fact]
@@ -156,10 +158,47 @@ public sealed class AgentSkillsCommandRunnerTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var report = Assert.IsType<SkillDoctorReport>(result.Payload);
         FileSystemAssert.ForPath(report.RepositoryRoot!).EqualsNormalized(targetScope.FullPath);
-        FileSystemAssert.ForPath(report.TargetRoot).EqualsNormalized(Path.Combine(targetScope.FullPath, ".agents", "skills"));
+        FileSystemAssert.ForPath(report.TargetRoot).EqualsNormalized(Path.Combine(targetScope.FullPath, ".agents", "skills", FixtureCatalogId));
         var adapter = SkillTestData.CreateDefaultHostAdapterSet().GetAdapter(report.Host);
         Assert.True(adapter.IsSuccess, adapter.Failure?.Message);
         Assert.Equal(adapter.Value!.Descriptor.ReloadGuidance, report.ReloadGuidance);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task DoctorAsync_WhenLegacyFlatInstallExists_UsesLegacyTargetRoot ()
+    {
+        using var packageScope = TestDirectories.CreateTempScope("agent-skills-hosting", "doctor-legacy-flat-package-root");
+        using var targetScope = TestDirectories.CreateTempScope("agent-skills-hosting", "doctor-legacy-flat-target-root");
+        await WriteFixturePackagesAsync(packageScope.FullPath);
+        using var provider = CreateProvider(packageScope.FullPath);
+        var runner = provider.GetRequiredService<AgentSkillsCommandRunner>();
+        var legacyTargetRoot = Path.Combine(targetScope.FullPath, ".agents", "skills");
+
+        var installResult = await runner.InstallAsync(
+            new AgentSkillsInstallCommandRequest(
+                host: "openai",
+                category: ["core"],
+                scope: "project",
+                repositoryRoot: targetScope.FullPath,
+                targetDir: legacyTargetRoot),
+            CancellationToken.None);
+        Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
+
+        var doctorResult = await runner.DoctorAsync(
+            new AgentSkillsDoctorCommandRequest(
+                host: "openai",
+                category: ["core"],
+                scope: "project",
+                repositoryRoot: targetScope.FullPath),
+            CancellationToken.None);
+
+        Assert.True(doctorResult.IsSuccess, doctorResult.Failure?.Message);
+        var report = Assert.IsType<SkillDoctorReport>(doctorResult.Payload);
+        FileSystemAssert.ForPath(report.TargetRoot).EqualsNormalized(legacyTargetRoot);
+        Assert.True(report.IsHealthy);
+        var diagnostic = Assert.Single(report.Diagnostics);
+        Assert.Equal("SKILL_DOCTOR_OK", diagnostic.Code);
     }
 
     [Fact]
@@ -272,12 +311,13 @@ public sealed class AgentSkillsCommandRunnerTests
         var action = Assert.Single(report.Actions);
         Assert.Equal(selectedOrphan, action.SkillName);
         Assert.Equal("deleted", action.Action);
-        Assert.False(Directory.Exists(Path.Combine(targetScope.FullPath, ".agents", "skills", selectedOrphan)));
-        Assert.True(Directory.Exists(Path.Combine(targetScope.FullPath, ".agents", "skills", unselectedOrphan)));
+        var targetRoot = Path.Combine(targetScope.FullPath, ".agents", "skills", FixtureCatalogId);
+        Assert.False(Directory.Exists(Path.Combine(targetRoot, selectedOrphan)));
+        Assert.True(Directory.Exists(Path.Combine(targetRoot, unselectedOrphan)));
         foreach (var skillName in packages.Skip(2).Select(static package => package.Manifest.SkillName.Value))
         {
             Assert.True(
-                Directory.Exists(Path.Combine(targetScope.FullPath, ".agents", "skills", skillName)),
+                Directory.Exists(Path.Combine(targetRoot, skillName)),
                 skillName);
         }
     }

@@ -15,6 +15,7 @@ public sealed class SkillInstalledPackageIntegrityVerifierTests
         var package = (await SkillTestData.GenerateFixturePackagesAsync()).First();
         var installService = SkillTestData.CreateInstallService();
         var install = await installService.InstallAsync(
+            package.Manifest.CatalogId,
             [package],
             new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);

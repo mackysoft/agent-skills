@@ -20,6 +20,25 @@ public sealed class SkillHostDescriptorTests
         Assert.Throws<ArgumentOutOfRangeException>(() => Create(host: (SkillHostKind)42));
     }
 
+    [Fact]
+    [Trait("Size", "Small")]
+    public void Constructor_RejectsUndefinedBundleTargetRootLayout ()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => Create(bundleTargetRootLayout: (SkillBundleTargetRootLayout)42));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void Constructor_RejectsInvalidCompatiblePreviousBundleTargetRootLayouts ()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => Create(
+            compatiblePreviousBundleTargetRootLayouts: [(SkillBundleTargetRootLayout)42]));
+        Assert.Throws<ArgumentException>(() => Create(
+            compatiblePreviousBundleTargetRootLayouts: [SkillBundleTargetRootLayout.CatalogDirectory]));
+        Assert.Throws<ArgumentException>(() => Create(
+            compatiblePreviousBundleTargetRootLayouts: [SkillBundleTargetRootLayout.Flat, SkillBundleTargetRootLayout.Flat]));
+    }
+
     [Theory]
     [Trait("Size", "Small")]
     [InlineData("../skills", null)]
@@ -50,6 +69,8 @@ public sealed class SkillHostDescriptorTests
         SkillHostKind host = SkillHostKind.OpenAi,
         string projectDefaultTargetPath = ".agents/skills",
         string userDefaultTargetPath = "~/.agents/skills",
+        SkillBundleTargetRootLayout bundleTargetRootLayout = SkillBundleTargetRootLayout.CatalogDirectory,
+        IReadOnlyList<SkillBundleTargetRootLayout>? compatiblePreviousBundleTargetRootLayouts = null,
         string? metadataArtifactPath = null,
         string reloadGuidance = "Reload skills.")
     {
@@ -58,6 +79,8 @@ public sealed class SkillHostDescriptorTests
             projectDefaultTargetPath,
             userDefaultTargetPath,
             new SkillUserTargetRootPolicy(null, null, ".agents/skills"),
+            bundleTargetRootLayout,
+            compatiblePreviousBundleTargetRootLayouts ?? [SkillBundleTargetRootLayout.Flat],
             metadataArtifactPath,
             reloadGuidance);
     }

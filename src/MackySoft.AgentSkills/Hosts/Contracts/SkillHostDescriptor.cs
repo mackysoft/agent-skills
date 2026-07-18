@@ -12,6 +12,8 @@ public sealed class SkillHostDescriptor
         string projectDefaultTargetPath,
         string userDefaultTargetPath,
         SkillUserTargetRootPolicy userTargetRootPolicy,
+        SkillBundleTargetRootLayout bundleTargetRootLayout,
+        IReadOnlyList<SkillBundleTargetRootLayout> compatiblePreviousBundleTargetRootLayouts,
         string? metadataArtifactPath,
         string reloadGuidance)
     {
@@ -27,6 +29,28 @@ public sealed class SkillHostDescriptor
 
         ArgumentException.ThrowIfNullOrWhiteSpace(userDefaultTargetPath);
         ArgumentNullException.ThrowIfNull(userTargetRootPolicy);
+        if (!ContractLiteralCodec.IsDefined(bundleTargetRootLayout))
+        {
+            throw new ArgumentOutOfRangeException(nameof(bundleTargetRootLayout), bundleTargetRootLayout, "Unsupported bundle target-root layout.");
+        }
+
+        ArgumentNullException.ThrowIfNull(compatiblePreviousBundleTargetRootLayouts);
+        var previousLayouts = compatiblePreviousBundleTargetRootLayouts.ToArray();
+        if (previousLayouts.Any(layout => !ContractLiteralCodec.IsDefined(layout)))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(compatiblePreviousBundleTargetRootLayouts),
+                compatiblePreviousBundleTargetRootLayouts,
+                "Compatible previous bundle target-root layouts must be supported.");
+        }
+
+        if (previousLayouts.Contains(bundleTargetRootLayout) || previousLayouts.Distinct().Count() != previousLayouts.Length)
+        {
+            throw new ArgumentException(
+                "Compatible previous bundle target-root layouts must be unique and must not contain the current layout.",
+                nameof(compatiblePreviousBundleTargetRootLayouts));
+        }
+
         if (metadataArtifactPath is not null && !SkillRelativePath.IsSafeFilePath(metadataArtifactPath))
         {
             throw new ArgumentException("Metadata artifact path must be a safe relative path.", nameof(metadataArtifactPath));
@@ -38,6 +62,8 @@ public sealed class SkillHostDescriptor
         ProjectDefaultTargetPath = projectDefaultTargetPath;
         UserDefaultTargetPath = userDefaultTargetPath;
         UserTargetRootPolicy = userTargetRootPolicy;
+        BundleTargetRootLayout = bundleTargetRootLayout;
+        CompatiblePreviousBundleTargetRootLayouts = Array.AsReadOnly(previousLayouts);
         MetadataArtifactPath = metadataArtifactPath;
         ReloadGuidance = reloadGuidance;
     }
@@ -45,14 +71,20 @@ public sealed class SkillHostDescriptor
     /// <summary> Gets the supported host. </summary>
     public SkillHostKind Host { get; }
 
-    /// <summary> Gets the project-scope default target path relative to the repository root. </summary>
+    /// <summary> Gets the project-scope default host SKILL root path relative to the repository root. </summary>
     public string ProjectDefaultTargetPath { get; }
 
-    /// <summary> Gets the user-scope default target path shown to users. </summary>
+    /// <summary> Gets the user-scope default host SKILL root path shown to users. </summary>
     public string UserDefaultTargetPath { get; }
 
-    /// <summary> Gets the user-scope target root resolution policy. </summary>
+    /// <summary> Gets the user-scope host SKILL root resolution policy. </summary>
     public SkillUserTargetRootPolicy UserTargetRootPolicy { get; }
+
+    /// <summary> Gets how the host organizes default bundle targets under its SKILL root. </summary>
+    public SkillBundleTargetRootLayout BundleTargetRootLayout { get; }
+
+    /// <summary> Gets previous default layouts whose managed installations remain valid operation targets. </summary>
+    public IReadOnlyList<SkillBundleTargetRootLayout> CompatiblePreviousBundleTargetRootLayouts { get; }
 
     /// <summary> Gets the metadata artifact path, or <see langword="null" /> when the host uses frontmatter only. </summary>
     public string? MetadataArtifactPath { get; }

@@ -6,10 +6,10 @@ namespace MackySoft.AgentSkills.Installation.Transactions;
 /// <summary> Validates transaction directories before file-system writes or cleanup. </summary>
 internal static class SkillPackageTransactionPathGuard
 {
-    /// <summary> Verifies that a created transaction directory is a regular directory under the target root. </summary>
-    /// <param name="targetRoot"> The resolved host target root. </param>
+    /// <summary> Verifies that a created transaction directory is a regular directory under the bundle target root. </summary>
+    /// <param name="targetRoot"> The resolved bundle target root. </param>
     /// <param name="directoryPath"> The transaction directory path. </param>
-    /// <returns> Success when the directory is not a link and resolves under the target root. </returns>
+    /// <returns> Success when the directory is not a link and resolves under the bundle target root. </returns>
     public static SkillOperationResult<bool> ValidateCreatedDirectory (
         string targetRoot,
         string directoryPath)

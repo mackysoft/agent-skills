@@ -5,6 +5,7 @@ using MackySoft.AgentSkills.Doctor;
 using MackySoft.AgentSkills.Hosting.Configuration;
 using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Registration;
+using MackySoft.AgentSkills.Installation.Inventory;
 using MackySoft.AgentSkills.Installation.Requests;
 using MackySoft.AgentSkills.Installation.Services;
 using MackySoft.AgentSkills.Installation.Targeting;
@@ -27,7 +28,7 @@ public sealed class AgentSkillsCommandRunner
     private readonly SkillUninstallService uninstallService;
     private readonly SkillPruneService pruneService;
     private readonly SkillDoctorService doctorService;
-    private readonly SkillInstallTargetResolver targetResolver;
+    private readonly SkillCatalogTargetRootSelector targetSelector;
 
     /// <summary> Initializes a new instance of the <see cref="AgentSkillsCommandRunner" /> class. </summary>
     public AgentSkillsCommandRunner (
@@ -40,7 +41,7 @@ public sealed class AgentSkillsCommandRunner
         SkillUninstallService uninstallService,
         SkillPruneService pruneService,
         SkillDoctorService doctorService,
-        SkillInstallTargetResolver targetResolver)
+        SkillCatalogTargetRootSelector targetSelector)
     {
         this.configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         this.packageProvider = packageProvider ?? throw new ArgumentNullException(nameof(packageProvider));
@@ -51,7 +52,7 @@ public sealed class AgentSkillsCommandRunner
         this.uninstallService = uninstallService ?? throw new ArgumentNullException(nameof(uninstallService));
         this.pruneService = pruneService ?? throw new ArgumentNullException(nameof(pruneService));
         this.doctorService = doctorService ?? throw new ArgumentNullException(nameof(doctorService));
-        this.targetResolver = targetResolver ?? throw new ArgumentNullException(nameof(targetResolver));
+        this.targetSelector = targetSelector ?? throw new ArgumentNullException(nameof(targetSelector));
     }
 
     /// <summary> Runs <c>skills list</c> and returns product-neutral list report data. </summary>
@@ -170,6 +171,7 @@ public sealed class AgentSkillsCommandRunner
         var prepared = preparedResult.Value!;
         var installResult = await installService.InstallAsync(
                 new SkillInstallInput(
+                    prepared.Catalog.BundleDescriptor.CatalogId,
                     prepared.Catalog.Packages,
                     prepared.Target.Request,
                     request.DryRun,
@@ -214,6 +216,7 @@ public sealed class AgentSkillsCommandRunner
         var prepared = preparedResult.Value!;
         var updateResult = await updateService.UpdateAsync(
                 new SkillUpdateInput(
+                    prepared.Catalog.BundleDescriptor.CatalogId,
                     prepared.Catalog.Packages,
                     prepared.Target.Request,
                     request.DryRun,
@@ -258,6 +261,7 @@ public sealed class AgentSkillsCommandRunner
         var prepared = preparedResult.Value!;
         var uninstallResult = await uninstallService.UninstallAsync(
                 new SkillUninstallInput(
+                    prepared.Catalog.BundleDescriptor.CatalogId,
                     prepared.Catalog.Packages,
                     prepared.Target.Request,
                     request.DryRun,
@@ -356,13 +360,18 @@ public sealed class AgentSkillsCommandRunner
         }
 
         var prepared = preparedResult.Value!;
-        var targetResult = targetResolver.ResolveTarget(prepared.Target.Request);
+        var packages = prepared.Catalog.Packages;
+        var targetResult = await targetSelector.SelectTargetAsync(
+                prepared.Target.Request,
+                prepared.Catalog.BundleDescriptor.CatalogId,
+                packages.Select(static package => package.Manifest.SkillName).ToArray(),
+                cancellationToken)
+            .ConfigureAwait(false);
         if (!targetResult.IsSuccess)
         {
             return Failure(commandName, targetResult.Failure!);
         }
 
-        var packages = prepared.Catalog.Packages;
         var doctorResult = packages.Count == 0
             ? new SkillDoctorResult(prepared.Target.HostDescriptor.Host, targetResult.Value!.TargetRoot, Array.Empty<SkillDoctorDiagnostic>())
             : await doctorService.DiagnoseAsync(

@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Packaging.FileSystem;
@@ -5,7 +6,7 @@ using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Installation.Targeting;
 
-/// <summary> Resolves project- and user-scope SKILL target roots. </summary>
+/// <summary> Resolves project- and user-scope SKILL bundle target roots. </summary>
 public sealed class SkillInstallTargetResolver
 {
     private readonly SkillHostAdapterSet hostAdapters;
@@ -13,7 +14,7 @@ public sealed class SkillInstallTargetResolver
 
     /// <summary> Initializes a new instance of the <see cref="SkillInstallTargetResolver" /> class. </summary>
     /// <param name="hostAdapters"> The supported host adapter set. </param>
-    /// <param name="userTargetRootResolver"> The user-scope target root resolver. </param>
+    /// <param name="userTargetRootResolver"> The user-scope host-root resolver. </param>
     public SkillInstallTargetResolver (
         SkillHostAdapterSet hostAdapters,
         SkillUserTargetRootResolver userTargetRootResolver)
@@ -22,59 +23,146 @@ public sealed class SkillInstallTargetResolver
         this.userTargetRootResolver = userTargetRootResolver ?? throw new ArgumentNullException(nameof(userTargetRootResolver));
     }
 
-    /// <summary> Resolves the target root for one install request. </summary>
+    /// <summary> Resolves the preferred bundle target root without inspecting installed catalog state. </summary>
     /// <param name="request"> The install request. </param>
-    /// <returns> The canonical host target, or a structured failure for an unavailable user target or unsafe path use. </returns>
-    public SkillOperationResult<SkillResolvedInstallTarget> ResolveTarget (SkillInstallRequest request)
+    /// <param name="catalogId"> The catalog that owns the resolved bundle target. </param>
+    /// <returns> The canonical preferred bundle target, or a structured path-resolution failure. </returns>
+    public SkillOperationResult<SkillResolvedInstallTarget> ResolveTarget (
+        SkillInstallRequest request,
+        SkillCatalogId catalogId)
     {
-        ArgumentNullException.ThrowIfNull(request);
-
-        var descriptor = hostAdapters.GetAdapter(request.Host).Value!.Descriptor;
-        return request.Scope == SkillScopeKind.Project
-            ? ResolveProjectTarget(request, descriptor.Host, descriptor.ProjectDefaultTargetPath)
-            : ResolveUserTarget(request, descriptor);
+        var candidatesResult = ResolveTargetCandidates(request, catalogId);
+        return candidatesResult.IsSuccess
+            ? SkillOperationResult<SkillResolvedInstallTarget>.Success(candidatesResult.Value!.PreferredTarget)
+            : SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(
+                candidatesResult.Failure!.Code,
+                candidatesResult.Failure.Message);
     }
 
-    private static SkillOperationResult<SkillResolvedInstallTarget> ResolveProjectTarget (
+    internal SkillOperationResult<SkillInstallTargetCandidates> ResolveTargetCandidates (
         SkillInstallRequest request,
-        SkillHostKind host,
+        SkillCatalogId catalogId)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(catalogId);
+
+        var adapterResult = hostAdapters.GetAdapter(request.Host);
+        if (!adapterResult.IsSuccess)
+        {
+            return SkillOperationResult<SkillInstallTargetCandidates>.FailureResult(
+                adapterResult.Failure!.Code,
+                adapterResult.Failure.Message);
+        }
+
+        var descriptor = adapterResult.Value!.Descriptor;
+        if (request.TargetRoot is not null)
+        {
+            var explicitTargetResult = request.Scope == SkillScopeKind.Project
+                ? ResolveExplicitProjectTarget(request, descriptor.Host)
+                : ResolveExplicitUserTarget(request, descriptor.Host);
+            return CreateCandidateSet(explicitTargetResult);
+        }
+
+        var hostRootResult = request.Scope == SkillScopeKind.Project
+            ? ResolveDefaultProjectHostRoot(request, descriptor.ProjectDefaultTargetPath)
+            : userTargetRootResolver.ResolveDefaultTargetRoot(descriptor);
+        if (!hostRootResult.IsSuccess)
+        {
+            return SkillOperationResult<SkillInstallTargetCandidates>.FailureResult(
+                hostRootResult.Failure!.Code,
+                hostRootResult.Failure.Message);
+        }
+
+        var layouts = new[] { descriptor.BundleTargetRootLayout }
+            .Concat(descriptor.CompatiblePreviousBundleTargetRootLayouts)
+            .ToArray();
+        var targets = new List<SkillResolvedInstallTarget>(layouts.Length);
+        foreach (var layout in layouts)
+        {
+            var bundleTargetRootResult = ResolveDefaultBundleTargetRoot(hostRootResult.Value!, catalogId, layout);
+            var targetResult = CreateResolvedTarget(descriptor.Host, bundleTargetRootResult);
+            if (!targetResult.IsSuccess)
+            {
+                return SkillOperationResult<SkillInstallTargetCandidates>.FailureResult(
+                    targetResult.Failure!.Code,
+                    targetResult.Failure.Message);
+            }
+
+            targets.Add(targetResult.Value!);
+        }
+
+        return SkillOperationResult<SkillInstallTargetCandidates>.Success(new SkillInstallTargetCandidates(
+            targets,
+            hostRootResult.Value!,
+            layouts.Contains(SkillBundleTargetRootLayout.CatalogDirectory)));
+    }
+
+    private static SkillOperationResult<string> ResolveDefaultProjectHostRoot (
+        SkillInstallRequest request,
         string projectTargetDirectory)
     {
         var repositoryRoot = request.RepositoryRoot!;
-        var targetRoot = request.TargetRoot is null
-            ? Path.Combine(repositoryRoot, projectTargetDirectory)
-            : Path.IsPathRooted(request.TargetRoot)
-                ? request.TargetRoot
-                : Path.Combine(repositoryRoot, request.TargetRoot);
-
-        var resolvedTargetRoot = SkillPackagePathBoundary.ResolveUnderRoot(repositoryRoot, targetRoot);
-        return resolvedTargetRoot.IsSuccess
-            ? SkillOperationResult<SkillResolvedInstallTarget>.Success(new SkillResolvedInstallTarget(host, resolvedTargetRoot.Value!))
-            : SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(resolvedTargetRoot.Failure!.Code, resolvedTargetRoot.Failure.Message);
+        return SkillPackagePathBoundary.ResolveUnderRoot(
+            repositoryRoot,
+            Path.Combine(repositoryRoot, projectTargetDirectory));
     }
 
-    private SkillOperationResult<SkillResolvedInstallTarget> ResolveUserTarget (
+    private static SkillOperationResult<SkillResolvedInstallTarget> ResolveExplicitProjectTarget (
         SkillInstallRequest request,
-        SkillHostDescriptor descriptor)
+        SkillHostKind host)
     {
-        if (request.TargetRoot is not null)
-        {
-            var explicitTargetResult = SkillPackagePathBoundary.ResolveUnderRoot(request.TargetRoot, request.TargetRoot);
-            return explicitTargetResult.IsSuccess
-                ? SkillOperationResult<SkillResolvedInstallTarget>.Success(new SkillResolvedInstallTarget(descriptor.Host, explicitTargetResult.Value!))
-                : SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(explicitTargetResult.Failure!.Code, explicitTargetResult.Failure.Message);
-        }
+        var repositoryRoot = request.RepositoryRoot!;
+        var requestedTargetRoot = Path.IsPathRooted(request.TargetRoot!)
+            ? request.TargetRoot!
+            : Path.Combine(repositoryRoot, request.TargetRoot!);
+        var targetRootResult = SkillPackagePathBoundary.ResolveUnderRoot(repositoryRoot, requestedTargetRoot);
+        return CreateResolvedTarget(host, targetRootResult);
+    }
 
-        var defaultTargetResult = userTargetRootResolver.ResolveDefaultTargetRoot(descriptor);
-        if (!defaultTargetResult.IsSuccess)
-        {
-            return SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(defaultTargetResult.Failure!.Code, defaultTargetResult.Failure.Message);
-        }
+    private static SkillOperationResult<SkillResolvedInstallTarget> ResolveExplicitUserTarget (
+        SkillInstallRequest request,
+        SkillHostKind host)
+    {
+        var targetRootResult = SkillPackagePathBoundary.ResolveUnderRoot(request.TargetRoot!, request.TargetRoot!);
+        return CreateResolvedTarget(host, targetRootResult);
+    }
 
-        var targetRoot = defaultTargetResult.Value!;
-        var resolvedTargetRoot = SkillPackagePathBoundary.ResolveUnderRoot(targetRoot, targetRoot);
-        return resolvedTargetRoot.IsSuccess
-            ? SkillOperationResult<SkillResolvedInstallTarget>.Success(new SkillResolvedInstallTarget(descriptor.Host, resolvedTargetRoot.Value!))
-            : SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(resolvedTargetRoot.Failure!.Code, resolvedTargetRoot.Failure.Message);
+    private static SkillOperationResult<string> ResolveDefaultBundleTargetRoot (
+        string hostRoot,
+        SkillCatalogId catalogId,
+        SkillBundleTargetRootLayout layout)
+    {
+        return layout switch
+        {
+            SkillBundleTargetRootLayout.Flat => SkillPackagePathBoundary.ResolveUnderRoot(hostRoot, hostRoot),
+            SkillBundleTargetRootLayout.CatalogDirectory => SkillPackagePathBoundary.ResolvePackageDirectory(hostRoot, catalogId.Value),
+            _ => throw new ArgumentOutOfRangeException(nameof(layout), layout, "Unsupported bundle target-root layout."),
+        };
+    }
+
+    private static SkillOperationResult<SkillResolvedInstallTarget> CreateResolvedTarget (
+        SkillHostKind host,
+        SkillOperationResult<string> targetRootResult)
+    {
+        return targetRootResult.IsSuccess
+            ? SkillOperationResult<SkillResolvedInstallTarget>.Success(
+                new SkillResolvedInstallTarget(host, targetRootResult.Value!))
+            : SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(
+                targetRootResult.Failure!.Code,
+                targetRootResult.Failure.Message);
+    }
+
+    private static SkillOperationResult<SkillInstallTargetCandidates> CreateCandidateSet (
+        SkillOperationResult<SkillResolvedInstallTarget> targetResult)
+    {
+        return targetResult.IsSuccess
+            ? SkillOperationResult<SkillInstallTargetCandidates>.Success(
+                new SkillInstallTargetCandidates(
+                    [targetResult.Value!],
+                    defaultHostRoot: null,
+                    includesCatalogDirectoryLayout: false))
+            : SkillOperationResult<SkillInstallTargetCandidates>.FailureResult(
+                targetResult.Failure!.Code,
+                targetResult.Failure.Message);
     }
 }

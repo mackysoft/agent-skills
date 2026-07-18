@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
@@ -186,7 +187,11 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
         var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion.Next().Value);
         var installService = SkillTestData.CreateInstallService();
         var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
-        var install = await installService.InstallAsync([aheadPackage], request, CancellationToken.None);
+        var install = await installService.InstallAsync(
+            aheadPackage.Manifest.CatalogId,
+            [aheadPackage],
+            request,
+            CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
 
         var state = await AnalyzeOpenAiAsync(packages[0], GetSkillDirectory(install.Value!.TargetRoot, packages[0]));
@@ -205,6 +210,7 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
+            packages[0].Manifest.CatalogId,
             packages,
             new SkillInstallRequest(SkillHostKind.Claude, SkillScopeKind.Project, scope.FullPath, "shared-skills"),
             CancellationToken.None);
@@ -253,11 +259,55 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
         Assert.Equal(SkillFailureCodes.InstallTargetUnmanaged, state.Failure!.Code);
     }
 
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task AnalyzeAsync_ClassifiesForeignCatalogAsUnmanaged ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "state-foreign-catalog");
+        var (packages, targetRoot) = await InstallOpenAiAsync(scope);
+        var package = packages[0];
+        var skillDirectory = GetSkillDirectory(targetRoot, package);
+        var foreignManifest = SkillTestData.WithComputedManifestDigest(SkillTestData.CopyManifest(
+            package.Manifest,
+            catalogId: new SkillCatalogId("com.example.foreign-skills")));
+        File.WriteAllText(
+            Path.Combine(skillDirectory, "agent-skill.json"),
+            new SkillManifestJsonSerializer().Serialize(foreignManifest));
+
+        var state = await AnalyzeOpenAiAsync(package, skillDirectory);
+
+        Assert.Equal(SkillTargetStateKind.Unmanaged, state.Kind);
+        Assert.Equal(SkillFailureCodes.InstallTargetUnmanaged, state.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task AnalyzeAsync_ClassifiesLocallyModifiedForeignCatalogAsUnmanaged ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "state-modified-foreign-catalog");
+        var (packages, targetRoot) = await InstallOpenAiAsync(scope);
+        var package = packages[0];
+        var skillDirectory = GetSkillDirectory(targetRoot, package);
+        var foreignManifest = SkillTestData.WithComputedManifestDigest(SkillTestData.CopyManifest(
+            package.Manifest,
+            catalogId: new SkillCatalogId("com.example.foreign-skills")));
+        File.WriteAllText(
+            Path.Combine(skillDirectory, "agent-skill.json"),
+            new SkillManifestJsonSerializer().Serialize(foreignManifest));
+        File.AppendAllText(Path.Combine(skillDirectory, "SKILL.md"), "\nForeign local change.\n");
+
+        var state = await AnalyzeOpenAiAsync(package, skillDirectory);
+
+        Assert.Equal(SkillTargetStateKind.Unmanaged, state.Kind);
+        Assert.Equal(SkillFailureCodes.InstallTargetUnmanaged, state.Failure!.Code);
+    }
+
     private static async Task<(IReadOnlyList<CanonicalSkillPackage> Packages, string TargetRoot)> InstallOpenAiAsync (TestDirectoryScope scope)
     {
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
+            packages[0].Manifest.CatalogId,
             packages,
             new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);

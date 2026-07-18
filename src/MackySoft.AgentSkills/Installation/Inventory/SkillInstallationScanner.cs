@@ -8,7 +8,7 @@ using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Installation.Inventory;
 
-/// <summary> Scans installed SKILL manifests under one host target root. </summary>
+/// <summary> Scans installed SKILL manifests under one bundle target root. </summary>
 public sealed class SkillInstallationScanner
 {
     private readonly SkillHostAdapterSet hostAdapters;
@@ -31,7 +31,7 @@ public sealed class SkillInstallationScanner
 
     /// <summary> Scans installed SKILL manifests. </summary>
     /// <param name="packages"> The canonical packages used for digest verification. </param>
-    /// <param name="targetRoot"> The host target root. </param>
+    /// <param name="targetRoot"> The bundle target root. </param>
     /// <param name="host"> The host used for install identity. </param>
     /// <param name="scope"> The install scope used for install identity. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>

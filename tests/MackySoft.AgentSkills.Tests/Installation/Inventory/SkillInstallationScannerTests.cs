@@ -20,6 +20,7 @@ public sealed class SkillInstallationScannerTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
+            packages[0].Manifest.CatalogId,
             packages,
             new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
@@ -45,6 +46,7 @@ public sealed class SkillInstallationScannerTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
+            packages[0].Manifest.CatalogId,
             packages,
             new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
@@ -70,6 +72,7 @@ public sealed class SkillInstallationScannerTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
+            packages[0].Manifest.CatalogId,
             packages,
             new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
@@ -160,6 +163,7 @@ public sealed class SkillInstallationScannerTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
+            packages[0].Manifest.CatalogId,
             packages,
             new SkillInstallRequest(SkillHostKind.Claude, SkillScopeKind.Project, scope.FullPath, "shared-skills"),
             CancellationToken.None);
@@ -180,6 +184,7 @@ public sealed class SkillInstallationScannerTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
+            packages[0].Manifest.CatalogId,
             packages,
             new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
@@ -201,6 +206,7 @@ public sealed class SkillInstallationScannerTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
+            packages[0].Manifest.CatalogId,
             packages,
             new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
@@ -288,6 +294,7 @@ public sealed class SkillInstallationScannerTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var installResult = await installService.InstallAsync(
+            packages[0].Manifest.CatalogId,
             packages,
             new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);

@@ -9,16 +9,20 @@ namespace MackySoft.AgentSkills.Installation.State;
 /// <summary> Classifies an installed SKILL target before write or delete operations. </summary>
 public sealed class SkillInstalledTargetStateAnalyzer
 {
+    private readonly SkillInstalledManifestReader installedManifestReader;
     private readonly SkillInstalledPackageValidator installedPackageValidator;
     private readonly SkillInstalledPackageIntegrityVerifier installedPackageIntegrityVerifier;
 
     /// <summary> Initializes a new instance of the <see cref="SkillInstalledTargetStateAnalyzer" /> class. </summary>
+    /// <param name="installedManifestReader"> The installed manifest reader used to establish catalog ownership. </param>
     /// <param name="installedPackageValidator"> The current canonical package validator. </param>
     /// <param name="installedPackageIntegrityVerifier"> The installed package integrity verifier. </param>
     public SkillInstalledTargetStateAnalyzer (
+        SkillInstalledManifestReader installedManifestReader,
         SkillInstalledPackageValidator installedPackageValidator,
         SkillInstalledPackageIntegrityVerifier installedPackageIntegrityVerifier)
     {
+        this.installedManifestReader = installedManifestReader ?? throw new ArgumentNullException(nameof(installedManifestReader));
         this.installedPackageValidator = installedPackageValidator ?? throw new ArgumentNullException(nameof(installedPackageValidator));
         this.installedPackageIntegrityVerifier = installedPackageIntegrityVerifier ?? throw new ArgumentNullException(nameof(installedPackageIntegrityVerifier));
     }
@@ -52,6 +56,20 @@ public sealed class SkillInstalledTargetStateAnalyzer
                 SkillInstalledTargetState.Current(
                     currentResult.Value!.SkillBundleVersion,
                     package.Manifest.SkillBundleVersion));
+        }
+
+        var installedManifestResult = await installedManifestReader
+            .ReadRequiredAsync(skillDirectory, cancellationToken)
+            .ConfigureAwait(false);
+        if (installedManifestResult.IsSuccess
+            && installedManifestResult.Value!.Manifest.CatalogId != package.Manifest.CatalogId)
+        {
+            return SkillOperationResult<SkillInstalledTargetState>.Success(
+                SkillInstalledTargetState.Blocking(
+                    SkillTargetStateKind.Unmanaged,
+                    SkillFailure.Create(
+                        SkillFailureCodes.InstallTargetUnmanaged,
+                        $"Installed SKILL belongs to another catalog: {installedManifestResult.Value.Manifest.CatalogId.Value}")));
         }
 
         var currentFailure = currentResult.Failure!;

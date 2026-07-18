@@ -1,6 +1,7 @@
 using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Contracts;
 using MackySoft.AgentSkills.Installation.Diffing;
+using MackySoft.AgentSkills.Installation.Inventory;
 using MackySoft.AgentSkills.Installation.Requests;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Installation.State;
@@ -12,29 +13,29 @@ using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Installation.Services;
 
-/// <summary> Updates SKILL packages under a host target root. </summary>
+/// <summary> Updates SKILL packages under a bundle target root. </summary>
 public sealed class SkillUpdateService
 {
-    private readonly SkillInstallTargetResolver targetResolver;
+    private readonly SkillCatalogTargetRootSelector targetSelector;
     private readonly SkillMaterializationService materializationService;
     private readonly SkillInstalledTargetStateAnalyzer targetStateAnalyzer;
     private readonly ISkillMaterializedPackageWriter packageWriter;
     private readonly SkillMaterializedPackageDiffBuilder diffBuilder;
 
     /// <summary> Initializes a new instance of the <see cref="SkillUpdateService" /> class. </summary>
-    /// <param name="targetResolver"> The target resolver. </param>
+    /// <param name="targetSelector"> The installed-catalog-aware target selector. </param>
     /// <param name="materializationService"> The materialization service. </param>
     /// <param name="targetStateAnalyzer"> The installed target state analyzer. </param>
     /// <param name="packageWriter"> The materialized package writer. </param>
     /// <param name="diffBuilder"> The structured diff builder. </param>
     public SkillUpdateService (
-        SkillInstallTargetResolver targetResolver,
+        SkillCatalogTargetRootSelector targetSelector,
         SkillMaterializationService materializationService,
         SkillInstalledTargetStateAnalyzer targetStateAnalyzer,
         ISkillMaterializedPackageWriter packageWriter,
         SkillMaterializedPackageDiffBuilder diffBuilder)
     {
-        this.targetResolver = targetResolver ?? throw new ArgumentNullException(nameof(targetResolver));
+        this.targetSelector = targetSelector ?? throw new ArgumentNullException(nameof(targetSelector));
         this.materializationService = materializationService ?? throw new ArgumentNullException(nameof(materializationService));
         this.targetStateAnalyzer = targetStateAnalyzer ?? throw new ArgumentNullException(nameof(targetStateAnalyzer));
         this.packageWriter = packageWriter ?? throw new ArgumentNullException(nameof(packageWriter));
@@ -53,7 +54,12 @@ public sealed class SkillUpdateService
         ArgumentNullException.ThrowIfNull(input);
 
         var targetRequest = input.TargetRequest;
-        var targetResult = targetResolver.ResolveTarget(targetRequest);
+        var targetResult = await targetSelector.SelectTargetAsync(
+                targetRequest,
+                input.CatalogId,
+                input.Packages.Select(static package => package.Manifest.SkillName).ToArray(),
+                cancellationToken)
+            .ConfigureAwait(false);
         if (!targetResult.IsSuccess)
         {
             return SkillOperationResult<SkillUpdateResult>.FailureResult(targetResult.Failure!.Code, targetResult.Failure.Message);

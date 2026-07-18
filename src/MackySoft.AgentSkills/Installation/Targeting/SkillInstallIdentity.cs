@@ -10,7 +10,7 @@ public sealed class SkillInstallIdentity
     /// <summary> Initializes one installed SKILL identity. </summary>
     /// <param name="host"> The host. </param>
     /// <param name="scope"> The install scope. </param>
-    /// <param name="targetRoot"> The canonical absolute host target root. </param>
+    /// <param name="targetRoot"> The canonical absolute bundle target root. </param>
     /// <param name="skillName"> The skill name. </param>
     /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="host" /> or <paramref name="scope" /> is unsupported. </exception>
     /// <exception cref="ArgumentException"> Thrown when <paramref name="targetRoot" /> is not absolute. </exception>
@@ -51,7 +51,7 @@ public sealed class SkillInstallIdentity
     /// <summary> Gets the install scope. </summary>
     public SkillScopeKind Scope { get; }
 
-    /// <summary> Gets the canonical absolute host target root. </summary>
+    /// <summary> Gets the canonical absolute bundle target root. </summary>
     public string TargetRoot { get; }
 
     /// <summary> Gets the skill name. </summary>
