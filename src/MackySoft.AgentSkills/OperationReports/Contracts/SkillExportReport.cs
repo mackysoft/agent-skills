@@ -1,6 +1,4 @@
 using MackySoft.AgentSkills.Distribution;
-using MackySoft.AgentSkills.Hosts.Contracts;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
@@ -17,12 +15,12 @@ public sealed class SkillExportReport
         int skillCount,
         string reloadGuidance)
     {
-        if (!ContractLiteralCodec.IsDefined(host))
+        if (!Vocabulary.IsDefined(host))
         {
             throw new ArgumentOutOfRangeException(nameof(host), host, "Unsupported SKILL host.");
         }
 
-        if (!ContractLiteralCodec.IsDefined(format))
+        if (!Vocabulary.IsDefined(format))
         {
             throw new ArgumentOutOfRangeException(nameof(format), format, "Unsupported export format.");
         }

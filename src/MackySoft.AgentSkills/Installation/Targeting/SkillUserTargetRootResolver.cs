@@ -1,4 +1,3 @@
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Installation.Targeting;

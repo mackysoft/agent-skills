@@ -1,4 +1,3 @@
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Serialization.Yaml;
 
 namespace MackySoft.AgentSkills.Hosts.OpenAi;

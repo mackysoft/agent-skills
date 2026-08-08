@@ -1,5 +1,4 @@
 using MackySoft.AgentSkills.Doctor;
-using MackySoft.AgentSkills.Hosts.Contracts;
 
 namespace MackySoft.AgentSkills.Tests.Doctor;
 

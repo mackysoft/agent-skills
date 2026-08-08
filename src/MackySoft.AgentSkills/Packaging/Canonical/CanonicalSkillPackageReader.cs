@@ -160,7 +160,7 @@ public sealed class CanonicalSkillPackageReader
             cancellationToken.ThrowIfCancellationRequested();
 
             var relativePath = Path.GetRelativePath(skillDirectory, entryPath).Replace(Path.DirectorySeparatorChar, '/');
-            if (!SkillRelativePath.IsSafeFilePath(relativePath))
+            if (!PackageRelativePath.TryParse(relativePath, out _))
             {
                 return BoolFailure(
                     $"Generated SKILL package contains an unsafe path: {relativePath}");

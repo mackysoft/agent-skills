@@ -1,5 +1,4 @@
 using System.Reflection;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Names;

@@ -1,5 +1,4 @@
 using MackySoft.AgentSkills.Installation.Results;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
@@ -13,7 +12,7 @@ public sealed class SkillOperationFileDiffReport
         string? afterContent)
     {
         OperationReportContractGuard.ValidateSafeRelativePath(relativePath, nameof(relativePath));
-        if (!ContractLiteralCodec.IsDefined(changeKind))
+        if (!Vocabulary.IsDefined(changeKind))
         {
             throw new ArgumentOutOfRangeException(nameof(changeKind), changeKind, "Unsupported diff change kind.");
         }

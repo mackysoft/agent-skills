@@ -10,7 +10,7 @@ public sealed class SkillPackageFile
         string relativePath,
         string content)
     {
-        if (!SkillRelativePath.IsSafeFilePath(relativePath))
+        if (!PackageRelativePath.TryParse(relativePath, out _))
         {
             throw new ArgumentException("Package file path must be a safe slash-separated relative path.", nameof(relativePath));
         }

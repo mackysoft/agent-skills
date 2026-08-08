@@ -1,12 +1,10 @@
 using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Digests;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.AgentSkills.Shared.FileSystem;
-using MackySoft.AgentSkills.Shared.Text;
 using MackySoft.AgentSkills.Sources;
 
 namespace MackySoft.AgentSkills.Generation;
@@ -261,7 +259,7 @@ public sealed class SkillPackageGenerationService
             {
                 if (artifacts.MetadataContent is not null)
                 {
-                    throw new InvalidOperationException($"Host adapter '{ContractLiteralCodec.ToValue(adapter.Descriptor.Host)}' must not emit metadata artifacts.");
+                    throw new InvalidOperationException($"Host adapter '{Vocabulary.GetText(adapter.Descriptor.Host)}' must not emit metadata artifacts.");
                 }
 
                 yield return new GeneratedHostArtifactOutput(
@@ -272,7 +270,7 @@ public sealed class SkillPackageGenerationService
 
             if (artifacts.MetadataContent is null)
             {
-                throw new InvalidOperationException($"Host adapter '{ContractLiteralCodec.ToValue(adapter.Descriptor.Host)}' must emit metadata artifact '{metadataArtifactPath}'.");
+                throw new InvalidOperationException($"Host adapter '{Vocabulary.GetText(adapter.Descriptor.Host)}' must emit metadata artifact '{metadataArtifactPath}'.");
             }
 
             yield return new GeneratedHostArtifactOutput(

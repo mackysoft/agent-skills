@@ -1,6 +1,7 @@
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.AgentSkills.Shared.FileSystem;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
@@ -31,12 +32,12 @@ internal static class OperationReportContractGuard
         string parameterName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path, parameterName);
-        if (!Path.IsPathFullyQualified(path))
+        if (!AbsolutePath.TryParse(path, out var absolutePath, out var failure))
         {
-            throw new ArgumentException("Report paths must be absolute.", parameterName);
+            throw new ArgumentException($"Report paths must be absolute and canonicalizable: {failure.Message}", parameterName);
         }
 
-        return Path.GetFullPath(path);
+        return absolutePath.Value;
     }
 
     public static string NormalizeTargetRoot (
@@ -123,15 +124,7 @@ internal static class OperationReportContractGuard
         string? relativePath,
         string parameterName)
     {
-        if (string.IsNullOrWhiteSpace(relativePath)
-            || Path.IsPathRooted(relativePath)
-            || relativePath.Contains('\\', StringComparison.Ordinal)
-            || relativePath.Contains(':', StringComparison.Ordinal)
-            || relativePath.Any(char.IsControl)
-            || relativePath.Split('/').Any(static segment =>
-                string.IsNullOrWhiteSpace(segment)
-                || segment is "." or ".."
-                || Path.IsPathRooted(segment)))
+        if (!PackageRelativePath.TryParse(relativePath, out _))
         {
             throw new ArgumentException($"Operation report path must be a safe slash-separated relative path: {relativePath}", parameterName);
         }

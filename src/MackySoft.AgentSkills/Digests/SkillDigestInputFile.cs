@@ -14,7 +14,7 @@ public sealed class SkillDigestInputFile
         string relativePath,
         string content)
     {
-        if (!SkillRelativePath.IsSafeFilePath(relativePath))
+        if (!PackageRelativePath.TryParse(relativePath, out _))
         {
             throw new ArgumentException("Digest file path must be a safe slash-separated relative path.", nameof(relativePath));
         }

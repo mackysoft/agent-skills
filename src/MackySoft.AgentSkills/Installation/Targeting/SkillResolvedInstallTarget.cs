@@ -1,6 +1,3 @@
-using MackySoft.AgentSkills.Hosts.Contracts;
-using MackySoft.AgentSkills.Shared.Text;
-
 namespace MackySoft.AgentSkills.Installation.Targeting;
 
 /// <summary> Represents a resolved bundle install target. </summary>
@@ -13,7 +10,7 @@ public sealed class SkillResolvedInstallTarget
         SkillHostKind host,
         string targetRoot)
     {
-        if (!ContractLiteralCodec.IsDefined(host))
+        if (!Vocabulary.IsDefined(host))
         {
             throw new ArgumentOutOfRangeException(nameof(host), host, "Unsupported SKILL host.");
         }

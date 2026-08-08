@@ -1,7 +1,5 @@
 using System.Text.Json;
 using MackySoft.AgentSkills.Bundles;
-using MackySoft.AgentSkills.Hosts.Contracts;
-using MackySoft.AgentSkills.Shared.Text;
 using MackySoft.AgentSkills.Sources;
 using MackySoft.Tests;
 
@@ -112,7 +110,7 @@ public sealed class ReadmeContractTests
         var manifestPaths = Directory.GetFiles(generatedRoot, "agent-skill.json", SearchOption.AllDirectories);
         var documentedProperties = ReadDocumentedProperties(readme, "Each `<skill-name>/agent-skill.json`");
         var documentedSection = ReadSection(readme, "### Generated Package Metadata");
-        var supportedHosts = ContractLiteralCodec.GetLiterals<SkillHostKind>().ToArray();
+        var supportedHosts = Vocabulary.GetTexts<SkillHostKind>().ToArray();
 
         Assert.NotEmpty(manifestPaths);
         foreach (var manifestPath in manifestPaths)

@@ -196,6 +196,8 @@ consoleappframework_package_files="$(unzip -Z1 "$consoleappframework_package")"
 grep -Fxq 'lib/net8.0/MackySoft.AgentSkills.ConsoleAppFramework.dll' <<< "$consoleappframework_package_files"
 grep -Fxq 'buildTransitive/MackySoft.AgentSkills.ConsoleAppFramework.props' <<< "$consoleappframework_package_files"
 grep -Fxq 'contentFiles/cs/any/MackySoft.AgentSkills.ConsoleAppFramework/AgentSkillsListCommand.cs' <<< "$consoleappframework_package_files"
+grep -Fxq 'contentFiles/cs/any/MackySoft.AgentSkills.ConsoleAppFramework/AgentSkillsAgentsListCommand.cs' <<< "$consoleappframework_package_files"
+grep -Fxq 'contentFiles/cs/any/MackySoft.AgentSkills.ConsoleAppFramework/AgentSkillsAgentsInstallCommand.cs' <<< "$consoleappframework_package_files"
 
 cli_package_files="$(unzip -Z1 "$cli_package")"
 grep -Fxq 'tools/net8.0/any/skills/bundle.json' <<< "$cli_package_files"
@@ -251,10 +253,12 @@ builder.Services.AddAgentSkillsCommandRuntime(options =>
     options.ProductName = "Smoke CLI";
     options.PackageBaseDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
     options.CommandRoot = "agent-skills";
+    options.AgentsCommandRoot = "custom-agents";
 });
 
 var app = builder.ToConsoleAppBuilder();
 app.RegisterAgentSkillsCommands();
+app.RegisterAgentSkillsAgentsCommands();
 await app.RunAsync(args);
 return Environment.ExitCode;
 CS
@@ -267,7 +271,8 @@ dotnet build "$console_consumer_dir/console-consumer.csproj" \
   -p:ImplicitUsings=disable \
   -p:Nullable=enable \
   -p:TreatWarningsAsErrors=true \
-  -p:AgentSkillsConsoleAppFrameworkCommandRoot=agent-skills >/dev/null
+  -p:AgentSkillsConsoleAppFrameworkCommandRoot=agent-skills \
+  -p:AgentSkillsConsoleAppFrameworkAgentsCommandRoot=custom-agents >/dev/null
 dotnet run \
   --project "$console_consumer_dir/console-consumer.csproj" \
   --configuration "$configuration" \

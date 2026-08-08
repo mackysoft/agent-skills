@@ -1,7 +1,6 @@
 using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Doctor;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Installation.Targeting;
@@ -10,7 +9,6 @@ using MackySoft.AgentSkills.OperationReports.Contracts;
 using MackySoft.AgentSkills.OperationReports.Literals;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.OperationReports.Projection;
 
@@ -154,13 +152,13 @@ public static class SkillOperationReportBuilder
             result.PrintDiff,
             context,
             static action => action.Identity,
-            static action => ContractLiteralCodec.ToValue(action.ActionKind),
+            static action => Vocabulary.GetText(action.ActionKind),
             static action => SkillOperationActionStatusResolver.Resolve(action.ActionKind),
             static action => action.BlockedReason,
             static action => action.TargetState,
             static action => action.FileChanges,
             static action => action.Diffs,
-            ContractLiteralCodec.GetLiterals<SkillInstallActionKind>());
+            Vocabulary.GetTexts<SkillInstallActionKind>());
     }
 
     /// <summary> Creates product-neutral report data from a successful update operation. </summary>
@@ -185,13 +183,13 @@ public static class SkillOperationReportBuilder
             result.PrintDiff,
             context,
             static action => action.Identity,
-            static action => ContractLiteralCodec.ToValue(action.ActionKind),
+            static action => Vocabulary.GetText(action.ActionKind),
             static action => SkillOperationActionStatusResolver.Resolve(action.ActionKind),
             static action => action.BlockedReason,
             static action => action.TargetState,
             static action => action.FileChanges,
             static action => action.Diffs,
-            ContractLiteralCodec.GetLiterals<SkillUpdateActionKind>());
+            Vocabulary.GetTexts<SkillUpdateActionKind>());
     }
 
     /// <summary> Creates product-neutral report data from a successful uninstall operation. </summary>
@@ -216,13 +214,13 @@ public static class SkillOperationReportBuilder
             printDiff: false,
             context,
             static action => action.Identity,
-            static action => ContractLiteralCodec.ToValue(action.ActionKind),
+            static action => Vocabulary.GetText(action.ActionKind),
             static action => SkillOperationActionStatusResolver.Resolve(action.ActionKind),
             static action => action.BlockedReason,
             static action => action.TargetState,
             static action => action.FileChanges,
             static _ => null,
-            ContractLiteralCodec.GetLiterals<SkillUninstallActionKind>());
+            Vocabulary.GetTexts<SkillUninstallActionKind>());
     }
 
     /// <summary> Creates product-neutral report data from a successful prune operation. </summary>
@@ -247,13 +245,13 @@ public static class SkillOperationReportBuilder
             printDiff: false,
             context,
             static action => action.Identity,
-            static action => ContractLiteralCodec.ToValue(action.ActionKind),
+            static action => Vocabulary.GetText(action.ActionKind),
             static action => SkillOperationActionStatusResolver.Resolve(action.ActionKind),
             static action => action.BlockedReason,
             static action => action.TargetState,
             static action => action.FileChanges,
             static _ => null,
-            ContractLiteralCodec.GetLiterals<SkillPruneActionKind>());
+            Vocabulary.GetTexts<SkillPruneActionKind>());
     }
 
     /// <summary> Creates product-neutral report data from a doctor result. </summary>
@@ -466,10 +464,10 @@ public static class SkillOperationReportBuilder
     private static IReadOnlyList<SkillOperationCountReport> CreateStatusCounts (
         IReadOnlyList<SkillOperationActionReport> actions)
     {
-        return ContractLiteralCodec.GetLiterals<SkillOperationActionStatus>()
+        return Vocabulary.GetTexts<SkillOperationActionStatus>()
             .Select(literal => new SkillOperationCountReport(
                 literal,
-                actions.Count(action => ContractLiteralCodec.Matches(literal, action.Status))))
+                actions.Count(action => Vocabulary.Matches(literal, action.Status))))
             .ToArray();
     }
 
@@ -527,9 +525,9 @@ public static class SkillOperationReportBuilder
                 descriptor.UserTargetRootPolicy.EnvironmentVariableName,
                 descriptor.UserTargetRootPolicy.EnvironmentVariableChildDirectory,
                 descriptor.UserTargetRootPolicy.HomeRelativeDirectory),
-            ContractLiteralCodec.ToValue(descriptor.BundleTargetRootLayout),
+            Vocabulary.GetText(descriptor.BundleTargetRootLayout),
             descriptor.CompatiblePreviousBundleTargetRootLayouts
-                .Select(ContractLiteralCodec.ToValue)
+                .Select(Vocabulary.GetText)
                 .ToArray(),
             descriptor.MetadataArtifactPath,
             descriptor.ReloadGuidance);

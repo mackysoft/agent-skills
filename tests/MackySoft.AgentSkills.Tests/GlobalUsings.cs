@@ -1,0 +1,3 @@
+global using MackySoft.AgentSkills.Hosts.Contracts;
+global using MackySoft.Text.Vocabularies;
+global using MackySoft.Text.Vocabularies.Json;

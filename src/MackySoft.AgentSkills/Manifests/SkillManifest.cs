@@ -5,7 +5,6 @@ using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.Manifests;
 
@@ -140,7 +139,7 @@ public sealed class SkillManifest
                 {
                     if (artifact.Path is not null || artifact.Digest is not null)
                     {
-                        return ShapeFailure($"Host artifact '{ContractLiteralCodec.ToValue(artifact.Host)}' must not contain file artifact fields.");
+                        return ShapeFailure($"Host artifact '{Vocabulary.GetText(artifact.Host)}' must not contain file artifact fields.");
                     }
 
                     continue;
@@ -148,7 +147,7 @@ public sealed class SkillManifest
 
                 if (!string.Equals(artifact.Path, metadataArtifactPath, StringComparison.Ordinal) || artifact.Digest is null)
                 {
-                    return ShapeFailure($"Host artifact '{ContractLiteralCodec.ToValue(artifact.Host)}' must contain metadata artifact digest.");
+                    return ShapeFailure($"Host artifact '{Vocabulary.GetText(artifact.Host)}' must contain metadata artifact digest.");
                 }
             }
 

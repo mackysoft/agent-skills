@@ -1,6 +1,6 @@
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.Text;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Installation.Results;
 
@@ -51,9 +51,7 @@ internal static class SkillActionContractGuard
 
     public static void ValidateRelativePath (string path, string parameterName)
     {
-        if (!SkillRelativePath.IsSafeFilePath(path)
-            || path.Contains(':', StringComparison.Ordinal)
-            || path.Any(char.IsControl))
+        if (!PackageRelativePath.TryParse(path, out _))
         {
             throw new ArgumentException("The path must be a safe slash-separated path relative to the SKILL directory.", parameterName);
         }
@@ -62,18 +60,18 @@ internal static class SkillActionContractGuard
     public static string ValidateTargetRoot (string targetRoot, string parameterName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(targetRoot, parameterName);
-        if (!Path.IsPathFullyQualified(targetRoot))
+        if (!AbsolutePath.TryParse(targetRoot, out var absolutePath, out var failure))
         {
-            throw new ArgumentException("The target root must be an absolute path.", parameterName);
+            throw new ArgumentException($"The target root must be an absolute path: {failure.Message}", parameterName);
         }
 
-        return targetRoot;
+        return absolutePath.Value;
     }
 
     public static TEnum ValidateEnum<TEnum> (TEnum value, string parameterName)
         where TEnum : struct, Enum
     {
-        if (!ContractLiteralCodec.IsDefined(value))
+        if (!Vocabulary.IsDefined(value))
         {
             throw new ArgumentOutOfRangeException(parameterName, value, $"Unsupported {typeof(TEnum).Name} value.");
         }
@@ -102,7 +100,9 @@ internal static class SkillActionContractGuard
         SkillInstallIdentity identity,
         string parameterName)
     {
-        if (!string.Equals(targetRoot, identity.TargetRoot, StringComparison.Ordinal))
+        if (!AbsolutePath.TryParse(targetRoot, out var targetPath, out _)
+            || !AbsolutePath.TryParse(identity.TargetRoot, out var identityPath, out _)
+            || !targetPath.IsSameAs(identityPath))
         {
             throw new ArgumentException("Every action identity target root must match the result target root.", parameterName);
         }

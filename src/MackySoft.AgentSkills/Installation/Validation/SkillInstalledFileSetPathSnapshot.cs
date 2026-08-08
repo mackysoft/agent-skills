@@ -14,9 +14,7 @@ internal static class SkillInstalledFileSetPathSnapshot
         var uniquePaths = new HashSet<string>(StringComparer.Ordinal);
         foreach (var path in snapshot)
         {
-            if (!SkillRelativePath.IsSafeFilePath(path)
-                || path.Contains(':', StringComparison.Ordinal)
-                || path.Any(char.IsControl))
+            if (!PackageRelativePath.TryParse(path, out _))
             {
                 throw new ArgumentException(
                     "Installed file-set paths must be safe slash-separated paths relative to the SKILL directory.",

@@ -1,6 +1,5 @@
 using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Categories;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Requests;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Installation.Targeting;

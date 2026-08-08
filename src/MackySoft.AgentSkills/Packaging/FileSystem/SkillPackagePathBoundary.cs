@@ -32,14 +32,16 @@ internal static class SkillPackagePathBoundary
         ArgumentException.ThrowIfNullOrWhiteSpace(targetDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(relativePath);
 
-        if (!SkillRelativePath.IsSafeFilePath(relativePath))
+        if (!PackageRelativePath.TryParse(relativePath, out var packageRelativePath))
         {
             return SkillOperationResult<string>.FailureResult(
                 SkillFailureCodes.PathUnsafe,
                 $"Package file path is unsafe: {relativePath}");
         }
 
-        return ResolveUnderRoot(targetDirectory, Path.Combine(targetDirectory, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+        return ResolveUnderRoot(
+            targetDirectory,
+            Path.Combine(targetDirectory, packageRelativePath.Value.Replace('/', Path.DirectorySeparatorChar)));
     }
 
     /// <summary> Verifies that a package directory name is a safe single path segment under a root. </summary>
@@ -53,14 +55,14 @@ internal static class SkillPackagePathBoundary
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(directoryName);
 
-        if (!SkillRelativePath.IsSafePathSegment(directoryName))
+        if (!PackageRelativePath.TryParseSegment(directoryName, out var packageDirectoryName))
         {
             return SkillOperationResult<string>.FailureResult(
                 SkillFailureCodes.PathUnsafe,
                 $"Package directory name is unsafe: {directoryName}");
         }
 
-        return ResolveUnderRoot(rootDirectory, Path.Combine(rootDirectory, directoryName));
+        return ResolveUnderRoot(rootDirectory, Path.Combine(rootDirectory, packageDirectoryName.Value));
     }
 
     /// <summary> Verifies that a package file path remains under both the root and target directory. </summary>

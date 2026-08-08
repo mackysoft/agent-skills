@@ -1,5 +1,4 @@
 using MackySoft.AgentSkills.Hosts.Claude;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Names;
 
 namespace MackySoft.AgentSkills.Tests.Hosts.Claude;

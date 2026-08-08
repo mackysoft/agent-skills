@@ -1,6 +1,5 @@
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.OperationReports.Literals;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
@@ -18,12 +17,12 @@ public sealed class SkillOperationActionReport
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(skillName);
         ArgumentException.ThrowIfNullOrWhiteSpace(action);
-        if (!ContractLiteralCodec.IsDefined(status))
+        if (!Vocabulary.IsDefined(status))
         {
             throw new ArgumentOutOfRangeException(nameof(status), status, "Unsupported operation action status.");
         }
 
-        if (blockedReason.HasValue && !ContractLiteralCodec.IsDefined(blockedReason.Value))
+        if (blockedReason.HasValue && !Vocabulary.IsDefined(blockedReason.Value))
         {
             throw new ArgumentOutOfRangeException(nameof(blockedReason), blockedReason, "Unsupported blocked reason.");
         }

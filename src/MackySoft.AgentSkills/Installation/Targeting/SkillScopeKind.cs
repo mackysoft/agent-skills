@@ -1,15 +1,14 @@
-using MackySoft.AgentSkills.Shared.Text;
-
 namespace MackySoft.AgentSkills.Installation.Targeting;
 
 /// <summary> Defines supported SKILL install scopes. </summary>
+[VocabularyDefinition]
 public enum SkillScopeKind
 {
     /// <summary> Project-local installation under a repository root. </summary>
-    [ContractLiteral("project")]
+    [VocabularyText("project")]
     Project = 0,
 
     /// <summary> User-local installation under the target host's personal SKILL root. </summary>
-    [ContractLiteral("user")]
+    [VocabularyText("user")]
     User = 1,
 }

@@ -3,13 +3,11 @@ using System.Text.Json;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Doctor;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.OperationReports.Contracts;
 using MackySoft.AgentSkills.OperationReports.Literals;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.Tests.OperationReports;
 
@@ -209,7 +207,7 @@ public sealed class OperationReportContractTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public void ReportContractLiteralEnums_SerializeAsCanonicalStrings ()
+    public void ReportVocabularyEnums_SerializeAsCanonicalStrings ()
     {
         var operation = new SkillOperationReport(
             SkillHostKind.OpenAi,
@@ -266,7 +264,7 @@ public sealed class OperationReportContractTests
             0,
             "Reload.");
         var options = new JsonSerializerOptions();
-        options.Converters.Add(new ContractLiteralJsonConverterFactory());
+        options.Converters.Add(new VocabularyJsonConverterFactory());
 
         using var document = JsonDocument.Parse(JsonSerializer.Serialize(new { Operation = operation, Doctor = doctor, Export = export }, options));
 

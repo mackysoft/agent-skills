@@ -20,6 +20,7 @@ internal static class CliServiceCollectionExtensions
             options.ProductName = "Agent Skills CLI";
             options.PackageBaseDirectory = AppContext.BaseDirectory;
             options.CommandRoot = "agent-skills";
+            options.AgentsCommandRoot = "agent-skills agents";
         });
         services.AddAgentSkillsBuildFeatureServices();
         return services;

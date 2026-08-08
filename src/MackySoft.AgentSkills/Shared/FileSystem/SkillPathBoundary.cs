@@ -1,3 +1,5 @@
+using MackySoft.FileSystem;
+
 namespace MackySoft.AgentSkills.Shared.FileSystem;
 
 /// <summary> Resolves file-system paths while enforcing one canonical root boundary. </summary>
@@ -20,16 +22,43 @@ internal static class SkillPathBoundary
         ArgumentNullException.ThrowIfNull(failureCode);
         ArgumentException.ThrowIfNullOrWhiteSpace(pathDescription);
 
-        var rootFullPath = ResolveExistingPathSegments(Path.GetFullPath(rootPath));
-        var targetFullPath = ResolveExistingPathSegments(Path.GetFullPath(targetPath));
-        if (!IsUnderOrEqual(rootFullPath, targetFullPath))
+        try
+        {
+            if (!AbsolutePath.TryParse(Path.GetFullPath(rootPath), out var lexicalRoot, out var rootFailure))
+            {
+                return Failure(failureCode, pathDescription, rootFailure);
+            }
+
+            if (!AbsolutePath.TryParse(Path.GetFullPath(targetPath), out var lexicalTarget, out var targetFailure))
+            {
+                return Failure(failureCode, pathDescription, targetFailure);
+            }
+
+            var resolvedRootText = ResolveExistingPathSegments(lexicalRoot.Value);
+            var resolvedTargetText = ResolveExistingPathSegments(lexicalTarget.Value);
+            if (!AbsolutePath.TryParse(resolvedRootText, out var resolvedRoot, out var resolvedRootFailure))
+            {
+                return Failure(failureCode, pathDescription, resolvedRootFailure);
+            }
+
+            if (!AbsolutePath.TryParse(resolvedTargetText, out var resolvedTarget, out var resolvedTargetFailure))
+            {
+                return Failure(failureCode, pathDescription, resolvedTargetFailure);
+            }
+
+            if (!ContainedPath.TryCreate(resolvedRoot, resolvedTarget, out var containedPath, out var containmentFailure))
+            {
+                return Failure(failureCode, pathDescription, containmentFailure);
+            }
+
+            return SkillOperationResult<string>.Success(containedPath.Target.Value);
+        }
+        catch (Exception exception) when (exception is ArgumentException or IOException or NotSupportedException or PathTooLongException)
         {
             return SkillOperationResult<string>.FailureResult(
                 failureCode,
-                $"{pathDescription} must stay under root '{rootFullPath}': {targetFullPath}");
+                $"{pathDescription} is invalid: {exception.Message}");
         }
-
-        return SkillOperationResult<string>.Success(targetFullPath);
     }
 
     private static string ResolveExistingPathSegments (string path)
@@ -97,21 +126,13 @@ internal static class SkillPathBoundary
         return Path.GetFullPath(currentPath);
     }
 
-    private static bool IsUnderOrEqual (
-        string rootPath,
-        string targetPath)
+    private static SkillOperationResult<string> Failure (
+        SkillFailureCode failureCode,
+        string pathDescription,
+        PathValidationFailure failure)
     {
-        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        var normalizedRoot = EnsureTrailingDirectorySeparator(rootPath);
-        var normalizedTarget = EnsureTrailingDirectorySeparator(targetPath);
-        return string.Equals(normalizedRoot, normalizedTarget, comparison)
-            || normalizedTarget.StartsWith(normalizedRoot, comparison);
-    }
-
-    private static string EnsureTrailingDirectorySeparator (string path)
-    {
-        return path.EndsWith(Path.DirectorySeparatorChar)
-            ? path
-            : path + Path.DirectorySeparatorChar;
+        return SkillOperationResult<string>.FailureResult(
+            failureCode,
+            $"{pathDescription} is invalid: {failure.Message}");
     }
 }

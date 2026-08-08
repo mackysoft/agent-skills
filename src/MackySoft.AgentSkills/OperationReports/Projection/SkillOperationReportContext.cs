@@ -1,9 +1,7 @@
 using MackySoft.AgentSkills.Categories;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.OperationReports.Contracts;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.OperationReports.Projection;
 
@@ -27,7 +25,7 @@ public sealed class SkillOperationReportContext
         IReadOnlyList<SkillName> selectedSkillNames)
     {
         HostDescriptor = hostDescriptor ?? throw new ArgumentNullException(nameof(hostDescriptor));
-        if (!ContractLiteralCodec.IsDefined(scope))
+        if (!Vocabulary.IsDefined(scope))
         {
             throw new ArgumentOutOfRangeException(nameof(scope), scope, "Unsupported SKILL install scope.");
         }

@@ -1,5 +1,4 @@
 using System.Reflection;
-using MackySoft.AgentSkills.Hosts.Contracts;
 
 namespace MackySoft.AgentSkills.Tests.Hosts.Contracts;
 

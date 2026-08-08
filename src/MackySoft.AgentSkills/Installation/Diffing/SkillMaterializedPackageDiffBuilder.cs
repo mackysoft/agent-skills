@@ -411,7 +411,7 @@ public sealed class SkillMaterializedPackageDiffBuilder
 
     private static SkillOperationResult<bool> ValidateSafeRelativePath (string relativePath)
     {
-        return SkillRelativePath.IsSafeFilePath(relativePath)
+        return PackageRelativePath.TryParse(relativePath, out _)
             ? SkillOperationResult<bool>.Success(true)
             : SkillOperationResult<bool>.FailureResult(
                 SkillFailureCodes.PathUnsafe,

@@ -5,10 +5,8 @@ using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Digests;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.Manifests;
 
@@ -218,7 +216,7 @@ public sealed class SkillManifestJsonSerializer
         foreach (var artifact in hostArtifacts.OrderBy(static artifact => artifact.Host))
         {
             writer.WriteStartObject();
-            writer.WriteString("host", ContractLiteralCodec.ToValue(artifact.Host));
+            writer.WriteString("host", Vocabulary.GetText(artifact.Host));
             if (!string.IsNullOrWhiteSpace(artifact.Path))
             {
                 writer.WriteString("path", artifact.Path);
@@ -239,7 +237,7 @@ public sealed class SkillManifestJsonSerializer
     private static SkillHostKind ReadHost (JsonElement element)
     {
         var literal = element.GetString();
-        if (!ContractLiteralCodec.TryParse(literal, out SkillHostKind host))
+        if (!Vocabulary.TryGetValue(literal, out SkillHostKind host))
         {
             throw new JsonException($"Unsupported SKILL host literal: {literal ?? "(null)"}.");
         }

@@ -2,7 +2,6 @@ using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Doctor;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Manifests;
@@ -572,6 +571,10 @@ public sealed class SkillOperationReportBuilderTests
     {
         var expectedTypeNames = new[]
         {
+            "MackySoft.AgentSkills.OperationReports.Contracts.AgentExportReport",
+            "MackySoft.AgentSkills.OperationReports.Contracts.AgentHostArtifactReport",
+            "MackySoft.AgentSkills.OperationReports.Contracts.AgentListAgentReport",
+            "MackySoft.AgentSkills.OperationReports.Contracts.AgentListReport",
             "MackySoft.AgentSkills.OperationReports.Contracts.SkillDoctorDiagnosticReport",
             "MackySoft.AgentSkills.OperationReports.Contracts.SkillDoctorReport",
             "MackySoft.AgentSkills.OperationReports.Contracts.SkillExportReport",
@@ -589,6 +592,7 @@ public sealed class SkillOperationReportBuilderTests
             "MackySoft.AgentSkills.OperationReports.Contracts.SkillTargetStateReport",
             "MackySoft.AgentSkills.OperationReports.Contracts.SkillUserTargetRootPolicyReport",
             "MackySoft.AgentSkills.OperationReports.Literals.SkillOperationActionStatus",
+            "MackySoft.AgentSkills.OperationReports.Projection.AgentOperationReportBuilder",
             "MackySoft.AgentSkills.OperationReports.Projection.SkillOperationReportBuilder",
             "MackySoft.AgentSkills.OperationReports.Projection.SkillOperationReportContext",
         };
@@ -989,6 +993,7 @@ public sealed class SkillOperationReportBuilderTests
     private static bool IsSupportedReportLiteralType (Type type)
     {
         return type == typeof(SkillHostKind)
+            || type == typeof(AgentHostKind)
             || type == typeof(SkillScopeKind)
             || type == typeof(SkillExportFormat)
             || type == typeof(SkillDoctorSeverity)

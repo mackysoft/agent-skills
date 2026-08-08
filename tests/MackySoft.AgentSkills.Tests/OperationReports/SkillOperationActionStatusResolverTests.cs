@@ -1,6 +1,5 @@
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.OperationReports.Projection;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.Tests.OperationReports;
 
@@ -18,7 +17,7 @@ public sealed class SkillOperationActionStatusResolverTests
         SkillInstallActionKind actionKind,
         string expectedStatus)
     {
-        Assert.Equal(expectedStatus, ContractLiteralCodec.ToValue(SkillOperationActionStatusResolver.Resolve(actionKind)));
+        Assert.Equal(expectedStatus, Vocabulary.GetText(SkillOperationActionStatusResolver.Resolve(actionKind)));
     }
 
     [Theory]
@@ -33,7 +32,7 @@ public sealed class SkillOperationActionStatusResolverTests
         SkillUpdateActionKind actionKind,
         string expectedStatus)
     {
-        Assert.Equal(expectedStatus, ContractLiteralCodec.ToValue(SkillOperationActionStatusResolver.Resolve(actionKind)));
+        Assert.Equal(expectedStatus, Vocabulary.GetText(SkillOperationActionStatusResolver.Resolve(actionKind)));
     }
 
     [Theory]
@@ -46,7 +45,7 @@ public sealed class SkillOperationActionStatusResolverTests
         SkillUninstallActionKind actionKind,
         string expectedStatus)
     {
-        Assert.Equal(expectedStatus, ContractLiteralCodec.ToValue(SkillOperationActionStatusResolver.Resolve(actionKind)));
+        Assert.Equal(expectedStatus, Vocabulary.GetText(SkillOperationActionStatusResolver.Resolve(actionKind)));
     }
 
     [Theory]
@@ -63,6 +62,6 @@ public sealed class SkillOperationActionStatusResolverTests
         SkillPruneActionKind actionKind,
         string expectedStatus)
     {
-        Assert.Equal(expectedStatus, ContractLiteralCodec.ToValue(SkillOperationActionStatusResolver.Resolve(actionKind)));
+        Assert.Equal(expectedStatus, Vocabulary.GetText(SkillOperationActionStatusResolver.Resolve(actionKind)));
     }
 }

@@ -1,8 +1,6 @@
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.Installation.Validation;
 
@@ -91,7 +89,7 @@ internal static class SkillManagedFileSetPaths
         return hostArtifact is null
             ? SkillOperationResult<SkillHostArtifactManifest>.FailureResult(
                 SkillFailureCodes.ManifestInvalid,
-                $"Manifest does not contain host artifact '{ContractLiteralCodec.ToValue(host)}'.")
+                $"Manifest does not contain host artifact '{Vocabulary.GetText(host)}'.")
             : SkillOperationResult<SkillHostArtifactManifest>.Success(hostArtifact);
     }
 }

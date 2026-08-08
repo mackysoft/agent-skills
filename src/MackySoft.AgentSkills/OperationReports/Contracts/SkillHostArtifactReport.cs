@@ -1,6 +1,4 @@
 using MackySoft.AgentSkills.Digests;
-using MackySoft.AgentSkills.Hosts.Contracts;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
@@ -13,7 +11,7 @@ public sealed class SkillHostArtifactReport
         Sha256Digest? digest,
         Sha256Digest materializedFrontmatterDigest)
     {
-        if (!ContractLiteralCodec.IsDefined(host))
+        if (!Vocabulary.IsDefined(host))
         {
             throw new ArgumentOutOfRangeException(nameof(host), host, "Unsupported SKILL host.");
         }

@@ -9,11 +9,12 @@
     <Nullable>enable</Nullable>
     <IsPackable>true</IsPackable>
     <PackageId>MackySoft.AgentSkills.Hosting</PackageId>
-    <Description>Reusable command runtime services for product CLIs that expose Agent Skills workflows.</Description>
+    <Description>Reusable command runtime services for product CLIs that expose agent skill and custom-agent workflows.</Description>
     <PackageTags>agent;skills;cli;hosting;automation</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="MackySoft.Text.Vocabularies.Json" Version="0.1.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
     <ProjectReference Include="../MackySoft.AgentSkills/MackySoft.AgentSkills.csproj" />
   </ItemGroup>

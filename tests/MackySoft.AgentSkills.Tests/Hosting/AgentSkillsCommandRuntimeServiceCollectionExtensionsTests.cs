@@ -28,9 +28,11 @@ public sealed class AgentSkillsCommandRuntimeServiceCollectionExtensionsTests
         Assert.Equal("Example CLI", configuration.ProductName);
         Assert.Equal(Path.GetFullPath(scope.FullPath), configuration.PackageBaseDirectory);
         Assert.Equal("skills", configuration.CommandRoot);
+        Assert.Equal("agents", configuration.AgentsCommandRoot);
         Assert.Equal(Directory.GetCurrentDirectory(), configuration.RepositoryRootResolver(Directory.GetCurrentDirectory()));
         Assert.All(configuration.GetType().GetProperties(), static property => Assert.Null(property.SetMethod));
         Assert.NotNull(provider.GetRequiredService<AgentSkillsCommandRunner>());
+        Assert.NotNull(provider.GetRequiredService<AgentSkillsAgentsCommandRunner>());
         Assert.IsType<AgentSkillsJsonCommandResultEmitter>(provider.GetRequiredService<IAgentSkillsCommandResultEmitter>());
     }
 
@@ -97,6 +99,29 @@ public sealed class AgentSkillsCommandRuntimeServiceCollectionExtensionsTests
                 options.ProductName = "Example CLI";
                 options.PackageBaseDirectory = scope.FullPath;
                 options.CommandRoot = commandRoot;
+            });
+        });
+
+        Assert.Contains("command root", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("Agent Skills")]
+    [InlineData("agents-")]
+    [InlineData("agents  nested")]
+    [Trait("Size", "Small")]
+    public void AddAgentSkillsCommandRuntime_WhenAgentsCommandRootIsInvalid_ThrowsArgumentException (string agentsCommandRoot)
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-hosting", "invalid-agents-command-root");
+        var services = new ServiceCollection();
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+        {
+            services.AddAgentSkillsCommandRuntime(options =>
+            {
+                options.ProductName = "Example CLI";
+                options.PackageBaseDirectory = scope.FullPath;
+                options.AgentsCommandRoot = agentsCommandRoot;
             });
         });
 

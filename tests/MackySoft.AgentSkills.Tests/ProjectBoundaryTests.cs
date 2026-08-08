@@ -1,5 +1,4 @@
 using System.Xml.Linq;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.Tests;
 
@@ -219,14 +218,14 @@ public sealed class ProjectBoundaryTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public void HostContractFilesExceptHostKind_DoNotOwnConcreteHostArtifacts ()
+    public void HostContractFilesExceptHostKinds_DoNotOwnConcreteHostArtifacts ()
     {
         var sourceRoot = GetSourceRoot();
         var directoryPath = Path.Combine(sourceRoot, "Hosts", "Contracts");
         var forbiddenArtifacts = GetConcreteHostArtifactReferences();
 
         var offenders = Directory.EnumerateFiles(directoryPath, "*.cs", SearchOption.AllDirectories)
-            .Where(static filePath => !string.Equals(Path.GetFileName(filePath), "SkillHostKind.cs", StringComparison.Ordinal))
+            .Where(static filePath => Path.GetFileName(filePath) is not "AgentHostKind.cs" and not "SkillHostKind.cs")
             .SelectMany(filePath => forbiddenArtifacts
                 .Where(artifact => File.ReadAllText(filePath).Contains(artifact, StringComparison.Ordinal))
                 .Select(artifact => $"{Path.GetRelativePath(sourceRoot, filePath).Replace(Path.DirectorySeparatorChar, '/')} contains {artifact}"))
@@ -253,6 +252,7 @@ public sealed class ProjectBoundaryTests
     [Trait("Size", "Small")]
     [InlineData("Claude", "ClaudeSkillHostAdapter.cs")]
     [InlineData("Copilot", "CopilotSkillHostAdapter.cs")]
+    [InlineData("OpenAi", "OpenAiAgentHostAdapter.cs")]
     [InlineData("OpenAi", "OpenAiSkillHostAdapter.cs")]
     public void ConcreteHostImplementation_IsLocatedUnderConcreteHostDirectory (
         string hostDirectoryName,
@@ -507,7 +507,7 @@ public sealed class ProjectBoundaryTests
                 var descriptor = adapter.Descriptor;
                 var references = new List<string>
                 {
-                    ContractLiteralCodec.ToValue(descriptor.Host),
+                    Vocabulary.GetText(descriptor.Host),
                     descriptor.ReloadGuidance,
                     descriptor.ProjectDefaultTargetPath,
                     descriptor.UserDefaultTargetPath,

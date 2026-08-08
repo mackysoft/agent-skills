@@ -3,7 +3,6 @@ using MackySoft.AgentSkills.Commands;
 using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Doctor;
 using MackySoft.AgentSkills.Hosting.Configuration;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Inventory;
 using MackySoft.AgentSkills.Installation.Requests;

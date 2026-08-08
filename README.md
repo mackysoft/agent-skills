@@ -1,6 +1,6 @@
 # Agent Skills
 
-Agent Skills helps product teams ship agent SKILL packages with their own CLI.
+Agent Skills helps product teams ship agent SKILL packages and host-specific custom-agent artifacts with their own CLI.
 
 Use it when your product owns:
 
@@ -8,7 +8,7 @@ Use it when your product owns:
 - the category names represented by source definition directories;
 - the public CLI shape and output envelope.
 
-Agent Skills provides the build tool, package format, host materialization, command runtime, and report data needed to list, export, install, update, uninstall, prune, and diagnose those skills.
+Agent Skills provides the build tool, package formats, dependency resolution, host materialization, command runtime, and report data needed to list, export, install, update, uninstall, prune, and diagnose skills and custom agents.
 
 ## Packages
 
@@ -20,6 +20,8 @@ Agent Skills provides the build tool, package format, host materialization, comm
 | `MackySoft.AgentSkills.ConsoleAppFramework` | A ConsoleAppFramework-based product CLI wants Agent Skills commands registered on its existing builder. |
 
 All packages are versioned together.
+
+The core package uses [`MackySoft.FileSystem`](https://github.com/mackysoft/dotnet-foundations/tree/master/src/MackySoft.FileSystem) for guarded lexical paths and [`MackySoft.Text.Vocabularies`](https://github.com/mackysoft/dotnet-foundations/tree/master/src/MackySoft.Text.Vocabularies) for stable public literals. Agent Skills still owns physical filesystem checks such as regular-file, reparse-point, and symbolic-link validation.
 
 ## Create Skill Packages
 
@@ -125,6 +127,95 @@ Each `hostArtifacts` entry contains `host` and `materializedFrontmatterDigest`. 
 
 The manifest does not repeat reference file names and does not contain `bundleDigest`, source paths, generation timestamps, Agent Skills tool or NuGet package versions, Git commits, install target paths, reload guidance, or host capability definitions. Reference file names come from the files under `references` in the package set, `bundleDigest` belongs to the generated root descriptor, and the remaining values belong to the source repository or runtime.
 
+## Create Skill and Custom-Agent Bundles
+
+Use source schema `2` when one catalog ships skills, custom agents, or both. Schema `2` keeps the two artifact kinds in separate namespaces and permits only one distribution dependency direction: an agent may depend on skills. Skills cannot depend on agents, and agents do not form a distribution dependency graph with other agents.
+
+Create this fixed source layout:
+
+```text
+<bundle-root>/
+  bundle.json
+  definitions/
+    skills/
+      <category>/<skill-name>/
+        skill.json
+        SKILL.md.template
+        references/
+    agents/
+      <category>/<agent-name>/
+        agent.json
+        AGENT.md.template
+        hosts/
+          openai.json
+```
+
+Omit `definitions/skills` or `definitions/agents` when the catalog does not define that artifact kind. A namespace must contain at least one definition when it is present, and `definitions` accepts no other entries.
+
+The schema `2` bundle descriptor uses `bundleVersion` because one revision covers both package kinds:
+
+```json
+{
+  "schemaVersion": 2,
+  "catalogId": "com.example.agent-assets",
+  "bundleVersion": 1
+}
+```
+
+Skill definitions retain the schema `1` `skill.json` contract inside `definitions/skills`. An agent's `agent.json` contains only host-independent metadata and direct skill dependencies:
+
+```json
+{
+  "schemaVersion": 1,
+  "displayName": "Architect",
+  "description": "Creates an implementation-ready design.",
+  "skillDependencies": ["claim-grounding"]
+}
+```
+
+`AGENT.md.template` is the host-independent instruction source. Each declared skill dependency must be referenced as `$<skill-name>` in that text, and every such reference must be declared. Dependency resolution starts from `skillDependencies` and then reuses the existing transitive skill graph; prose is never used to infer additional dependencies.
+
+Host bindings contain model and execution settings that do not belong in the agent definition. The initial OpenAI/Codex binding contract is:
+
+```json
+{
+  "schemaVersion": 1,
+  "modelProvider": "openai",
+  "model": "gpt-5.6-terra",
+  "reasoningEffort": "high",
+  "verbosity": "low",
+  "sandboxMode": "workspace-write",
+  "features": {
+    "multiAgent": false
+  },
+  "overridesBuiltIn": false
+}
+```
+
+The `worker` and `explorer` names require `overridesBuiltIn: true`; other names reject that setting. The adapter generates one `<agent-name>.toml` file and never edits shared `.codex/config.toml` state.
+
+Build schema `2` with the same command used by skill-only bundles:
+
+```bash
+dotnet tool run agent-skills -- build --root agent-assets
+dotnet tool run agent-skills -- build --root agent-assets --bundle-version 2
+dotnet tool run agent-skills -- build --root agent-assets --check
+```
+
+The generated layout separates both package kinds:
+
+```text
+generated/
+  bundle.json
+  skills/<skill-name>/...
+  agents/<agent-name>/
+    AGENT.md
+    agent-manifest.json
+    hosts/openai/<agent-name>.toml
+```
+
+The build validates the complete source, skill dependency graph, agent references, host bindings, fixed layout, manifests, file sets, and digests before replacing generated output. Repeating a build from the same input produces the same bytes. Existing schema `1` bundles and root-level skill commands keep their existing layout and meaning.
+
 ### Verify and Synchronize Generated Packages
 
 When generated output already matches the source definition and bundle version, the command does not write any files. To verify committed output without changing the working tree, use:
@@ -191,20 +282,18 @@ services.AddAgentSkillsCommandRuntime(options =>
     options.ProductName = "Example CLI";
     options.PackageBaseDirectory = AppContext.BaseDirectory;
     options.CommandRoot = "skills";
+    options.AgentsCommandRoot = "agents";
 });
 ```
 
-The package base directory must contain the shipped generated packages under `skills/`.
+The package base directory must contain the shipped generated packages under `skills/`. A schema `1` root contains skill packages directly. A schema `2` root contains separate `skills/` and `agents/` namespaces.
 
 ```text
 <PackageBaseDirectory>/
   skills/
     bundle.json
-    <skill-name>/
-      SKILL.md
-      agent-skill.json
-      agents/
-      references/
+    skills/<skill-name>/...
+    agents/<agent-name>/...
 ```
 
 The runtime reads the catalog identity and available categories from the generated bundle descriptor and package manifests. Categories are not configured separately in product code.
@@ -246,24 +335,27 @@ builder.Services.AddAgentSkillsCommandRuntime(options =>
     options.ProductName = "Example CLI";
     options.PackageBaseDirectory = AppContext.BaseDirectory;
     options.CommandRoot = "skills";
+    options.AgentsCommandRoot = "agents";
 });
 
 ConsoleApp.ConsoleAppBuilder app = builder.ToConsoleAppBuilder();
 
 // Register product filters, global options, and product commands as usual.
 app.RegisterAgentSkillsCommands();
+app.RegisterAgentSkillsAgentsCommands();
 
 await app.RunAsync(args);
 return Environment.ExitCode;
 ```
 
-`RegisterAgentSkillsCommands()` adds the Agent Skills command group to the builder. It does not create a builder, run the app, set `ConsoleApp.LogError`, replace the service provider, register filters, or change command validation.
+`RegisterAgentSkillsCommands()` adds the skill command group and `RegisterAgentSkillsAgentsCommands()` adds the custom-agent command group. Either registrar can be called independently. They do not create a builder, run the app, set `ConsoleApp.LogError`, replace the service provider, register filters, or change command validation.
 
-The default command root is `skills`. To expose another root, set the ConsoleAppFramework integration's MSBuild property and keep the runtime option aligned.
+The default roots are `skills` and `agents`. To expose different roots, set the ConsoleAppFramework integration's independent MSBuild properties and keep the runtime options aligned.
 
 ```xml
 <PropertyGroup>
   <AgentSkillsConsoleAppFrameworkCommandRoot>agent-skills</AgentSkillsConsoleAppFrameworkCommandRoot>
+  <AgentSkillsConsoleAppFrameworkAgentsCommandRoot>agent-assets</AgentSkillsConsoleAppFrameworkAgentsCommandRoot>
 </PropertyGroup>
 ```
 
@@ -271,6 +363,7 @@ The default command root is `skills`. To expose another root, set the ConsoleApp
 services.AddAgentSkillsCommandRuntime(options =>
 {
     options.CommandRoot = "agent-skills";
+    options.AgentsCommandRoot = "agent-assets";
     // Set the other required options here.
 });
 ```
@@ -288,7 +381,7 @@ The product CLI still owns:
 
 - when generated packages are built and how they are shipped;
 - the source `bundle.json`, category directories, and skill definitions;
-- `ProductName`, `PackageBaseDirectory`, `CommandRoot`, and the default repository-root policy;
+- `ProductName`, `PackageBaseDirectory`, `CommandRoot`, `AgentsCommandRoot`, and the default repository-root policy;
 - the public command surface outside the configured Agent Skills command root;
 - pre-dispatch command validation, option-name compatibility, help policy, filters, global options, and logging;
 - the output envelope, if the default JSON result shape is not appropriate.
@@ -307,6 +400,14 @@ skills update
 skills uninstall
 skills prune
 skills doctor
+
+agents list
+agents export
+agents install
+agents update
+agents uninstall
+agents prune
+agents doctor
 ```
 
 The standalone `MackySoft.AgentSkills.Cli` is the top-level composition root for the same command adapter and ships this repository's generated `basic/agent-skills-packaging` skill. Its standard commands are registered at the process root because the executable name already supplies the command root:
@@ -314,11 +415,13 @@ The standalone `MackySoft.AgentSkills.Cli` is the top-level composition root for
 ```bash
 dotnet tool run agent-skills -- list --pretty
 dotnet tool run agent-skills -- install --host openai --scope project --category basic --dryRun --pretty
+dotnet tool run agent-skills -- agents list --pretty
+dotnet tool run agent-skills -- agents install --host openai --scope project --category orchestration --dryRun --pretty
 ```
 
-The standalone executable preserves exact C# parameter names for multiword options: `--repositoryRoot`, `--targetDir`, `--dryRun`, and `--printDiff`. The product CLI examples and common-options table below use ConsoleAppFramework's default kebab-case conversion instead.
+The standalone executable preserves exact C# parameter names for existing skill multiword options: `--repositoryRoot`, `--targetDir`, `--dryRun`, and `--printDiff`. Custom-agent target options use the explicit public names `--agent-target-dir` and `--skill-target-dir`. The product CLI examples and common-options tables below use kebab-case names.
 
-`skills list` can omit selectors and then lists every bundled category. Other commands require `--category`, `--skill`, or both.
+`skills list` can omit selectors and then lists every bundled skill category. Other skill commands require `--category`, `--skill`, or both. `agents list` can likewise omit selectors; other custom-agent commands require `--category`, `--agent`, or both.
 
 ### Examples
 
@@ -330,9 +433,17 @@ example skills update --host openai --scope project --skill example-review
 example skills uninstall --host openai --scope project --skill example-review
 example skills prune --host openai --scope project --category core
 example skills doctor --host openai --scope project --category core
+
+example agents list
+example agents export --host openai --agent architect --output ./exported-agent-assets
+example agents install --host openai --scope project --category orchestration
+example agents update --host openai --scope project --agent architect
+example agents uninstall --host openai --scope project --agent architect
+example agents prune --host openai --scope project --agent retired-agent
+example agents doctor --host openai --scope project --category orchestration
 ```
 
-### Common Options
+### Skill Command Options
 
 | Option | Applies to | Meaning |
 | --- | --- | --- |
@@ -347,6 +458,22 @@ example skills doctor --host openai --scope project --category core
 | `--print-diff` | install, update | Include file diffs in the operation report. |
 | `--pretty` | all commands | Indent default JSON output. |
 
+### Custom-Agent Command Options
+
+| Option | Applies to | Meaning |
+| --- | --- | --- |
+| `--host` | export, install, update, uninstall, prune, doctor | Target host literal. The initial custom-agent adapter uses `openai`. |
+| `--scope` | install, update, uninstall, prune, doctor | `project` or `user`. |
+| `--category` | all commands | Select custom agents by agent category. It does not select a skill category. |
+| `--agent` | all commands | Select exact custom-agent names. `prune` also accepts names removed from the current catalog. |
+| `--repository-root` | project scope | Project root. Defaults to the configured repository-root resolver. |
+| `--agent-target-dir` | install, update, uninstall, prune, doctor | Use an exact host-discovered custom-agent artifact directory. |
+| `--skill-target-dir` | install, update, doctor | Use an exact bundle target for the resolved skill dependency closure. |
+| `--dry-run` | install, update, uninstall, prune | Report planned changes without writing files. |
+| `--force` | install, update, uninstall, prune | Allow supported overwrite or delete operations that otherwise block. |
+| `--print-diff` | install, update | Include custom-agent and skill file differences in the operation result. |
+| `--pretty` | all commands | Indent default JSON output. |
+
 ### Supported Hosts
 
 | Host literal | Host | Project bundle target | User bundle target |
@@ -356,6 +483,8 @@ example skills doctor --host openai --scope project --category core
 | `copilot` | GitHub Copilot CLI | `.github/skills/<catalogId>` | `~/.copilot/skills/<catalogId>` |
 
 OpenAI / Codex and GitHub Copilot CLI discover skills below an additional catalog directory, so Agent Skills uses that directory as the managed bundle boundary. Claude Code uses a flat skills directory because its plain skill discovery does not treat an arbitrary parent directory as a package boundary. Each skill is installed directly below the bundle target shown above.
+
+The initial custom-agent host adapter is OpenAI/Codex. It installs agent artifacts into `.codex/agents` for project scope or `${CODEX_HOME}/agents` for user scope, falling back to `~/.codex/agents`. Ownership state is kept outside the host discovery directory under `.codex/agent-skills/agents` or `${CODEX_HOME}/agent-skills/agents`. An explicit agent target uses a hidden `.agent-skills` sibling state directory. Agent Skills does not edit shared `.codex/config.toml`.
 
 For a default target, Agent Skills first checks the current layout and the host adapter's compatible previous layouts. If exactly one target root already contains the same managed `catalogId`, install, update, uninstall, prune, and doctor continue to use that root. A new catalog uses the current layout. The operation stops instead of choosing arbitrarily if the same catalog exists under multiple compatible roots or the current catalog directory is already occupied by a flat skill.
 
@@ -372,3 +501,9 @@ Prune compares installed managed skills with the complete current catalog identi
 Prune deletes only managed, clean, current-host skill directories that belong to the bundled catalog and no longer exist in the current generated package set. It skips unmanaged directories, foreign catalogs, current catalog members, invalid manifests, name collisions, and host conflicts. `--force` allows deleting locally modified managed orphans, but it does not turn unsafe or foreign targets into delete candidates.
 
 `skills update --prune` is not part of the command set. Run `skills prune` explicitly so product CLIs can report update and cleanup as separate operations.
+
+### Prune Removed Custom Agents
+
+`agents prune` reads the complete current agent catalog before applying its installed-state filters. This prevents a narrow category or name selection from treating an unselected current agent as removed. An exact `--agent` or `--category` may identify an entry no longer present in the current bundle.
+
+Prune deletes only same-catalog custom agents that are absent from the complete current catalog and whose managed artifacts still match their ownership state. It never deletes skill dependencies. `--force` may remove a locally modified managed orphan, but unmanaged artifacts, foreign catalogs, invalid state, and conflicting ownership remain blocked.

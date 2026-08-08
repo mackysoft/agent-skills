@@ -1,9 +1,7 @@
 using MackySoft.AgentSkills.Hosts.Claude;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Copilot;
 using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.Hosts.Registration;
 
@@ -30,7 +28,7 @@ public sealed class SkillHostAdapterSet
     /// <returns> The adapter or unsupported-host failure. </returns>
     internal SkillOperationResult<ISkillHostAdapter> GetAdapter (SkillHostKind host)
     {
-        if (!ContractLiteralCodec.IsDefined(host))
+        if (!Vocabulary.IsDefined(host))
         {
             return SkillOperationResult<ISkillHostAdapter>.FailureResult(
                 SkillFailureCodes.HostUnsupported,
@@ -47,7 +45,7 @@ public sealed class SkillHostAdapterSet
 
         return SkillOperationResult<ISkillHostAdapter>.FailureResult(
             SkillFailureCodes.HostUnsupported,
-            $"Unsupported SKILL host: {ContractLiteralCodec.ToValue(host)}");
+            $"Unsupported SKILL host: {Vocabulary.GetText(host)}");
     }
 
 }

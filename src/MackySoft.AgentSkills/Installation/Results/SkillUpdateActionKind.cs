@@ -1,31 +1,30 @@
-using MackySoft.AgentSkills.Shared.Text;
-
 namespace MackySoft.AgentSkills.Installation.Results;
 
 /// <summary> Defines the outcome for one SKILL update. </summary>
+[VocabularyDefinition]
 public enum SkillUpdateActionKind
 {
     /// <summary> The target skill directory is planned to be created or was created because it was missing. </summary>
-    [ContractLiteral("created")]
+    [VocabularyText("created")]
     Created = 0,
 
     /// <summary> The target skill directory is planned to be replaced or was replaced with the current canonical package. </summary>
-    [ContractLiteral("updated")]
+    [VocabularyText("updated")]
     Updated = 1,
 
     /// <summary> The target skill directory already contained current content for the same host. </summary>
-    [ContractLiteral("noOp")]
+    [VocabularyText("noOp")]
     NoOp = 2,
 
     /// <summary> The target contains local modifications and force was not enabled. </summary>
-    [ContractLiteral("blockedLocalModification")]
+    [VocabularyText("blockedLocalModification")]
     BlockedLocalModification = 3,
 
     /// <summary> The target is unmanaged and cannot be overwritten. </summary>
-    [ContractLiteral("blockedUnmanaged")]
+    [VocabularyText("blockedUnmanaged")]
     BlockedUnmanaged = 4,
 
     /// <summary> The target was generated from a newer SKILL bundle and cannot be overwritten without force. </summary>
-    [ContractLiteral("blockedVersionAhead")]
+    [VocabularyText("blockedVersionAhead")]
     BlockedVersionAhead = 5,
 }

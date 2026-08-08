@@ -1,6 +1,5 @@
 using System.IO.Compression;
 using System.Text;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Materialization;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Packaging.FileSystem;
@@ -136,7 +135,7 @@ public sealed class SkillExportService
             foreach (var file in materializedResult.Value!.Files.OrderBy(static file => file.RelativePath, StringComparer.Ordinal))
             {
                 var entryPath = $"{package.Manifest.SkillName.Value}/{file.RelativePath}";
-                if (!SkillRelativePath.IsSafeFilePath(entryPath))
+                if (!PackageRelativePath.TryParse(entryPath, out _))
                 {
                     return SkillOperationResult<string>.FailureResult(
                         SkillFailureCodes.PathUnsafe,
@@ -209,7 +208,7 @@ public sealed class SkillExportService
             string entryPath,
             string content)
         {
-            if (!SkillRelativePath.IsSafeFilePath(entryPath))
+            if (!PackageRelativePath.TryParse(entryPath, out _))
             {
                 throw new ArgumentException("The ZIP entry path must be a safe path relative to the export root.", nameof(entryPath));
             }

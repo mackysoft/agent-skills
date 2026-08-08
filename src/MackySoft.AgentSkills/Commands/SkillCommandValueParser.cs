@@ -1,5 +1,4 @@
 using MackySoft.AgentSkills.Distribution;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Shared;
@@ -28,11 +27,11 @@ public static class SkillCommandValueParser
                 "SKILL host literal must not be empty.");
         }
 
-        if (!ContractLiteralInputParser.TryParseIgnoreCase(host, out SkillHostKind parsedHost))
+        if (!VocabularyInputParser.TryParseIgnoreCase(host, out SkillHostKind parsedHost))
         {
             return SkillOperationResult<SkillHostDescriptor>.FailureResult(
                 SkillFailureCodes.HostUnsupported,
-                $"Unsupported SKILL host: {host}. Supported hosts: {string.Join(", ", ContractLiteralCodec.GetLiterals<SkillHostKind>())}.");
+                $"Unsupported SKILL host: {host}. Supported hosts: {string.Join(", ", Vocabulary.GetTexts<SkillHostKind>())}.");
         }
 
         var adapterResult = hostAdapters.GetAdapter(parsedHost);
@@ -53,14 +52,14 @@ public static class SkillCommandValueParser
                 "SKILL scope literal must not be empty.");
         }
 
-        if (ContractLiteralInputParser.TryParseIgnoreCase(scope, out SkillScopeKind parsedScope))
+        if (VocabularyInputParser.TryParseIgnoreCase(scope, out SkillScopeKind parsedScope))
         {
             return SkillOperationResult<SkillScopeKind>.Success(parsedScope);
         }
 
         return SkillOperationResult<SkillScopeKind>.FailureResult(
             SkillFailureCodes.InputInvalid,
-            $"Unsupported SKILL scope literal: {scope}. Supported scopes: {string.Join(", ", ContractLiteralCodec.GetLiterals<SkillScopeKind>())}.");
+            $"Unsupported SKILL scope literal: {scope}. Supported scopes: {string.Join(", ", Vocabulary.GetTexts<SkillScopeKind>())}.");
     }
 
     /// <summary> Parses an export format literal. </summary>
@@ -75,14 +74,14 @@ public static class SkillCommandValueParser
                 "SKILL export format literal must not be empty.");
         }
 
-        if (ContractLiteralInputParser.TryParseIgnoreCase(format, out SkillExportFormat parsedFormat))
+        if (VocabularyInputParser.TryParseIgnoreCase(format, out SkillExportFormat parsedFormat))
         {
             return SkillOperationResult<SkillExportFormat>.Success(parsedFormat);
         }
 
         return SkillOperationResult<SkillExportFormat>.FailureResult(
             SkillFailureCodes.InputInvalid,
-            $"Unsupported SKILL export format literal: {format}. Supported formats: {string.Join(", ", ContractLiteralCodec.GetLiterals<SkillExportFormat>())}.");
+            $"Unsupported SKILL export format literal: {format}. Supported formats: {string.Join(", ", Vocabulary.GetTexts<SkillExportFormat>())}.");
     }
 
 }

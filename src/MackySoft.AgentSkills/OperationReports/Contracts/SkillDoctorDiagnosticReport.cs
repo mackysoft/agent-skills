@@ -1,6 +1,5 @@
 using MackySoft.AgentSkills.Doctor;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
@@ -14,12 +13,12 @@ public sealed class SkillDoctorDiagnosticReport
         string? skillName,
         SkillTargetStateKind? targetState)
     {
-        if (!ContractLiteralCodec.IsDefined(severity))
+        if (!Vocabulary.IsDefined(severity))
         {
             throw new ArgumentOutOfRangeException(nameof(severity), severity, "Unsupported doctor diagnostic severity.");
         }
 
-        if (targetState.HasValue && !ContractLiteralCodec.IsDefined(targetState.Value))
+        if (targetState.HasValue && !Vocabulary.IsDefined(targetState.Value))
         {
             throw new ArgumentOutOfRangeException(nameof(targetState), targetState, "Unsupported target state kind.");
         }

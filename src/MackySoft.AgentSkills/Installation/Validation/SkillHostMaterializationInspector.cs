@@ -1,10 +1,8 @@
 using MackySoft.AgentSkills.Digests;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Packaging.FileSystem;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.Installation.Validation;
 
@@ -57,7 +55,7 @@ public sealed class SkillHostMaterializationInspector
         {
             return SkillOperationResult<bool>.FailureResult(
                 SkillFailureCodes.ManifestInvalid,
-                $"Manifest does not contain host artifact '{ContractLiteralCodec.ToValue(registeredHost)}'.");
+                $"Manifest does not contain host artifact '{Vocabulary.GetText(registeredHost)}'.");
         }
 
         var skillPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, "SKILL.md");
@@ -90,7 +88,7 @@ public sealed class SkillHostMaterializationInspector
                 ? SkillOperationResult<bool>.Success(true)
                 : SkillOperationResult<bool>.FailureResult(
                     SkillFailureCodes.ManifestInvalid,
-                    $"Manifest host artifact '{ContractLiteralCodec.ToValue(registeredHost)}' must not contain metadata artifact fields.");
+                    $"Manifest host artifact '{Vocabulary.GetText(registeredHost)}' must not contain metadata artifact fields.");
         }
 
         var metadataArtifactPath = expectedArtifact.Path;
@@ -101,7 +99,7 @@ public sealed class SkillHostMaterializationInspector
         {
             return SkillOperationResult<bool>.FailureResult(
                 SkillFailureCodes.ManifestInvalid,
-                $"Manifest host artifact '{ContractLiteralCodec.ToValue(registeredHost)}' must contain metadata artifact fields.");
+                $"Manifest host artifact '{Vocabulary.GetText(registeredHost)}' must contain metadata artifact fields.");
         }
 
         var metadataPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, metadataArtifactPath);

@@ -1,6 +1,4 @@
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Targeting;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
@@ -21,12 +19,12 @@ public sealed class SkillOperationReport
         IReadOnlyList<SkillOperationCountReport> actionCounts,
         IReadOnlyList<SkillOperationCountReport> statusCounts)
     {
-        if (!ContractLiteralCodec.IsDefined(host))
+        if (!Vocabulary.IsDefined(host))
         {
             throw new ArgumentOutOfRangeException(nameof(host), host, "Unsupported SKILL host.");
         }
 
-        if (!ContractLiteralCodec.IsDefined(scope))
+        if (!Vocabulary.IsDefined(scope))
         {
             throw new ArgumentOutOfRangeException(nameof(scope), scope, "Unsupported install scope.");
         }

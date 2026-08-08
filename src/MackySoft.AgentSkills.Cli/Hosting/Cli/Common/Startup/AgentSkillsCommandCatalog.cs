@@ -23,6 +23,13 @@ internal static class AgentSkillsCommandCatalog
         app.Add<AgentSkillsUninstallCommand>();
         app.Add<AgentSkillsPruneCommand>();
         app.Add<AgentSkillsDoctorCommand>();
+        app.Add<AgentSkillsAgentsListCommand>("agents");
+        app.Add<AgentSkillsAgentsExportCommand>("agents");
+        app.Add<AgentSkillsAgentsInstallCommand>("agents");
+        app.Add<AgentSkillsAgentsUpdateCommand>("agents");
+        app.Add<AgentSkillsAgentsUninstallCommand>("agents");
+        app.Add<AgentSkillsAgentsPruneCommand>("agents");
+        app.Add<AgentSkillsAgentsDoctorCommand>("agents");
         return app;
     }
 }

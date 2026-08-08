@@ -1,5 +1,3 @@
-using MackySoft.AgentSkills.Hosts.Contracts;
-
 namespace MackySoft.AgentSkills.Tests.Hosts.Contracts;
 
 public sealed class SkillUserTargetRootPolicyTests

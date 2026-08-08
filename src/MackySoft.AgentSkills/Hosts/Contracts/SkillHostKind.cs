@@ -1,19 +1,18 @@
-using MackySoft.AgentSkills.Shared.Text;
-
 namespace MackySoft.AgentSkills.Hosts.Contracts;
 
 /// <summary> Defines the SKILL hosts supported by this library version. </summary>
+[VocabularyDefinition]
 public enum SkillHostKind
 {
     /// <summary> Claude Code. </summary>
-    [ContractLiteral("claude")]
+    [VocabularyText("claude")]
     Claude = 0,
 
     /// <summary> GitHub Copilot CLI. </summary>
-    [ContractLiteral("copilot")]
+    [VocabularyText("copilot")]
     Copilot = 1,
 
     /// <summary> OpenAI Codex. </summary>
-    [ContractLiteral("openai")]
+    [VocabularyText("openai")]
     OpenAi = 2,
 }

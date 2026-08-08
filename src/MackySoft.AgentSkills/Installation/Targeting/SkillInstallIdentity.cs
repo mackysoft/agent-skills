@@ -1,6 +1,4 @@
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Names;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.Installation.Targeting;
 
@@ -21,12 +19,12 @@ public sealed class SkillInstallIdentity
         string targetRoot,
         SkillName skillName)
     {
-        if (!ContractLiteralCodec.IsDefined(host))
+        if (!Vocabulary.IsDefined(host))
         {
             throw new ArgumentOutOfRangeException(nameof(host), host, "Unsupported SKILL host.");
         }
 
-        if (!ContractLiteralCodec.IsDefined(scope))
+        if (!Vocabulary.IsDefined(scope))
         {
             throw new ArgumentOutOfRangeException(nameof(scope), scope, "Unsupported SKILL install scope.");
         }

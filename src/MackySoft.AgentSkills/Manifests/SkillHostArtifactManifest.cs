@@ -1,7 +1,5 @@
 using MackySoft.AgentSkills.Digests;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.Manifests;
 
@@ -19,7 +17,7 @@ public sealed class SkillHostArtifactManifest
         Sha256Digest? digest,
         Sha256Digest materializedFrontmatterDigest)
     {
-        if (!ContractLiteralCodec.IsDefined(host))
+        if (!Vocabulary.IsDefined(host))
         {
             throw new ArgumentOutOfRangeException(nameof(host), host, "Unsupported SKILL host.");
         }
@@ -27,7 +25,7 @@ public sealed class SkillHostArtifactManifest
         {
             throw new ArgumentException("Host artifact path and digest must either both be present or both be absent.");
         }
-        if (path is not null && !SkillRelativePath.IsSafeFilePath(path))
+        if (path is not null && !PackageRelativePath.TryParse(path, out _))
         {
             throw new ArgumentException("Host artifact path must be a safe relative file path.", nameof(path));
         }

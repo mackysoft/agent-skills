@@ -14,6 +14,9 @@ public sealed class AgentSkillsCommandRuntimeOptions
     /// <summary> Gets or sets the public command root used in standard command result names. </summary>
     public string CommandRoot { get; set; } = AgentSkillsCommandNames.Root;
 
+    /// <summary> Gets or sets the public custom-agent command root used in standard command result names. </summary>
+    public string AgentsCommandRoot { get; set; } = AgentSkillsAgentsCommandNames.Root;
+
     /// <summary> Gets or sets the resolver used when a project-scope command omits its repository root. </summary>
     public Func<string, string> RepositoryRootResolver { get; set; } = static currentDirectory => currentDirectory;
 
@@ -23,6 +26,7 @@ public sealed class AgentSkillsCommandRuntimeOptions
             ProductName,
             PackageBaseDirectory,
             CommandRoot,
+            AgentsCommandRoot,
             RepositoryRootResolver);
     }
 }

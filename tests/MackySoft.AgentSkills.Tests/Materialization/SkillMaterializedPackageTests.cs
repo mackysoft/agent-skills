@@ -1,4 +1,3 @@
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Materialization;
 using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;

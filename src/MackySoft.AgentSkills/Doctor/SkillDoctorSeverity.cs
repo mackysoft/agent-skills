@@ -1,15 +1,14 @@
-using MackySoft.AgentSkills.Shared.Text;
-
 namespace MackySoft.AgentSkills.Doctor;
 
 /// <summary> Defines SKILL doctor diagnostic severity. </summary>
+[VocabularyDefinition]
 public enum SkillDoctorSeverity
 {
     /// <summary> Informational diagnostic. </summary>
-    [ContractLiteral("info")]
+    [VocabularyText("info")]
     Info = 0,
 
     /// <summary> Error diagnostic. </summary>
-    [ContractLiteral("error")]
+    [VocabularyText("error")]
     Error = 1,
 }

@@ -1,5 +1,4 @@
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.Hosts.Contracts;
 
@@ -17,26 +16,26 @@ public sealed class SkillHostDescriptor
         string? metadataArtifactPath,
         string reloadGuidance)
     {
-        if (!ContractLiteralCodec.IsDefined(host))
+        if (!Vocabulary.IsDefined(host))
         {
             throw new ArgumentOutOfRangeException(nameof(host), host, "Unsupported SKILL host value.");
         }
 
-        if (!SkillRelativePath.IsSafeFilePath(projectDefaultTargetPath))
+        if (!PackageRelativePath.TryParse(projectDefaultTargetPath, out _))
         {
             throw new ArgumentException("Project default target path must be a safe relative path.", nameof(projectDefaultTargetPath));
         }
 
         ArgumentException.ThrowIfNullOrWhiteSpace(userDefaultTargetPath);
         ArgumentNullException.ThrowIfNull(userTargetRootPolicy);
-        if (!ContractLiteralCodec.IsDefined(bundleTargetRootLayout))
+        if (!Vocabulary.IsDefined(bundleTargetRootLayout))
         {
             throw new ArgumentOutOfRangeException(nameof(bundleTargetRootLayout), bundleTargetRootLayout, "Unsupported bundle target-root layout.");
         }
 
         ArgumentNullException.ThrowIfNull(compatiblePreviousBundleTargetRootLayouts);
         var previousLayouts = compatiblePreviousBundleTargetRootLayouts.ToArray();
-        if (previousLayouts.Any(layout => !ContractLiteralCodec.IsDefined(layout)))
+        if (previousLayouts.Any(layout => !Vocabulary.IsDefined(layout)))
         {
             throw new ArgumentOutOfRangeException(
                 nameof(compatiblePreviousBundleTargetRootLayouts),
@@ -51,7 +50,7 @@ public sealed class SkillHostDescriptor
                 nameof(compatiblePreviousBundleTargetRootLayouts));
         }
 
-        if (metadataArtifactPath is not null && !SkillRelativePath.IsSafeFilePath(metadataArtifactPath))
+        if (metadataArtifactPath is not null && !PackageRelativePath.TryParse(metadataArtifactPath, out _))
         {
             throw new ArgumentException("Metadata artifact path must be a safe relative path.", nameof(metadataArtifactPath));
         }

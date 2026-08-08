@@ -1,5 +1,4 @@
 using MackySoft.AgentSkills.Catalogs;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Inventory;
 using MackySoft.AgentSkills.Installation.Targeting;

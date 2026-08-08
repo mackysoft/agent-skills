@@ -1,7 +1,5 @@
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.Materialization;
 
@@ -18,7 +16,7 @@ public sealed class SkillMaterializedPackage
         IReadOnlyList<SkillPackageFile> files)
     {
         ArgumentNullException.ThrowIfNull(skillName);
-        if (!ContractLiteralCodec.IsDefined(host))
+        if (!Vocabulary.IsDefined(host))
         {
             throw new ArgumentOutOfRangeException(nameof(host), host, "Unsupported SKILL host.");
         }

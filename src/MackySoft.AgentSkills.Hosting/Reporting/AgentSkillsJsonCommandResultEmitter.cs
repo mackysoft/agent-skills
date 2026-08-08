@@ -2,7 +2,6 @@ using System.Text.Json;
 using MackySoft.AgentSkills.Hosting.Commands;
 using MackySoft.AgentSkills.Hosting.Configuration;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.Hosting.Reporting;
 
@@ -36,7 +35,7 @@ public sealed class AgentSkillsJsonCommandResultEmitter : IAgentSkillsCommandRes
         {
             WriteIndented = options.Pretty,
         };
-        serializerOptions.Converters.Add(new ContractLiteralJsonConverterFactory());
+        serializerOptions.Converters.Add(new VocabularyJsonConverterFactory());
         string json = JsonSerializer.Serialize(envelope, serializerOptions);
         await Console.Out.WriteLineAsync(json.AsMemory(), cancellationToken).ConfigureAwait(false);
         return result.ExitCode;

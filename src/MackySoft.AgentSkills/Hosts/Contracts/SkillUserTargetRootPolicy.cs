@@ -23,13 +23,13 @@ public sealed class SkillUserTargetRootPolicy
                 throw new ArgumentException("Environment variable child directory requires an environment variable name.", nameof(environmentVariableChildDirectory));
             }
 
-            if (!SkillRelativePath.IsSafeFilePath(environmentVariableChildDirectory))
+            if (!PackageRelativePath.TryParse(environmentVariableChildDirectory, out _))
             {
                 throw new ArgumentException("Environment variable child directory must be a safe relative path.", nameof(environmentVariableChildDirectory));
             }
         }
 
-        if (!SkillRelativePath.IsSafeFilePath(homeRelativeDirectory))
+        if (!PackageRelativePath.TryParse(homeRelativeDirectory, out _))
         {
             throw new ArgumentException("Home-relative target directory must be a safe relative path.", nameof(homeRelativeDirectory));
         }

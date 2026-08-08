@@ -1,9 +1,7 @@
 using MackySoft.AgentSkills.Digests;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Packaging.FileSystem;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.Installation.Validation;
 
@@ -159,7 +157,7 @@ public sealed class SkillInstalledPackageIntegrityVerifier
         {
             return SkillOperationResult<bool>.FailureResult(
                 SkillFailureCodes.ManifestInvalid,
-                $"Manifest does not contain host artifact '{ContractLiteralCodec.ToValue(host)}'.");
+                $"Manifest does not contain host artifact '{Vocabulary.GetText(host)}'.");
         }
 
         var hostArtifactResult = await MatchesHostArtifactAsync(skillDirectory, hostArtifact, cancellationToken).ConfigureAwait(false);
@@ -186,7 +184,7 @@ public sealed class SkillInstalledPackageIntegrityVerifier
         {
             return SkillOperationResult<bool>.FailureResult(
                 SkillFailureCodes.ManifestInvalid,
-                $"Manifest does not contain host artifact '{ContractLiteralCodec.ToValue(host)}'.");
+                $"Manifest does not contain host artifact '{Vocabulary.GetText(host)}'.");
         }
 
         var frontmatterResult = await ReadInstalledFrontmatterAsync(skillDirectory, cancellationToken).ConfigureAwait(false);

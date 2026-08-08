@@ -1,10 +1,8 @@
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Packaging.FileSystem;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.Doctor;
 
@@ -39,7 +37,7 @@ public sealed class SkillDoctorService
     {
         ArgumentNullException.ThrowIfNull(packages);
         ArgumentException.ThrowIfNullOrWhiteSpace(targetRoot);
-        if (!ContractLiteralCodec.IsDefined(host))
+        if (!Vocabulary.IsDefined(host))
         {
             throw new ArgumentOutOfRangeException(nameof(host), host, "Unsupported SKILL host.");
         }

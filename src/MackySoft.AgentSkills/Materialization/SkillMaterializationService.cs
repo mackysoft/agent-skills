@@ -1,8 +1,6 @@
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.Materialization;
 
@@ -70,14 +68,14 @@ public sealed class SkillMaterializationService
         {
             if (artifacts.MetadataContent is not null)
             {
-                throw new InvalidOperationException($"Host adapter '{ContractLiteralCodec.ToValue(adapter.Descriptor.Host)}' must not emit metadata artifacts.");
+                throw new InvalidOperationException($"Host adapter '{Vocabulary.GetText(adapter.Descriptor.Host)}' must not emit metadata artifacts.");
             }
         }
         else
         {
             if (artifacts.MetadataContent is null)
             {
-                throw new InvalidOperationException($"Host adapter '{ContractLiteralCodec.ToValue(adapter.Descriptor.Host)}' must emit metadata artifact '{metadataArtifactPath}'.");
+                throw new InvalidOperationException($"Host adapter '{Vocabulary.GetText(adapter.Descriptor.Host)}' must emit metadata artifact '{metadataArtifactPath}'.");
             }
 
             files.Add(new SkillPackageFile(metadataArtifactPath, artifacts.MetadataContent));

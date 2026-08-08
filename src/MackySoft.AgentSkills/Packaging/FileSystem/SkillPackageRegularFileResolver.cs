@@ -11,14 +11,14 @@ internal static class SkillPackageRegularFileResolver
         ArgumentException.ThrowIfNullOrWhiteSpace(packageDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(relativePath);
 
-        if (!SkillRelativePath.IsSafeFilePath(relativePath))
+        if (!PackageRelativePath.TryParse(relativePath, out var packageRelativePath))
         {
             return SkillOperationResult<string>.FailureResult(
                 SkillFailureCodes.PathUnsafe,
                 $"Package file path is unsafe: {relativePath}");
         }
 
-        var rawPath = Path.GetFullPath(Path.Combine(packageDirectory, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+        var rawPath = Path.GetFullPath(Path.Combine(packageDirectory, packageRelativePath.Value.Replace('/', Path.DirectorySeparatorChar)));
         if ((File.Exists(rawPath) || Directory.Exists(rawPath))
             && !SkillPackageFileSystemEntryGuard.IsRegularFile(rawPath))
         {

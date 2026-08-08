@@ -9,7 +9,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>true</IsPackable>
     <PackageId>MackySoft.AgentSkills.ConsoleAppFramework</PackageId>
-    <Description>ConsoleAppFramework source integration for product CLIs that expose Agent Skills commands.</Description>
+    <Description>ConsoleAppFramework source integration for product CLIs that expose agent skill and custom-agent commands.</Description>
     <PackageTags>agent;skills;cli;consoleappframework;source</PackageTags>
   </PropertyGroup>
 

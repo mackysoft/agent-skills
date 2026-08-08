@@ -1,9 +1,7 @@
 using MackySoft.AgentSkills.Digests;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.Packaging.Canonical;
 
@@ -146,7 +144,7 @@ public sealed class CanonicalSkillPackage
                 var frontmatterDigest = digestCalculator.ComputeSingleFileDigest("SKILL.md.frontmatter", hostArtifacts.Frontmatter);
                 if (frontmatterDigest != artifact.MaterializedFrontmatterDigest)
                 {
-                    return BoolFailure($"Generated SKILL host frontmatter digest does not match adapter output: {manifest.SkillName}/{ContractLiteralCodec.ToValue(artifact.Host)}");
+                    return BoolFailure($"Generated SKILL host frontmatter digest does not match adapter output: {manifest.SkillName}/{Vocabulary.GetText(artifact.Host)}");
                 }
 
                 if (metadataArtifactPath is null)

@@ -1,6 +1,3 @@
-using MackySoft.AgentSkills.Hosts.Contracts;
-using MackySoft.AgentSkills.Shared.Text;
-
 namespace MackySoft.AgentSkills.Doctor;
 
 /// <summary> Represents a SKILL doctor result. </summary>
@@ -15,7 +12,7 @@ public sealed class SkillDoctorResult
         string targetRoot,
         IReadOnlyList<SkillDoctorDiagnostic> diagnostics)
     {
-        if (!ContractLiteralCodec.IsDefined(host))
+        if (!Vocabulary.IsDefined(host))
         {
             throw new ArgumentOutOfRangeException(nameof(host), host, "Unsupported SKILL host.");
         }
