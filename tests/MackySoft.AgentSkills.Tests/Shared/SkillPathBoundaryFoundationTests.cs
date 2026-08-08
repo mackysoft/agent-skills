@@ -18,7 +18,7 @@ public sealed class SkillPathBoundaryFoundationTests
         Assert.True(rootResult.IsSuccess, rootResult.Failure?.Message);
         Assert.True(descendantResult.IsSuccess, descendantResult.Failure?.Message);
         Assert.EndsWith(Path.GetFileName(scope.FullPath), rootResult.Value, StringComparison.Ordinal);
-        Assert.EndsWith("nested/file.txt", descendantResult.Value, StringComparison.Ordinal);
+        Assert.EndsWith(Path.Combine("nested", "file.txt"), descendantResult.Value, StringComparison.Ordinal);
     }
 
     [Fact]
