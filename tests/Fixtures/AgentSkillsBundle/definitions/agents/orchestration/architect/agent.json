@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "displayName": "Architect",
+  "description": "Creates an implementation-ready design from reviewed context.",
+  "skillDependencies": ["review-context"]
+}

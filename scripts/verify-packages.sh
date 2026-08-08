@@ -198,7 +198,7 @@ grep -Fxq 'buildTransitive/MackySoft.AgentSkills.ConsoleAppFramework.props' <<< 
 
 cli_package_files="$(unzip -Z1 "$cli_package")"
 grep -Fxq 'tools/net8.0/any/skills/bundle.json' <<< "$cli_package_files"
-grep -Fxq 'tools/net8.0/any/skills/agent-skills-packaging/agent-skill.json' <<< "$cli_package_files"
+grep -Fxq 'tools/net8.0/any/skills/skills/agent-skills-packaging/agent-skill.json' <<< "$cli_package_files"
 
 if [ -n "$repository_commit" ]; then
   bash "$script_dir/validate-nuget-package-repository-commit.sh" \
@@ -231,7 +231,7 @@ dotnet build "$consumer_dir/consumer.csproj" --configuration "$configuration" --
 
 console_consumer_dir="$work_root/console-consumer"
 dotnet new console --output "$console_consumer_dir" --no-restore >/dev/null
-cp -R "$DOTNET_REPO_ROOT/skills/generated" "$console_consumer_dir/skills"
+cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/AgentSkillsBundle/generated" "$console_consumer_dir/skills"
 dotnet add "$console_consumer_dir/console-consumer.csproj" package MackySoft.AgentSkills.ConsoleAppFramework \
   --version "$package_version" \
   --source "$package_dir" >/dev/null
@@ -284,7 +284,7 @@ dotnet run \
   -- skills list --pretty > "$work_root/skills-list.json"
 grep -q '"Command": "skills.list"' "$work_root/skills-list.json"
 grep -q '"Status": "ok"' "$work_root/skills-list.json"
-grep -q '"SkillName": "agent-skills-packaging"' "$work_root/skills-list.json"
+grep -q '"SkillName": "review-context"' "$work_root/skills-list.json"
 dotnet run \
   --project "$console_consumer_dir/console-consumer.csproj" \
   --configuration "$configuration" \
@@ -292,12 +292,68 @@ dotnet run \
   -- agents list --pretty > "$work_root/agents-list.json"
 grep -q '"Command": "agents.list"' "$work_root/agents-list.json"
 grep -q '"Status": "ok"' "$work_root/agents-list.json"
+grep -q '"AgentName": "architect"' "$work_root/agents-list.json"
+grep -q '"ResolvedSkills":' "$work_root/agents-list.json"
+grep -q '"review-context"' "$work_root/agents-list.json"
+
+for host in codex claude-code github-copilot; do
+  export_root="$work_root/export-$host"
+  export_report="$work_root/agents-export-$host.json"
+  dotnet run \
+    --project "$console_consumer_dir/console-consumer.csproj" \
+    --configuration "$configuration" \
+    --no-build \
+    -- agents export \
+    --host "$host" \
+    --agent architect \
+    --output "$export_root" \
+    --format directory \
+    --pretty > "$export_report"
+  grep -q '"Command": "agents.export"' "$export_report"
+  grep -q '"Status": "ok"' "$export_report"
+  test -f "$export_root/skills/review-context/SKILL.md"
+
+  install_root="$work_root/install-$host"
+  install_report="$work_root/agents-install-$host.json"
+  mkdir -p "$install_root"
+  dotnet run \
+    --project "$console_consumer_dir/console-consumer.csproj" \
+    --configuration "$configuration" \
+    --no-build \
+    -- agents install \
+    --host "$host" \
+    --scope project \
+    --agent architect \
+    --repository-root "$install_root" \
+    --pretty > "$install_report"
+  grep -q '"Command": "agents.install"' "$install_report"
+  grep -q '"Status": "ok"' "$install_report"
+
+  case "$host" in
+    codex)
+      test -f "$export_root/agents/architect.toml"
+      test -f "$install_root/.codex/agents/architect.toml"
+      test -f "$install_root/.agents/skills/com.mackysoft.agent-skills.consumer-tests/review-context/SKILL.md"
+      ;;
+    claude-code)
+      test -f "$export_root/agents/architect.md"
+      test -f "$install_root/.claude/agents/architect.md"
+      test -f "$install_root/.claude/skills/review-context/SKILL.md"
+      ;;
+    github-copilot)
+      test -f "$export_root/agents/architect.agent.md"
+      test -f "$install_root/.github/agents/architect.agent.md"
+      test -f "$install_root/.github/skills/com.mackysoft.agent-skills.consumer-tests/review-context/SKILL.md"
+      ;;
+  esac
+done
+
 mkdir -p "$work_root/install-target"
 dotnet run \
   --project "$console_consumer_dir/console-consumer.csproj" \
   --configuration "$configuration" \
   --no-build \
-  -- skills install --host codex --scope project --category basic --repository-root "$work_root/install-target" --dry-run --pretty > "$work_root/skills-install.json"
+  -- skills install --host codex --scope project --category core --repository-root "$work_root/install-target" --dry-run --pretty > "$work_root/skills-install.json"
 grep -q '"Command": "skills.install"' "$work_root/skills-install.json"
 grep -q '"Status": "ok"' "$work_root/skills-install.json"
 grep -q '"DryRun": true' "$work_root/skills-install.json"
@@ -325,6 +381,13 @@ mkdir -p "$tool_dir"
   dotnet tool run agent-skills -- build --root "$bundle_root" >/dev/null
 
   diff -ruN "$DOTNET_REPO_ROOT/tests/Fixtures/SkillBundle/generated" "$bundle_root/generated"
+
+  agent_bundle_root="$work_root/agent-bundle"
+  cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/AgentSkillsBundle" "$agent_bundle_root"
+  rm -rf "$agent_bundle_root/generated"
+  dotnet tool run agent-skills -- build --root "$agent_bundle_root" >/dev/null
+
+  diff -ruN "$DOTNET_REPO_ROOT/tests/Fixtures/AgentSkillsBundle/generated" "$agent_bundle_root/generated"
 
   dotnet tool run agent-skills -- skills list --pretty > "$work_root/agent-skills-own-list.json"
   grep -q '"Command": "skills.list"' "$work_root/agent-skills-own-list.json"

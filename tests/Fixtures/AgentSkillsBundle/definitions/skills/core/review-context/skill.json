@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "displayName": "Review Context",
+  "description": "Reviews the available context before producing a result.",
+  "dependencies": []
+}

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "skillBundleVersion": 1,
+  "catalogId": "com.mackysoft.agent-skills.consumer-tests",
+  "category": "core",
+  "skillName": "review-context",
+  "displayName": "Review Context",
+  "description": "Reviews the available context before producing a result.",
+  "dependencies": [],
+  "contentDigest": "752a9bf2c827d67f8f4438fa84fc1f8ad9449d19fdde63b085a24eaa2454e5fc",
+  "manifestDigest": "5f4ac272cff10b518f81b24193722ba75eeac64f66a91421f02682abda426602",
+  "hostArtifacts": [
+    {
+      "host": "codex",
+      "path": "agents/openai.yaml",
+      "digest": "2da3835f733b863411f17986e54d9260d741433dfb63dad3002e88a10bbe5cf6",
+      "materializedFrontmatterDigest": "65026cf9bb768a9fa76120e5ad61151b955039eb2410772cc35aa51b607c2b95"
+    },
+    {
+      "host": "claude-code",
+      "materializedFrontmatterDigest": "6f91496aa014b1a3b7014974a40a9a3a86c94c8be32251e4495c9320d0d6108e"
+    },
+    {
+      "host": "github-copilot",
+      "materializedFrontmatterDigest": "2179e52c369b20a73f3999d85c2130ddf2ca03e526956b120996a413cc0ba859"
+    }
+  ]
+}
