@@ -260,125 +260,12 @@ public sealed class SkillBundleBuildServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task BuildAsync_WhenSourcePublicationFails_RestoresPreviousGeneratedBundle ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "build-publication-rollback");
-        WriteSourceBundle(scope);
-        var services = CreateServices();
-        var initialResult = await services.BuildService.BuildAsync(scope.FullPath, check: false, cancellationToken: CancellationToken.None);
-        Assert.True(initialResult.IsSuccess, initialResult.Failure?.Message);
-        WriteSkillTemplate(scope, "Changed source content.\n");
-        var expectedDefinition = File.ReadAllText(scope.GetPath("bundle.json"));
-        var expectedGeneratedFiles = CaptureFiles(scope.GetPath("generated"));
-        var fileSystem = new SourceWriteFailureFileSystem();
-        var failingServices = CreateServices(fileSystem);
-
-        await Assert.ThrowsAsync<IOException>(async () =>
-            await failingServices.BuildService.BuildAsync(
-                scope.FullPath,
-                skillBundleVersion: 2,
-                check: false,
-                cancellationToken: CancellationToken.None));
-
-        Assert.Equal(expectedDefinition, File.ReadAllText(scope.GetPath("bundle.json")));
-        Assert.Equal(expectedGeneratedFiles, CaptureFiles(scope.GetPath("generated")));
-        Assert.True(fileSystem.SourceWriteAttempted);
-        Assert.DoesNotContain(
-            Directory.EnumerateFileSystemEntries(scope.FullPath),
-            static path => Path.GetFileName(path).StartsWith(".generated.build-backup.", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task BuildAsync_WithoutGeneratedBundle_WhenSourcePublicationFails_RemovesGeneratedBundle ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "build-missing-generated-publication-rollback");
-        WriteSourceBundle(scope);
-        var expectedDefinition = File.ReadAllText(scope.GetPath("bundle.json"));
-        var fileSystem = new SourceWriteFailureFileSystem();
-        var services = CreateServices(fileSystem);
-
-        await Assert.ThrowsAsync<IOException>(async () =>
-            await services.BuildService.BuildAsync(
-                scope.FullPath,
-                skillBundleVersion: 2,
-                check: false,
-                cancellationToken: CancellationToken.None));
-
-        Assert.Equal(expectedDefinition, File.ReadAllText(scope.GetPath("bundle.json")));
-        Assert.False(Directory.Exists(scope.GetPath("generated")));
-        Assert.True(fileSystem.SourceWriteAttempted);
-        Assert.DoesNotContain(
-            Directory.EnumerateFileSystemEntries(scope.FullPath),
-            static path => Path.GetFileName(path).StartsWith(".generated.build-backup.", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task BuildAsync_WithoutGeneratedBundle_WhenSourcePublicationIsCancelled_RemovesGeneratedBundle ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "build-missing-generated-publication-cancel");
-        WriteSourceBundle(scope);
-        var expectedDefinition = File.ReadAllText(scope.GetPath("bundle.json"));
-        using var cancellationSource = new CancellationTokenSource();
-        var fileSystem = new SourceWriteCancellationFileSystem(cancellationSource);
-        var services = CreateServices(fileSystem);
-
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
-            await services.BuildService.BuildAsync(
-                scope.FullPath,
-                skillBundleVersion: 2,
-                check: false,
-                cancellationToken: cancellationSource.Token));
-
-        Assert.Equal(expectedDefinition, File.ReadAllText(scope.GetPath("bundle.json")));
-        Assert.False(Directory.Exists(scope.GetPath("generated")));
-        Assert.True(fileSystem.SourceWriteAttempted);
-        Assert.DoesNotContain(
-            Directory.EnumerateFileSystemEntries(scope.FullPath),
-            static path => Path.GetFileName(path).StartsWith(".generated.build-backup.", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task BuildAsync_WhenCancelledAfterGeneratedBackup_RestoresPreviousGeneratedBundle ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "build-publication-cancel-rollback");
-        WriteSourceBundle(scope);
-        var services = CreateServices();
-        var initialResult = await services.BuildService.BuildAsync(scope.FullPath, check: false, cancellationToken: CancellationToken.None);
-        Assert.True(initialResult.IsSuccess, initialResult.Failure?.Message);
-        WriteSkillTemplate(scope, "Changed source content.\n");
-        var expectedDefinition = File.ReadAllText(scope.GetPath("bundle.json"));
-        var expectedGeneratedFiles = CaptureFiles(scope.GetPath("generated"));
-        using var cancellationSource = new CancellationTokenSource();
-        var fileSystem = new CancelAfterBackupFileSystem(cancellationSource);
-        var cancellingServices = CreateServices(fileSystem);
-
-        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-            await cancellingServices.BuildService.BuildAsync(
-                scope.FullPath,
-                skillBundleVersion: 2,
-                check: false,
-                cancellationToken: cancellationSource.Token));
-
-        Assert.Equal(expectedDefinition, File.ReadAllText(scope.GetPath("bundle.json")));
-        Assert.Equal(expectedGeneratedFiles, CaptureFiles(scope.GetPath("generated")));
-        Assert.True(fileSystem.BackupCreated);
-        Assert.False(fileSystem.SourceWriteAttempted);
-        Assert.DoesNotContain(
-            Directory.EnumerateFileSystemEntries(scope.FullPath),
-            static path => Path.GetFileName(path).StartsWith(".generated.build-backup.", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
     public void BuildResult_RejectsMissingDescriptor ()
     {
         Assert.Throws<ArgumentNullException>(() => new SkillBundleBuildResult(changed: false, descriptor: null!));
     }
 
-    private static BuildServices CreateServices (ISkillBundleBuildFileSystem? fileSystem = null)
+    private static BuildServices CreateServices ()
     {
         var serializer = new SkillBundleJsonSerializer();
         var bundleDigestCalculator = new SkillBundleDigestCalculator(new SkillManifestJsonSerializer());
@@ -392,12 +279,7 @@ public sealed class SkillBundleBuildServiceTests
             serializer,
             reader);
         var generationService = SkillTestData.CreatePackageGenerationService();
-        var buildService = fileSystem is null
-            ? new SkillBundleBuildService(generationService, reader, writer, serializer)
-            : new SkillBundleBuildService(
-                generationService,
-                reader,
-                new SkillBundleBuildPublisher(writer, serializer, fileSystem));
+        var buildService = new SkillBundleBuildService(generationService, reader, writer, serializer);
         return new BuildServices(buildService, reader, serializer);
     }
 
@@ -480,118 +362,4 @@ public sealed class SkillBundleBuildServiceTests
         public SkillBundleJsonSerializer Serializer { get; }
     }
 
-    private sealed class SourceWriteFailureFileSystem : ISkillBundleBuildFileSystem
-    {
-        public bool SourceWriteAttempted { get; private set; }
-
-        public bool DirectoryExists (AbsolutePath path)
-        {
-            return Directory.Exists(path.Value);
-        }
-
-        public void MoveDirectory (
-            AbsolutePath sourcePath,
-            AbsolutePath destinationPath)
-        {
-            Directory.Move(sourcePath.Value, destinationPath.Value);
-        }
-
-        public void DeleteDirectory (AbsolutePath path)
-        {
-            Directory.Delete(path.Value, recursive: true);
-        }
-
-        public ValueTask WriteSourceBundleAsync (
-            AbsolutePath path,
-            string contents,
-            CancellationToken cancellationToken)
-        {
-            SourceWriteAttempted = true;
-            return ValueTask.FromException(new IOException("Injected source bundle write failure."));
-        }
-    }
-
-    private sealed class CancelAfterBackupFileSystem : ISkillBundleBuildFileSystem
-    {
-        private readonly CancellationTokenSource cancellationSource;
-
-        public CancelAfterBackupFileSystem (CancellationTokenSource cancellationSource)
-        {
-            this.cancellationSource = cancellationSource ?? throw new ArgumentNullException(nameof(cancellationSource));
-        }
-
-        public bool BackupCreated { get; private set; }
-
-        public bool SourceWriteAttempted { get; private set; }
-
-        public bool DirectoryExists (AbsolutePath path)
-        {
-            return Directory.Exists(path.Value);
-        }
-
-        public void MoveDirectory (
-            AbsolutePath sourcePath,
-            AbsolutePath destinationPath)
-        {
-            Directory.Move(sourcePath.Value, destinationPath.Value);
-            if (Path.GetFileName(destinationPath.Value).StartsWith(".generated.build-backup.", StringComparison.Ordinal))
-            {
-                BackupCreated = true;
-                cancellationSource.Cancel();
-            }
-        }
-
-        public void DeleteDirectory (AbsolutePath path)
-        {
-            Directory.Delete(path.Value, recursive: true);
-        }
-
-        public ValueTask WriteSourceBundleAsync (
-            AbsolutePath path,
-            string contents,
-            CancellationToken cancellationToken)
-        {
-            SourceWriteAttempted = true;
-            return ValueTask.FromCanceled(cancellationToken);
-        }
-    }
-
-    private sealed class SourceWriteCancellationFileSystem : ISkillBundleBuildFileSystem
-    {
-        private readonly CancellationTokenSource cancellationSource;
-
-        public SourceWriteCancellationFileSystem (CancellationTokenSource cancellationSource)
-        {
-            this.cancellationSource = cancellationSource ?? throw new ArgumentNullException(nameof(cancellationSource));
-        }
-
-        public bool SourceWriteAttempted { get; private set; }
-
-        public bool DirectoryExists (AbsolutePath path)
-        {
-            return Directory.Exists(path.Value);
-        }
-
-        public void MoveDirectory (
-            AbsolutePath sourcePath,
-            AbsolutePath destinationPath)
-        {
-            Directory.Move(sourcePath.Value, destinationPath.Value);
-        }
-
-        public void DeleteDirectory (AbsolutePath path)
-        {
-            Directory.Delete(path.Value, recursive: true);
-        }
-
-        public ValueTask WriteSourceBundleAsync (
-            AbsolutePath path,
-            string contents,
-            CancellationToken cancellationToken)
-        {
-            SourceWriteAttempted = true;
-            cancellationSource.Cancel();
-            return ValueTask.FromCanceled(cancellationToken);
-        }
-    }
 }

@@ -1,4 +1,5 @@
 using MackySoft.AgentSkills.Generation;
+using MackySoft.AgentSkills.Serialization;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.FileSystem;
 
@@ -9,7 +10,9 @@ public sealed class SkillBundleBuildService
 {
     private readonly SkillPackageGenerationService generationService;
     private readonly CanonicalSkillBundleReader bundleReader;
-    private readonly SkillBundleBuildPublisher publisher;
+    private readonly CanonicalSkillBundleWriter bundleWriter;
+    private readonly SkillBundleJsonSerializer bundleSerializer;
+    private readonly SourceAndGeneratedBundleTransaction transaction;
 
     /// <summary> Initializes one bundle build service. </summary>
     /// <param name="generationService"> The canonical bundle generation service. </param>
@@ -21,25 +24,12 @@ public sealed class SkillBundleBuildService
         CanonicalSkillBundleReader bundleReader,
         CanonicalSkillBundleWriter bundleWriter,
         SkillBundleJsonSerializer bundleSerializer)
-        : this(
-            generationService,
-            bundleReader,
-            new SkillBundleBuildPublisher(
-                bundleWriter ?? throw new ArgumentNullException(nameof(bundleWriter)),
-                bundleSerializer ?? throw new ArgumentNullException(nameof(bundleSerializer)),
-                new SkillBundleBuildFileSystem()))
-    {
-    }
-
-    /// <summary> Initializes one bundle build service with its publication boundary. </summary>
-    internal SkillBundleBuildService (
-        SkillPackageGenerationService generationService,
-        CanonicalSkillBundleReader bundleReader,
-        SkillBundleBuildPublisher publisher)
     {
         this.generationService = generationService ?? throw new ArgumentNullException(nameof(generationService));
         this.bundleReader = bundleReader ?? throw new ArgumentNullException(nameof(bundleReader));
-        this.publisher = publisher ?? throw new ArgumentNullException(nameof(publisher));
+        this.bundleWriter = bundleWriter ?? throw new ArgumentNullException(nameof(bundleWriter));
+        this.bundleSerializer = bundleSerializer ?? throw new ArgumentNullException(nameof(bundleSerializer));
+        transaction = new SourceAndGeneratedBundleTransaction(CanonicalTextFilePublisher.PublishAsync);
     }
 
     /// <summary> Reconciles generated output at the authored or explicitly selected bundle version. </summary>
@@ -144,16 +134,17 @@ public sealed class SkillBundleBuildService
                 authoredBundle.SchemaVersion,
                 authoredBundle.CatalogId,
                 targetVersion);
-            publicationResult = await publisher.PublishSourceAndGeneratedAsync(
+            ValidatePublicationIdentity(finalSourceDefinition, candidate.Descriptor);
+            publicationResult = await transaction.PublishAsync(
                     fullBundleRoot,
-                    finalSourceDefinition,
-                    candidate,
+                    bundleSerializer.SerializeDefinition(finalSourceDefinition),
+                    (outputRoot, token) => bundleWriter.WriteAsync(candidate, outputRoot, token),
                     cancellationToken)
                 .ConfigureAwait(false);
         }
         else
         {
-            publicationResult = await publisher.PublishGeneratedAsync(
+            publicationResult = await bundleWriter.WriteAsync(
                     candidate,
                     generatedRoot,
                     cancellationToken)
@@ -194,5 +185,17 @@ public sealed class SkillBundleBuildService
     private static SkillOperationResult<SkillBundleBuildResult> BuildFailure (SkillFailure failure)
     {
         return SkillOperationResult<SkillBundleBuildResult>.FailureResult(failure.Code, failure.Message);
+    }
+
+    private static void ValidatePublicationIdentity (
+        SkillBundleDefinition sourceDefinition,
+        SkillBundleDescriptor descriptor)
+    {
+        if (sourceDefinition.SchemaVersion != descriptor.SchemaVersion
+            || sourceDefinition.CatalogId != descriptor.CatalogId
+            || sourceDefinition.SkillBundleVersion != descriptor.SkillBundleVersion)
+        {
+            throw new ArgumentException("Source and generated bundle identities must match before publication.", nameof(sourceDefinition));
+        }
     }
 }
