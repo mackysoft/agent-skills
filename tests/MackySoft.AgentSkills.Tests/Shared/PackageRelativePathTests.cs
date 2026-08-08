@@ -44,7 +44,7 @@ public sealed class PackageRelativePathTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public void Equality_UsesCanonicalPortablePathIdentity ()
+    public void Equality_UsesCurrentPlatformPathIdentity ()
     {
         var first = PackageRelativePath.Parse("hosts/codex/architect.toml");
         var same = PackageRelativePath.Parse("hosts/codex/architect.toml");
@@ -52,8 +52,8 @@ public sealed class PackageRelativePathTests
 
         Assert.True(first.IsSameAs(same));
         Assert.True(first == same);
-        Assert.False(first == differentCase);
-        Assert.True(first != differentCase);
+        Assert.Equal(OperatingSystem.IsWindows(), first == differentCase);
+        Assert.Equal(!OperatingSystem.IsWindows(), first != differentCase);
         Assert.Equal(first.GetHashCode(), same.GetHashCode());
     }
 
