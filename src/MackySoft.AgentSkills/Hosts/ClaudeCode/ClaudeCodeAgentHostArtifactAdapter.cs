@@ -10,7 +10,7 @@ namespace MackySoft.AgentSkills.Hosts.ClaudeCode;
 internal sealed class ClaudeCodeAgentHostArtifactAdapter : IAgentHostArtifactAdapter
 {
     private static readonly IReadOnlySet<string> PermissionModes = new HashSet<string>(
-        ["default", "acceptEdits", "auto", "dontAsk", "bypassPermissions", "plan"],
+        ["default", "manual", "acceptEdits", "auto", "dontAsk", "bypassPermissions", "plan"],
         StringComparer.Ordinal);
 
     /// <inheritdoc />

@@ -55,6 +55,27 @@ public sealed class ClaudeCodeAgentHostArtifactAdapterTests
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
+    [Fact]
+    [Trait("Size", "Small")]
+    public void BuildArtifacts_WhenPermissionModeIsManual_GeneratesManualPermissionMode ()
+    {
+        var artifacts = new ClaudeCodeAgentHostArtifactAdapter().BuildArtifacts(
+            CreateMetadata(),
+            "Review the change.\n",
+            """{"schemaVersion":1,"permissionMode":"manual"}""");
+
+        var artifact = Assert.Single(artifacts.Files);
+        Assert.Equal(
+            "---\n"
+            + "name: \"architect\"\n"
+            + "description: \"Creates an implementation-ready design contract.\"\n"
+            + "permissionMode: \"manual\"\n"
+            + "---\n"
+            + "\n"
+            + "Review the change.\n",
+            artifact.Content);
+    }
+
     private static AgentSourceMetadata CreateMetadata ()
     {
         return new AgentSourceMetadata(

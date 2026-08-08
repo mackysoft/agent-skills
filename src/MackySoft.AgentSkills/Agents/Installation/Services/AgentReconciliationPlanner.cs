@@ -99,19 +99,10 @@ internal sealed class AgentReconciliationPlanner
 
     private SkillOperationResult<IReadOnlyList<AgentPlannedArtifact>> CreateArtifacts (CanonicalAgentPackage package, HostKind hostId)
     {
-        var hostLiteral = Vocabulary.GetText(hostId);
-        var hostDirectoryPath = PackageRelativePath.Parse($"hosts/{hostLiteral}");
         var packageFiles = package.Files.ToDictionary(static file => file.RelativePath);
         var artifacts = new List<AgentPlannedArtifact>();
         foreach (var manifestArtifact in package.Manifest.HostArtifacts.Where(artifact => artifact.HostId == hostId))
         {
-            if (!manifestArtifact.Path.TryGetRelativeTo(hostDirectoryPath, out var targetRelativePath))
-            {
-                return SkillOperationResult<IReadOnlyList<AgentPlannedArtifact>>.FailureResult(
-                    SkillFailureCodes.ManifestInvalid,
-                    $"Agent host artifact must be below '{hostDirectoryPath}': {manifestArtifact.Path}.");
-            }
-
             if (!packageFiles.TryGetValue(manifestArtifact.Path, out var packageFile))
             {
                 return SkillOperationResult<IReadOnlyList<AgentPlannedArtifact>>.FailureResult(
@@ -120,16 +111,16 @@ internal sealed class AgentReconciliationPlanner
             }
 
             artifacts.Add(new AgentPlannedArtifact(
-                targetRelativePath,
+                manifestArtifact.HostTargetRelativePath,
                 packageFile.Content,
-                digestCalculator.ComputeSingleFileDigest(targetRelativePath, packageFile.Content)));
+                digestCalculator.ComputeSingleFileDigest(manifestArtifact.HostTargetRelativePath, packageFile.Content)));
         }
 
         if (artifacts.Count == 0)
         {
             return SkillOperationResult<IReadOnlyList<AgentPlannedArtifact>>.FailureResult(
                 SkillFailureCodes.HostUnsupported,
-                $"Agent '{package.Manifest.AgentName.Value}' has no artifacts for host '{hostLiteral}'.");
+                $"Agent '{package.Manifest.AgentName.Value}' has no artifacts for host '{Vocabulary.GetText(hostId)}'.");
         }
 
         return SkillOperationResult<IReadOnlyList<AgentPlannedArtifact>>.Success(

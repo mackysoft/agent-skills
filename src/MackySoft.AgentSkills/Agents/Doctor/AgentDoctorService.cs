@@ -68,19 +68,6 @@ public sealed class AgentDoctorService
                 continue;
             }
 
-            var hostDirectoryPath = PackageRelativePath.Parse($"hosts/{Vocabulary.GetText(agentTarget.HostId)}");
-            var invalidArtifact = hostArtifacts.FirstOrDefault(artifact => !artifact.Path.IsDescendantOf(hostDirectoryPath));
-            if (invalidArtifact is not null)
-            {
-                diagnostics.Add(new AgentDoctorDiagnostic(
-                    package.Manifest.AgentName,
-                    AgentDoctorDiagnosticArea.Package,
-                    isError: true,
-                    SkillFailureCodes.ManifestInvalid,
-                    $"Host artifact path does not satisfy the canonical host prefix: {invalidArtifact.Path}."));
-                continue;
-            }
-
             var stateResult = await targetInspector.InspectAsync(package.Manifest, agentTarget, cancellationToken).ConfigureAwait(false);
             if (!stateResult.IsSuccess)
             {

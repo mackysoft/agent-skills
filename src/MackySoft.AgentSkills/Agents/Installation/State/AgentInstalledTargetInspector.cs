@@ -80,7 +80,7 @@ public sealed class AgentInstalledTargetInspector
             return SkillOperationResult<AgentInstalledTargetState>.Success(new AgentInstalledTargetState(AgentInstalledTargetStateKind.Invalid, "Agent ownership state does not match the selected target."));
         }
 
-        var managedArtifactPathResult = ValidateManagedArtifactPaths(state, expectedArtifacts, target.HostId);
+        var managedArtifactPathResult = ValidateManagedArtifactPaths(state, expectedArtifacts);
         if (!managedArtifactPathResult.IsSuccess)
         {
             return SkillOperationResult<AgentInstalledTargetState>.Success(
@@ -131,13 +131,7 @@ public sealed class AgentInstalledTargetInspector
     {
         foreach (var artifact in expectedArtifacts)
         {
-            var relativePathResult = AgentHostArtifactPath.ResolveTargetRelativePath(artifact.Path, target.HostId);
-            if (!relativePathResult.IsSuccess)
-            {
-                return SkillOperationResult<AgentInstalledTargetState>.Success(new AgentInstalledTargetState(AgentInstalledTargetStateKind.Invalid, relativePathResult.Failure!.Message));
-            }
-
-            var pathResult = AgentPathGuard.Validate(ContainedPath.Create(target.ArtifactRoot, relativePathResult.Value!.RootRelativePath));
+            var pathResult = AgentPathGuard.Validate(ContainedPath.Create(target.ArtifactRoot, artifact.HostTargetRelativePath.RootRelativePath));
             if (!pathResult.IsSuccess)
             {
                 return SkillOperationResult<AgentInstalledTargetState>.FailureResult(pathResult.Failure!.Code, pathResult.Failure.Message);
@@ -169,19 +163,12 @@ public sealed class AgentInstalledTargetInspector
 
     private static SkillOperationResult<bool> ValidateManagedArtifactPaths (
         AgentInstallationState state,
-        IReadOnlyList<AgentHostArtifactManifest> expectedArtifacts,
-        HostKind hostId)
+        IReadOnlyList<AgentHostArtifactManifest> expectedArtifacts)
     {
         var expectedPaths = new List<PackageRelativePath>(expectedArtifacts.Count);
         foreach (var expectedArtifact in expectedArtifacts)
         {
-            var pathResult = AgentHostArtifactPath.ResolveTargetRelativePath(expectedArtifact.Path, hostId);
-            if (!pathResult.IsSuccess)
-            {
-                return SkillOperationResult<bool>.FailureResult(pathResult.Failure!.Code, pathResult.Failure.Message);
-            }
-
-            expectedPaths.Add(pathResult.Value!);
+            expectedPaths.Add(expectedArtifact.HostTargetRelativePath);
         }
 
         var managedPaths = state.ManagedArtifacts.Select(static artifact => artifact.Path).OrderBy(static path => path.Value, StringComparer.Ordinal).ToArray();

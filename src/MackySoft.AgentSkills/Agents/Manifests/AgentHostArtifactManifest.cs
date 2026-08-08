@@ -1,3 +1,4 @@
+using MackySoft.AgentSkills.Agents.Packaging;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Shared;
 
@@ -15,6 +16,7 @@ public sealed class AgentHostArtifactManifest
         }
         HostId = hostId;
         Path = path ?? throw new ArgumentNullException(nameof(path));
+        HostTargetRelativePath = AgentHostArtifactPackagePath.GetHostRelativePath(hostId, Path);
         Digest = digest ?? throw new ArgumentNullException(nameof(digest));
     }
 
@@ -23,6 +25,9 @@ public sealed class AgentHostArtifactManifest
 
     /// <summary> Gets the package-relative artifact path. </summary>
     public PackageRelativePath Path { get; }
+
+    /// <summary> Gets the verified artifact path relative to the selected host target root. </summary>
+    internal PackageRelativePath HostTargetRelativePath { get; }
 
     /// <summary> Gets the artifact content digest. </summary>
     public Sha256Digest Digest { get; }

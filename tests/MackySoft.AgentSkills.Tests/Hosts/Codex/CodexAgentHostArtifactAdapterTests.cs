@@ -53,6 +53,20 @@ public sealed class CodexAgentHostArtifactAdapterTests
         Assert.Contains("reserved", exception.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    [Trait("Size", "Small")]
+    public void BuildArtifacts_WhenInstructionsContainControlCharacter_EscapesItInToml ()
+    {
+        var artifacts = new CodexAgentHostArtifactAdapter().BuildArtifacts(
+            CreateMetadata("architect"),
+            "Review\u0001the change.\n",
+            CreateBinding());
+
+        var artifact = Assert.Single(artifacts.Files);
+        Assert.Contains("developer_instructions = \"Review\\u0001the change.\\n\"\n", artifact.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain('\u0001', artifact.Content);
+    }
+
     private static AgentSourceMetadata CreateMetadata (string agentName)
     {
         return new AgentSourceMetadata(

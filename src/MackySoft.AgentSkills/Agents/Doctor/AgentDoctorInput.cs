@@ -13,6 +13,10 @@ public sealed class AgentDoctorInput
         Catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         AgentTargetRequest = agentTargetRequest ?? throw new ArgumentNullException(nameof(agentTargetRequest));
         SkillTargetRequest = skillTargetRequest ?? throw new ArgumentNullException(nameof(skillTargetRequest));
+        if (AgentTargetRequest.HostId != SkillTargetRequest.Host)
+        {
+            throw new ArgumentException("Custom-agent and resolved SKILL targets must use the same host.", nameof(skillTargetRequest));
+        }
     }
 
     /// <summary> Gets selected agents and their resolved SKILL dependencies. </summary>

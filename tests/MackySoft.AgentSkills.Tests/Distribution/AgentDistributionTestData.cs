@@ -43,7 +43,7 @@ internal static class AgentDistributionTestData
         var bundleVersion = new AgentSkillsBundleVersion(skills[0].Manifest.SkillBundleVersion.Value);
         var canonicalAgentName = new AgentName(agentName);
         const string instructions = "# Agent\n";
-        var artifactPath = PackageRelativePath.Parse($"hosts/{Vocabulary.GetText(hostId)}/{hostRelativeArtifactPath}");
+        var artifactPath = AgentHostArtifactPackagePath.Create(hostId, PackageRelativePath.Parse(hostRelativeArtifactPath));
         var instructionsPath = PackageRelativePath.Parse("AGENT.md");
         var artifactContent = $"name = \"{agentName}\"\n";
         var artifact = new AgentHostArtifactManifest(

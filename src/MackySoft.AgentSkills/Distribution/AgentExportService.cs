@@ -48,15 +48,7 @@ public sealed class AgentExportService
                 $"Unsupported agent export format: {format}");
         }
 
-        var hostLiteral = Vocabulary.GetText(hostId);
-        if (!Vocabulary.TryGetValue(hostLiteral, out HostKind skillHost))
-        {
-            return SkillOperationResult<AbsolutePath>.FailureResult(
-                SkillFailureCodes.HostUnsupported,
-                $"The agent host does not support SKILL materialization: {hostLiteral}");
-        }
-
-        var planResult = CreateExportPlan(catalog, hostId, skillHost, cancellationToken);
+        var planResult = CreateExportPlan(catalog, hostId, cancellationToken);
         if (!planResult.IsSuccess)
         {
             return SkillOperationResult<AbsolutePath>.FailureResult(
@@ -75,7 +67,6 @@ public sealed class AgentExportService
     private SkillOperationResult<IReadOnlyList<PackageTextFile>> CreateExportPlan (
         AgentPackageCatalog catalog,
         HostKind hostId,
-        HostKind skillHost,
         CancellationToken cancellationToken)
     {
         var entries = new List<PackageTextFile>();
@@ -97,18 +88,16 @@ public sealed class AgentExportService
             }
 
             var fileByPath = agent.Files.ToDictionary(static file => file.RelativePath);
-            var hostDirectoryPath = PackageRelativePath.Parse($"hosts/{Vocabulary.GetText(hostId)}");
             foreach (var artifact in artifacts)
             {
-                if (!artifact.Path.TryGetRelativeTo(hostDirectoryPath, out var hostRelativePath)
-                    || !fileByPath.TryGetValue(artifact.Path, out var artifactFile))
+                if (!fileByPath.TryGetValue(artifact.Path, out var artifactFile))
                 {
                     return SkillOperationResult<IReadOnlyList<PackageTextFile>>.FailureResult(
                         SkillFailureCodes.ManifestInvalid,
                         $"Agent host artifact does not match its package for '{agent.Manifest.AgentName.Value}': {artifact.Path}");
                 }
 
-                var exportPath = PackageRelativePath.Parse($"agents/{hostRelativePath}");
+                var exportPath = PackageRelativePath.Parse($"agents/{artifact.HostTargetRelativePath.Value}");
                 var addResult = AddEntry(entries, entryPaths, exportPath, artifactFile.Content);
                 if (!addResult.IsSuccess)
                 {
@@ -121,7 +110,7 @@ public sealed class AgentExportService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var materializationResult = skillMaterializationService.Materialize(skill, skillHost);
+            var materializationResult = skillMaterializationService.Materialize(skill, hostId);
             if (!materializationResult.IsSuccess)
             {
                 return SkillOperationResult<IReadOnlyList<PackageTextFile>>.FailureResult(

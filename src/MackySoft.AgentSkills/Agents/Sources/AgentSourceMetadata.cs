@@ -16,9 +16,13 @@ internal sealed class AgentSourceMetadata
 
         ArgumentNullException.ThrowIfNull(category);
         ArgumentNullException.ThrowIfNull(agentName);
-        if (string.IsNullOrWhiteSpace(displayName) || string.IsNullOrWhiteSpace(description) || description.Length > 1024)
+        if (string.IsNullOrWhiteSpace(displayName)
+            || string.IsNullOrWhiteSpace(description)
+            || displayName.Any(char.IsControl)
+            || description.Any(char.IsControl)
+            || description.Length > 1024)
         {
-            throw new ArgumentException("Agent display name and description must be present, and description must not exceed 1024 characters.");
+            throw new ArgumentException("Agent display name and description must be present, must not contain control characters, and description must not exceed 1024 characters.");
         }
 
         ArgumentNullException.ThrowIfNull(skillDependencies);

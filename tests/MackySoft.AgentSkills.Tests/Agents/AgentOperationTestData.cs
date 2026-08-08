@@ -23,7 +23,7 @@ internal static class AgentOperationTestData
     {
         var serializer = new AgentManifestJsonSerializer();
         var digestCalculator = new SkillDigestCalculator();
-        var packageArtifactPath = PackageRelativePath.Parse($"hosts/codex/{artifactRelativePath}");
+        var packageArtifactPath = AgentHostArtifactPackagePath.Create(HostKind.Codex, PackageRelativePath.Parse(artifactRelativePath));
         var instructionsPath = PackageRelativePath.Parse("AGENT.md");
         var artifact = new AgentHostArtifactManifest(
             HostKind.Codex,

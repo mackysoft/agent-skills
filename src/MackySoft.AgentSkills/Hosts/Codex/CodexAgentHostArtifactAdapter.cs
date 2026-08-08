@@ -146,7 +146,14 @@ internal sealed class CodexAgentHostArtifactAdapter : IAgentHostArtifactAdapter
                     builder.Append("\\r");
                     break;
                 default:
-                    builder.Append(character);
+                    if (char.IsControl(character))
+                    {
+                        builder.Append($"\\u{(int)character:X4}");
+                    }
+                    else
+                    {
+                        builder.Append(character);
+                    }
                     break;
             }
         }

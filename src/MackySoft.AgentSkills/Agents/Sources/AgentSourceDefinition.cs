@@ -7,9 +7,10 @@ internal sealed class AgentSourceDefinition
     public AgentSourceDefinition (AgentSourceMetadata metadata, string instructionsTemplate, IReadOnlyList<AgentHostBindingSource> hostBindings)
     {
         Metadata = metadata ?? throw new ArgumentNullException(nameof(metadata));
-        if (string.IsNullOrWhiteSpace(instructionsTemplate))
+        if (string.IsNullOrWhiteSpace(instructionsTemplate)
+            || instructionsTemplate.Any(static character => char.IsControl(character) && character is not '\n' and not '\t'))
         {
-            throw new ArgumentException("Agent instructions must not be empty.", nameof(instructionsTemplate));
+            throw new ArgumentException("Agent instructions must not be empty and may contain only LF and tab control characters.", nameof(instructionsTemplate));
         }
 
         ArgumentNullException.ThrowIfNull(hostBindings);

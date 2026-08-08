@@ -135,6 +135,8 @@ The Codex names `default`, `worker`, and `explorer` are reserved and cannot be u
 }
 ```
 
+`permissionMode` also accepts Claude Code's `manual` alias for `default`; generated frontmatter preserves the authored value.
+
 `github-copilot.json` accepts:
 
 ```json

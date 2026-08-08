@@ -37,7 +37,7 @@ internal sealed class AgentPackageGenerationService
             var adapter = HostRegistration.Get(binding.HostId).Value!.AgentArtifactAdapter;
             foreach (var file in adapter.BuildArtifacts(definition.Metadata, instructions, binding.Json).Files)
             {
-                var path = PackageRelativePath.Parse($"hosts/{Vocabulary.GetText(binding.HostId)}/{file.RelativePath.Value}");
+                var path = AgentHostArtifactPackagePath.Create(binding.HostId, file.RelativePath);
                 files.Add(new PackageTextFile(path, file.Content));
                 artifacts.Add(new AgentHostArtifactManifest(binding.HostId, path, digestCalculator.ComputeSingleFileDigest(path, file.Content)));
             }
