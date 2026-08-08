@@ -1,5 +1,3 @@
-using MackySoft.AgentSkills.Categories;
-
 namespace MackySoft.AgentSkills.Distribution;
 
 /// <summary> Represents the number of bundled SKILL packages assigned to one product-owned category. </summary>

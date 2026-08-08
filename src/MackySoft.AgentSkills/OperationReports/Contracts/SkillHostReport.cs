@@ -4,7 +4,7 @@ namespace MackySoft.AgentSkills.OperationReports.Contracts;
 public sealed class SkillHostReport
 {
     internal SkillHostReport (
-        SkillHostKind host,
+        HostKind host,
         string projectDefaultTargetPath,
         string userDefaultTargetPath,
         SkillUserTargetRootPolicyReport userTargetRootPolicy,
@@ -61,7 +61,7 @@ public sealed class SkillHostReport
     }
 
     /// <summary> Gets the supported host. </summary>
-    public SkillHostKind Host { get; }
+    public HostKind Host { get; }
 
     /// <summary> Gets the project-scope default host SKILL root path relative to repository root. </summary>
     public string ProjectDefaultTargetPath { get; }

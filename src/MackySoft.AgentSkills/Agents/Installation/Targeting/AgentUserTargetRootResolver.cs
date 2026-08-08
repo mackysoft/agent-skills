@@ -1,4 +1,3 @@
-using MackySoft.AgentSkills.Agents.Hosts;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.FileSystem;
 
@@ -18,7 +17,7 @@ public sealed class AgentUserTargetRootResolver
     }
 
     /// <summary> Resolves the default user-scope roots for one agent host. </summary>
-    public SkillOperationResult<AgentUserTargetRoots> ResolveDefaultTargetRoots (AgentHostDescriptor descriptor)
+    public SkillOperationResult<AgentUserTargetRoots> ResolveDefaultTargetRoots (AgentHostTargetPolicy descriptor)
     {
         ArgumentNullException.ThrowIfNull(descriptor);
         var policy = descriptor.UserTargetRootPolicy;
@@ -33,8 +32,8 @@ public sealed class AgentUserTargetRootResolver
                 }
 
                 return CreateRoots(
-                    Combine(absoluteEnvironmentRoot, policy.EnvironmentArtifactChildDirectory!),
-                    Combine(absoluteEnvironmentRoot, policy.EnvironmentStateChildDirectory!));
+                    ContainedPath.Create(absoluteEnvironmentRoot, policy.EnvironmentArtifactChildDirectory!),
+                    ContainedPath.Create(absoluteEnvironmentRoot, policy.EnvironmentStateChildDirectory!));
             }
         }
 
@@ -46,28 +45,23 @@ public sealed class AgentUserTargetRootResolver
         }
 
         return CreateRoots(
-            Combine(absoluteHome, policy.HomeArtifactRelativeDirectory),
-            Combine(absoluteHome, policy.HomeStateRelativeDirectory));
+            ContainedPath.Create(absoluteHome, policy.HomeArtifactRelativeDirectory),
+            ContainedPath.Create(absoluteHome, policy.HomeStateRelativeDirectory));
     }
 
-    private static string Combine (
-        AbsolutePath root,
-        string relativePath)
+    private static SkillOperationResult<AgentUserTargetRoots> CreateRoots (ContainedPath artifactRoot, ContainedPath stateRoot)
     {
-        return ContainedPath.Create(root, RootRelativePath.Parse(relativePath)).Target.Value;
-    }
-
-    private static SkillOperationResult<AgentUserTargetRoots> CreateRoots (string artifactRoot, string stateRoot)
-    {
-        var artifactResult = AgentPathGuard.ResolveStandaloneRoot(artifactRoot);
+        var artifactResult = AgentPathGuard.Validate(artifactRoot);
         if (!artifactResult.IsSuccess)
         {
             return SkillOperationResult<AgentUserTargetRoots>.FailureResult(artifactResult.Failure!.Code, artifactResult.Failure.Message);
         }
 
-        var stateResult = AgentPathGuard.ResolveStandaloneRoot(stateRoot);
+        var stateResult = AgentPathGuard.Validate(stateRoot);
         return stateResult.IsSuccess
-            ? SkillOperationResult<AgentUserTargetRoots>.Success(new AgentUserTargetRoots(artifactResult.Value!, stateResult.Value!))
+            ? SkillOperationResult<AgentUserTargetRoots>.Success(new AgentUserTargetRoots(
+                artifactResult.Value!,
+                stateResult.Value!))
             : SkillOperationResult<AgentUserTargetRoots>.FailureResult(stateResult.Failure!.Code, stateResult.Failure.Message);
     }
 

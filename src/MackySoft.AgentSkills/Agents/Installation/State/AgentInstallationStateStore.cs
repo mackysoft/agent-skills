@@ -1,4 +1,5 @@
 using MackySoft.AgentSkills.Agents.Installation.Targeting;
+using MackySoft.AgentSkills.Serialization;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.FileSystem;
 
@@ -16,9 +17,9 @@ public sealed class AgentInstallationStateStore
     }
 
     /// <summary> Reads one ownership-state file, returning <see langword="null" /> when it is absent. </summary>
-    public async ValueTask<SkillOperationResult<AgentInstallationStateReadResult>> ReadAsync (string statePath, CancellationToken cancellationToken = default)
+    public async ValueTask<SkillOperationResult<AgentInstallationStateReadResult>> ReadAsync (AbsolutePath statePath, CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(statePath);
+        ArgumentNullException.ThrowIfNull(statePath);
         cancellationToken.ThrowIfCancellationRequested();
         var pathResult = ValidateStatePath(statePath);
         if (!pathResult.IsSuccess)
@@ -26,15 +27,15 @@ public sealed class AgentInstallationStateStore
             return SkillOperationResult<AgentInstallationStateReadResult>.FailureResult(pathResult.Failure!.Code, pathResult.Failure.Message);
         }
 
-        statePath = pathResult.Value!;
-        if (!File.Exists(statePath))
+        var validatedPath = pathResult.Value!;
+        if (!File.Exists(validatedPath.Value))
         {
             return SkillOperationResult<AgentInstallationStateReadResult>.Success(new AgentInstallationStateReadResult());
         }
 
         try
         {
-            var json = await File.ReadAllTextAsync(statePath, cancellationToken).ConfigureAwait(false);
+            var json = await File.ReadAllTextAsync(validatedPath.Value, cancellationToken).ConfigureAwait(false);
             var result = serializer.TryDeserialize(json);
             return result.IsSuccess
                 ? SkillOperationResult<AgentInstallationStateReadResult>.Success(new AgentInstallationStateReadResult(result.Value!))
@@ -47,9 +48,9 @@ public sealed class AgentInstallationStateStore
     }
 
     /// <summary> Writes one canonical ownership-state file. </summary>
-    public async ValueTask<SkillOperationResult<bool>> WriteAsync (string statePath, AgentInstallationState state, CancellationToken cancellationToken = default)
+    public async ValueTask<SkillOperationResult<bool>> WriteAsync (AbsolutePath statePath, AgentInstallationState state, CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(statePath);
+        ArgumentNullException.ThrowIfNull(statePath);
         ArgumentNullException.ThrowIfNull(state);
         cancellationToken.ThrowIfCancellationRequested();
         var pathResult = ValidateStatePath(statePath);
@@ -58,58 +59,25 @@ public sealed class AgentInstallationStateStore
             return SkillOperationResult<bool>.FailureResult(pathResult.Failure!.Code, pathResult.Failure.Message);
         }
 
-        statePath = pathResult.Value!;
-        var temporaryPath = statePath + $".tmp.{Guid.NewGuid():N}";
+        var validatedPath = pathResult.Value!;
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(statePath)!);
-            await File.WriteAllTextAsync(temporaryPath, serializer.Serialize(state), cancellationToken).ConfigureAwait(false);
-            ReplaceFile(temporaryPath, statePath);
+            await CanonicalTextFilePublisher.PublishAsync(
+                validatedPath,
+                serializer.Serialize(state),
+                cancellationToken).ConfigureAwait(false);
             return SkillOperationResult<bool>.Success(true);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             return SkillOperationResult<bool>.FailureResult(SkillFailureCodes.InstallTargetWriteFailed, $"Could not write agent installation state: {exception.Message}");
         }
-        finally
-        {
-            try
-            {
-                if (File.Exists(temporaryPath))
-                {
-                    File.Delete(temporaryPath);
-                }
-            }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-            {
-                // NOTE: The write result remains authoritative after a replacement; cleanup can be retried separately.
-            }
-        }
     }
 
-    private static void ReplaceFile (string temporaryPath, string statePath)
+    private static SkillOperationResult<AbsolutePath> ValidateStatePath (AbsolutePath statePath)
     {
-        try
-        {
-            File.Replace(temporaryPath, statePath, destinationBackupFileName: null, ignoreMetadataErrors: true);
-        }
-        catch (FileNotFoundException)
-        {
-            File.Move(temporaryPath, statePath, overwrite: true);
-        }
-    }
-
-    private static SkillOperationResult<string> ValidateStatePath (string statePath)
-    {
-        if (!AbsolutePath.TryParse(statePath, out var absoluteStatePath, out var failure))
-        {
-            return SkillOperationResult<string>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
-                $"Agent installation state path must be absolute: {failure.Message}");
-        }
-
-        return absoluteStatePath.TryGetParent(out var directory)
-            ? AgentPathGuard.ResolveUnderRoot(directory.Value, absoluteStatePath.Value)
-            : SkillOperationResult<string>.FailureResult(SkillFailureCodes.PathUnsafe, "Agent installation state path must have a directory.");
+        return statePath.TryGetParent(out var directory)
+            ? AgentPathGuard.Validate(ContainedPath.Create(directory, statePath))
+            : SkillOperationResult<AbsolutePath>.FailureResult(SkillFailureCodes.PathUnsafe, "Agent installation state path must have a directory.");
     }
 }

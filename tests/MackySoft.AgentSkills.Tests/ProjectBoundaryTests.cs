@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using MackySoft.AgentSkills.Hosts.Registration;
 
 namespace MackySoft.AgentSkills.Tests;
 
@@ -225,7 +226,7 @@ public sealed class ProjectBoundaryTests
         var forbiddenArtifacts = GetConcreteHostArtifactReferences();
 
         var offenders = Directory.EnumerateFiles(directoryPath, "*.cs", SearchOption.AllDirectories)
-            .Where(static filePath => Path.GetFileName(filePath) is not "AgentHostKind.cs" and not "SkillHostKind.cs")
+            .Where(static filePath => Path.GetFileName(filePath) is not "HostKind.cs")
             .SelectMany(filePath => forbiddenArtifacts
                 .Where(artifact => File.ReadAllText(filePath).Contains(artifact, StringComparison.Ordinal))
                 .Select(artifact => $"{Path.GetRelativePath(sourceRoot, filePath).Replace(Path.DirectorySeparatorChar, '/')} contains {artifact}"))
@@ -250,38 +251,12 @@ public sealed class ProjectBoundaryTests
 
     [Theory]
     [Trait("Size", "Small")]
-    [InlineData("Claude", "ClaudeSkillHostAdapter.cs")]
-    [InlineData("Copilot", "CopilotSkillHostAdapter.cs")]
-    [InlineData("OpenAi", "OpenAiAgentHostAdapter.cs")]
-    [InlineData("OpenAi", "OpenAiSkillHostAdapter.cs")]
-    public void ConcreteHostImplementation_IsLocatedUnderConcreteHostDirectory (
-        string hostDirectoryName,
-        string fileName)
-    {
-        var sourceRoot = GetSourceRoot();
-        var hostsRoot = Path.Combine(sourceRoot, "Hosts");
-        var expectedPath = Path.GetFullPath(Path.Combine(hostsRoot, hostDirectoryName, fileName));
-
-        Assert.True(File.Exists(expectedPath), $"Expected concrete host implementation file: {expectedPath}");
-
-        var misplacedFiles = Directory.EnumerateFiles(hostsRoot, fileName, SearchOption.AllDirectories)
-            .Select(Path.GetFullPath)
-            .Where(filePath => !string.Equals(filePath, expectedPath, StringComparison.Ordinal))
-            .Select(filePath => Path.GetRelativePath(sourceRoot, filePath).Replace(Path.DirectorySeparatorChar, '/'))
-            .Order(StringComparer.Ordinal)
-            .ToArray();
-
-        Assert.Empty(misplacedFiles);
-    }
-
-    [Theory]
-    [Trait("Size", "Small")]
-    [InlineData("Claude", "Copilot")]
-    [InlineData("Claude", "OpenAi")]
-    [InlineData("Copilot", "Claude")]
-    [InlineData("Copilot", "OpenAi")]
-    [InlineData("OpenAi", "Claude")]
-    [InlineData("OpenAi", "Copilot")]
+    [InlineData("ClaudeCode", "Codex")]
+    [InlineData("ClaudeCode", "GitHubCopilot")]
+    [InlineData("Codex", "ClaudeCode")]
+    [InlineData("Codex", "GitHubCopilot")]
+    [InlineData("GitHubCopilot", "ClaudeCode")]
+    [InlineData("GitHubCopilot", "Codex")]
     public void ConcreteHostDirectory_DoesNotReferenceSiblingConcreteHostImplementation (
         string hostDirectoryName,
         string siblingHostDirectoryName)
@@ -341,6 +316,39 @@ public sealed class ProjectBoundaryTests
         var data = new TheoryData<string, string[]>
         {
             {
+                "Agents",
+                [
+                    "Doctor",
+                    "Generation",
+                    "Installation",
+                    "Manifests",
+                    "Packaging",
+                    "Selection",
+                    "Sources",
+                ]
+            },
+            {
+                "Agents/Installation",
+                [
+                    "Requests",
+                    "Results",
+                    "Services",
+                    "State",
+                    "Targeting",
+                ]
+            },
+            {
+                "Hosts",
+                [
+                    "ClaudeCode",
+                    "Codex",
+                    "Contracts",
+                    "GitHubCopilot",
+                    "Registration",
+                    "Serialization",
+                ]
+            },
+            {
                 "Installation",
                 [
                     "Contracts",
@@ -367,7 +375,7 @@ public sealed class ProjectBoundaryTests
                 "Packaging",
                 [
                     "Canonical",
-                    "FileSystem",
+                    "Paths",
                 ]
             },
         };
@@ -381,7 +389,7 @@ public sealed class ProjectBoundaryTests
 
         AddForbiddenNamespaceCases(
             data,
-            "Packaging/FileSystem",
+            "Packaging/Paths",
             [
                 "MackySoft.AgentSkills.Distribution",
                 "MackySoft.AgentSkills.Doctor",
@@ -487,12 +495,11 @@ public sealed class ProjectBoundaryTests
 
     private static string[] GetConcreteHostImplementationReferences ()
     {
-        return SkillTestData.CreateDefaultHostAdapterSet()
-            .Adapters
-            .SelectMany(static adapter =>
+        return HostRegistration.Registrations
+            .SelectMany(static registration =>
             {
-                var type = adapter.GetType();
-                return new[] { type.Namespace!, type.Name };
+                var types = new[] { registration.SkillAdapter.GetType(), registration.AgentArtifactAdapter.GetType() };
+                return types.SelectMany(static type => new[] { type.Namespace!, type.Name });
             })
             .Order(StringComparer.Ordinal)
             .ToArray();
@@ -500,36 +507,34 @@ public sealed class ProjectBoundaryTests
 
     private static string[] GetConcreteHostArtifactReferences ()
     {
-        return SkillTestData.CreateDefaultHostAdapterSet()
-            .Adapters
-            .SelectMany(static adapter =>
+        return HostRegistration.Registrations
+            .SelectMany(static registration =>
             {
-                var descriptor = adapter.Descriptor;
+                var descriptor = registration.Skill;
                 var references = new List<string>
                 {
-                    Vocabulary.GetText(descriptor.Host),
+                    Vocabulary.GetText(registration.Host),
                     descriptor.ReloadGuidance,
-                    descriptor.ProjectDefaultTargetPath,
-                    descriptor.UserDefaultTargetPath,
+                    descriptor.ProjectDefaultTargetPath.Value,
                 };
 
                 var userTargetRootPolicy = descriptor.UserTargetRootPolicy;
-                references.Add(userTargetRootPolicy.HomeRelativeDirectory);
+                references.Add(userTargetRootPolicy.HomeRelativeDirectory.Value);
 
                 if (!string.IsNullOrWhiteSpace(userTargetRootPolicy.EnvironmentVariableName))
                 {
                     references.Add(userTargetRootPolicy.EnvironmentVariableName);
                 }
 
-                if (!string.IsNullOrWhiteSpace(userTargetRootPolicy.EnvironmentVariableChildDirectory)
-                    && !string.Equals(userTargetRootPolicy.EnvironmentVariableChildDirectory, "skills", StringComparison.Ordinal))
+                if (userTargetRootPolicy.EnvironmentVariableChildDirectory is not null
+                    && !string.Equals(userTargetRootPolicy.EnvironmentVariableChildDirectory.Value, "skills", StringComparison.Ordinal))
                 {
-                    references.Add(userTargetRootPolicy.EnvironmentVariableChildDirectory);
+                    references.Add(userTargetRootPolicy.EnvironmentVariableChildDirectory.Value);
                 }
 
                 if (descriptor.MetadataArtifactPath is not null)
                 {
-                    references.Add(descriptor.MetadataArtifactPath);
+                    references.Add(descriptor.MetadataArtifactPath.Value);
                 }
 
                 return references;

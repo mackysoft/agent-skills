@@ -1,5 +1,4 @@
 using MackySoft.AgentSkills.Catalogs;
-using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Installation.Requests;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Installation.Targeting;
@@ -21,7 +20,7 @@ public sealed class SkillPruneServiceTests
         var currentCatalog = packages.Skip(1).ToArray();
         var installService = SkillTestData.CreateInstallService();
         var pruneService = SkillTestData.CreatePruneService();
-        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
+        var request = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(packages[0].Manifest.CatalogId, packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
 
@@ -35,11 +34,11 @@ public sealed class SkillPruneServiceTests
         Assert.Equal(SkillTargetStateKind.RemovedFromCatalog, deleted.TargetState!.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetRemovedFromCatalog, deleted.TargetState.Code);
         Assert.NotNull(deleted.FileChanges);
-        Assert.Contains("SKILL.md", deleted.FileChanges!.RemovedFiles);
-        Assert.False(Directory.Exists(Path.Combine(result.Value.TargetRoot, orphan.Manifest.SkillName.Value)));
+        Assert.Contains(PackageRelativePath.Parse("SKILL.md"), deleted.FileChanges!.RemovedFiles);
+        Assert.False(Directory.Exists(Path.Combine(result.Value.TargetRoot.Value, orphan.Manifest.SkillName.Value)));
         foreach (var currentPackage in currentCatalog)
         {
-            Assert.True(Directory.Exists(Path.Combine(result.Value.TargetRoot, currentPackage.Manifest.SkillName.Value)), currentPackage.Manifest.SkillName.Value);
+            Assert.True(Directory.Exists(Path.Combine(result.Value.TargetRoot.Value, currentPackage.Manifest.SkillName.Value)), currentPackage.Manifest.SkillName.Value);
         }
     }
 
@@ -56,8 +55,8 @@ public sealed class SkillPruneServiceTests
         var installService = SkillTestData.CreateInstallService();
         var pruneService = SkillTestData.CreatePruneService();
         var flatTargetRoot = scope.GetPath(Path.Combine(".agents", "skills"));
-        var explicitFlatRequest = new SkillInstallRequest(
-            SkillHostKind.OpenAi,
+        var explicitFlatRequest = SkillTestData.CreateInstallRequest(
+            HostKind.Codex,
             SkillScopeKind.Project,
             scope.FullPath,
             flatTargetRoot);
@@ -67,7 +66,7 @@ public sealed class SkillPruneServiceTests
             explicitFlatRequest,
             CancellationToken.None);
         Assert.True(orphanInstall.IsSuccess, orphanInstall.Failure?.Message);
-        var resolvedFlatTargetRoot = orphanInstall.Value!.TargetRoot;
+        var resolvedFlatTargetRoot = orphanInstall.Value!.TargetRoot.Value;
         var foreignInstall = await installService.InstallAsync(
             foreignPackage.Manifest.CatalogId,
             [foreignPackage],
@@ -85,11 +84,11 @@ public sealed class SkillPruneServiceTests
             new SkillPruneInput(
                 orphan.Manifest.CatalogId,
                 Array.Empty<CanonicalSkillPackage>(),
-                new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath)),
+                SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath)),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(resolvedFlatTargetRoot, result.Value!.TargetRoot);
+        Assert.Equal(resolvedFlatTargetRoot, result.Value!.TargetRoot.Value);
         Assert.Equal(
             SkillPruneActionKind.Deleted,
             result.Value.Actions.Single(action => action.Identity.SkillName == orphan.Manifest.SkillName).ActionKind);
@@ -115,7 +114,7 @@ public sealed class SkillPruneServiceTests
         var orphan = packages[0];
         var installService = SkillTestData.CreateInstallService();
         var pruneService = SkillTestData.CreatePruneService();
-        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
+        var request = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(packages[0].Manifest.CatalogId, packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
 
@@ -127,7 +126,7 @@ public sealed class SkillPruneServiceTests
         Assert.True(result.Value!.DryRun);
         var deleted = result.Value.Actions.Single(action => action.Identity.SkillName == orphan.Manifest.SkillName);
         Assert.Equal(SkillPruneActionKind.Deleted, deleted.ActionKind);
-        Assert.True(Directory.Exists(Path.Combine(result.Value.TargetRoot, orphan.Manifest.SkillName.Value)));
+        Assert.True(Directory.Exists(Path.Combine(result.Value.TargetRoot.Value, orphan.Manifest.SkillName.Value)));
     }
 
     [Fact]
@@ -141,7 +140,7 @@ public sealed class SkillPruneServiceTests
         var currentCatalog = packages.Skip(2).ToArray();
         var installService = SkillTestData.CreateInstallService();
         var pruneService = SkillTestData.CreatePruneService();
-        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
+        var request = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(packages[0].Manifest.CatalogId, packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
 
@@ -157,8 +156,8 @@ public sealed class SkillPruneServiceTests
         var action = Assert.Single(result.Value!.Actions);
         Assert.Equal(selectedOrphan.Manifest.SkillName, action.Identity.SkillName);
         Assert.Equal(SkillPruneActionKind.Deleted, action.ActionKind);
-        Assert.False(Directory.Exists(Path.Combine(result.Value.TargetRoot, selectedOrphan.Manifest.SkillName.Value)));
-        Assert.True(Directory.Exists(Path.Combine(result.Value.TargetRoot, unselectedOrphan.Manifest.SkillName.Value)));
+        Assert.False(Directory.Exists(Path.Combine(result.Value.TargetRoot.Value, selectedOrphan.Manifest.SkillName.Value)));
+        Assert.True(Directory.Exists(Path.Combine(result.Value.TargetRoot.Value, unselectedOrphan.Manifest.SkillName.Value)));
     }
 
     [Fact]
@@ -171,7 +170,7 @@ public sealed class SkillPruneServiceTests
         var targetRoot = scope.CreateDirectory(targetRootRelativePath);
         scope.WriteFile(Path.Combine(targetRootRelativePath, "custom-skill", "SKILL.md"), "# Custom\n");
         var pruneService = SkillTestData.CreatePruneService();
-        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
+        var request = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath);
 
         var result = await pruneService.PruneAsync(
             new SkillPruneInput(
@@ -196,7 +195,7 @@ public sealed class SkillPruneServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var installService = SkillTestData.CreateInstallService();
         var pruneService = SkillTestData.CreatePruneService();
-        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
+        var request = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(packages[0].Manifest.CatalogId, packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
 
@@ -206,7 +205,7 @@ public sealed class SkillPruneServiceTests
         Assert.All(result.Value!.Actions, static action => Assert.Equal(SkillPruneActionKind.SkippedCurrent, action.ActionKind));
         foreach (var package in packages)
         {
-            Assert.True(Directory.Exists(Path.Combine(result.Value.TargetRoot, package.Manifest.SkillName.Value)), package.Manifest.SkillName.Value);
+            Assert.True(Directory.Exists(Path.Combine(result.Value.TargetRoot.Value, package.Manifest.SkillName.Value)), package.Manifest.SkillName.Value);
         }
     }
 
@@ -219,10 +218,10 @@ public sealed class SkillPruneServiceTests
         var orphan = packages[0];
         var installService = SkillTestData.CreateInstallService();
         var pruneService = SkillTestData.CreatePruneService();
-        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
+        var request = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(packages[0].Manifest.CatalogId, packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
-        var skillDirectory = Path.Combine(install.Value!.TargetRoot, orphan.Manifest.SkillName.Value);
+        var skillDirectory = Path.Combine(install.Value!.TargetRoot.Value, orphan.Manifest.SkillName.Value);
         File.AppendAllText(Path.Combine(skillDirectory, "SKILL.md"), "\nInjected instruction.\n");
 
         var result = await pruneService.PruneAsync(
@@ -246,10 +245,10 @@ public sealed class SkillPruneServiceTests
         var orphan = packages[0];
         var installService = SkillTestData.CreateInstallService();
         var pruneService = SkillTestData.CreatePruneService();
-        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
+        var request = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(packages[0].Manifest.CatalogId, packages, request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
-        var skillDirectory = Path.Combine(install.Value!.TargetRoot, orphan.Manifest.SkillName.Value);
+        var skillDirectory = Path.Combine(install.Value!.TargetRoot.Value, orphan.Manifest.SkillName.Value);
         File.AppendAllText(Path.Combine(skillDirectory, "SKILL.md"), "\nInjected instruction.\n");
 
         var result = await pruneService.PruneAsync(
@@ -274,7 +273,7 @@ public sealed class SkillPruneServiceTests
         var foreignPackage = SkillTestData.CreatePackageWithCatalogId(packages[0], new SkillCatalogId("com.example.foreign-skills"));
         var installService = SkillTestData.CreateInstallService();
         var pruneService = SkillTestData.CreatePruneService();
-        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath, "shared-skills");
+        var request = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath, "shared-skills");
         var install = await installService.InstallAsync(foreignPackage.Manifest.CatalogId, [foreignPackage], request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
 
@@ -283,7 +282,7 @@ public sealed class SkillPruneServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
         Assert.Equal(SkillPruneActionKind.SkippedForeignCatalog, action.ActionKind);
-        Assert.True(Directory.Exists(Path.Combine(result.Value.TargetRoot, foreignPackage.Manifest.SkillName.Value)));
+        Assert.True(Directory.Exists(Path.Combine(result.Value.TargetRoot.Value, foreignPackage.Manifest.SkillName.Value)));
     }
 
     [Theory]
@@ -298,7 +297,7 @@ public sealed class SkillPruneServiceTests
         var targetRoot = scope.CreateDirectory(targetRootRelativePath);
         scope.WriteFile(Path.Combine(targetRootRelativePath, "custom-skill", "SKILL.md"), "# Custom\n");
         var pruneService = SkillTestData.CreatePruneService();
-        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
+        var request = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath);
 
         var result = await pruneService.PruneAsync(new SkillPruneInput(packages[0].Manifest.CatalogId, packages, request, Force: force), CancellationToken.None);
 
@@ -321,7 +320,7 @@ public sealed class SkillPruneServiceTests
         var targetRoot = scope.CreateDirectory(targetRootRelativePath);
         scope.WriteFile(Path.Combine(targetRootRelativePath, "invalid-skill", "agent-skill.json"), "{}");
         var pruneService = SkillTestData.CreatePruneService();
-        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
+        var request = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath);
 
         var result = await pruneService.PruneAsync(new SkillPruneInput(packages[0].Manifest.CatalogId, packages, request, Force: force), CancellationToken.None);
 
@@ -341,7 +340,7 @@ public sealed class SkillPruneServiceTests
         var targetRoot = scope.CreateDirectory(GetDefaultOpenAiBundleTargetRootRelativePath(packages[0].Manifest.CatalogId));
         SkillTestData.WriteNameCollisionManifest(targetRoot, packages[0]);
         var pruneService = SkillTestData.CreatePruneService();
-        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
+        var request = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath);
 
         var result = await pruneService.PruneAsync(
             new SkillPruneInput(packages[0].Manifest.CatalogId, packages.Skip(1).ToArray(), request, Force: true),
@@ -363,8 +362,8 @@ public sealed class SkillPruneServiceTests
         var orphan = packages[0];
         var installService = SkillTestData.CreateInstallService();
         var pruneService = SkillTestData.CreatePruneService();
-        var claudeRequest = new SkillInstallRequest(SkillHostKind.Claude, SkillScopeKind.Project, scope.FullPath, "shared-skills");
-        var openAiRequest = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath, "shared-skills");
+        var claudeRequest = SkillTestData.CreateInstallRequest(HostKind.ClaudeCode, SkillScopeKind.Project, scope.FullPath, "shared-skills");
+        var openAiRequest = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath, "shared-skills");
         var install = await installService.InstallAsync(orphan.Manifest.CatalogId, [orphan], claudeRequest, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
 
@@ -376,7 +375,7 @@ public sealed class SkillPruneServiceTests
         var action = result.Value!.Actions.Single();
         Assert.Equal(SkillPruneActionKind.BlockedHostConflict, action.ActionKind);
         Assert.Equal(SkillFailureCodes.InstallTargetHostConflict, action.TargetState!.Code);
-        Assert.True(Directory.Exists(Path.Combine(result.Value.TargetRoot, orphan.Manifest.SkillName.Value)));
+        Assert.True(Directory.Exists(Path.Combine(result.Value.TargetRoot.Value, orphan.Manifest.SkillName.Value)));
     }
 
     [Theory]
@@ -390,10 +389,10 @@ public sealed class SkillPruneServiceTests
         var orphan = packages[0];
         var installService = SkillTestData.CreateInstallService();
         var pruneService = SkillTestData.CreatePruneService();
-        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
+        var request = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(orphan.Manifest.CatalogId, [orphan], request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
-        var skillDirectory = Path.Combine(install.Value!.TargetRoot, orphan.Manifest.SkillName.Value);
+        var skillDirectory = Path.Combine(install.Value!.TargetRoot.Value, orphan.Manifest.SkillName.Value);
         SkillTestData.TamperManifestDigest(Path.Combine(skillDirectory, "agent-skill.json"));
 
         var result = await pruneService.PruneAsync(
@@ -419,7 +418,7 @@ public sealed class SkillPruneServiceTests
         var targetRoot = scope.CreateDirectory(targetRootRelativePath);
         scope.WriteFile(Path.Combine(targetRootRelativePath, "Invalid Skill", "agent-skill.json"), "{}");
         var pruneService = SkillTestData.CreatePruneService();
-        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
+        var request = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath);
 
         var result = await pruneService.PruneAsync(new SkillPruneInput(packages[0].Manifest.CatalogId, packages, request, Force: force), CancellationToken.None);
 
@@ -460,7 +459,7 @@ public sealed class SkillPruneServiceTests
         }
 
         var pruneService = SkillTestData.CreatePruneService();
-        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
+        var request = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath);
 
         var result = await pruneService.PruneAsync(
             new SkillPruneInput(orphan.Manifest.CatalogId, packages.Skip(1).ToArray(), request, Force: force),
@@ -490,7 +489,8 @@ public sealed class SkillPruneServiceTests
         var targetRootRelativePath = GetDefaultOpenAiBundleTargetRootRelativePath(orphan.Manifest.CatalogId);
         var targetRoot = scope.CreateDirectory(targetRootRelativePath);
         var skillDirectory = scope.CreateDirectory(Path.Combine(targetRootRelativePath, orphan.Manifest.SkillName.Value));
-        outsideScope.WriteFile("agent-skill.json", orphan.Files.Single(static file => file.RelativePath == "agent-skill.json").Content);
+        var manifestPath = PackageRelativePath.Parse("agent-skill.json");
+        outsideScope.WriteFile("agent-skill.json", orphan.Files.Single(file => file.RelativePath.Equals(manifestPath)).Content);
         var manifestLink = Path.Combine(skillDirectory, "agent-skill.json");
         if (!TestSymbolicLinks.TryCreateFile(manifestLink, Path.Combine(outsideScope.FullPath, "agent-skill.json")))
         {
@@ -498,7 +498,7 @@ public sealed class SkillPruneServiceTests
         }
 
         var pruneService = SkillTestData.CreatePruneService();
-        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
+        var request = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath);
 
         var result = await pruneService.PruneAsync(
             new SkillPruneInput(orphan.Manifest.CatalogId, packages.Skip(1).ToArray(), request, Force: force),
@@ -518,10 +518,10 @@ public sealed class SkillPruneServiceTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var orphan = packages[0];
         var installService = SkillTestData.CreateInstallService();
-        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
+        var request = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(orphan.Manifest.CatalogId, [orphan], request, CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
-        var skillDirectory = Path.Combine(install.Value!.TargetRoot, orphan.Manifest.SkillName.Value);
+        var skillDirectory = Path.Combine(install.Value!.TargetRoot.Value, orphan.Manifest.SkillName.Value);
         var lateFile = Path.Combine(skillDirectory, "late-local-note.md");
         var pruneService = SkillTestData.CreatePruneService(new MutatingSkillInstalledPackageRemover(
             SkillTestData.CreatePackageRemover(),

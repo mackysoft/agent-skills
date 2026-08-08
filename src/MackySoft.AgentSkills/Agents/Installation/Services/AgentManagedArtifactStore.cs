@@ -1,6 +1,8 @@
 using MackySoft.AgentSkills.Agents.Installation.State;
 using MackySoft.AgentSkills.Agents.Installation.Targeting;
+using MackySoft.AgentSkills.Serialization;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Agents.Installation.Services;
 
@@ -56,7 +58,7 @@ internal sealed class AgentManagedArtifactStore
 
     public async ValueTask<SkillOperationResult<bool>> DeleteAsync (
         AgentInstallationState state,
-        string statePath,
+        AbsolutePath statePath,
         AgentResolvedTarget target,
         CancellationToken cancellationToken)
     {
@@ -66,23 +68,23 @@ internal sealed class AgentManagedArtifactStore
             foreach (var artifact in state.ManagedArtifacts)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var pathResult = AgentPathGuard.ResolveArtifactPath(target.ArtifactRoot, artifact.Path);
+                var pathResult = AgentPathGuard.Validate(ContainedPath.Create(target.ArtifactRoot, artifact.Path.RootRelativePath));
                 if (!pathResult.IsSuccess)
                 {
                     return SkillOperationResult<bool>.FailureResult(pathResult.Failure!.Code, pathResult.Failure.Message);
                 }
 
-                if (Directory.Exists(pathResult.Value!))
+                if (Directory.Exists(pathResult.Value!.Value))
                 {
                     return SkillOperationResult<bool>.FailureResult(
                         SkillFailureCodes.InstallTargetUnmanaged,
                         $"Managed agent artifact path is occupied by a directory: {artifact.Path}.");
                 }
 
-                File.Delete(pathResult.Value!);
+                File.Delete(pathResult.Value!.Value);
             }
 
-            File.Delete(statePath);
+            File.Delete(statePath.Value);
             return SkillOperationResult<bool>.Success(true);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
@@ -98,19 +100,16 @@ internal sealed class AgentManagedArtifactStore
         AgentPlannedArtifact artifact,
         CancellationToken cancellationToken)
     {
-        var pathResult = AgentPathGuard.ResolveArtifactPath(target.ArtifactRoot, artifact.RelativePath);
+        var pathResult = AgentPathGuard.Validate(ContainedPath.Create(target.ArtifactRoot, artifact.RelativePath.RootRelativePath));
         if (!pathResult.IsSuccess)
         {
             return SkillOperationResult<bool>.FailureResult(pathResult.Failure!.Code, pathResult.Failure.Message);
         }
 
         var targetPath = pathResult.Value!;
-        var temporaryPath = targetPath + $".tmp.{Guid.NewGuid():N}";
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
-            await File.WriteAllTextAsync(temporaryPath, artifact.Content, cancellationToken).ConfigureAwait(false);
-            ReplaceFile(temporaryPath, targetPath);
+            await CanonicalTextFilePublisher.PublishAsync(targetPath, artifact.Content, cancellationToken).ConfigureAwait(false);
             return SkillOperationResult<bool>.Success(true);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
@@ -118,25 +117,6 @@ internal sealed class AgentManagedArtifactStore
             return SkillOperationResult<bool>.FailureResult(
                 SkillFailureCodes.InstallTargetWriteFailed,
                 $"Could not write managed agent artifact '{artifact.RelativePath}': {exception.Message}");
-        }
-        finally
-        {
-            if (File.Exists(temporaryPath))
-            {
-                File.Delete(temporaryPath);
-            }
-        }
-    }
-
-    private static void ReplaceFile (string temporaryPath, string targetPath)
-    {
-        try
-        {
-            File.Replace(temporaryPath, targetPath, destinationBackupFileName: null, ignoreMetadataErrors: true);
-        }
-        catch (FileNotFoundException)
-        {
-            File.Move(temporaryPath, targetPath, overwrite: true);
         }
     }
 }

@@ -1,10 +1,8 @@
-using MackySoft.AgentSkills.Agents;
 using MackySoft.AgentSkills.Agents.Manifests;
 using MackySoft.AgentSkills.Agents.Packaging;
 using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Distribution;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 
@@ -36,7 +34,7 @@ internal static class AgentDistributionTestData
         IReadOnlyList<CanonicalSkillPackage> skills,
         string category,
         string agentName,
-        AgentHostKind hostId,
+        HostKind hostId,
         string hostRelativeArtifactPath,
         IReadOnlyList<SkillName>? skillDependencies = null)
     {
@@ -45,7 +43,8 @@ internal static class AgentDistributionTestData
         var bundleVersion = new AgentSkillsBundleVersion(skills[0].Manifest.SkillBundleVersion.Value);
         var canonicalAgentName = new AgentName(agentName);
         const string instructions = "# Agent\n";
-        var artifactPath = $"hosts/{Vocabulary.GetText(hostId)}/{hostRelativeArtifactPath}";
+        var artifactPath = PackageRelativePath.Parse($"hosts/{Vocabulary.GetText(hostId)}/{hostRelativeArtifactPath}");
+        var instructionsPath = PackageRelativePath.Parse("AGENT.md");
         var artifactContent = $"name = \"{agentName}\"\n";
         var artifact = new AgentHostArtifactManifest(
             hostId,
@@ -60,7 +59,7 @@ internal static class AgentDistributionTestData
             agentName,
             $"Fixture {agentName}.",
             skillDependencies ?? skills.Select(static skill => skill.Manifest.SkillName).ToArray(),
-            digestCalculator.ComputeSingleFileDigest("AGENT.md", instructions),
+            digestCalculator.ComputeSingleFileDigest(instructionsPath, instructions),
             Sha256Digest.Parse(new string('0', 64)),
             [artifact]);
         var manifest = new AgentManifest(
@@ -79,9 +78,9 @@ internal static class AgentDistributionTestData
         return new CanonicalAgentPackage(
             manifest,
             [
-                new SkillPackageFile("AGENT.md", instructions),
-                new SkillPackageFile(artifactPath, artifactContent),
-                new SkillPackageFile("agent-manifest.json", manifestSerializer.Serialize(manifest)),
+                new PackageTextFile(instructionsPath, instructions),
+                new PackageTextFile(artifactPath, artifactContent),
+                new PackageTextFile(PackageRelativePath.Parse("agent-manifest.json"), manifestSerializer.Serialize(manifest)),
             ],
             manifestSerializer,
             digestCalculator);

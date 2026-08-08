@@ -1,5 +1,5 @@
-using MackySoft.AgentSkills.Packaging.FileSystem;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Installation.Transactions;
 
@@ -11,28 +11,38 @@ internal static class SkillPackageTransactionPathGuard
     /// <param name="directoryPath"> The transaction directory path. </param>
     /// <returns> Success when the directory is not a link and resolves under the bundle target root. </returns>
     public static SkillOperationResult<bool> ValidateCreatedDirectory (
-        string targetRoot,
-        string directoryPath)
+        AbsolutePath targetRoot,
+        AbsolutePath directoryPath)
     {
-        var resolvedResult = SkillPackagePathBoundary.ResolveUnderRoot(targetRoot, directoryPath);
-        if (!resolvedResult.IsSuccess)
-        {
-            return SkillOperationResult<bool>.FailureResult(resolvedResult.Failure!.Code, resolvedResult.Failure.Message);
-        }
+        ArgumentNullException.ThrowIfNull(targetRoot);
+        ArgumentNullException.ThrowIfNull(directoryPath);
 
-        var directory = new DirectoryInfo(directoryPath);
-        if (!directory.Exists)
-        {
-            return SkillOperationResult<bool>.FailureResult(
-                SkillFailureCodes.InstallTargetWriteFailed,
-                $"SKILL package transaction directory is missing: {directoryPath}");
-        }
-
-        if (directory.LinkTarget is not null || (directory.Attributes & FileAttributes.ReparsePoint) != 0)
+        if (!ContainedPath.TryCreate(targetRoot, directoryPath, out var containedPath, out var pathFailure))
         {
             return SkillOperationResult<bool>.FailureResult(
                 SkillFailureCodes.PathUnsafe,
-                $"SKILL package transaction directory must not be a link: {directoryPath}");
+                $"SKILL package transaction directory is unsafe: {pathFailure.Message}");
+        }
+
+        if (!PhysicalPathResolver.TryResolve(
+                containedPath,
+                SymbolicLinkHandling.Reject,
+                MissingPathHandling.Reject,
+                out var resolution,
+                out var physicalFailure))
+        {
+            return SkillOperationResult<bool>.FailureResult(
+                physicalFailure.Kind == FileSystemOperationFailureKind.EntryNotFound
+                    ? SkillFailureCodes.InstallTargetWriteFailed
+                    : SkillFailureCodes.PathUnsafe,
+                $"SKILL package transaction directory is invalid: {physicalFailure.Message}");
+        }
+
+        if (resolution.TargetObservation.State != FileSystemEntryState.Directory)
+        {
+            return SkillOperationResult<bool>.FailureResult(
+                SkillFailureCodes.PathUnsafe,
+                $"SKILL package transaction directory must be a regular directory: {directoryPath.Value}");
         }
 
         return SkillOperationResult<bool>.Success(true);

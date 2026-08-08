@@ -11,6 +11,8 @@ namespace MackySoft.AgentSkills.Bundles;
 /// <summary> Computes the version-independent digest of a complete canonical SKILL package set. </summary>
 public sealed class SkillBundleDigestCalculator
 {
+    private static readonly PackageRelativePath ManifestPath = PackageRelativePath.Parse("agent-skill.json");
+
     private readonly SkillManifestJsonSerializer manifestSerializer;
 
     /// <summary> Initializes a calculator with the canonical manifest projection contract. </summary>
@@ -31,14 +33,14 @@ public sealed class SkillBundleDigestCalculator
     {
         ArgumentNullException.ThrowIfNull(packages);
 
-        var entries = CreateEntries(packages).OrderBy(static entry => entry.RelativePath, StringComparer.Ordinal).ToArray();
+        var entries = CreateEntries(packages).OrderBy(static entry => entry.RelativePath.Value, StringComparer.Ordinal).ToArray();
         if (entries.Length == 0)
         {
             throw new ArgumentException("Canonical SKILL bundle must contain at least one package file.", nameof(packages));
         }
 
         var duplicatePath = entries
-            .GroupBy(static entry => entry.RelativePath, StringComparer.Ordinal)
+            .GroupBy(static entry => entry.RelativePath)
             .FirstOrDefault(static group => group.Count() > 1);
         if (duplicatePath is not null)
         {
@@ -48,7 +50,7 @@ public sealed class SkillBundleDigestCalculator
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         foreach (var entry in entries)
         {
-            AppendLengthPrefixedUtf8(hash, entry.RelativePath);
+            AppendLengthPrefixedUtf8(hash, entry.RelativePath.Value);
             AppendLengthPrefixedUtf8(hash, SkillTextNormalizer.NormalizeToLf(entry.Content));
         }
 
@@ -64,11 +66,11 @@ public sealed class SkillBundleDigestCalculator
             {
                 ArgumentNullException.ThrowIfNull(file);
 
-                var content = string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal)
+                var content = file.RelativePath == ManifestPath
                     ? manifestSerializer.SerializeForBundleDigest(package.Manifest)
                     : file.Content;
                 yield return new SkillDigestInputFile(
-                    $"{package.Manifest.SkillName.Value}/{file.RelativePath}",
+                    PackageRelativePath.Parse($"{package.Manifest.SkillName.Value}/{file.RelativePath.Value}"),
                     content);
             }
         }

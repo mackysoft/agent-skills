@@ -1,9 +1,8 @@
 using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Catalogs;
-using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Manifests;
-using MackySoft.AgentSkills.Names;
+using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Tests.Manifests;
 
@@ -62,15 +61,15 @@ public sealed class SkillManifestCandidateTests
         var dependencies = new List<SkillName> { new("sample-helper") };
         var hostArtifacts = new List<SkillHostArtifactManifest>
         {
-            new(SkillHostKind.Claude, null, null, Digest('1')),
+            new(HostKind.ClaudeCode, null, null, Digest('1')),
         };
         var manifest = CreateManifest(dependencies, hostArtifacts);
 
         dependencies[0] = new SkillName("other-helper");
-        hostArtifacts[0] = new SkillHostArtifactManifest(SkillHostKind.Copilot, null, null, Digest('2'));
+        hostArtifacts[0] = new SkillHostArtifactManifest(HostKind.GitHubCopilot, null, null, Digest('2'));
 
         Assert.Equal("sample-helper", Assert.Single(manifest.Dependencies).Value);
-        Assert.Equal(SkillHostKind.Claude, Assert.Single(manifest.HostArtifacts).Host);
+        Assert.Equal(HostKind.ClaudeCode, Assert.Single(manifest.HostArtifacts).Host);
     }
 
     [Fact]
@@ -90,31 +89,22 @@ public sealed class SkillManifestCandidateTests
             Digest('f'),
             []));
 
-        Assert.Throws<ArgumentNullException>(() => new SkillHostArtifactManifest(SkillHostKind.Claude, null, null, null!));
+        Assert.Throws<ArgumentNullException>(() => new SkillHostArtifactManifest(HostKind.ClaudeCode, null, null, null!));
     }
 
     [Fact]
     [Trait("Size", "Small")]
     public void HostArtifactConstructor_RejectsUnpairedPathAndDigest ()
     {
-        Assert.Throws<ArgumentException>(() => new SkillHostArtifactManifest(SkillHostKind.OpenAi, "agents/openai.yaml", null, Digest('1')));
-        Assert.Throws<ArgumentException>(() => new SkillHostArtifactManifest(SkillHostKind.OpenAi, null, Digest('2'), Digest('1')));
+        Assert.Throws<ArgumentException>(() => new SkillHostArtifactManifest(HostKind.Codex, PackageRelativePath.Parse("agents/openai.yaml"), null, Digest('1')));
+        Assert.Throws<ArgumentException>(() => new SkillHostArtifactManifest(HostKind.Codex, null, Digest('2'), Digest('1')));
     }
 
     [Fact]
     [Trait("Size", "Small")]
     public void HostArtifactConstructor_RejectsUndefinedHost ()
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => new SkillHostArtifactManifest((SkillHostKind)42, null, null, Digest('1')));
-    }
-
-    [Theory]
-    [Trait("Size", "Small")]
-    [InlineData("../openai.yaml")]
-    [InlineData("/agents/openai.yaml")]
-    public void HostArtifactConstructor_RejectsUnsafeArtifactPath (string path)
-    {
-        Assert.Throws<ArgumentException>(() => new SkillHostArtifactManifest(SkillHostKind.OpenAi, path, Digest('2'), Digest('1')));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new SkillHostArtifactManifest((HostKind)42, null, null, Digest('1')));
     }
 
     private static SkillManifestCandidate CreateManifest (

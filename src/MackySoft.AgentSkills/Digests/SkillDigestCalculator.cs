@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Digests;
 
@@ -16,9 +17,9 @@ public sealed class SkillDigestCalculator
         ArgumentNullException.ThrowIfNull(files);
 
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        foreach (var file in files.OrderBy(static file => file.RelativePath, StringComparer.Ordinal))
+        foreach (var file in files.OrderBy(static file => file.RelativePath.Value, StringComparer.Ordinal))
         {
-            AppendUtf8(hash, file.RelativePath);
+            AppendUtf8(hash, file.RelativePath.Value);
             hash.AppendData(Separator);
             AppendUtf8(hash, file.Content);
         }
@@ -31,7 +32,7 @@ public sealed class SkillDigestCalculator
     /// <param name="content"> The artifact content. </param>
     /// <returns> The lowercase hexadecimal SHA-256 digest. </returns>
     public Sha256Digest ComputeSingleFileDigest (
-        string relativePath,
+        PackageRelativePath relativePath,
         string content)
     {
         return ComputeDigest([new SkillDigestInputFile(relativePath, content)]);

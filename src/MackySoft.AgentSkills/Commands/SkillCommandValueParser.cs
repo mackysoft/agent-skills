@@ -1,5 +1,4 @@
 using MackySoft.AgentSkills.Distribution;
-using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.AgentSkills.Shared.Text;
@@ -9,35 +8,26 @@ namespace MackySoft.AgentSkills.Commands;
 /// <summary> Parses product-independent SKILL command literals into domain values. </summary>
 public static class SkillCommandValueParser
 {
-    /// <summary> Parses a host literal and resolves it to a registered host descriptor. </summary>
+    /// <summary> Parses a host literal into its canonical host kind. </summary>
     /// <param name="host"> The raw host literal. Null, empty, and whitespace values fail with <see cref="SkillFailureCodes.InputInvalid" />. </param>
-    /// <param name="hostAdapters"> The registered host adapter set used for case-insensitive host lookup. </param>
-    /// <returns> The canonical host descriptor, or a structured parsing failure. </returns>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="hostAdapters" /> is <see langword="null" />. </exception>
-    public static SkillOperationResult<SkillHostDescriptor> ParseHostLiteral (
-        string? host,
-        SkillHostAdapterSet hostAdapters)
+    /// <returns> The canonical host kind, or a structured parsing failure. </returns>
+    public static SkillOperationResult<HostKind> ParseHostLiteral (string? host)
     {
-        ArgumentNullException.ThrowIfNull(hostAdapters);
-
         if (string.IsNullOrWhiteSpace(host))
         {
-            return SkillOperationResult<SkillHostDescriptor>.FailureResult(
+            return SkillOperationResult<HostKind>.FailureResult(
                 SkillFailureCodes.InputInvalid,
                 "SKILL host literal must not be empty.");
         }
 
-        if (!VocabularyInputParser.TryParseIgnoreCase(host, out SkillHostKind parsedHost))
+        if (!VocabularyInputParser.TryParseIgnoreCase(host, out HostKind parsedHost))
         {
-            return SkillOperationResult<SkillHostDescriptor>.FailureResult(
+            return SkillOperationResult<HostKind>.FailureResult(
                 SkillFailureCodes.HostUnsupported,
-                $"Unsupported SKILL host: {host}. Supported hosts: {string.Join(", ", Vocabulary.GetTexts<SkillHostKind>())}.");
+                $"Unsupported SKILL host: {host}. Supported hosts: {string.Join(", ", Vocabulary.GetTexts<HostKind>())}.");
         }
 
-        var adapterResult = hostAdapters.GetAdapter(parsedHost);
-        return adapterResult.IsSuccess
-            ? SkillOperationResult<SkillHostDescriptor>.Success(adapterResult.Value!.Descriptor)
-            : SkillOperationResult<SkillHostDescriptor>.FailureResult(adapterResult.Failure!.Code, adapterResult.Failure.Message);
+        return SkillOperationResult<HostKind>.Success(parsedHost);
     }
 
     /// <summary> Parses an install scope literal. </summary>

@@ -1,8 +1,7 @@
 using System.Text.Json;
 using MackySoft.AgentSkills.Hosts.Registration;
-using MackySoft.AgentSkills.Names;
+using MackySoft.AgentSkills.Paths;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.FileSystem;
 using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Agents.Sources;
@@ -12,37 +11,23 @@ internal sealed class AgentSourceDefinitionReader
 {
     private static readonly string[] ExpectedAgentEntries = ["AGENT.md.template", "agent.json", "hosts"];
     private static readonly string[] ExpectedJsonProperties = ["schemaVersion", "displayName", "description", "skillDependencies"];
-    private readonly AgentHostAdapterSet hostAdapters;
-
-    /// <summary> Initializes the reader with the registered host bindings. </summary>
-    public AgentSourceDefinitionReader (AgentHostAdapterSet hostAdapters)
-    {
-        this.hostAdapters = hostAdapters ?? throw new ArgumentNullException(nameof(hostAdapters));
-    }
-
     /// <summary> Reads all agent definitions below the v2 agent namespace root. </summary>
     public async ValueTask<SkillOperationResult<IReadOnlyList<AgentSourceDefinition>>> ReadAllAsync (
-        string agentsRoot,
+        AbsolutePath agentsRoot,
         CancellationToken cancellationToken)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(agentsRoot);
+        ArgumentNullException.ThrowIfNull(agentsRoot);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var rootResult = SourcePathBoundary.ParseRoot(agentsRoot, "Agent definitions root");
-        if (!rootResult.IsSuccess)
-        {
-            return Failure(rootResult.Failure!.Message);
-        }
-
-        var root = rootResult.Value!;
+        var root = agentsRoot;
         try
         {
-            if (!SourcePathBoundary.EntryExists(root))
+            if (!AuthoredSourcePathResolver.EntryExists(root))
             {
                 return SkillOperationResult<IReadOnlyList<AgentSourceDefinition>>.Success([]);
             }
 
-            var validatedRootResult = SourcePathBoundary.ValidateDirectoryRoot(root, "Agent definitions root");
+            var validatedRootResult = AuthoredSourcePathResolver.ValidateDirectoryRoot(root, "Agent definitions root");
             if (!validatedRootResult.IsSuccess)
             {
                 return Failure(validatedRootResult.Failure!.Message);
@@ -59,7 +44,7 @@ internal sealed class AgentSourceDefinitionReader
                     return Failure($"Agent category directory name is invalid: {categoryLiteral}");
                 }
 
-                var categoryDirectoryResult = SourcePathBoundary.ResolveDirectory(root, categoryLiteral, "Agent category directory");
+                var categoryDirectoryResult = AuthoredSourcePathResolver.ResolveDirectory(root, RootRelativePath.Parse(categoryLiteral), "Agent category directory");
                 if (!categoryDirectoryResult.IsSuccess)
                 {
                     return Failure(categoryDirectoryResult.Failure!.Message);
@@ -76,7 +61,13 @@ internal sealed class AgentSourceDefinitionReader
                     cancellationToken.ThrowIfCancellationRequested();
 
                     var agentLiteral = Path.GetFileName(agentEntry);
-                    var agentDirectoryResult = SourcePathBoundary.ResolveDirectory(categoryDirectoryResult.Value!, agentLiteral, "Agent definition directory");
+                    if (!RootRelativePath.TryParse(agentLiteral, out var agentRelativePath, out var pathFailure)
+                        || agentRelativePath.IsRoot)
+                    {
+                        return Failure($"Agent directory name is invalid: {agentLiteral}. {pathFailure.Message}");
+                    }
+
+                    var agentDirectoryResult = AuthoredSourcePathResolver.ResolveDirectory(categoryDirectoryResult.Value!, agentRelativePath, "Agent definition directory");
                     if (!agentDirectoryResult.IsSuccess)
                     {
                         return Failure(agentDirectoryResult.Failure!.Message);
@@ -129,13 +120,13 @@ internal sealed class AgentSourceDefinitionReader
             return SingleFailure($"Agent definition '{agentName.Value}' must contain only agent.json, AGENT.md.template, and hosts.");
         }
 
-        var metadataPathResult = SourcePathBoundary.ResolveRegularFile(agentDirectory, "agent.json", "Agent metadata file");
+        var metadataPathResult = AuthoredSourcePathResolver.ResolveRegularFile(agentDirectory, RootRelativePath.Parse("agent.json"), "Agent metadata file");
         if (!metadataPathResult.IsSuccess)
         {
             return SingleFailure(metadataPathResult.Failure!.Message);
         }
 
-        var instructionsPathResult = SourcePathBoundary.ResolveRegularFile(agentDirectory, "AGENT.md.template", "Agent instructions template");
+        var instructionsPathResult = AuthoredSourcePathResolver.ResolveRegularFile(agentDirectory, RootRelativePath.Parse("AGENT.md.template"), "Agent instructions template");
         if (!instructionsPathResult.IsSuccess)
         {
             return SingleFailure(instructionsPathResult.Failure!.Message);
@@ -199,7 +190,7 @@ internal sealed class AgentSourceDefinitionReader
         AbsolutePath agentDirectory,
         CancellationToken cancellationToken)
     {
-        var hostsDirectoryResult = SourcePathBoundary.ResolveDirectory(agentDirectory, "hosts", "Agent hosts directory");
+        var hostsDirectoryResult = AuthoredSourcePathResolver.ResolveDirectory(agentDirectory, RootRelativePath.Parse("hosts"), "Agent hosts directory");
         if (!hostsDirectoryResult.IsSuccess)
         {
             return BindingsFailure(hostsDirectoryResult.Failure!.Message);
@@ -224,33 +215,33 @@ internal sealed class AgentSourceDefinitionReader
                 return BindingsFailure($"Agent host binding file name is invalid: {fileName}");
             }
 
-            var bindingPathResult = SourcePathBoundary.ResolveRegularFile(
+            var bindingPathResult = AuthoredSourcePathResolver.ResolveRegularFile(
                 hostsDirectoryResult.Value!,
-                fileName,
+                RootRelativePath.Parse(fileName),
                 "Agent host binding file");
             if (!bindingPathResult.IsSuccess)
             {
                 return BindingsFailure(bindingPathResult.Failure!.Message);
             }
 
-            if (!Vocabulary.TryGetValue(hostName.Value, out AgentHostKind host))
+            if (!Vocabulary.TryGetValue(hostName.Value, out HostKind host))
             {
                 return SkillOperationResult<IReadOnlyList<AgentHostBindingSource>>.FailureResult(
                     SkillFailureCodes.HostUnsupported,
                     $"Unsupported agent host binding: {hostName.Value}");
             }
 
-            var adapterResult = hostAdapters.GetAdapter(host);
-            if (!adapterResult.IsSuccess)
+            var registrationResult = HostRegistration.Get(host);
+            if (!registrationResult.IsSuccess)
             {
                 return SkillOperationResult<IReadOnlyList<AgentHostBindingSource>>.FailureResult(
-                    adapterResult.Failure!.Code,
-                    adapterResult.Failure.Message);
+                    registrationResult.Failure!.Code,
+                    registrationResult.Failure.Message);
             }
 
             var json = SkillTextNormalizer.NormalizeToLf(
                 await File.ReadAllTextAsync(bindingPathResult.Value!.Value, cancellationToken).ConfigureAwait(false));
-            var validationResult = adapterResult.Value!.ValidateBinding(json);
+            var validationResult = registrationResult.Value!.AgentArtifactAdapter.ValidateBinding(json);
             if (!validationResult.IsSuccess)
             {
                 return BindingsFailure(validationResult.Failure!.Message);

@@ -1,5 +1,4 @@
 using MackySoft.AgentSkills.Catalogs;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 
 namespace MackySoft.AgentSkills.Installation.Requests;

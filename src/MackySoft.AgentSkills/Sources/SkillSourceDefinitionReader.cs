@@ -1,9 +1,8 @@
 using System.Text.Json;
-using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Dependencies;
-using MackySoft.AgentSkills.Names;
+using MackySoft.AgentSkills.Paths;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.FileSystem;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Sources;
 
@@ -23,46 +22,46 @@ public sealed class SkillSourceDefinitionReader
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> An immutable snapshot of the source definitions, or validation failure. </returns>
     internal async ValueTask<SkillOperationResult<IReadOnlyList<SkillSourceDefinition>>> ReadAllAsync (
-        string definitionsRoot,
+        AbsolutePath definitionsRoot,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(definitionsRoot);
+        ArgumentNullException.ThrowIfNull(definitionsRoot);
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!Directory.Exists(definitionsRoot))
+        if (!AuthoredSourcePathResolver.EntryExists(definitionsRoot))
         {
-            return Failure($"SKILL definitions directory does not exist: {definitionsRoot}");
+            return Failure($"SKILL definitions directory does not exist: {definitionsRoot.Value}");
         }
 
-        var rootResult = ResolveSourcePathUnderRoot(definitionsRoot, definitionsRoot);
+        var rootResult = AuthoredSourcePathResolver.ValidateDirectoryRoot(definitionsRoot, "SKILL definitions root");
         if (!rootResult.IsSuccess)
         {
             return Failure(rootResult.Failure!.Message);
         }
 
         var definitions = new List<SkillSourceDefinition>();
-        foreach (var categoryDirectory in Directory.GetDirectories(rootResult.Value!).Order(StringComparer.Ordinal))
+        foreach (var categoryDirectory in Directory.GetDirectories(rootResult.Value!.Value).Order(StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var categoryDirectoryResult = ResolveSourcePathUnderRoot(rootResult.Value!, categoryDirectory);
-            if (!categoryDirectoryResult.IsSuccess)
-            {
-                return Failure(categoryDirectoryResult.Failure!.Message);
-            }
-
-            var categoryName = Path.GetFileName(categoryDirectoryResult.Value!);
+            var categoryName = Path.GetFileName(categoryDirectory);
             if (!SkillCategory.TryCreate(categoryName, out var category) || category is null)
             {
                 return Failure($"Skill category directory name is invalid: {categoryName}");
             }
 
-            if (File.Exists(Path.Combine(categoryDirectoryResult.Value!, "skill.json")))
+            var categoryDirectoryResult = AuthoredSourcePathResolver.ResolveDirectory(rootResult.Value!, RootRelativePath.Parse(categoryName), "SKILL category directory");
+            if (!categoryDirectoryResult.IsSuccess)
+            {
+                return Failure(categoryDirectoryResult.Failure!.Message);
+            }
+
+            if (File.Exists(Path.Combine(categoryDirectoryResult.Value!.Value, "skill.json")))
             {
                 return Failure($"SKILL definitions must use '<category>/<skill>' directories. A skill.json was found directly under category candidate '{categoryName}'.");
             }
 
-            var skillDirectories = Directory.GetDirectories(categoryDirectoryResult.Value!).Order(StringComparer.Ordinal).ToArray();
+            var skillDirectories = Directory.GetDirectories(categoryDirectoryResult.Value.Value).Order(StringComparer.Ordinal).ToArray();
             if (skillDirectories.Length == 0)
             {
                 return Failure($"Skill category does not contain any definitions: {categoryName}");
@@ -72,7 +71,17 @@ public sealed class SkillSourceDefinitionReader
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var skillDirectoryResult = ResolveSourcePathUnderRoot(categoryDirectoryResult.Value!, skillDirectory);
+                var skillDirectoryName = Path.GetFileName(skillDirectory);
+                if (!RootRelativePath.TryParse(skillDirectoryName, out var skillDirectoryRelativePath, out var pathFailure)
+                    || skillDirectoryRelativePath.IsRoot)
+                {
+                    return Failure($"Skill directory name is invalid: {skillDirectoryName}. {pathFailure.Message}");
+                }
+
+                var skillDirectoryResult = AuthoredSourcePathResolver.ResolveDirectory(
+                    categoryDirectoryResult.Value,
+                    skillDirectoryRelativePath,
+                    "SKILL definition directory");
                 if (!skillDirectoryResult.IsSuccess)
                 {
                     return Failure(skillDirectoryResult.Failure!.Message);
@@ -111,19 +120,19 @@ public sealed class SkillSourceDefinitionReader
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The source definition or validation failure. </returns>
     internal async ValueTask<SkillOperationResult<SkillSourceDefinition>> ReadOneAsync (
-        string skillDirectory,
+        AbsolutePath skillDirectory,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+        ArgumentNullException.ThrowIfNull(skillDirectory);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var skillDirectoryResult = ResolveSourcePathUnderRoot(skillDirectory, skillDirectory);
+        var skillDirectoryResult = AuthoredSourcePathResolver.ValidateDirectoryRoot(skillDirectory, "SKILL definition directory");
         if (!skillDirectoryResult.IsSuccess)
         {
             return SkillOperationResult<SkillSourceDefinition>.FailureResult(SkillFailureCodes.SourceInvalid, skillDirectoryResult.Failure!.Message);
         }
 
-        var categoryDirectory = Path.GetDirectoryName(skillDirectoryResult.Value!);
+        var categoryDirectory = Path.GetDirectoryName(skillDirectoryResult.Value!.Value);
         var categoryName = categoryDirectory is null ? string.Empty : Path.GetFileName(categoryDirectory);
         if (!SkillCategory.TryCreate(categoryName, out var category) || category is null)
         {
@@ -136,11 +145,11 @@ public sealed class SkillSourceDefinitionReader
     }
 
     private static async ValueTask<SkillOperationResult<SkillSourceDefinition>> ReadOneCoreAsync (
-        string skillDirectory,
+        AbsolutePath skillDirectory,
         SkillCategory category,
         CancellationToken cancellationToken)
     {
-        var skillNameLiteral = Path.GetFileName(Path.GetFullPath(skillDirectory));
+        var skillNameLiteral = Path.GetFileName(skillDirectory.Value);
         if (!SkillName.TryCreate(skillNameLiteral, out var skillName) || skillName is null)
         {
             return SkillOperationResult<SkillSourceDefinition>.FailureResult(
@@ -178,19 +187,17 @@ public sealed class SkillSourceDefinitionReader
             return SkillOperationResult<SkillSourceDefinition>.FailureResult(SkillFailureCodes.SourceInvalid, metadataResult.Failure!.Message);
         }
 
-        var templatePath = Path.Combine(skillDirectory, "SKILL.md.template");
-        if (!File.Exists(templatePath))
-        {
-            return SkillOperationResult<SkillSourceDefinition>.FailureResult(SkillFailureCodes.SourceInvalid, $"SKILL.md.template is missing for '{skillName.Value}'.");
-        }
-
-        var templatePathResult = ResolveSourcePathUnderRoot(skillDirectory, templatePath);
+        var templatePathResult = AuthoredSourcePathResolver.ResolveRegularFile(skillDirectory, RootRelativePath.Parse("SKILL.md.template"), "SKILL instructions template");
         if (!templatePathResult.IsSuccess)
         {
-            return SkillOperationResult<SkillSourceDefinition>.FailureResult(SkillFailureCodes.SourceInvalid, templatePathResult.Failure!.Message);
+            return SkillOperationResult<SkillSourceDefinition>.FailureResult(
+                SkillFailureCodes.SourceInvalid,
+                AuthoredSourcePathResolver.EntryExists(ContainedPath.Create(skillDirectory, RootRelativePath.Parse("SKILL.md.template")).Target)
+                    ? templatePathResult.Failure!.Message
+                    : $"SKILL.md.template is missing for '{skillName.Value}'.");
         }
 
-        var skillTemplate = SkillTextNormalizer.NormalizeToLf(await File.ReadAllTextAsync(templatePathResult.Value!, cancellationToken).ConfigureAwait(false));
+        var skillTemplate = SkillTextNormalizer.NormalizeToLf(await File.ReadAllTextAsync(templatePathResult.Value!.Value, cancellationToken).ConfigureAwait(false));
 
         try
         {
@@ -204,25 +211,23 @@ public sealed class SkillSourceDefinitionReader
     }
 
     private static async ValueTask<SkillOperationResult<SkillSourceMetadata>> ReadMetadataAsync (
-        string skillDirectory,
+        AbsolutePath skillDirectory,
         SkillCategory category,
         SkillName skillName,
         IReadOnlyList<string> references,
         CancellationToken cancellationToken)
     {
-        var metadataPath = Path.Combine(skillDirectory, "skill.json");
-        if (!File.Exists(metadataPath))
-        {
-            return SkillOperationResult<SkillSourceMetadata>.FailureResult(SkillFailureCodes.SourceInvalid, $"skill.json is missing for '{skillName.Value}'.");
-        }
-
-        var metadataPathResult = ResolveSourcePathUnderRoot(skillDirectory, metadataPath);
+        var metadataPathResult = AuthoredSourcePathResolver.ResolveRegularFile(skillDirectory, RootRelativePath.Parse("skill.json"), "SKILL metadata file");
         if (!metadataPathResult.IsSuccess)
         {
-            return SkillOperationResult<SkillSourceMetadata>.FailureResult(SkillFailureCodes.SourceInvalid, metadataPathResult.Failure!.Message);
+            return SkillOperationResult<SkillSourceMetadata>.FailureResult(
+                SkillFailureCodes.SourceInvalid,
+                AuthoredSourcePathResolver.EntryExists(ContainedPath.Create(skillDirectory, RootRelativePath.Parse("skill.json")).Target)
+                    ? metadataPathResult.Failure!.Message
+                    : $"skill.json is missing for '{skillName.Value}'.");
         }
 
-        using var stream = File.OpenRead(metadataPathResult.Value!);
+        using var stream = File.OpenRead(metadataPathResult.Value!.Value);
         using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
         var root = document.RootElement;
 
@@ -260,23 +265,16 @@ public sealed class SkillSourceDefinitionReader
     }
 
     private static async ValueTask<SkillOperationResult<IReadOnlyList<SkillSourceReference>>> ReadReferencesAsync (
-        string skillDirectory,
+        AbsolutePath skillDirectory,
         CancellationToken cancellationToken)
     {
-        var referencesRoot = Path.Combine(skillDirectory, "references");
-        if (!Directory.Exists(referencesRoot))
+        var referencesRoot = ContainedPath.Create(skillDirectory, RootRelativePath.Parse("references")).Target;
+        if (!AuthoredSourcePathResolver.EntryExists(referencesRoot))
         {
             return SkillOperationResult<IReadOnlyList<SkillSourceReference>>.Success([]);
         }
 
-        if ((File.GetAttributes(referencesRoot) & FileAttributes.ReparsePoint) != 0)
-        {
-            return SkillOperationResult<IReadOnlyList<SkillSourceReference>>.FailureResult(
-                SkillFailureCodes.SourceInvalid,
-                $"References directory must not be a symbolic link: {referencesRoot}");
-        }
-
-        var referencesRootResult = ResolveSourcePathUnderRoot(skillDirectory, referencesRoot);
+        var referencesRootResult = AuthoredSourcePathResolver.ResolveDirectory(skillDirectory, RootRelativePath.Parse("references"), "SKILL references directory");
         if (!referencesRootResult.IsSuccess)
         {
             return SkillOperationResult<IReadOnlyList<SkillSourceReference>>.FailureResult(
@@ -285,19 +283,14 @@ public sealed class SkillSourceDefinitionReader
         }
 
         var references = new List<SkillSourceReference>();
-        foreach (var entryPath in Directory.GetFileSystemEntries(referencesRootResult.Value!).Order(StringComparer.Ordinal))
+        foreach (var entryPath in Directory.GetFileSystemEntries(referencesRootResult.Value!.Value).Order(StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var attributes = File.GetAttributes(entryPath);
-            if ((attributes & (FileAttributes.Directory | FileAttributes.ReparsePoint)) != 0)
-            {
-                return SkillOperationResult<IReadOnlyList<SkillSourceReference>>.FailureResult(
-                    SkillFailureCodes.SourceInvalid,
-                    $"References must contain only regular Markdown template files: {entryPath}");
-            }
-
-            var entryPathResult = ResolveSourcePathUnderRoot(referencesRootResult.Value!, entryPath);
+            var entryPathResult = AuthoredSourcePathResolver.ResolveRegularFile(
+                referencesRootResult.Value!,
+                RootRelativePath.Parse(Path.GetFileName(entryPath)),
+                "SKILL reference template");
             if (!entryPathResult.IsSuccess)
             {
                 return SkillOperationResult<IReadOnlyList<SkillSourceReference>>.FailureResult(
@@ -305,7 +298,7 @@ public sealed class SkillSourceDefinitionReader
                     entryPathResult.Failure!.Message);
             }
 
-            var templateFileName = Path.GetFileName(entryPathResult.Value!);
+            var templateFileName = Path.GetFileName(entryPathResult.Value!.Value);
             const string TemplateExtension = ".template";
             if (!templateFileName.EndsWith(TemplateExtension, StringComparison.Ordinal))
             {
@@ -323,7 +316,7 @@ public sealed class SkillSourceDefinitionReader
             }
 
             var template = SkillTextNormalizer.NormalizeToLf(
-                await File.ReadAllTextAsync(entryPathResult.Value!, cancellationToken).ConfigureAwait(false));
+                await File.ReadAllTextAsync(entryPathResult.Value!.Value, cancellationToken).ConfigureAwait(false));
             references.Add(new SkillSourceReference(referenceFileName, template));
         }
 
@@ -374,14 +367,4 @@ public sealed class SkillSourceDefinitionReader
         return SkillOperationResult<IReadOnlyList<SkillSourceDefinition>>.FailureResult(SkillFailureCodes.SourceInvalid, message);
     }
 
-    private static SkillOperationResult<string> ResolveSourcePathUnderRoot (
-        string rootPath,
-        string targetPath)
-    {
-        return SkillPathBoundary.ResolveUnderRoot(
-            rootPath,
-            targetPath,
-            SkillFailureCodes.SourceInvalid,
-            "SKILL source path");
-    }
 }

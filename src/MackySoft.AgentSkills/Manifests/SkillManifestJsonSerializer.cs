@@ -3,9 +3,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Catalogs;
-using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Digests;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Manifests;
@@ -71,7 +69,9 @@ public sealed class SkillManifestJsonSerializer
             .EnumerateArray()
             .Select(static element => new SkillHostArtifactManifest(
                 ReadHost(element.GetProperty("host")),
-                element.TryGetProperty("path", out var pathElement) ? pathElement.GetString() : null,
+                element.TryGetProperty("path", out var pathElement)
+                    ? PackageRelativePath.Parse(pathElement.GetString() ?? string.Empty)
+                    : null,
                 element.TryGetProperty("digest", out var digestElement)
                     ? Sha256Digest.Parse(digestElement.GetString() ?? string.Empty)
                     : null,
@@ -217,9 +217,9 @@ public sealed class SkillManifestJsonSerializer
         {
             writer.WriteStartObject();
             writer.WriteString("host", Vocabulary.GetText(artifact.Host));
-            if (!string.IsNullOrWhiteSpace(artifact.Path))
+            if (artifact.Path is not null)
             {
-                writer.WriteString("path", artifact.Path);
+                writer.WriteString("path", artifact.Path.Value);
             }
 
             if (artifact.Digest is not null)
@@ -234,10 +234,10 @@ public sealed class SkillManifestJsonSerializer
         writer.WriteEndArray();
     }
 
-    private static SkillHostKind ReadHost (JsonElement element)
+    private static HostKind ReadHost (JsonElement element)
     {
         var literal = element.GetString();
-        if (!Vocabulary.TryGetValue(literal, out SkillHostKind host))
+        if (!Vocabulary.TryGetValue(literal, out HostKind host))
         {
             throw new JsonException($"Unsupported SKILL host literal: {literal ?? "(null)"}.");
         }

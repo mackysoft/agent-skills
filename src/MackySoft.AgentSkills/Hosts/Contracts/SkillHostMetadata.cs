@@ -1,5 +1,3 @@
-using MackySoft.AgentSkills.Names;
-
 namespace MackySoft.AgentSkills.Hosts.Contracts;
 
 /// <summary> Represents host-independent metadata needed to build host artifacts. </summary>

@@ -1,5 +1,6 @@
-using MackySoft.AgentSkills.Packaging.FileSystem;
+using MackySoft.AgentSkills.Packaging.Paths;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Installation.Transactions;
 
@@ -11,10 +12,12 @@ internal static class SkillPackageTransactionLock
     /// <param name="transactionRoot"> The transaction directory under the target root. </param>
     /// <returns> A disposable lock handle or a write failure. </returns>
     public static SkillOperationResult<IDisposable> Acquire (
-        string targetRoot,
-        string transactionRoot)
+        AbsolutePath targetRoot,
+        AbsolutePath transactionRoot)
     {
-        var lockPathResult = SkillPackagePathBoundary.ResolveUnderRoot(targetRoot, Path.Combine(transactionRoot, ".lock"));
+        var lockPathResult = PackagePathResolver.ResolveUnderRoot(
+            targetRoot,
+            ContainedPath.Create(transactionRoot, RootRelativePath.Parse(".lock")).Target);
         if (!lockPathResult.IsSuccess)
         {
             return SkillOperationResult<IDisposable>.FailureResult(lockPathResult.Failure!.Code, lockPathResult.Failure.Message);
@@ -23,7 +26,7 @@ internal static class SkillPackageTransactionLock
         try
         {
             return SkillOperationResult<IDisposable>.Success(new FileStream(
-                lockPathResult.Value!,
+                lockPathResult.Value!.Value,
                 FileMode.OpenOrCreate,
                 FileAccess.ReadWrite,
                 FileShare.None));

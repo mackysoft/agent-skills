@@ -1,4 +1,3 @@
-using MackySoft.AgentSkills.Agents;
 using MackySoft.AgentSkills.Agents.Doctor;
 using MackySoft.AgentSkills.Agents.Installation.Services;
 using MackySoft.AgentSkills.Agents.Installation.State;
@@ -8,8 +7,6 @@ using MackySoft.AgentSkills.Agents.Packaging;
 using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Distribution;
-using MackySoft.AgentSkills.Hosts.Registration;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 
@@ -26,9 +23,10 @@ internal static class AgentOperationTestData
     {
         var serializer = new AgentManifestJsonSerializer();
         var digestCalculator = new SkillDigestCalculator();
-        var packageArtifactPath = $"hosts/openai/{artifactRelativePath}";
+        var packageArtifactPath = PackageRelativePath.Parse($"hosts/codex/{artifactRelativePath}");
+        var instructionsPath = PackageRelativePath.Parse("AGENT.md");
         var artifact = new AgentHostArtifactManifest(
-            AgentHostKind.OpenAi,
+            HostKind.Codex,
             packageArtifactPath,
             digestCalculator.ComputeSingleFileDigest(packageArtifactPath, artifactContent));
         var provisional = new AgentManifest(
@@ -40,7 +38,7 @@ internal static class AgentOperationTestData
             agentName,
             $"Fixture {agentName}.",
             skillDependencies ?? [],
-            digestCalculator.ComputeSingleFileDigest("AGENT.md", "# Fixture agent\n"),
+            digestCalculator.ComputeSingleFileDigest(instructionsPath, "# Fixture agent\n"),
             Sha256Digest.Parse(new string('0', 64)),
             [artifact]);
         var manifest = new AgentManifest(
@@ -58,9 +56,9 @@ internal static class AgentOperationTestData
         return new CanonicalAgentPackage(
             manifest,
             [
-                new SkillPackageFile("AGENT.md", "# Fixture agent\n"),
-                new SkillPackageFile(packageArtifactPath, artifactContent),
-                new SkillPackageFile("agent-manifest.json", serializer.Serialize(manifest)),
+                new PackageTextFile(instructionsPath, "# Fixture agent\n"),
+                new PackageTextFile(packageArtifactPath, artifactContent),
+                new PackageTextFile(PackageRelativePath.Parse("agent-manifest.json"), serializer.Serialize(manifest)),
             ],
             serializer,
             digestCalculator);
@@ -88,7 +86,6 @@ internal static class AgentOperationTestData
     public static AgentInstallTargetResolver CreateAgentTargetResolver (string homeDirectory)
     {
         return new AgentInstallTargetResolver(
-            new AgentHostAdapterSet(),
             new AgentUserTargetRootResolver(() => homeDirectory, _ => null));
     }
 

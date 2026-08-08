@@ -1,15 +1,7 @@
 <Project>
   <!--
     NOTE: ConsoleAppFramework generates its builder and dispatch in each consumer assembly and rejects command types from another project with CAF014, so the commands must remain consumer-side source integration.
-    Registrar generation is switchable because ConsoleAppFramework statically collects Add<T> calls even when the registrar is not invoked.
   -->
-  <PropertyGroup>
-    <AgentSkillsConsoleAppFrameworkCommandRoot Condition="'$(AgentSkillsConsoleAppFrameworkCommandRoot)' == ''">skills</AgentSkillsConsoleAppFrameworkCommandRoot>
-    <AgentSkillsConsoleAppFrameworkGenerateRegistrar Condition="'$(AgentSkillsConsoleAppFrameworkGenerateRegistrar)' == ''">true</AgentSkillsConsoleAppFrameworkGenerateRegistrar>
-    <AgentSkillsConsoleAppFrameworkAgentsCommandRoot Condition="'$(AgentSkillsConsoleAppFrameworkAgentsCommandRoot)' == ''">agents</AgentSkillsConsoleAppFrameworkAgentsCommandRoot>
-    <AgentSkillsConsoleAppFrameworkGenerateAgentsRegistrar Condition="'$(AgentSkillsConsoleAppFrameworkGenerateAgentsRegistrar)' == ''">true</AgentSkillsConsoleAppFrameworkGenerateAgentsRegistrar>
-  </PropertyGroup>
-
   <ItemGroup>
     <Compile
       Include="$(MSBuildThisFileDirectory)..\contentFiles\cs\any\MackySoft.AgentSkills.ConsoleAppFramework\*.cs"
@@ -17,27 +9,13 @@
       Visible="false" />
   </ItemGroup>
 
-  <Target Name="ValidateAgentSkillsConsoleAppFrameworkProperties" BeforeTargets="CoreCompile">
-    <Error
-      Condition="'$(AgentSkillsConsoleAppFrameworkGenerateRegistrar)' != 'true' and '$(AgentSkillsConsoleAppFrameworkGenerateRegistrar)' != 'false'"
-      Text="AgentSkillsConsoleAppFrameworkGenerateRegistrar must be true or false." />
-    <Error
-      Condition="'$(AgentSkillsConsoleAppFrameworkGenerateAgentsRegistrar)' != 'true' and '$(AgentSkillsConsoleAppFrameworkGenerateAgentsRegistrar)' != 'false'"
-      Text="AgentSkillsConsoleAppFrameworkGenerateAgentsRegistrar must be true or false." />
-  </Target>
-
   <Target
     Name="GenerateAgentSkillsConsoleAppFrameworkRegistrar"
-    BeforeTargets="CoreCompile"
-    Condition="'$(AgentSkillsConsoleAppFrameworkGenerateRegistrar)' == 'true'">
+    BeforeTargets="CoreCompile">
     <PropertyGroup>
       <_AgentSkillsConsoleAppFrameworkGeneratedDirectory>$(IntermediateOutputPath)MackySoft.AgentSkills.ConsoleAppFramework\</_AgentSkillsConsoleAppFrameworkGeneratedDirectory>
       <_AgentSkillsConsoleAppFrameworkRegistrarFile>$(_AgentSkillsConsoleAppFrameworkGeneratedDirectory)AgentSkillsConsoleAppCommandRegistrar.g.cs</_AgentSkillsConsoleAppFrameworkRegistrarFile>
     </PropertyGroup>
-
-    <Error
-      Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('$(AgentSkillsConsoleAppFrameworkCommandRoot)', '^[a-z0-9]+(-[a-z0-9]+)*( [a-z0-9]+(-[a-z0-9]+)*)*$')) != 'True'"
-      Text="AgentSkillsConsoleAppFrameworkCommandRoot must be one or more lower-kebab command tokens separated by a single space." />
 
     <MakeDir Directories="$(_AgentSkillsConsoleAppFrameworkGeneratedDirectory)" />
 
@@ -52,13 +30,20 @@
       <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="    public static ConsoleApp.ConsoleAppBuilder RegisterAgentSkillsCommands (this ConsoleApp.ConsoleAppBuilder app)" />
       <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="    {" />
       <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        ArgumentNullException.ThrowIfNull(app)%3B" />
-      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentSkillsListCommand&gt;(&quot;$(AgentSkillsConsoleAppFrameworkCommandRoot)&quot;)%3B" />
-      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentSkillsExportCommand&gt;(&quot;$(AgentSkillsConsoleAppFrameworkCommandRoot)&quot;)%3B" />
-      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentSkillsInstallCommand&gt;(&quot;$(AgentSkillsConsoleAppFrameworkCommandRoot)&quot;)%3B" />
-      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentSkillsUpdateCommand&gt;(&quot;$(AgentSkillsConsoleAppFrameworkCommandRoot)&quot;)%3B" />
-      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentSkillsUninstallCommand&gt;(&quot;$(AgentSkillsConsoleAppFrameworkCommandRoot)&quot;)%3B" />
-      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentSkillsPruneCommand&gt;(&quot;$(AgentSkillsConsoleAppFrameworkCommandRoot)&quot;)%3B" />
-      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentSkillsDoctorCommand&gt;(&quot;$(AgentSkillsConsoleAppFrameworkCommandRoot)&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;SkillListCommand&gt;(&quot;skills&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;SkillExportCommand&gt;(&quot;skills&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;SkillInstallCommand&gt;(&quot;skills&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;SkillUpdateCommand&gt;(&quot;skills&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;SkillUninstallCommand&gt;(&quot;skills&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;SkillPruneCommand&gt;(&quot;skills&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;SkillDoctorCommand&gt;(&quot;skills&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentListCommand&gt;(&quot;agents&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentExportCommand&gt;(&quot;agents&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentInstallCommand&gt;(&quot;agents&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentUpdateCommand&gt;(&quot;agents&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentUninstallCommand&gt;(&quot;agents&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentPruneCommand&gt;(&quot;agents&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentDoctorCommand&gt;(&quot;agents&quot;)%3B" />
       <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        return app%3B" />
       <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="    }" />
       <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="}" />
@@ -75,52 +60,4 @@
     </ItemGroup>
   </Target>
 
-  <Target
-    Name="GenerateAgentSkillsConsoleAppFrameworkAgentsRegistrar"
-    BeforeTargets="CoreCompile"
-    Condition="'$(AgentSkillsConsoleAppFrameworkGenerateAgentsRegistrar)' == 'true'">
-    <PropertyGroup>
-      <_AgentSkillsConsoleAppFrameworkAgentsGeneratedDirectory>$(IntermediateOutputPath)MackySoft.AgentSkills.ConsoleAppFramework\</_AgentSkillsConsoleAppFrameworkAgentsGeneratedDirectory>
-      <_AgentSkillsConsoleAppFrameworkAgentsRegistrarFile>$(_AgentSkillsConsoleAppFrameworkAgentsGeneratedDirectory)AgentSkillsConsoleAppAgentsCommandRegistrar.g.cs</_AgentSkillsConsoleAppFrameworkAgentsRegistrarFile>
-    </PropertyGroup>
-
-    <Error
-      Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('$(AgentSkillsConsoleAppFrameworkAgentsCommandRoot)', '^[a-z0-9]+(-[a-z0-9]+)*( [a-z0-9]+(-[a-z0-9]+)*)*$')) != 'True'"
-      Text="AgentSkillsConsoleAppFrameworkAgentsCommandRoot must be one or more lower-kebab command tokens separated by a single space." />
-
-    <MakeDir Directories="$(_AgentSkillsConsoleAppFrameworkAgentsGeneratedDirectory)" />
-
-    <ItemGroup>
-      <_AgentSkillsConsoleAppFrameworkAgentsRegistrarLine Include="// &lt;auto-generated /&gt;" />
-      <_AgentSkillsConsoleAppFrameworkAgentsRegistrarLine Include="#nullable enable" />
-      <_AgentSkillsConsoleAppFrameworkAgentsRegistrarLine Include="using System%3B" />
-      <_AgentSkillsConsoleAppFrameworkAgentsRegistrarLine Include="using ConsoleAppFramework%3B" />
-      <_AgentSkillsConsoleAppFrameworkAgentsRegistrarLine Include="namespace MackySoft.AgentSkills.ConsoleAppFramework%3B" />
-      <_AgentSkillsConsoleAppFrameworkAgentsRegistrarLine Include="internal static class AgentSkillsConsoleAppAgentsCommandRegistrar" />
-      <_AgentSkillsConsoleAppFrameworkAgentsRegistrarLine Include="{" />
-      <_AgentSkillsConsoleAppFrameworkAgentsRegistrarLine Include="    public static ConsoleApp.ConsoleAppBuilder RegisterAgentSkillsAgentsCommands (this ConsoleApp.ConsoleAppBuilder app)" />
-      <_AgentSkillsConsoleAppFrameworkAgentsRegistrarLine Include="    {" />
-      <_AgentSkillsConsoleAppFrameworkAgentsRegistrarLine Include="        ArgumentNullException.ThrowIfNull(app)%3B" />
-      <_AgentSkillsConsoleAppFrameworkAgentsRegistrarLine Include="        app.Add&lt;AgentSkillsAgentsListCommand&gt;(&quot;$(AgentSkillsConsoleAppFrameworkAgentsCommandRoot)&quot;)%3B" />
-      <_AgentSkillsConsoleAppFrameworkAgentsRegistrarLine Include="        app.Add&lt;AgentSkillsAgentsExportCommand&gt;(&quot;$(AgentSkillsConsoleAppFrameworkAgentsCommandRoot)&quot;)%3B" />
-      <_AgentSkillsConsoleAppFrameworkAgentsRegistrarLine Include="        app.Add&lt;AgentSkillsAgentsInstallCommand&gt;(&quot;$(AgentSkillsConsoleAppFrameworkAgentsCommandRoot)&quot;)%3B" />
-      <_AgentSkillsConsoleAppFrameworkAgentsRegistrarLine Include="        app.Add&lt;AgentSkillsAgentsUpdateCommand&gt;(&quot;$(AgentSkillsConsoleAppFrameworkAgentsCommandRoot)&quot;)%3B" />
-      <_AgentSkillsConsoleAppFrameworkAgentsRegistrarLine Include="        app.Add&lt;AgentSkillsAgentsUninstallCommand&gt;(&quot;$(AgentSkillsConsoleAppFrameworkAgentsCommandRoot)&quot;)%3B" />
-      <_AgentSkillsConsoleAppFrameworkAgentsRegistrarLine Include="        app.Add&lt;AgentSkillsAgentsPruneCommand&gt;(&quot;$(AgentSkillsConsoleAppFrameworkAgentsCommandRoot)&quot;)%3B" />
-      <_AgentSkillsConsoleAppFrameworkAgentsRegistrarLine Include="        app.Add&lt;AgentSkillsAgentsDoctorCommand&gt;(&quot;$(AgentSkillsConsoleAppFrameworkAgentsCommandRoot)&quot;)%3B" />
-      <_AgentSkillsConsoleAppFrameworkAgentsRegistrarLine Include="        return app%3B" />
-      <_AgentSkillsConsoleAppFrameworkAgentsRegistrarLine Include="    }" />
-      <_AgentSkillsConsoleAppFrameworkAgentsRegistrarLine Include="}" />
-    </ItemGroup>
-
-    <WriteLinesToFile
-      File="$(_AgentSkillsConsoleAppFrameworkAgentsRegistrarFile)"
-      Lines="@(_AgentSkillsConsoleAppFrameworkAgentsRegistrarLine)"
-      Overwrite="true"
-      Encoding="UTF-8" />
-
-    <ItemGroup>
-      <Compile Include="$(_AgentSkillsConsoleAppFrameworkAgentsRegistrarFile)" Visible="false" />
-    </ItemGroup>
-  </Target>
 </Project>

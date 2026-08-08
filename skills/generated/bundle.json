@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "catalogId": "com.mackysoft.agent-skills",
-  "skillBundleVersion": 1,
-  "bundleDigest": "4aa382f31d00bc73a4b1fcca9a6654a37276f8e04d12e207ff5120cb1078707f"
+  "bundleVersion": 1,
+  "bundleDigest": "19a5f613a10fc750eadb42c8621f1e0fc008562f0e1773c9ce391534e8972cb4"
 }

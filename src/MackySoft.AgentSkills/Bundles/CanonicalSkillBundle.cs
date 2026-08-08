@@ -1,6 +1,5 @@
 using MackySoft.AgentSkills.Dependencies;
 using MackySoft.AgentSkills.Digests;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 

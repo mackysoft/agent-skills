@@ -1,6 +1,5 @@
 using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Manifests;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 
@@ -42,8 +41,8 @@ public sealed class SkillPackageDependencyResolverTests
         var manifest = SkillTestData.WithComputedManifestDigest(manifestCandidate);
         var manifestText = new SkillManifestJsonSerializer().Serialize(manifest);
         var files = package.Files
-            .Select(file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal)
-                ? new SkillPackageFile("agent-skill.json", manifestText)
+            .Select(file => string.Equals(file.RelativePath.Value, "agent-skill.json", StringComparison.Ordinal)
+                ? new PackageTextFile(PackageRelativePath.Parse("agent-skill.json"), manifestText)
                 : file)
             .ToArray();
 

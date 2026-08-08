@@ -2,28 +2,25 @@ using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Installation.Validation;
 using MackySoft.AgentSkills.Packaging.Canonical;
-using MackySoft.AgentSkills.Packaging.FileSystem;
+using MackySoft.AgentSkills.Packaging.Paths;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Installation.Inventory;
 
 /// <summary> Scans installed SKILL manifests under one bundle target root. </summary>
 public sealed class SkillInstallationScanner
 {
-    private readonly SkillHostAdapterSet hostAdapters;
     private readonly SkillInstalledManifestReader installedManifestReader;
     private readonly SkillInstalledPackageValidator installedPackageValidator;
 
     /// <summary> Initializes a new instance of the <see cref="SkillInstallationScanner" /> class. </summary>
-    /// <param name="hostAdapters"> The supported host adapter set. </param>
     /// <param name="installedManifestReader"> The installed manifest reader. </param>
     /// <param name="installedPackageValidator"> The installed package validator. </param>
     public SkillInstallationScanner (
-        SkillHostAdapterSet hostAdapters,
         SkillInstalledManifestReader installedManifestReader,
         SkillInstalledPackageValidator installedPackageValidator)
     {
-        this.hostAdapters = hostAdapters ?? throw new ArgumentNullException(nameof(hostAdapters));
         this.installedManifestReader = installedManifestReader ?? throw new ArgumentNullException(nameof(installedManifestReader));
         this.installedPackageValidator = installedPackageValidator ?? throw new ArgumentNullException(nameof(installedPackageValidator));
     }
@@ -38,7 +35,7 @@ public sealed class SkillInstallationScanner
     public async ValueTask<SkillOperationResult<IReadOnlyList<SkillInstalledSkill>>> ScanAsync (
         IReadOnlyList<CanonicalSkillPackage> packages,
         string targetRoot,
-        SkillHostKind host,
+        HostKind host,
         SkillScopeKind scope = SkillScopeKind.Project,
         CancellationToken cancellationToken = default)
     {
@@ -53,28 +50,29 @@ public sealed class SkillInstallationScanner
                 $"Unsupported SKILL install scope: {scope}");
         }
 
-        var adapterResult = hostAdapters.GetAdapter(host);
-        if (!adapterResult.IsSuccess)
+        var registrationResult = HostRegistration.Get(host);
+        if (!registrationResult.IsSuccess)
         {
             return SkillOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
-                adapterResult.Failure!.Code,
-                adapterResult.Failure.Message);
+                registrationResult.Failure!.Code,
+                registrationResult.Failure.Message);
         }
 
-        var registeredHost = adapterResult.Value!.Descriptor.Host;
-        var fullTargetRoot = Path.GetFullPath(targetRoot);
-        if (!Directory.Exists(fullTargetRoot))
+        var registeredHost = registrationResult.Value!.Host;
+        var fullTargetRoot = AbsolutePath.Parse(Path.GetFullPath(targetRoot));
+        if (!Directory.Exists(fullTargetRoot.Value))
         {
             return SkillOperationResult<IReadOnlyList<SkillInstalledSkill>>.Success(Array.Empty<SkillInstalledSkill>());
         }
 
         var packageByName = packages.ToDictionary(static package => package.Manifest.SkillName);
         var installedSkills = new List<SkillInstalledSkill>();
-        foreach (var skillDirectory in Directory.EnumerateDirectories(fullTargetRoot).Order(StringComparer.Ordinal))
+        foreach (var skillDirectoryValue in Directory.EnumerateDirectories(fullTargetRoot.Value).Order(StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var skillDirectoryResult = SkillPackagePathBoundary.ResolveUnderRoot(fullTargetRoot, skillDirectory);
+            var skillDirectory = AbsolutePath.Parse(skillDirectoryValue);
+            var skillDirectoryResult = PackagePathResolver.ResolveUnderRoot(fullTargetRoot, skillDirectory);
             if (!skillDirectoryResult.IsSuccess)
             {
                 return SkillOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
@@ -83,7 +81,9 @@ public sealed class SkillInstallationScanner
             }
 
             var resolvedSkillDirectory = skillDirectoryResult.Value!;
-            var manifestPathResult = SkillPackagePathBoundary.ResolvePackageFilePathUnderRoot(fullTargetRoot, resolvedSkillDirectory, "agent-skill.json");
+            var manifestPathResult = PackagePathResolver.ResolveRegularFile(
+                resolvedSkillDirectory,
+                PackageRelativePath.Parse("agent-skill.json"));
             if (!manifestPathResult.IsSuccess)
             {
                 return SkillOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
@@ -91,7 +91,7 @@ public sealed class SkillInstallationScanner
                     manifestPathResult.Failure.Message);
             }
 
-            if (!File.Exists(manifestPathResult.Value!))
+            if (!File.Exists(manifestPathResult.Value!.Value))
             {
                 continue;
             }

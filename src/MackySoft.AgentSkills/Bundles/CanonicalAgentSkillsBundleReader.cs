@@ -2,11 +2,11 @@ using System.Text.Json;
 using MackySoft.AgentSkills.Agents.Manifests;
 using MackySoft.AgentSkills.Agents.Packaging;
 using MackySoft.AgentSkills.Digests;
-using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Packaging.Canonical;
-using MackySoft.AgentSkills.Packaging.FileSystem;
+using MackySoft.AgentSkills.Packaging.Paths;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Bundles;
 
@@ -41,11 +41,10 @@ public sealed class CanonicalAgentSkillsBundleReader
         var skillManifestSerializer = new SkillManifestJsonSerializer();
         var agentManifestSerializer = new AgentManifestJsonSerializer();
         var digestCalculator = new SkillDigestCalculator();
-        var skillHosts = new SkillHostAdapterSet();
         var skillReader = new CanonicalSkillPackageReader(
             skillManifestSerializer,
-            new SkillManifest.Factory(skillHosts, new SkillManifestDigestCalculator(skillManifestSerializer)),
-            new CanonicalSkillPackage.Factory(skillHosts, digestCalculator, skillManifestSerializer));
+            new SkillManifest.Factory(new SkillManifestDigestCalculator(skillManifestSerializer)),
+            new CanonicalSkillPackage.Factory(digestCalculator, skillManifestSerializer));
         var agentReader = new CanonicalAgentPackageReader(
             agentManifestSerializer,
             digestCalculator,
@@ -62,20 +61,28 @@ public sealed class CanonicalAgentSkillsBundleReader
     /// <param name="cancellationToken"> The cancellation token propagated through file access. </param>
     /// <returns>The canonical mixed bundle, or a manifest failure.</returns>
     internal async ValueTask<SkillOperationResult<CanonicalAgentSkillsBundle>> ReadAsync (
-        string generatedRoot,
+        AbsolutePath generatedRoot,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(generatedRoot);
+        ArgumentNullException.ThrowIfNull(generatedRoot);
         cancellationToken.ThrowIfCancellationRequested();
-        if (!Directory.Exists(generatedRoot))
-        {
-            return Failure(SkillFailureCodes.ManifestInvalid, $"Generated v2 bundle directory does not exist: {generatedRoot}");
-        }
-
         try
         {
-            var root = Path.GetFullPath(generatedRoot);
-            if (!SkillPackageFileSystemEntryGuard.IsDirectory(root))
+            var root = generatedRoot;
+            if (!FileSystemEntryInspector.TryInspect(
+                    root,
+                    out var rootObservation,
+                    out _))
+            {
+                return Failure(SkillFailureCodes.PathUnsafe, $"Generated v2 bundle root could not be inspected: {root}");
+            }
+
+            if (rootObservation.State == FileSystemEntryState.Missing)
+            {
+                return Failure(SkillFailureCodes.ManifestInvalid, $"Generated v2 bundle directory does not exist: {generatedRoot}");
+            }
+
+            if (rootObservation.State != FileSystemEntryState.Directory)
             {
                 return Failure(SkillFailureCodes.PathUnsafe, $"Generated v2 bundle root must be a regular directory: {root}");
             }
@@ -86,13 +93,13 @@ public sealed class CanonicalAgentSkillsBundleReader
                 return Failure(rootValidationResult.Failure!.Code, rootValidationResult.Failure.Message);
             }
 
-            var descriptorPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(root, "bundle.json");
+            var descriptorPathResult = PackagePathResolver.ResolveRegularFile(root, PackageRelativePath.Parse("bundle.json"));
             if (!descriptorPathResult.IsSuccess)
             {
                 return Failure(descriptorPathResult.Failure!.Code, descriptorPathResult.Failure.Message);
             }
 
-            var descriptorTextResult = await SkillPackageTextFileReader.ReadAsync(descriptorPathResult.Value!, cancellationToken).ConfigureAwait(false);
+            var descriptorTextResult = await CanonicalPackageTextReader.ReadAsync(descriptorPathResult.Value!, cancellationToken).ConfigureAwait(false);
             if (!descriptorTextResult.IsSuccess)
             {
                 return Failure(descriptorTextResult.Failure!.Code, descriptorTextResult.Failure.Message);
@@ -105,8 +112,8 @@ public sealed class CanonicalAgentSkillsBundleReader
                 return Failure(SkillFailureCodes.ManifestInvalid, "Generated v2 bundle.json is not canonical.");
             }
 
-            var skillsRoot = Path.Combine(root, "skills");
-            var skillsResult = Directory.Exists(skillsRoot)
+            var skillsRoot = ContainedPath.Create(root, RootRelativePath.Parse("skills")).Target;
+            var skillsResult = Directory.Exists(skillsRoot.Value)
                 ? await skillReader.ReadAllAsync(skillsRoot, cancellationToken).ConfigureAwait(false)
                 : SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.Success([]);
             if (!skillsResult.IsSuccess)
@@ -114,7 +121,9 @@ public sealed class CanonicalAgentSkillsBundleReader
                 return Failure(skillsResult.Failure!.Code, skillsResult.Failure.Message);
             }
 
-            var agentsResult = await agentReader.ReadAllAsync(Path.Combine(root, "agents"), cancellationToken).ConfigureAwait(false);
+            var agentsResult = await agentReader.ReadAllAsync(
+                ContainedPath.Create(root, RootRelativePath.Parse("agents")).Target,
+                cancellationToken).ConfigureAwait(false);
             if (!agentsResult.IsSuccess)
             {
                 return Failure(agentsResult.Failure!.Code, agentsResult.Failure.Message);
@@ -167,14 +176,18 @@ public sealed class CanonicalAgentSkillsBundleReader
         }
     }
 
-    private static SkillOperationResult<bool> ValidateRootEntries (string root)
+    private static SkillOperationResult<bool> ValidateRootEntries (AbsolutePath root)
     {
-        foreach (var entryPath in Directory.EnumerateFileSystemEntries(root).Order(StringComparer.Ordinal))
+        foreach (var entryPath in Directory.EnumerateFileSystemEntries(root.Value).Order(StringComparer.Ordinal))
         {
             var name = Path.GetFileName(entryPath);
             if (string.Equals(name, "bundle.json", StringComparison.Ordinal))
             {
-                if (!SkillPackageFileSystemEntryGuard.IsRegularFile(entryPath))
+                if (!FileSystemEntryInspector.TryInspect(
+                        AbsolutePath.Parse(entryPath),
+                        out var descriptorObservation,
+                        out _)
+                    || descriptorObservation.State != FileSystemEntryState.RegularFile)
                 {
                     return SkillOperationResult<bool>.FailureResult(SkillFailureCodes.PathUnsafe, "Generated v2 bundle.json must be a regular file.");
                 }
@@ -183,7 +196,11 @@ public sealed class CanonicalAgentSkillsBundleReader
             }
 
             if ((string.Equals(name, "skills", StringComparison.Ordinal) || string.Equals(name, "agents", StringComparison.Ordinal))
-                && SkillPackageFileSystemEntryGuard.IsDirectory(entryPath))
+                && FileSystemEntryInspector.TryInspect(
+                    AbsolutePath.Parse(entryPath),
+                    out var namespaceObservation,
+                    out _)
+                && namespaceObservation.State == FileSystemEntryState.Directory)
             {
                 continue;
             }

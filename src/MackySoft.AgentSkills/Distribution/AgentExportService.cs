@@ -1,17 +1,15 @@
-using System.IO.Compression;
-using System.Text;
 using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Materialization;
-using MackySoft.AgentSkills.Packaging.FileSystem;
+using MackySoft.AgentSkills.Packaging.Paths;
+using MackySoft.AgentSkills.Serialization;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Distribution;
 
 /// <summary> Exports selected custom agents and their resolved SKILL dependencies without changing installation state. </summary>
 public sealed class AgentExportService
 {
-    private static readonly DateTimeOffset ZipEntryTimestamp = new(1980, 1, 1, 0, 0, 0, TimeSpan.Zero);
-
     private readonly SkillMaterializationService skillMaterializationService;
 
     /// <summary> Initializes an agent export service. </summary>
@@ -28,10 +26,10 @@ public sealed class AgentExportService
     /// <param name="format"> The output format. </param>
     /// <param name="cancellationToken"> The cancellation token propagated through materialization and output writes. </param>
     /// <returns> The canonical output path, or a structured failure produced before publication. </returns>
-    public async ValueTask<SkillOperationResult<string>> ExportAsync (
+    public async ValueTask<SkillOperationResult<AbsolutePath>> ExportAsync (
         AgentPackageCatalog catalog,
-        AgentHostKind hostId,
-        string outputPath,
+        HostKind hostId,
+        AbsolutePath outputPath,
         SkillExportFormat format,
         CancellationToken cancellationToken = default)
     {
@@ -40,20 +38,20 @@ public sealed class AgentExportService
         {
             throw new ArgumentOutOfRangeException(nameof(hostId), hostId, "Unsupported agent host.");
         }
-        ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
+        ArgumentNullException.ThrowIfNull(outputPath);
         cancellationToken.ThrowIfCancellationRequested();
 
         if (!Vocabulary.IsDefined(format))
         {
-            return SkillOperationResult<string>.FailureResult(
+            return SkillOperationResult<AbsolutePath>.FailureResult(
                 SkillFailureCodes.InputInvalid,
                 $"Unsupported agent export format: {format}");
         }
 
         var hostLiteral = Vocabulary.GetText(hostId);
-        if (!Vocabulary.TryGetValue(hostLiteral, out SkillHostKind skillHost))
+        if (!Vocabulary.TryGetValue(hostLiteral, out HostKind skillHost))
         {
-            return SkillOperationResult<string>.FailureResult(
+            return SkillOperationResult<AbsolutePath>.FailureResult(
                 SkillFailureCodes.HostUnsupported,
                 $"The agent host does not support SKILL materialization: {hostLiteral}");
         }
@@ -61,7 +59,7 @@ public sealed class AgentExportService
         var planResult = CreateExportPlan(catalog, hostId, skillHost, cancellationToken);
         if (!planResult.IsSuccess)
         {
-            return SkillOperationResult<string>.FailureResult(
+            return SkillOperationResult<AbsolutePath>.FailureResult(
                 planResult.Failure!.Code,
                 planResult.Failure.Message);
         }
@@ -74,14 +72,14 @@ public sealed class AgentExportService
         };
     }
 
-    private SkillOperationResult<IReadOnlyList<AgentExportEntry>> CreateExportPlan (
+    private SkillOperationResult<IReadOnlyList<PackageTextFile>> CreateExportPlan (
         AgentPackageCatalog catalog,
-        AgentHostKind hostId,
-        SkillHostKind skillHost,
+        HostKind hostId,
+        HostKind skillHost,
         CancellationToken cancellationToken)
     {
-        var entries = new List<AgentExportEntry>();
-        var entryPaths = new HashSet<string>(StringComparer.Ordinal);
+        var entries = new List<PackageTextFile>();
+        var entryPaths = new HashSet<PackageRelativePath>(PackageRelativePath.PortableFileSystemComparer);
 
         foreach (var agent in catalog.SelectedAgents.OrderBy(static agent => agent.Manifest.AgentName.Value, StringComparer.Ordinal))
         {
@@ -89,29 +87,28 @@ public sealed class AgentExportService
 
             var artifacts = agent.Manifest.HostArtifacts
                 .Where(artifact => artifact.HostId == hostId)
-                .OrderBy(static artifact => artifact.Path, StringComparer.Ordinal)
+                .OrderBy(static artifact => artifact.Path.Value, StringComparer.Ordinal)
                 .ToArray();
             if (artifacts.Length == 0)
             {
-                return SkillOperationResult<IReadOnlyList<AgentExportEntry>>.FailureResult(
+                return SkillOperationResult<IReadOnlyList<PackageTextFile>>.FailureResult(
                     SkillFailureCodes.HostUnsupported,
                     $"Agent '{agent.Manifest.AgentName.Value}' does not provide artifacts for host '{Vocabulary.GetText(hostId)}'.");
             }
 
-            var fileByPath = agent.Files.ToDictionary(static file => file.RelativePath, StringComparer.Ordinal);
-            var hostPathPrefix = $"hosts/{Vocabulary.GetText(hostId)}/";
+            var fileByPath = agent.Files.ToDictionary(static file => file.RelativePath);
+            var hostDirectoryPath = PackageRelativePath.Parse($"hosts/{Vocabulary.GetText(hostId)}");
             foreach (var artifact in artifacts)
             {
-                if (!artifact.Path.StartsWith(hostPathPrefix, StringComparison.Ordinal)
+                if (!artifact.Path.TryGetRelativeTo(hostDirectoryPath, out var hostRelativePath)
                     || !fileByPath.TryGetValue(artifact.Path, out var artifactFile))
                 {
-                    return SkillOperationResult<IReadOnlyList<AgentExportEntry>>.FailureResult(
+                    return SkillOperationResult<IReadOnlyList<PackageTextFile>>.FailureResult(
                         SkillFailureCodes.ManifestInvalid,
                         $"Agent host artifact does not match its package for '{agent.Manifest.AgentName.Value}': {artifact.Path}");
                 }
 
-                var hostRelativePath = artifact.Path[hostPathPrefix.Length..];
-                var exportPath = $"agents/{hostRelativePath}";
+                var exportPath = PackageRelativePath.Parse($"agents/{hostRelativePath}");
                 var addResult = AddEntry(entries, entryPaths, exportPath, artifactFile.Content);
                 if (!addResult.IsSuccess)
                 {
@@ -127,14 +124,14 @@ public sealed class AgentExportService
             var materializationResult = skillMaterializationService.Materialize(skill, skillHost);
             if (!materializationResult.IsSuccess)
             {
-                return SkillOperationResult<IReadOnlyList<AgentExportEntry>>.FailureResult(
+                return SkillOperationResult<IReadOnlyList<PackageTextFile>>.FailureResult(
                     materializationResult.Failure!.Code,
                     materializationResult.Failure.Message);
             }
 
-            foreach (var file in materializationResult.Value!.Files.OrderBy(static file => file.RelativePath, StringComparer.Ordinal))
+            foreach (var file in materializationResult.Value!.Files.OrderBy(static file => file.RelativePath.Value, StringComparer.Ordinal))
             {
-                var exportPath = $"skills/{skill.Manifest.SkillName.Value}/{file.RelativePath}";
+                var exportPath = PackageRelativePath.Parse($"skills/{skill.Manifest.SkillName.Value}/{file.RelativePath.Value}");
                 var addResult = AddEntry(entries, entryPaths, exportPath, file.Content);
                 if (!addResult.IsSuccess)
                 {
@@ -143,68 +140,68 @@ public sealed class AgentExportService
             }
         }
 
-        return SkillOperationResult<IReadOnlyList<AgentExportEntry>>.Success(
-            Array.AsReadOnly(entries.OrderBy(static entry => entry.RelativePath, StringComparer.Ordinal).ToArray()));
+        return SkillOperationResult<IReadOnlyList<PackageTextFile>>.Success(
+            Array.AsReadOnly(entries.OrderBy(static entry => entry.RelativePath.Value, StringComparer.Ordinal).ToArray()));
     }
 
-    private static SkillOperationResult<IReadOnlyList<AgentExportEntry>> AddEntry (
-        List<AgentExportEntry> entries,
-        HashSet<string> entryPaths,
-        string relativePath,
+    private static SkillOperationResult<IReadOnlyList<PackageTextFile>> AddEntry (
+        List<PackageTextFile> entries,
+        HashSet<PackageRelativePath> entryPaths,
+        PackageRelativePath relativePath,
         string content)
     {
-        if (!PackageRelativePath.TryParse(relativePath, out _))
-        {
-            return SkillOperationResult<IReadOnlyList<AgentExportEntry>>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
-                $"Agent export path is unsafe: {relativePath}");
-        }
-
         if (!entryPaths.Add(relativePath))
         {
-            return SkillOperationResult<IReadOnlyList<AgentExportEntry>>.FailureResult(
+            return SkillOperationResult<IReadOnlyList<PackageTextFile>>.FailureResult(
                 SkillFailureCodes.PathUnsafe,
                 $"Agent export artifacts resolve to the same output path: {relativePath}");
         }
 
-        entries.Add(new AgentExportEntry(relativePath, content));
-        return SkillOperationResult<IReadOnlyList<AgentExportEntry>>.Success(entries);
+        entries.Add(new PackageTextFile(relativePath, content));
+        return SkillOperationResult<IReadOnlyList<PackageTextFile>>.Success(entries);
     }
 
-    private static async ValueTask<SkillOperationResult<string>> ExportDirectoryAsync (
-        IReadOnlyList<AgentExportEntry> entries,
-        string outputPath,
+    private static async ValueTask<SkillOperationResult<AbsolutePath>> ExportDirectoryAsync (
+        IReadOnlyList<PackageTextFile> entries,
+        AbsolutePath outputPath,
         CancellationToken cancellationToken)
     {
         var outputResult = ResolveDirectoryOutputPath(outputPath);
         if (!outputResult.IsSuccess)
         {
-            return outputResult;
+            return SkillOperationResult<AbsolutePath>.FailureResult(outputResult.Failure!.Code, outputResult.Failure.Message);
         }
 
         var fullOutputPath = outputResult.Value!;
-        var parentPath = Path.GetDirectoryName(fullOutputPath)!;
+        if (!fullOutputPath.TryGetParent(out var parentPath))
+        {
+            throw new InvalidOperationException("Agent export directory must have a parent directory.");
+        }
+
         var operationId = Guid.NewGuid().ToString("N");
-        var stagingPath = Path.Combine(parentPath, $".{Path.GetFileName(fullOutputPath)}.staging.{operationId}");
-        var backupPath = Path.Combine(parentPath, $".{Path.GetFileName(fullOutputPath)}.backup.{operationId}");
+        var outputName = Path.GetFileName(fullOutputPath.Value);
+        var stagingPath = ContainedPath.Create(parentPath, RootRelativePath.Parse($".{outputName}.staging.{operationId}")).Target;
+        var backupPath = ContainedPath.Create(parentPath, RootRelativePath.Parse($".{outputName}.backup.{operationId}")).Target;
         var published = false;
         try
         {
-            Directory.CreateDirectory(Path.Combine(stagingPath, "agents"));
-            Directory.CreateDirectory(Path.Combine(stagingPath, "skills"));
+            Directory.CreateDirectory(ContainedPath.Create(stagingPath, RootRelativePath.Parse("agents")).Target.Value);
+            Directory.CreateDirectory(ContainedPath.Create(stagingPath, RootRelativePath.Parse("skills")).Target.Value);
             foreach (var entry in entries)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var filePathResult = SkillPackagePathBoundary.ResolvePackageFilePath(stagingPath, entry.RelativePath);
+                var filePathResult = PackagePathResolver.ResolveUnderRoot(
+                    stagingPath,
+                    ContainedPath.Create(stagingPath, entry.RelativePath.RootRelativePath).Target);
                 if (!filePathResult.IsSuccess)
                 {
-                    return SkillOperationResult<string>.FailureResult(
+                    return SkillOperationResult<AbsolutePath>.FailureResult(
                         filePathResult.Failure!.Code,
                         filePathResult.Failure.Message);
                 }
 
-                await SkillPackageFileWriter.WriteAllTextAtomicallyAsync(
+                await CanonicalTextFilePublisher.PublishAsync(
                         filePathResult.Value!,
                         entry.Content,
                         cancellationToken)
@@ -215,13 +212,13 @@ public sealed class AgentExportService
             CanonicalSkillBundleDirectoryPublisher.Publish(stagingPath, fullOutputPath, backupPath);
             published = true;
             TryDeleteDirectory(backupPath);
-            return SkillOperationResult<string>.Success(fullOutputPath);
+            return SkillOperationResult<AbsolutePath>.Success(fullOutputPath);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException)
         {
-            return SkillOperationResult<string>.FailureResult(
+            return SkillOperationResult<AbsolutePath>.FailureResult(
                 SkillFailureCodes.InstallTargetWriteFailed,
-                $"Failed to export agents to directory '{fullOutputPath}': {exception.Message}");
+                $"Failed to export agents to directory '{fullOutputPath.Value}': {exception.Message}");
         }
         finally
         {
@@ -232,97 +229,84 @@ public sealed class AgentExportService
         }
     }
 
-    private static async ValueTask<SkillOperationResult<string>> ExportZipAsync (
-        IReadOnlyList<AgentExportEntry> entries,
-        string outputPath,
+    private static async ValueTask<SkillOperationResult<AbsolutePath>> ExportZipAsync (
+        IReadOnlyList<PackageTextFile> entries,
+        AbsolutePath outputPath,
         CancellationToken cancellationToken)
     {
         var outputResult = ResolveZipOutputPath(outputPath);
         if (!outputResult.IsSuccess)
         {
-            return outputResult;
+            return SkillOperationResult<AbsolutePath>.FailureResult(outputResult.Failure!.Code, outputResult.Failure.Message);
         }
 
         var fullOutputPath = outputResult.Value!;
-        var outputDirectory = Path.GetDirectoryName(fullOutputPath)!;
-        var temporaryPath = Path.Combine(outputDirectory, $".{Path.GetFileName(fullOutputPath)}.{Guid.NewGuid():N}.tmp");
-        var committed = false;
         try
         {
-            Directory.CreateDirectory(outputDirectory);
-            await using (var fileStream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-            using (var archive = new ZipArchive(fileStream, ZipArchiveMode.Create, leaveOpen: false, Encoding.UTF8))
-            {
-                foreach (var entry in entries)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    var archiveEntry = archive.CreateEntry(entry.RelativePath, CompressionLevel.Optimal);
-                    archiveEntry.LastWriteTime = ZipEntryTimestamp;
-                    await using var entryStream = archiveEntry.Open();
-                    var bytes = Encoding.UTF8.GetBytes(entry.Content);
-                    await entryStream.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
-                }
-            }
-
-            File.Move(temporaryPath, fullOutputPath, overwrite: true);
-            committed = true;
-            return SkillOperationResult<string>.Success(fullOutputPath);
+            await DeterministicPackageArchivePublisher.PublishAsync(
+                    fullOutputPath,
+                    entries,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            return SkillOperationResult<AbsolutePath>.Success(fullOutputPath);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException)
         {
-            return SkillOperationResult<string>.FailureResult(
+            return SkillOperationResult<AbsolutePath>.FailureResult(
                 SkillFailureCodes.InstallTargetWriteFailed,
-                $"Failed to export agents to zip '{fullOutputPath}': {exception.Message}");
-        }
-        finally
-        {
-            if (!committed)
-            {
-                TryDeleteFile(temporaryPath);
-            }
+                $"Failed to export agents to zip '{fullOutputPath.Value}': {exception.Message}");
         }
     }
 
-    private static SkillOperationResult<string> ResolveDirectoryOutputPath (string outputPath)
+    private static SkillOperationResult<AbsolutePath> ResolveDirectoryOutputPath (AbsolutePath outputPath)
     {
-        var fullOutputPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(outputPath));
-        var parentPath = Path.GetDirectoryName(fullOutputPath);
-        if (string.IsNullOrWhiteSpace(parentPath)
-            || File.Exists(fullOutputPath)
-            || (Directory.Exists(fullOutputPath) && !SkillPackageFileSystemEntryGuard.IsDirectory(fullOutputPath)))
+        var fullOutputPath = outputPath;
+        var hasParent = fullOutputPath.TryGetParent(out var parentPath);
+        var inspected = FileSystemEntryInspector.TryInspect(
+            fullOutputPath,
+            out var observation,
+            out _);
+        if (!hasParent
+            || !inspected
+            || observation is null
+            || observation.State is not FileSystemEntryState.Missing and not FileSystemEntryState.Directory)
         {
-            return SkillOperationResult<string>.FailureResult(
+            return SkillOperationResult<AbsolutePath>.FailureResult(
                 SkillFailureCodes.PathUnsafe,
                 $"Agent export output path must be a regular directory or an unused path: {fullOutputPath}");
         }
 
-        return SkillPackagePathBoundary.ResolveUnderRoot(parentPath, fullOutputPath);
+        return PackagePathResolver.ResolveUnderRoot(parentPath!, fullOutputPath);
     }
 
-    private static SkillOperationResult<string> ResolveZipOutputPath (string outputPath)
+    private static SkillOperationResult<AbsolutePath> ResolveZipOutputPath (AbsolutePath outputPath)
     {
-        var fullOutputPath = Path.GetFullPath(outputPath);
-        var parentPath = Path.GetDirectoryName(fullOutputPath);
-        if (string.IsNullOrWhiteSpace(parentPath)
-            || Directory.Exists(fullOutputPath)
-            || (File.Exists(fullOutputPath) && !SkillPackageFileSystemEntryGuard.IsRegularFile(fullOutputPath)))
+        var fullOutputPath = outputPath;
+        var hasParent = fullOutputPath.TryGetParent(out var parentPath);
+        var inspected = FileSystemEntryInspector.TryInspect(
+            fullOutputPath,
+            out var observation,
+            out _);
+        if (!hasParent
+            || !inspected
+            || observation is null
+            || observation.State is not FileSystemEntryState.Missing and not FileSystemEntryState.RegularFile)
         {
-            return SkillOperationResult<string>.FailureResult(
+            return SkillOperationResult<AbsolutePath>.FailureResult(
                 SkillFailureCodes.PathUnsafe,
                 $"Agent export zip output path must be a regular file or an unused path: {fullOutputPath}");
         }
 
-        return SkillPackagePathBoundary.ResolveUnderRoot(parentPath, fullOutputPath);
+        return PackagePathResolver.ResolveUnderRoot(parentPath!, fullOutputPath);
     }
 
-    private static void TryDeleteDirectory (string path)
+    private static void TryDeleteDirectory (AbsolutePath path)
     {
         try
         {
-            if (Directory.Exists(path))
+            if (Directory.Exists(path.Value))
             {
-                Directory.Delete(path, recursive: true);
+                Directory.Delete(path.Value, recursive: true);
             }
         }
         catch (IOException)
@@ -335,35 +319,4 @@ public sealed class AgentExportService
         }
     }
 
-    private static void TryDeleteFile (string path)
-    {
-        try
-        {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-        }
-        catch (IOException)
-        {
-            // Cleanup must not replace the authoritative export result.
-        }
-        catch (UnauthorizedAccessException)
-        {
-            // Cleanup must not replace the authoritative export result.
-        }
-    }
-
-    private sealed class AgentExportEntry
-    {
-        internal AgentExportEntry (string relativePath, string content)
-        {
-            RelativePath = relativePath;
-            Content = content;
-        }
-
-        internal string RelativePath { get; }
-
-        internal string Content { get; }
-    }
 }

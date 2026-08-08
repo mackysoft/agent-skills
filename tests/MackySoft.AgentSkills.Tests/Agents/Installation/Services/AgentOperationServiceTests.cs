@@ -1,4 +1,3 @@
-using MackySoft.AgentSkills.Agents;
 using MackySoft.AgentSkills.Agents.Doctor;
 using MackySoft.AgentSkills.Agents.Installation.Requests;
 using MackySoft.AgentSkills.Agents.Installation.Results;
@@ -35,8 +34,8 @@ public sealed class AgentOperationServiceTests
         var diff = Assert.Single(result.Value.Actions[0].Diffs!);
         Assert.Null(diff.BeforeContent);
         Assert.Equal("name = \"architect\"\n", diff.AfterContent);
-        Assert.Equal("name = \"architect\"\n", await File.ReadAllTextAsync(Path.Combine(result.Value.ArtifactRoot, "architect.toml")));
-        Assert.True(File.Exists(Path.Combine(result.Value.SkillResult.TargetRoot, skills[0].Manifest.SkillName.Value, "SKILL.md")));
+        Assert.Equal("name = \"architect\"\n", await File.ReadAllTextAsync(Path.Combine(result.Value.ArtifactRoot.Value, "architect.toml")));
+        Assert.True(File.Exists(Path.Combine(result.Value.SkillResult.TargetRoot.Value, skills[0].Manifest.SkillName.Value, "SKILL.md")));
     }
 
     [Fact]
@@ -92,7 +91,7 @@ public sealed class AgentOperationServiceTests
         var install = await AgentOperationTestData.CreateInstallService(scope.FullPath).InstallAsync(
             new AgentInstallInput(originalCatalog, targets.Agent, targets.Skill));
         Assert.True(install.IsSuccess, install.Failure?.Message);
-        var artifactPath = Path.Combine(install.Value!.ArtifactRoot, "architect.toml");
+        var artifactPath = Path.Combine(install.Value!.ArtifactRoot.Value, "architect.toml");
         await File.WriteAllTextAsync(artifactPath, "local\n");
         var updated = AgentOperationTestData.CreateAgent(skills, "architect", "architect.toml", "updated\n");
         var updatedCatalog = AgentOperationTestData.CreateCatalog(skills, [updated]);
@@ -126,8 +125,8 @@ public sealed class AgentOperationServiceTests
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal(AgentRemovalActionKind.Deleted, Assert.Single(result.Value!.Actions).ActionKind);
-        Assert.False(File.Exists(Path.Combine(result.Value.ArtifactRoot, "architect.toml")));
-        Assert.True(File.Exists(Path.Combine(install.Value!.SkillResult.TargetRoot, skills[0].Manifest.SkillName.Value, "SKILL.md")));
+        Assert.False(File.Exists(Path.Combine(result.Value.ArtifactRoot.Value, "architect.toml")));
+        Assert.True(File.Exists(Path.Combine(install.Value!.SkillResult.TargetRoot.Value, skills[0].Manifest.SkillName.Value, "SKILL.md")));
     }
 
     [Fact]
@@ -149,8 +148,8 @@ public sealed class AgentOperationServiceTests
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal(AgentRemovalActionKind.Deleted, Assert.Single(result.Value!.Actions).ActionKind);
-        Assert.False(File.Exists(Path.Combine(result.Value.ArtifactRoot, "architect.toml")));
-        Assert.True(File.Exists(Path.Combine(install.Value!.SkillResult.TargetRoot, skills[0].Manifest.SkillName.Value, "SKILL.md")));
+        Assert.False(File.Exists(Path.Combine(result.Value.ArtifactRoot.Value, "architect.toml")));
+        Assert.True(File.Exists(Path.Combine(install.Value!.SkillResult.TargetRoot.Value, skills[0].Manifest.SkillName.Value, "SKILL.md")));
     }
 
     [Fact]
@@ -176,8 +175,8 @@ public sealed class AgentOperationServiceTests
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal(AgentRemovalActionKind.Deleted, Assert.Single(result.Value!.Actions).ActionKind);
-        Assert.False(File.Exists(Path.Combine(result.Value.ArtifactRoot, "architect.toml")));
-        Assert.True(File.Exists(Path.Combine(result.Value.ArtifactRoot, "reviewer.toml")));
+        Assert.False(File.Exists(Path.Combine(result.Value.ArtifactRoot.Value, "architect.toml")));
+        Assert.True(File.Exists(Path.Combine(result.Value.ArtifactRoot.Value, "reviewer.toml")));
     }
 
     [Fact]
@@ -215,7 +214,7 @@ public sealed class AgentOperationServiceTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
-        Assert.True(File.Exists(Path.Combine(install.Value!.ArtifactRoot, "architect.toml")));
+        Assert.True(File.Exists(Path.Combine(install.Value!.ArtifactRoot.Value, "architect.toml")));
     }
 
     [Fact]
@@ -242,8 +241,8 @@ public sealed class AgentOperationServiceTests
     private static OperationTargets CreateTargets (string repositoryRoot)
     {
         return new OperationTargets(
-            new AgentTargetRequest(AgentHostKind.OpenAi, AgentInstallScopeKind.Project, repositoryRoot, "agent-target"),
-            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, repositoryRoot, "skill-target"));
+            SkillTestData.CreateAgentTargetRequest(HostKind.Codex, AgentInstallScopeKind.Project, repositoryRoot, "agent-target"),
+            SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, repositoryRoot, "skill-target"));
     }
 
     private sealed record OperationTargets (AgentTargetRequest Agent, SkillInstallRequest Skill);

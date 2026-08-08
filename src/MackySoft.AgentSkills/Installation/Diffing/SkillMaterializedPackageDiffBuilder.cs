@@ -5,8 +5,9 @@ using System.Text;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Materialization;
-using MackySoft.AgentSkills.Packaging.FileSystem;
+using MackySoft.AgentSkills.Packaging.Paths;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Installation.Diffing;
 
@@ -19,11 +20,11 @@ public sealed class SkillMaterializedPackageDiffBuilder
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> Structured diffs or a path-safety failure. </returns>
     public async ValueTask<SkillOperationResult<IReadOnlyList<SkillActionDiff>>> BuildAsync (
-        string skillDirectory,
+        AbsolutePath skillDirectory,
         SkillMaterializedPackage materializedPackage,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+        ArgumentNullException.ThrowIfNull(skillDirectory);
         ArgumentNullException.ThrowIfNull(materializedPackage);
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -48,7 +49,7 @@ public sealed class SkillMaterializedPackageDiffBuilder
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> Structured diffs, an empty list, or a path-safety/read failure. </returns>
     public ValueTask<SkillOperationResult<IReadOnlyList<SkillActionDiff>>> BuildOptionalAsync (
-        string skillDirectory,
+        AbsolutePath skillDirectory,
         SkillMaterializedPackage materializedPackage,
         bool printDiff,
         CancellationToken cancellationToken = default)
@@ -70,12 +71,12 @@ public sealed class SkillMaterializedPackageDiffBuilder
     /// File changes are returned even when <paramref name="printDiff" /> is <see langword="false" />.
     /// </returns>
     internal async ValueTask<SkillOperationResult<SkillMaterializedPackageChangePlan>> BuildReplacementPlanAsync (
-        string skillDirectory,
+        AbsolutePath skillDirectory,
         SkillMaterializedPackage materializedPackage,
         bool printDiff,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+        ArgumentNullException.ThrowIfNull(skillDirectory);
         ArgumentNullException.ThrowIfNull(materializedPackage);
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -108,10 +109,10 @@ public sealed class SkillMaterializedPackageDiffBuilder
     /// Directories are represented only in the target snapshot.
     /// </returns>
     internal async ValueTask<SkillOperationResult<SkillActionFileChangePlan>> BuildDeletionFileChangesAsync (
-        string skillDirectory,
+        AbsolutePath skillDirectory,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+        ArgumentNullException.ThrowIfNull(skillDirectory);
         cancellationToken.ThrowIfCancellationRequested();
 
         var beforeResult = await ReadExistingTargetEntriesAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
@@ -126,8 +127,8 @@ public sealed class SkillMaterializedPackageDiffBuilder
         var beforeFiles = beforeEntries.Files;
         return SkillOperationResult<SkillActionFileChangePlan>.Success(new SkillActionFileChangePlan(
             new SkillActionFileChanges(
-                Array.Empty<string>(),
-                beforeFiles.Keys.Order(StringComparer.Ordinal).ToArray()),
+                Array.Empty<PackageRelativePath>(),
+                beforeFiles.Keys.OrderBy(static path => path.Value, StringComparer.Ordinal).ToArray()),
             CreateTargetSnapshot(beforeEntries)));
     }
 
@@ -139,10 +140,10 @@ public sealed class SkillMaterializedPackageDiffBuilder
     /// path-safety/read failure.
     /// </returns>
     internal async ValueTask<SkillOperationResult<SkillActionTargetSnapshot>> BuildTargetSnapshotAsync (
-        string skillDirectory,
+        AbsolutePath skillDirectory,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+        ArgumentNullException.ThrowIfNull(skillDirectory);
         cancellationToken.ThrowIfCancellationRequested();
 
         var beforeResult = await ReadExistingTargetEntriesAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
@@ -157,13 +158,13 @@ public sealed class SkillMaterializedPackageDiffBuilder
     }
 
     private static IReadOnlyList<SkillActionDiff> BuildDiffs (
-        IReadOnlyDictionary<string, string> beforeFiles,
-        IReadOnlyDictionary<string, string> afterFiles)
+        IReadOnlyDictionary<PackageRelativePath, string> beforeFiles,
+        IReadOnlyDictionary<PackageRelativePath, string> afterFiles)
     {
         var relativePaths = beforeFiles.Keys
             .Concat(afterFiles.Keys)
-            .Distinct(StringComparer.Ordinal)
-            .Order(StringComparer.Ordinal);
+            .Distinct()
+            .OrderBy(static path => path.Value, StringComparer.Ordinal);
 
         var fileDiffs = new List<SkillFileDiff>();
         foreach (var relativePath in relativePaths)
@@ -193,13 +194,13 @@ public sealed class SkillMaterializedPackageDiffBuilder
     }
 
     private static SkillActionFileChanges BuildReplacementFileChanges (
-        IReadOnlyDictionary<string, string> beforeFiles,
-        IReadOnlyDictionary<string, string> afterFiles)
+        IReadOnlyDictionary<PackageRelativePath, string> beforeFiles,
+        IReadOnlyDictionary<PackageRelativePath, string> afterFiles)
     {
-        var replacedFiles = new List<string>();
-        var removedFiles = new List<string>();
+        var replacedFiles = new List<PackageRelativePath>();
+        var removedFiles = new List<PackageRelativePath>();
 
-        foreach (var relativePath in beforeFiles.Keys.Order(StringComparer.Ordinal))
+        foreach (var relativePath in beforeFiles.Keys.OrderBy(static path => path.Value, StringComparer.Ordinal))
         {
             var hasAfter = afterFiles.TryGetValue(relativePath, out var afterContent);
             if (!hasAfter)
@@ -219,25 +220,24 @@ public sealed class SkillMaterializedPackageDiffBuilder
             removedFiles.ToArray());
     }
 
-    private static Dictionary<string, string> CreateNormalizedPackageFileMap (SkillMaterializedPackage materializedPackage)
+    private static Dictionary<PackageRelativePath, string> CreateNormalizedPackageFileMap (SkillMaterializedPackage materializedPackage)
     {
         return materializedPackage.Files.ToDictionary(
             static file => file.RelativePath,
-            static file => SkillTextNormalizer.NormalizeToLf(file.Content),
-            StringComparer.Ordinal);
+            static file => SkillTextNormalizer.NormalizeToLf(file.Content));
     }
 
     private static SkillActionTargetSnapshot CreateTargetSnapshot (SkillExistingTargetEntries entries)
     {
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        foreach (var directoryPath in entries.Directories.Order(StringComparer.Ordinal))
+        foreach (var directoryPath in entries.Directories.OrderBy(static path => path.Value, StringComparer.Ordinal))
         {
-            AppendSnapshotEntry(hash, "D", directoryPath, content: null);
+            AppendSnapshotEntry(hash, "D", directoryPath.Value, content: null);
         }
 
-        foreach (var file in entries.Files.OrderBy(static file => file.Key, StringComparer.Ordinal))
+        foreach (var file in entries.Files.OrderBy(static file => file.Key.Value, StringComparer.Ordinal))
         {
-            AppendSnapshotEntry(hash, "F", file.Key, file.Value);
+            AppendSnapshotEntry(hash, "F", file.Key.Value, file.Value);
         }
 
         return new SkillActionTargetSnapshot(Sha256Digest.GetHashAndReset(hash));
@@ -269,19 +269,18 @@ public sealed class SkillMaterializedPackageDiffBuilder
     }
 
     private static async ValueTask<SkillOperationResult<SkillExistingTargetEntries>> ReadExistingTargetEntriesAsync (
-        string skillDirectory,
+        AbsolutePath skillDirectory,
         CancellationToken cancellationToken)
     {
-        var files = new Dictionary<string, string>(StringComparer.Ordinal);
-        var fullSkillDirectory = Path.GetFullPath(skillDirectory);
-        if (!Directory.Exists(fullSkillDirectory))
+        var files = new Dictionary<PackageRelativePath, string>();
+        if (!Directory.Exists(skillDirectory.Value))
         {
             return SkillOperationResult<SkillExistingTargetEntries>.Success(new SkillExistingTargetEntries(
                 files,
-                Array.Empty<string>()));
+                Array.Empty<PackageRelativePath>()));
         }
 
-        var skillDirectoryResult = SkillPackagePathBoundary.ResolveUnderRoot(fullSkillDirectory, fullSkillDirectory);
+        var skillDirectoryResult = PackagePathResolver.ResolveUnderRoot(skillDirectory, skillDirectory);
         if (!skillDirectoryResult.IsSuccess)
         {
             return SkillOperationResult<SkillExistingTargetEntries>.FailureResult(
@@ -293,8 +292,8 @@ public sealed class SkillMaterializedPackageDiffBuilder
 
         try
         {
-            var relativeFilePaths = new List<string>();
-            var relativeDirectoryPaths = new List<string>();
+            var relativeFilePaths = new List<PackageRelativePath>();
+            var relativeDirectoryPaths = new List<PackageRelativePath>();
             var entriesResult = ReadExistingEntriesRecursive(
                 resolvedSkillDirectory,
                 resolvedSkillDirectory,
@@ -308,25 +307,13 @@ public sealed class SkillMaterializedPackageDiffBuilder
                     entriesResult.Failure.Message);
             }
 
-            var directories = relativeDirectoryPaths.Order(StringComparer.Ordinal).ToArray();
-            foreach (var directoryPath in directories)
+            var directories = relativeDirectoryPaths.OrderBy(static path => path.Value, StringComparer.Ordinal).ToArray();
+
+            foreach (var relativePath in relativeFilePaths.OrderBy(static path => path.Value, StringComparer.Ordinal))
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var directoryPathResult = ValidateSafeRelativePath(directoryPath);
-                if (!directoryPathResult.IsSuccess)
-                {
-                    return SkillOperationResult<SkillExistingTargetEntries>.FailureResult(
-                        directoryPathResult.Failure!.Code,
-                        directoryPathResult.Failure.Message);
-                }
-            }
-
-            foreach (var relativePath in relativeFilePaths.Order(StringComparer.Ordinal))
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var resolvedPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(resolvedSkillDirectory, relativePath);
+                var resolvedPathResult = PackagePathResolver.ResolveRegularFile(resolvedSkillDirectory, relativePath);
                 if (!resolvedPathResult.IsSuccess)
                 {
                     return SkillOperationResult<SkillExistingTargetEntries>.FailureResult(
@@ -335,7 +322,7 @@ public sealed class SkillMaterializedPackageDiffBuilder
                 }
 
                 files[relativePath] = SkillTextNormalizer.NormalizeToLf(
-                    await File.ReadAllTextAsync(resolvedPathResult.Value!, cancellationToken).ConfigureAwait(false));
+                    await File.ReadAllTextAsync(resolvedPathResult.Value!.Value, cancellationToken).ConfigureAwait(false));
             }
 
             return SkillOperationResult<SkillExistingTargetEntries>.Success(new SkillExistingTargetEntries(
@@ -351,20 +338,38 @@ public sealed class SkillMaterializedPackageDiffBuilder
     }
 
     private static SkillOperationResult<bool> ReadExistingEntriesRecursive (
-        string skillDirectory,
-        string directoryPath,
-        List<string> files,
-        List<string> directories,
+        AbsolutePath skillDirectory,
+        AbsolutePath directoryPath,
+        List<PackageRelativePath> files,
+        List<PackageRelativePath> directories,
         CancellationToken cancellationToken)
     {
-        foreach (var entryPath in Directory.EnumerateFileSystemEntries(directoryPath).Order(StringComparer.Ordinal))
+        foreach (var entryPathValue in Directory.EnumerateFileSystemEntries(directoryPath.Value).Order(StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var relativePath = Path.GetRelativePath(skillDirectory, entryPath).Replace(Path.DirectorySeparatorChar, '/');
-            if (SkillPackageFileSystemEntryGuard.IsDirectory(entryPath))
+            var entryPath = AbsolutePath.Parse(entryPathValue);
+            var relativePathValue = Path.GetRelativePath(skillDirectory.Value, entryPath.Value).Replace(Path.DirectorySeparatorChar, '/');
+            if (!PackageRelativePath.TryParse(relativePathValue, out var relativePath))
             {
-                var resolvedPathResult = SkillPackagePathBoundary.ResolveUnderRoot(skillDirectory, entryPath);
+                return SkillOperationResult<bool>.FailureResult(
+                    SkillFailureCodes.PathUnsafe,
+                    $"Package path is unsafe: {relativePathValue}");
+            }
+
+            if (!FileSystemEntryInspector.TryInspect(
+                    entryPath,
+                    out var entryObservation,
+                    out _))
+            {
+                return SkillOperationResult<bool>.FailureResult(
+                    SkillFailureCodes.PathUnsafe,
+                    $"Package path must be a regular file or directory: {relativePath}");
+            }
+
+            if (entryObservation.State == FileSystemEntryState.Directory)
+            {
+                var resolvedPathResult = PackagePathResolver.ResolveUnderRoot(skillDirectory, entryPath);
                 if (!resolvedPathResult.IsSuccess)
                 {
                     return SkillOperationResult<bool>.FailureResult(
@@ -387,9 +392,9 @@ public sealed class SkillMaterializedPackageDiffBuilder
                 continue;
             }
 
-            if (SkillPackageFileSystemEntryGuard.IsRegularFile(entryPath))
+            if (entryObservation.State == FileSystemEntryState.RegularFile)
             {
-                var resolvedPathResult = SkillPackagePathBoundary.ResolveUnderRoot(skillDirectory, entryPath);
+                var resolvedPathResult = PackagePathResolver.ResolveUnderRoot(skillDirectory, entryPath);
                 if (!resolvedPathResult.IsSuccess)
                 {
                     return SkillOperationResult<bool>.FailureResult(
@@ -407,15 +412,6 @@ public sealed class SkillMaterializedPackageDiffBuilder
         }
 
         return SkillOperationResult<bool>.Success(true);
-    }
-
-    private static SkillOperationResult<bool> ValidateSafeRelativePath (string relativePath)
-    {
-        return PackageRelativePath.TryParse(relativePath, out _)
-            ? SkillOperationResult<bool>.Success(true)
-            : SkillOperationResult<bool>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
-                $"Package path is unsafe: {relativePath}");
     }
 
     internal sealed class SkillMaterializedPackageChangePlan
@@ -436,8 +432,8 @@ public sealed class SkillMaterializedPackageDiffBuilder
     private sealed class SkillExistingTargetEntries
     {
         public SkillExistingTargetEntries (
-            IReadOnlyDictionary<string, string> files,
-            IReadOnlyList<string> directories)
+            IReadOnlyDictionary<PackageRelativePath, string> files,
+            IReadOnlyList<PackageRelativePath> directories)
         {
             ArgumentNullException.ThrowIfNull(files);
             if (files.Any(static entry => entry.Value is null))
@@ -451,15 +447,14 @@ public sealed class SkillMaterializedPackageDiffBuilder
                 throw new ArgumentException("Existing target directories must not contain null items.", nameof(directories));
             }
 
-            Files = new ReadOnlyDictionary<string, string>(files.ToDictionary(
+            Files = new ReadOnlyDictionary<PackageRelativePath, string>(files.ToDictionary(
                 static entry => entry.Key,
-                static entry => entry.Value,
-                StringComparer.Ordinal));
+                static entry => entry.Value));
             Directories = Array.AsReadOnly(directories.ToArray());
         }
 
-        public IReadOnlyDictionary<string, string> Files { get; }
+        public IReadOnlyDictionary<PackageRelativePath, string> Files { get; }
 
-        public IReadOnlyList<string> Directories { get; }
+        public IReadOnlyList<PackageRelativePath> Directories { get; }
     }
 }

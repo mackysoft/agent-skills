@@ -8,7 +8,7 @@ public sealed class AgentListReport
         IReadOnlyList<string> agentNames,
         IReadOnlyList<AgentListAgentReport> agents,
         IReadOnlyList<string> resolvedSkills,
-        IReadOnlyList<AgentHostKind> supportedHostIds)
+        IReadOnlyList<HostKind> supportedHostIds)
     {
         Categories = OperationReportContractGuard.SnapshotRequiredStrings(categories, nameof(categories));
         AgentNames = OperationReportContractGuard.SnapshotRequiredStrings(agentNames, nameof(agentNames));
@@ -36,5 +36,5 @@ public sealed class AgentListReport
     public IReadOnlyList<string> ResolvedSkills { get; }
 
     /// <summary> Gets host identifiers supported by at least one selected agent in ordinal order. </summary>
-    public IReadOnlyList<AgentHostKind> SupportedHostIds { get; }
+    public IReadOnlyList<HostKind> SupportedHostIds { get; }
 }

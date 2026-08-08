@@ -11,6 +11,7 @@ public sealed class PackageRelativePathTests
         var isParsed = PackageRelativePath.TryParse("agents/openai/reviewer.md", out var path);
 
         Assert.True(isParsed);
+        Assert.NotNull(path);
         Assert.Equal("agents/openai/reviewer.md", path.Value);
     }
 
@@ -35,8 +36,63 @@ public sealed class PackageRelativePathTests
     [Trait("Size", "Small")]
     public void TryParseSegment_RejectsPathWithMultipleSegments ()
     {
-        Assert.True(PackageRelativePath.TryParseSegment("openai", out var segment));
-        Assert.Equal("openai", segment.Value);
-        Assert.False(PackageRelativePath.TryParseSegment("hosts/openai", out _));
+        Assert.True(PackageRelativePath.TryParseSegment("codex", out var segment));
+        Assert.NotNull(segment);
+        Assert.Equal("codex", segment.Value);
+        Assert.False(PackageRelativePath.TryParseSegment("hosts/codex", out _));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void Equality_UsesCanonicalPortablePathIdentity ()
+    {
+        var first = PackageRelativePath.Parse("hosts/codex/architect.toml");
+        var same = PackageRelativePath.Parse("hosts/codex/architect.toml");
+        var differentCase = PackageRelativePath.Parse("hosts/codex/Architect.toml");
+
+        Assert.True(first.IsSameAs(same));
+        Assert.True(first == same);
+        Assert.False(first == differentCase);
+        Assert.True(first != differentCase);
+        Assert.Equal(first.GetHashCode(), same.GetHashCode());
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void PortableFileSystemComparer_RejectsCaseOnlyPackagePathCollisions ()
+    {
+        var paths = new HashSet<PackageRelativePath>(PackageRelativePath.PortableFileSystemComparer)
+        {
+            PackageRelativePath.Parse("hosts/codex/architect.toml"),
+        };
+
+        Assert.False(paths.Add(PackageRelativePath.Parse("hosts/codex/Architect.toml")));
+    }
+
+    [Theory]
+    [Trait("Size", "Small")]
+    [InlineData("references/example.md", "references", true)]
+    [InlineData("references/nested/example.md", "references", true)]
+    [InlineData("references", "references", false)]
+    [InlineData("references-old/example.md", "references", false)]
+    public void IsDescendantOf_RequiresCompleteDirectorySegment (
+        string path,
+        string directoryPath,
+        bool expected)
+    {
+        Assert.Equal(
+            expected,
+            PackageRelativePath.Parse(path).IsDescendantOf(PackageRelativePath.Parse(directoryPath)));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void TryGetRelativeTo_ReturnsTypedDescendantPath ()
+    {
+        var path = PackageRelativePath.Parse("hosts/codex/architect.toml");
+
+        Assert.True(path.TryGetRelativeTo(PackageRelativePath.Parse("hosts/codex"), out var relativePath));
+        Assert.Equal(PackageRelativePath.Parse("architect.toml"), relativePath);
+        Assert.False(path.TryGetRelativeTo(PackageRelativePath.Parse("hosts/claude-code"), out _));
     }
 }

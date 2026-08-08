@@ -23,9 +23,9 @@ public sealed class AgentSkillsBundleSourcePathTests
             return;
         }
 
-        var schemaResult = await new BundleSchemaVersionReader().ReadAsync(scope.FullPath, CancellationToken.None);
+        var schemaResult = await new BundleSchemaVersionReader().ReadAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
         var definitionResult = await new AgentSkillsBundleDefinitionReader(new AgentSkillsBundleJsonSerializer())
-            .ReadAsync(scope.FullPath, CancellationToken.None);
+            .ReadAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(schemaResult.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, schemaResult.Failure!.Code);
@@ -51,9 +51,9 @@ public sealed class AgentSkillsBundleSourcePathTests
             return;
         }
 
-        var schemaResult = await new BundleSchemaVersionReader().ReadAsync(rootLink, CancellationToken.None);
+        var schemaResult = await new BundleSchemaVersionReader().ReadAsync(AbsolutePath.Parse(rootLink), CancellationToken.None);
         var definitionResult = await new AgentSkillsBundleDefinitionReader(new AgentSkillsBundleJsonSerializer())
-            .ReadAsync(rootLink, CancellationToken.None);
+            .ReadAsync(AbsolutePath.Parse(rootLink), CancellationToken.None);
 
         Assert.False(schemaResult.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, schemaResult.Failure!.Code);

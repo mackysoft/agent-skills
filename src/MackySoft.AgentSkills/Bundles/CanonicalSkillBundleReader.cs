@@ -1,7 +1,8 @@
 using System.Text.Json;
 using MackySoft.AgentSkills.Packaging.Canonical;
-using MackySoft.AgentSkills.Packaging.FileSystem;
+using MackySoft.AgentSkills.Packaging.Paths;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Bundles;
 
@@ -31,19 +32,29 @@ public sealed class CanonicalSkillBundleReader
     /// <param name="cancellationToken"> The cancellation token propagated through file access. </param>
     /// <returns> The canonical bundle, or a manifest/path failure. </returns>
     public async ValueTask<SkillOperationResult<CanonicalSkillBundle>> ReadAsync (
-        string packageRoot,
+        AbsolutePath packageRoot,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(packageRoot);
+        ArgumentNullException.ThrowIfNull(packageRoot);
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!Directory.Exists(packageRoot))
+        var fullPackageRoot = packageRoot;
+        if (!FileSystemEntryInspector.TryInspect(
+                fullPackageRoot,
+                out var packageRootObservation,
+                out _))
+        {
+            return SkillOperationResult<CanonicalSkillBundle>.FailureResult(
+                SkillFailureCodes.PathUnsafe,
+                $"Generated SKILL bundle root could not be inspected: {fullPackageRoot}");
+        }
+
+        if (packageRootObservation.State == FileSystemEntryState.Missing)
         {
             return Failure($"Generated SKILL bundle directory does not exist: {packageRoot}");
         }
 
-        var fullPackageRoot = Path.GetFullPath(packageRoot);
-        if (!SkillPackageFileSystemEntryGuard.IsDirectory(fullPackageRoot))
+        if (packageRootObservation.State != FileSystemEntryState.Directory)
         {
             return SkillOperationResult<CanonicalSkillBundle>.FailureResult(
                 SkillFailureCodes.PathUnsafe,
@@ -58,7 +69,7 @@ public sealed class CanonicalSkillBundleReader
                 rootFileResult.Failure.Message);
         }
 
-        var descriptorPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(fullPackageRoot, "bundle.json");
+        var descriptorPathResult = PackagePathResolver.ResolveRegularFile(fullPackageRoot, PackageRelativePath.Parse("bundle.json"));
         if (!descriptorPathResult.IsSuccess)
         {
             return SkillOperationResult<CanonicalSkillBundle>.FailureResult(
@@ -66,7 +77,7 @@ public sealed class CanonicalSkillBundleReader
                 descriptorPathResult.Failure.Message);
         }
 
-        if (!File.Exists(descriptorPathResult.Value!))
+        if (!File.Exists(descriptorPathResult.Value!.Value))
         {
             return Failure($"Generated SKILL bundle is missing bundle.json: {fullPackageRoot}");
         }
@@ -107,9 +118,9 @@ public sealed class CanonicalSkillBundleReader
         return bundleFactory.CreateCanonical(new CanonicalSkillBundleCandidate(descriptor, packagesResult.Value!));
     }
 
-    private static SkillOperationResult<bool> ValidateRootFiles (string packageRoot)
+    private static SkillOperationResult<bool> ValidateRootFiles (AbsolutePath packageRoot)
     {
-        foreach (var path in Directory.EnumerateFiles(packageRoot).Order(StringComparer.Ordinal))
+        foreach (var path in Directory.EnumerateFiles(packageRoot.Value).Order(StringComparer.Ordinal))
         {
             var fileName = Path.GetFileName(path);
             if (!string.Equals(fileName, "bundle.json", StringComparison.Ordinal))

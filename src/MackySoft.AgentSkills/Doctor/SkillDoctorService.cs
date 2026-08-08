@@ -1,25 +1,20 @@
-using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Packaging.Canonical;
-using MackySoft.AgentSkills.Packaging.FileSystem;
+using MackySoft.AgentSkills.Packaging.Paths;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Doctor;
 
 /// <summary> Diagnoses host-materialized SKILL package directories. </summary>
 public sealed class SkillDoctorService
 {
-    private readonly SkillHostAdapterSet hostAdapters;
     private readonly SkillInstalledTargetStateAnalyzer targetStateAnalyzer;
 
     /// <summary> Initializes a new instance of the <see cref="SkillDoctorService" /> class. </summary>
-    /// <param name="hostAdapters"> The supported host adapter set. </param>
     /// <param name="targetStateAnalyzer"> The installed target state analyzer. </param>
-    public SkillDoctorService (
-        SkillHostAdapterSet hostAdapters,
-        SkillInstalledTargetStateAnalyzer targetStateAnalyzer)
+    public SkillDoctorService (SkillInstalledTargetStateAnalyzer targetStateAnalyzer)
     {
-        this.hostAdapters = hostAdapters ?? throw new ArgumentNullException(nameof(hostAdapters));
         this.targetStateAnalyzer = targetStateAnalyzer ?? throw new ArgumentNullException(nameof(targetStateAnalyzer));
     }
 
@@ -31,7 +26,7 @@ public sealed class SkillDoctorService
     /// <returns> The doctor result. </returns>
     public async ValueTask<SkillDoctorResult> DiagnoseAsync (
         IReadOnlyList<CanonicalSkillPackage> packages,
-        SkillHostKind host,
+        HostKind host,
         string targetRoot,
         CancellationToken cancellationToken = default)
     {
@@ -45,21 +40,19 @@ public sealed class SkillDoctorService
         cancellationToken.ThrowIfCancellationRequested();
 
         var diagnostics = new List<SkillDoctorDiagnostic>();
-        var fullTargetRoot = Path.GetFullPath(targetRoot);
-        var adapterResult = hostAdapters.GetAdapter(host);
-        var registeredHost = adapterResult.Value!.Descriptor.Host;
-        if (!Directory.Exists(fullTargetRoot))
+        var fullTargetRoot = AbsolutePath.Parse(Path.GetFullPath(targetRoot));
+        if (!Directory.Exists(fullTargetRoot.Value))
         {
             diagnostics.Add(SkillDoctorDiagnostic.Error(
                 SkillFailureCodes.InstallTargetUnmanaged,
                 $"Target root does not exist: {fullTargetRoot}"));
-            return new SkillDoctorResult(registeredHost, fullTargetRoot, diagnostics);
+            return new SkillDoctorResult(host, fullTargetRoot, diagnostics);
         }
 
         foreach (var package in packages.OrderBy(static package => package.Manifest.SkillName.Value, StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await DiagnosePackageAsync(package, registeredHost, fullTargetRoot, diagnostics, cancellationToken).ConfigureAwait(false);
+            await DiagnosePackageAsync(package, host, fullTargetRoot, diagnostics, cancellationToken).ConfigureAwait(false);
         }
 
         if (diagnostics.Count == 0)
@@ -69,17 +62,20 @@ public sealed class SkillDoctorService
                 "All SKILL packages are installed for the requested host."));
         }
 
-        return new SkillDoctorResult(registeredHost, fullTargetRoot, diagnostics);
+        return new SkillDoctorResult(host, fullTargetRoot, diagnostics);
     }
 
     private async ValueTask DiagnosePackageAsync (
         CanonicalSkillPackage package,
-        SkillHostKind host,
-        string targetRoot,
+        HostKind host,
+        AbsolutePath targetRoot,
         List<SkillDoctorDiagnostic> diagnostics,
         CancellationToken cancellationToken)
     {
-        var skillDirectoryResult = SkillPackagePathBoundary.ResolvePackageDirectory(targetRoot, package.Manifest.SkillName.Value);
+        var skillDirectoryPath = ContainedPath.Create(
+            targetRoot,
+            RootRelativePath.Parse(package.Manifest.SkillName.Value)).Target;
+        var skillDirectoryResult = PackagePathResolver.ResolveUnderRoot(targetRoot, skillDirectoryPath);
         if (!skillDirectoryResult.IsSuccess)
         {
             diagnostics.Add(SkillDoctorDiagnostic.Error(skillDirectoryResult.Failure!.Code, skillDirectoryResult.Failure.Message, package.Manifest.SkillName));
@@ -87,7 +83,7 @@ public sealed class SkillDoctorService
         }
 
         var skillDirectory = skillDirectoryResult.Value!;
-        if (!Directory.Exists(skillDirectory))
+        if (!Directory.Exists(skillDirectory.Value))
         {
             diagnostics.Add(SkillDoctorDiagnostic.Error(SkillFailureCodes.InstallTargetUnmanaged, "Skill directory is missing.", package.Manifest.SkillName));
             return;

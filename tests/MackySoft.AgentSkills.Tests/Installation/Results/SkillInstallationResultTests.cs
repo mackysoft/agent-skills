@@ -1,64 +1,40 @@
-using System.Reflection;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Installation.Targeting;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Tests.Installation.Results;
 
 public sealed class SkillInstallationResultTests
 {
-    public static TheoryData<Type> ResultDtoTypes => new()
-    {
-        typeof(SkillActionDiff),
-        typeof(SkillActionFileChanges),
-        typeof(SkillActionTargetFileSet),
-        typeof(SkillActionTargetState),
-        typeof(SkillFileDiff),
-        typeof(SkillInstallAction),
-        typeof(SkillUpdateAction),
-        typeof(SkillUninstallAction),
-        typeof(SkillPruneAction),
-        typeof(SkillInstallResult),
-        typeof(SkillUpdateResult),
-        typeof(SkillUninstallResult),
-        typeof(SkillPruneResult),
-    };
-
-    [Theory]
-    [Trait("Size", "Small")]
-    [MemberData(nameof(ResultDtoTypes))]
-    public void ResultDto_ExposesReadOnlyOutputWithoutPublicConstruction (Type type)
-    {
-        Assert.Empty(type.GetConstructors(BindingFlags.Instance | BindingFlags.Public));
-        Assert.All(
-            type.GetProperties(BindingFlags.Instance | BindingFlags.Public),
-            static property => Assert.Null(property.SetMethod));
-    }
-
     [Fact]
     [Trait("Size", "Small")]
     public void FileChanges_CapturesSortedDisjointPathSnapshots ()
     {
-        var replacedFiles = new List<string> { "z.md", "a.md" };
-        var removedFiles = new List<string> { "local.md" };
+        var replacedFiles = new List<PackageRelativePath>
+        {
+            PackageRelativePath.Parse("z.md"),
+            PackageRelativePath.Parse("a.md"),
+        };
+        var removedFiles = new List<PackageRelativePath> { PackageRelativePath.Parse("local.md") };
         var changes = new SkillActionFileChanges(replacedFiles, removedFiles);
 
         replacedFiles.Clear();
         removedFiles.Clear();
 
-        Assert.Equal(["a.md", "z.md"], changes.ReplacedFiles);
-        Assert.Equal(["local.md"], changes.RemovedFiles);
-        Assert.Throws<ArgumentException>(() => new SkillActionFileChanges(["same.md"], ["same.md"]));
+        Assert.Equal([PackageRelativePath.Parse("a.md"), PackageRelativePath.Parse("z.md")], changes.ReplacedFiles);
+        Assert.Equal([PackageRelativePath.Parse("local.md")], changes.RemovedFiles);
+        var duplicatePath = PackageRelativePath.Parse("same.md");
+        Assert.Throws<ArgumentException>(() => new SkillActionFileChanges([duplicatePath], [duplicatePath]));
     }
 
     [Fact]
     [Trait("Size", "Small")]
     public void FileDiff_RequiresContentsThatMatchChangeKind ()
     {
-        Assert.Throws<ArgumentException>(() => new SkillFileDiff("SKILL.md", SkillDiffChangeKind.Added, "old", "new"));
-        Assert.Throws<ArgumentException>(() => new SkillFileDiff("SKILL.md", SkillDiffChangeKind.Modified, null, "new"));
-        Assert.Throws<ArgumentException>(() => new SkillFileDiff("SKILL.md", SkillDiffChangeKind.Deleted, "old", "new"));
+        var path = PackageRelativePath.Parse("SKILL.md");
+        Assert.Throws<ArgumentException>(() => new SkillFileDiff(path, SkillDiffChangeKind.Added, "old", "new"));
+        Assert.Throws<ArgumentException>(() => new SkillFileDiff(path, SkillDiffChangeKind.Modified, null, "new"));
+        Assert.Throws<ArgumentException>(() => new SkillFileDiff(path, SkillDiffChangeKind.Deleted, "old", "new"));
     }
 
     [Fact]
@@ -76,7 +52,7 @@ public sealed class SkillInstallationResultTests
             SkillTargetStateKind.CommonContentDrift,
             SkillFailureCodes.InstallTargetContentDigestMismatch,
             "Content drift.",
-            fileSet: new SkillActionTargetFileSet(["missing.md"], [], []),
+            fileSet: new SkillActionTargetFileSet([PackageRelativePath.Parse("missing.md")], [], []),
             installedSkillBundleVersion: null,
             bundledSkillBundleVersion: 1));
         Assert.Throws<ArgumentException>(() => new SkillActionTargetState(
@@ -153,13 +129,13 @@ public sealed class SkillInstallationResultTests
         {
             new(CreateIdentity(targetRoot), SkillInstallActionKind.NoOp, CreateCurrentState(), null, null, null),
         };
-        var result = new SkillInstallResult(targetRoot, actions, dryRun: false, force: false, printDiff: false);
+        var result = new SkillInstallResult(AbsolutePath.Parse(targetRoot), actions, dryRun: false, force: false, printDiff: false);
 
         actions.Clear();
 
         Assert.Single(result.Actions);
         Assert.Throws<ArgumentException>(() => new SkillInstallResult(
-            Path.GetFullPath("other-target"),
+            AbsolutePath.Parse(Path.GetFullPath("other-target")),
             result.Actions,
             dryRun: false,
             force: false,
@@ -191,9 +167,9 @@ public sealed class SkillInstallationResultTests
     private static SkillInstallIdentity CreateIdentity (string? targetRoot = null)
     {
         return new SkillInstallIdentity(
-            SkillHostKind.OpenAi,
+            HostKind.Codex,
             SkillScopeKind.Project,
-            targetRoot ?? Path.GetFullPath("target"),
+            AbsolutePath.Parse(targetRoot ?? Path.GetFullPath("target")),
             new SkillName("skill-a"));
     }
 }

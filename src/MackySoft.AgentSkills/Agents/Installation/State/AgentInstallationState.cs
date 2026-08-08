@@ -1,6 +1,7 @@
 using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Digests;
+using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Agents.Installation.State;
 
@@ -15,7 +16,7 @@ public sealed class AgentInstallationState
         int schemaVersion,
         AgentSkillsBundleVersion bundleVersion,
         SkillCatalogId catalogId,
-        AgentHostKind hostId,
+        HostKind hostId,
         AgentCategory category,
         AgentName agentName,
         Sha256Digest agentManifestDigest,
@@ -40,7 +41,7 @@ public sealed class AgentInstallationState
         var artifacts = managedArtifacts.ToArray();
         if (artifacts.Length == 0
             || artifacts.Any(static artifact => artifact is null)
-            || artifacts.GroupBy(static artifact => artifact.Path, StringComparer.Ordinal).Any(static group => group.Count() != 1))
+            || artifacts.GroupBy(static artifact => artifact.Path, PackageRelativePath.PortableFileSystemComparer).Any(static group => group.Count() != 1))
         {
             throw new ArgumentException("Managed agent artifacts must be complete and unique.", nameof(managedArtifacts));
         }
@@ -52,7 +53,7 @@ public sealed class AgentInstallationState
         Category = category;
         AgentName = agentName;
         AgentManifestDigest = agentManifestDigest;
-        ManagedArtifacts = Array.AsReadOnly(artifacts.OrderBy(static artifact => artifact.Path, StringComparer.Ordinal).ToArray());
+        ManagedArtifacts = Array.AsReadOnly(artifacts.OrderBy(static artifact => artifact.Path.Value, StringComparer.Ordinal).ToArray());
     }
 
     /// <summary> Gets the schema version. </summary>
@@ -65,7 +66,7 @@ public sealed class AgentInstallationState
     public SkillCatalogId CatalogId { get; }
 
     /// <summary> Gets the host that owns the managed artifacts. </summary>
-    public AgentHostKind HostId { get; }
+    public HostKind HostId { get; }
 
     /// <summary> Gets the agent category. </summary>
     public AgentCategory Category { get; }

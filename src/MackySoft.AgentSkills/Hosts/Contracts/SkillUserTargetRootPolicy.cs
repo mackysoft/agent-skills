@@ -1,4 +1,4 @@
-using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Hosts.Contracts;
 
@@ -8,8 +8,8 @@ public sealed class SkillUserTargetRootPolicy
     /// <summary> Initializes one immutable user-scope host SKILL root policy. </summary>
     internal SkillUserTargetRootPolicy (
         string? environmentVariableName,
-        string? environmentVariableChildDirectory,
-        string homeRelativeDirectory)
+        RootRelativePath? environmentVariableChildDirectory,
+        RootRelativePath homeRelativeDirectory)
     {
         if (environmentVariableName is not null && string.IsNullOrWhiteSpace(environmentVariableName))
         {
@@ -23,16 +23,9 @@ public sealed class SkillUserTargetRootPolicy
                 throw new ArgumentException("Environment variable child directory requires an environment variable name.", nameof(environmentVariableChildDirectory));
             }
 
-            if (!PackageRelativePath.TryParse(environmentVariableChildDirectory, out _))
-            {
-                throw new ArgumentException("Environment variable child directory must be a safe relative path.", nameof(environmentVariableChildDirectory));
-            }
         }
 
-        if (!PackageRelativePath.TryParse(homeRelativeDirectory, out _))
-        {
-            throw new ArgumentException("Home-relative target directory must be a safe relative path.", nameof(homeRelativeDirectory));
-        }
+        ArgumentNullException.ThrowIfNull(homeRelativeDirectory);
 
         EnvironmentVariableName = environmentVariableName;
         EnvironmentVariableChildDirectory = environmentVariableChildDirectory;
@@ -43,8 +36,8 @@ public sealed class SkillUserTargetRootPolicy
     public string? EnvironmentVariableName { get; }
 
     /// <summary> Gets the child directory appended to the environment variable value when present. </summary>
-    public string? EnvironmentVariableChildDirectory { get; }
+    public RootRelativePath? EnvironmentVariableChildDirectory { get; }
 
     /// <summary> Gets the home-relative fallback host SKILL root directory. </summary>
-    public string HomeRelativeDirectory { get; }
+    public RootRelativePath HomeRelativeDirectory { get; }
 }

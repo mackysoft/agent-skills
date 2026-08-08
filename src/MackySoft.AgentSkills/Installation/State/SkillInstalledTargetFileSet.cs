@@ -1,4 +1,5 @@
 using MackySoft.AgentSkills.Installation.Validation;
+using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Installation.State;
 
@@ -10,9 +11,9 @@ public sealed class SkillInstalledTargetFileSet
     /// <param name="extraFiles"> Installed package-relative files that are not part of the expected file set. </param>
     /// <param name="extraDirectories"> Installed package-relative directories that are not explained by expected or installed files. </param>
     internal SkillInstalledTargetFileSet (
-        IReadOnlyList<string> missingFiles,
-        IReadOnlyList<string> extraFiles,
-        IReadOnlyList<string> extraDirectories)
+        IReadOnlyList<PackageRelativePath> missingFiles,
+        IReadOnlyList<PackageRelativePath> extraFiles,
+        IReadOnlyList<PackageRelativePath> extraDirectories)
     {
         MissingFiles = SkillInstalledFileSetPathSnapshot.Create(missingFiles, nameof(missingFiles));
         ExtraFiles = SkillInstalledFileSetPathSnapshot.Create(extraFiles, nameof(extraFiles));
@@ -20,11 +21,11 @@ public sealed class SkillInstalledTargetFileSet
     }
 
     /// <summary> Gets expected package-relative files that are absent from the installed directory. </summary>
-    public IReadOnlyList<string> MissingFiles { get; }
+    public IReadOnlyList<PackageRelativePath> MissingFiles { get; }
 
     /// <summary> Gets installed package-relative files that are not part of the expected file set. </summary>
-    public IReadOnlyList<string> ExtraFiles { get; }
+    public IReadOnlyList<PackageRelativePath> ExtraFiles { get; }
 
     /// <summary> Gets installed package-relative directories that are not explained by expected or installed files. </summary>
-    public IReadOnlyList<string> ExtraDirectories { get; }
+    public IReadOnlyList<PackageRelativePath> ExtraDirectories { get; }
 }

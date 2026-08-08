@@ -3,6 +3,7 @@ using MackySoft.AgentSkills.Agents.Installation.Results;
 using MackySoft.AgentSkills.Agents.Installation.State;
 using MackySoft.AgentSkills.Agents.Installation.Targeting;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Agents.Installation.Services;
 
@@ -43,15 +44,15 @@ public sealed class AgentPruneService
         }
 
         var target = targetResult.Value!;
-        var catalogDirectoryResult = AgentPathGuard.ResolveUnderRoot(
+        var catalogDirectoryResult = AgentPathGuard.Validate(ContainedPath.Create(
             target.StateRoot,
-            Path.Combine(target.StateRoot, input.CurrentCatalog.BundleDescriptor.CatalogId.Value));
+            RootRelativePath.Parse(input.CurrentCatalog.BundleDescriptor.CatalogId.Value)));
         if (!catalogDirectoryResult.IsSuccess)
         {
             return Failure(catalogDirectoryResult.Failure!);
         }
 
-        if (!Directory.Exists(catalogDirectoryResult.Value!))
+        if (!Directory.Exists(catalogDirectoryResult.Value!.Value))
         {
             return SkillOperationResult<AgentPruneResult>.Success(new AgentPruneResult(
                 target.ArtifactRoot,
@@ -108,17 +109,18 @@ public sealed class AgentPruneService
     private async ValueTask<SkillOperationResult<IReadOnlyList<AgentRemovalPlan>>> CreatePlansAsync (
         AgentPruneInput input,
         AgentResolvedTarget target,
-        string catalogDirectory,
+        AbsolutePath catalogDirectory,
         CancellationToken cancellationToken)
     {
         var currentNames = input.CurrentCatalog.SelectedAgents.Select(static agent => agent.Manifest.AgentName).ToHashSet();
         var plans = new List<AgentRemovalPlan>();
-        var managedPaths = new Dictionary<string, AgentName>(StringComparer.Ordinal);
-        IEnumerable<string> statePaths;
+        var managedPaths = new Dictionary<PackageRelativePath, AgentName>(PackageRelativePath.PortableFileSystemComparer);
+        IEnumerable<AbsolutePath> statePaths;
         try
         {
-            statePaths = Directory.EnumerateFiles(catalogDirectory, "*.json", SearchOption.TopDirectoryOnly)
+            statePaths = Directory.EnumerateFiles(catalogDirectory.Value, "*.json", SearchOption.TopDirectoryOnly)
                 .Order(StringComparer.Ordinal)
+                .Select(AbsolutePath.Parse)
                 .ToArray();
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
@@ -160,7 +162,7 @@ public sealed class AgentPruneService
                 continue;
             }
 
-            var fileAgentName = Path.GetFileNameWithoutExtension(statePath);
+            var fileAgentName = Path.GetFileNameWithoutExtension(statePath.Value);
             if (!string.Equals(fileAgentName, state.AgentName.Value, StringComparison.Ordinal))
             {
                 plans.Add(new AgentRemovalPlan(

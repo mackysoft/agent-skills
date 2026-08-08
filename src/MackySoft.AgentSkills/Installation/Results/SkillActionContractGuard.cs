@@ -24,48 +24,23 @@ internal static class SkillActionContractGuard
         return values is null ? null : Snapshot(values, parameterName);
     }
 
-    public static IReadOnlyList<string> PathSnapshot (
-        IReadOnlyList<string> paths,
+    public static IReadOnlyList<PackageRelativePath> PathSnapshot (
+        IReadOnlyList<PackageRelativePath> paths,
         string parameterName,
         bool sortOrdinal = false)
     {
-        ArgumentNullException.ThrowIfNull(paths, parameterName);
-        var snapshot = paths.ToArray();
-        foreach (var path in snapshot)
-        {
-            ValidateRelativePath(path, parameterName);
-        }
-
-        if (snapshot.Distinct(StringComparer.Ordinal).Count() != snapshot.Length)
+        var snapshot = Snapshot(paths, parameterName).ToArray();
+        if (snapshot.Distinct(PackageRelativePath.PortableFileSystemComparer).Count() != snapshot.Length)
         {
             throw new ArgumentException("The path collection must not contain duplicate items.", parameterName);
         }
 
         if (sortOrdinal)
         {
-            Array.Sort(snapshot, StringComparer.Ordinal);
+            Array.Sort(snapshot, static (left, right) => StringComparer.Ordinal.Compare(left.Value, right.Value));
         }
 
         return Array.AsReadOnly(snapshot);
-    }
-
-    public static void ValidateRelativePath (string path, string parameterName)
-    {
-        if (!PackageRelativePath.TryParse(path, out _))
-        {
-            throw new ArgumentException("The path must be a safe slash-separated path relative to the SKILL directory.", parameterName);
-        }
-    }
-
-    public static string ValidateTargetRoot (string targetRoot, string parameterName)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(targetRoot, parameterName);
-        if (!AbsolutePath.TryParse(targetRoot, out var absolutePath, out var failure))
-        {
-            throw new ArgumentException($"The target root must be an absolute path: {failure.Message}", parameterName);
-        }
-
-        return absolutePath.Value;
     }
 
     public static TEnum ValidateEnum<TEnum> (TEnum value, string parameterName)
@@ -89,20 +64,12 @@ internal static class SkillActionContractGuard
         return version;
     }
 
-    public static SkillInstallIdentity ValidateIdentity (SkillInstallIdentity identity, string parameterName)
-    {
-        ArgumentNullException.ThrowIfNull(identity, parameterName);
-        return identity;
-    }
-
     public static void ValidateTargetRootMatchesIdentity (
-        string targetRoot,
+        AbsolutePath targetRoot,
         SkillInstallIdentity identity,
         string parameterName)
     {
-        if (!AbsolutePath.TryParse(targetRoot, out var targetPath, out _)
-            || !AbsolutePath.TryParse(identity.TargetRoot, out var identityPath, out _)
-            || !targetPath.IsSameAs(identityPath))
+        if (!targetRoot.IsSameAs(identity.TargetRoot))
         {
             throw new ArgumentException("Every action identity target root must match the result target root.", parameterName);
         }

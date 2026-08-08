@@ -1,8 +1,8 @@
 using MackySoft.AgentSkills.Agents.Sources;
 using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Generation;
+using MackySoft.AgentSkills.Paths;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.FileSystem;
 using MackySoft.AgentSkills.Sources;
 using MackySoft.FileSystem;
 
@@ -30,31 +30,25 @@ internal sealed class AgentSkillsBundleGenerationService
     }
 
     /// <summary> Reads a complete v2 source snapshot. </summary>
-    public async ValueTask<SkillOperationResult<AgentSkillsGenerationSource>> ReadSourceAsync (string bundleRoot, CancellationToken cancellationToken)
+    public async ValueTask<SkillOperationResult<AgentSkillsGenerationSource>> ReadSourceAsync (AbsolutePath bundleRoot, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(bundleRoot);
         var bundleResult = await bundleReader.ReadAsync(bundleRoot, cancellationToken).ConfigureAwait(false);
         if (!bundleResult.IsSuccess)
         {
             return Failure(bundleResult.Failure!);
         }
 
-        var definitionsRootResult = SourcePathBoundary.ParseRoot(
-            Path.Combine(Path.GetFullPath(bundleRoot), "definitions"),
+        var definitionsRootResult = AuthoredSourcePathResolver.ResolveDirectory(
+            bundleRoot,
+            RootRelativePath.Parse("definitions"),
             "v2 definitions root");
         if (!definitionsRootResult.IsSuccess)
         {
             return Failure(definitionsRootResult.Failure!);
         }
 
-        var validatedDefinitionsRootResult = SourcePathBoundary.ValidateDirectoryRoot(
-            definitionsRootResult.Value!,
-            "v2 definitions root");
-        if (!validatedDefinitionsRootResult.IsSuccess)
-        {
-            return Failure(validatedDefinitionsRootResult.Failure!);
-        }
-
-        var definitionsRoot = validatedDefinitionsRootResult.Value!;
+        var definitionsRoot = definitionsRootResult.Value!;
         var namespaceNamesResult = ReadDefinitionNamespaceNames(definitionsRoot, cancellationToken);
         if (!namespaceNamesResult.IsSuccess)
         {
@@ -70,42 +64,58 @@ internal sealed class AgentSkillsBundleGenerationService
                 $"v2 definitions root contains an unsupported entry: {unsupportedNamespace}");
         }
 
-        var skillsNamespaceResult = ResolveOptionalNamespace(definitionsRoot, namespaceNames, "skills");
-        if (!skillsNamespaceResult.IsSuccess)
+        var hasSkillsNamespace = namespaceNames.Contains("skills", StringComparer.Ordinal);
+        SkillOperationResult<IReadOnlyList<SkillSourceDefinition>> skillsResult;
+        if (hasSkillsNamespace)
         {
-            return Failure(skillsNamespaceResult.Failure!);
+            var namespaceResult = ResolveNamespace(definitionsRoot, "skills");
+            if (!namespaceResult.IsSuccess)
+            {
+                return Failure(namespaceResult.Failure!);
+            }
+
+            skillsResult = await skillReader.ReadAllAsync(namespaceResult.Value!, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            skillsResult = SkillOperationResult<IReadOnlyList<SkillSourceDefinition>>.Success([]);
         }
 
-        var agentsNamespaceResult = ResolveOptionalNamespace(definitionsRoot, namespaceNames, "agents");
-        if (!agentsNamespaceResult.IsSuccess)
-        {
-            return Failure(agentsNamespaceResult.Failure!);
-        }
-
-        var skillsResult = skillsNamespaceResult.Value is not null
-            ? await skillReader.ReadAllAsync(skillsNamespaceResult.Value.Value, cancellationToken).ConfigureAwait(false)
-            : SkillOperationResult<IReadOnlyList<SkillSourceDefinition>>.Success([]);
         if (!skillsResult.IsSuccess)
         {
             return Failure(skillsResult.Failure!);
         }
 
-        var agentsResult = agentsNamespaceResult.Value is not null
-            ? await agentReader.ReadAllAsync(agentsNamespaceResult.Value.Value, cancellationToken).ConfigureAwait(false)
-            : SkillOperationResult<IReadOnlyList<AgentSourceDefinition>>.Success([]);
+        var hasAgentsNamespace = namespaceNames.Contains("agents", StringComparer.Ordinal);
+        SkillOperationResult<IReadOnlyList<AgentSourceDefinition>> agentsResult;
+        if (hasAgentsNamespace)
+        {
+            var namespaceResult = ResolveNamespace(definitionsRoot, "agents");
+            if (!namespaceResult.IsSuccess)
+            {
+                return Failure(namespaceResult.Failure!);
+            }
+
+            agentsResult = await agentReader.ReadAllAsync(namespaceResult.Value!, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            agentsResult = SkillOperationResult<IReadOnlyList<AgentSourceDefinition>>.Success([]);
+        }
+
         if (!agentsResult.IsSuccess)
         {
             return Failure(agentsResult.Failure!);
         }
 
-        if (skillsNamespaceResult.Value is not null && skillsResult.Value!.Count == 0)
+        if (hasSkillsNamespace && skillsResult.Value!.Count == 0)
         {
             return SkillOperationResult<AgentSkillsGenerationSource>.FailureResult(
                 SkillFailureCodes.SourceInvalid,
                 "The v2 skills namespace must not be empty when it is present.");
         }
 
-        if (agentsNamespaceResult.Value is not null && agentsResult.Value!.Count == 0)
+        if (hasAgentsNamespace && agentsResult.Value!.Count == 0)
         {
             return SkillOperationResult<AgentSkillsGenerationSource>.FailureResult(
                 SkillFailureCodes.SourceInvalid,
@@ -123,10 +133,10 @@ internal sealed class AgentSkillsBundleGenerationService
             return Failure(skillReferences.Failure!);
         }
 
-        var agentReferences = AgentSourceSkillDependencyReferenceValidator.Validate(agentsResult.Value!, skillsResult.Value!);
-        return agentReferences.IsSuccess
+        var agentDependencies = ValidateAgentSkillDependencies(agentsResult.Value!, skillsResult.Value!);
+        return agentDependencies.IsSuccess
             ? SkillOperationResult<AgentSkillsGenerationSource>.Success(new AgentSkillsGenerationSource(bundleResult.Value!, skillsResult.Value!, agentsResult.Value!))
-            : Failure(agentReferences.Failure!);
+            : Failure(agentDependencies.Failure!);
     }
 
     /// <summary> Generates one complete canonical mixed bundle. </summary>
@@ -143,25 +153,37 @@ internal sealed class AgentSkillsBundleGenerationService
 
     private static SkillOperationResult<AgentSkillsGenerationSource> Failure (SkillFailure failure) => SkillOperationResult<AgentSkillsGenerationSource>.FailureResult(failure.Code, failure.Message);
 
-    private static SkillOperationResult<AbsolutePath?> ResolveOptionalNamespace (
-        AbsolutePath definitionsRoot,
-        IReadOnlyList<string> namespaceNames,
-        string namespaceName)
+    private static SkillOperationResult<bool> ValidateAgentSkillDependencies (
+        IReadOnlyList<AgentSourceDefinition> agents,
+        IReadOnlyList<SkillSourceDefinition> skills)
     {
-        if (!namespaceNames.Contains(namespaceName, StringComparer.Ordinal))
+        var knownSkills = skills.Select(static skill => skill.Metadata.SkillName).ToHashSet();
+        foreach (var agent in agents.OrderBy(static agent => agent.Metadata.AgentName.Value, StringComparer.Ordinal))
         {
-            return SkillOperationResult<AbsolutePath?>.Success(null);
+            var missingSkills = agent.Metadata.SkillDependencies
+                .Where(skill => !knownSkills.Contains(skill))
+                .Select(static skill => skill.Value)
+                .Order(StringComparer.Ordinal)
+                .ToArray();
+            if (missingSkills.Length != 0)
+            {
+                return SkillOperationResult<bool>.FailureResult(
+                    SkillFailureCodes.SourceInvalid,
+                    $"agent.json references missing skills for '{agent.Metadata.AgentName.Value}': {string.Join(", ", missingSkills)}.");
+            }
         }
 
-        var result = SourcePathBoundary.ResolveDirectory(
+        return SkillOperationResult<bool>.Success(true);
+    }
+
+    private static SkillOperationResult<AbsolutePath> ResolveNamespace (
+        AbsolutePath definitionsRoot,
+        string namespaceName)
+    {
+        return AuthoredSourcePathResolver.ResolveDirectory(
             definitionsRoot,
-            namespaceName,
+            RootRelativePath.Parse(namespaceName),
             $"v2 {namespaceName} namespace");
-        return result.IsSuccess
-            ? SkillOperationResult<AbsolutePath?>.Success(result.Value)
-            : SkillOperationResult<AbsolutePath?>.FailureResult(
-                result.Failure!.Code,
-                result.Failure.Message);
     }
 
     private static SkillOperationResult<IReadOnlyList<string>> ReadDefinitionNamespaceNames (

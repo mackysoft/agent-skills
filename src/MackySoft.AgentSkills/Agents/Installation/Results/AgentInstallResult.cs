@@ -1,4 +1,5 @@
 using MackySoft.AgentSkills.Installation.Results;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Agents.Installation.Results;
 
@@ -6,10 +7,10 @@ namespace MackySoft.AgentSkills.Agents.Installation.Results;
 public sealed class AgentInstallResult
 {
     /// <summary> Initializes one immutable install result. </summary>
-    internal AgentInstallResult (string artifactRoot, string stateRoot, IReadOnlyList<AgentReconcileAction> actions, SkillInstallResult skillResult, bool dryRun, bool force, bool printDiff)
+    internal AgentInstallResult (AbsolutePath artifactRoot, AbsolutePath stateRoot, IReadOnlyList<AgentReconcileAction> actions, SkillInstallResult skillResult, bool dryRun, bool force, bool printDiff)
     {
-        ArtifactRoot = AgentResultContractGuard.NormalizeAbsolutePath(artifactRoot, nameof(artifactRoot));
-        StateRoot = AgentResultContractGuard.NormalizeAbsolutePath(stateRoot, nameof(stateRoot));
+        ArtifactRoot = artifactRoot ?? throw new ArgumentNullException(nameof(artifactRoot));
+        StateRoot = stateRoot ?? throw new ArgumentNullException(nameof(stateRoot));
         Actions = Array.AsReadOnly(actions.ToArray());
         SkillResult = skillResult ?? throw new ArgumentNullException(nameof(skillResult));
         DryRun = dryRun;
@@ -18,10 +19,10 @@ public sealed class AgentInstallResult
     }
 
     /// <summary> Gets the host-discovered artifact root. </summary>
-    public string ArtifactRoot { get; }
+    public AbsolutePath ArtifactRoot { get; }
 
     /// <summary> Gets the Agent Skills ownership-state root. </summary>
-    public string StateRoot { get; }
+    public AbsolutePath StateRoot { get; }
 
     /// <summary> Gets per-agent outcomes. </summary>
     public IReadOnlyList<AgentReconcileAction> Actions { get; }

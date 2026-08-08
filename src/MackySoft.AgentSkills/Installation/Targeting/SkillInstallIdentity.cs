@@ -1,4 +1,4 @@
-using MackySoft.AgentSkills.Names;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Installation.Targeting;
 
@@ -11,12 +11,11 @@ public sealed class SkillInstallIdentity
     /// <param name="targetRoot"> The canonical absolute bundle target root. </param>
     /// <param name="skillName"> The skill name. </param>
     /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="host" /> or <paramref name="scope" /> is unsupported. </exception>
-    /// <exception cref="ArgumentException"> Thrown when <paramref name="targetRoot" /> is not absolute. </exception>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="skillName" /> is <see langword="null" />. </exception>
+    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="targetRoot" /> or <paramref name="skillName" /> is <see langword="null" />. </exception>
     public SkillInstallIdentity (
-        SkillHostKind host,
+        HostKind host,
         SkillScopeKind scope,
-        string targetRoot,
+        AbsolutePath targetRoot,
         SkillName skillName)
     {
         if (!Vocabulary.IsDefined(host))
@@ -29,28 +28,22 @@ public sealed class SkillInstallIdentity
             throw new ArgumentOutOfRangeException(nameof(scope), scope, "Unsupported SKILL install scope.");
         }
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(targetRoot);
-        if (!Path.IsPathFullyQualified(targetRoot))
-        {
-            throw new ArgumentException("Target root must be an absolute path.", nameof(targetRoot));
-        }
-
         ArgumentNullException.ThrowIfNull(skillName);
 
         Host = host;
         Scope = scope;
-        TargetRoot = Path.GetFullPath(targetRoot);
+        TargetRoot = targetRoot ?? throw new ArgumentNullException(nameof(targetRoot));
         SkillName = skillName;
     }
 
     /// <summary> Gets the host. </summary>
-    public SkillHostKind Host { get; }
+    public HostKind Host { get; }
 
     /// <summary> Gets the install scope. </summary>
     public SkillScopeKind Scope { get; }
 
     /// <summary> Gets the canonical absolute bundle target root. </summary>
-    public string TargetRoot { get; }
+    public AbsolutePath TargetRoot { get; }
 
     /// <summary> Gets the skill name. </summary>
     public SkillName SkillName { get; }

@@ -1,6 +1,5 @@
 using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Catalogs;
-using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Packaging.Canonical;
 

@@ -1,4 +1,5 @@
 using System.Globalization;
+using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Validation;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
@@ -13,13 +14,14 @@ public sealed class SkillMaterializationServiceTests
     {
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var service = SkillTestData.CreateMaterializationService();
-        var adapters = GetSupportedAdapters();
+        var registrations = GetSupportedHosts();
 
         foreach (var package in packages)
         {
-            foreach (var adapter in adapters)
+            foreach (var registration in registrations)
             {
-                var host = adapter.Descriptor.Host;
+                var host = registration.Host;
+                var adapter = registration.SkillAdapter;
                 var first = service.Materialize(package, host);
                 var second = service.Materialize(package, host);
 
@@ -33,7 +35,7 @@ public sealed class SkillMaterializationServiceTests
                 var materializedFiles = first.Value.Files;
                 var materializedPaths = materializedFiles.Select(static file => file.RelativePath).ToArray();
 
-                Assert.Equal(materializedPaths.Order(StringComparer.Ordinal).ToArray(), materializedPaths);
+                Assert.Equal(materializedPaths.OrderBy(static path => path.Value, StringComparer.Ordinal).ToArray(), materializedPaths);
                 Assert.Equal(GetExpectedPaths(package, adapter), materializedPaths);
             }
         }
@@ -45,15 +47,16 @@ public sealed class SkillMaterializationServiceTests
     {
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var service = SkillTestData.CreateMaterializationService();
-        var adapters = GetSupportedAdapters();
+        var registrations = GetSupportedHosts();
 
         foreach (var package in packages)
         {
             var canonicalContent = GetCanonicalHostIndependentContent(package);
 
-            foreach (var adapter in adapters)
+            foreach (var registration in registrations)
             {
-                var result = service.Materialize(package, adapter.Descriptor.Host);
+                var adapter = registration.SkillAdapter;
+                var result = service.Materialize(package, registration.Host);
 
                 Assert.True(result.IsSuccess, result.Failure?.Message);
                 AssertFileMapEqual(canonicalContent, GetMaterializedHostIndependentContent(package, adapter, result.Value!.Files));
@@ -72,16 +75,16 @@ public sealed class SkillMaterializationServiceTests
             var package = SkillTestData.CreateOrdinalSensitivePackage();
             var service = SkillTestData.CreateMaterializationService();
 
-            foreach (var adapter in GetSupportedAdapters())
+            foreach (var registration in GetSupportedHosts())
             {
-                var result = service.Materialize(package, adapter.Descriptor.Host);
+                var result = service.Materialize(package, registration.Host);
 
                 Assert.True(result.IsSuccess, result.Failure?.Message);
                 var materializedPaths = result.Value!.Files.Select(static file => file.RelativePath).ToArray();
-                var ordinalPaths = materializedPaths.Order(StringComparer.Ordinal).ToArray();
+                var ordinalPaths = materializedPaths.OrderBy(static path => path.Value, StringComparer.Ordinal).ToArray();
 
                 Assert.Equal(ordinalPaths, materializedPaths);
-                Assert.NotEqual(ordinalPaths, materializedPaths.Order(StringComparer.CurrentCulture).ToArray());
+                Assert.NotEqual(ordinalPaths, materializedPaths.OrderBy(static path => path.Value, StringComparer.CurrentCulture).ToArray());
             }
         }
         finally
@@ -96,13 +99,14 @@ public sealed class SkillMaterializationServiceTests
     {
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var service = SkillTestData.CreateMaterializationService();
-        var adapters = GetSupportedAdapters();
+        var registrations = GetSupportedHosts();
 
         foreach (var package in packages)
         {
-            foreach (var adapter in adapters)
+            foreach (var registration in registrations)
             {
-                var result = service.Materialize(package, adapter.Descriptor.Host);
+                var adapter = registration.SkillAdapter;
+                var result = service.Materialize(package, registration.Host);
 
                 Assert.True(result.IsSuccess, result.Failure?.Message);
                 var hostArtifactPaths = GetHostArtifactPaths(package);
@@ -118,7 +122,7 @@ public sealed class SkillMaterializationServiceTests
                 if (metadataArtifactPath is not null)
                 {
                     var expectedMetadata = adapter.BuildArtifacts(CreateHostMetadata(package)).MetadataContent;
-                    var actualMetadata = result.Value.Files.Single(file => string.Equals(file.RelativePath, metadataArtifactPath, StringComparison.Ordinal)).Content;
+                    var actualMetadata = result.Value.Files.Single(file => file.RelativePath.Equals(metadataArtifactPath)).Content;
                     Assert.Equal(expectedMetadata, actualMetadata);
                 }
             }
@@ -132,18 +136,18 @@ public sealed class SkillMaterializationServiceTests
         var package = (await SkillTestData.GenerateFixturePackagesAsync()).First();
         var service = SkillTestData.CreateMaterializationService();
 
-        var result = service.Materialize(package, (SkillHostKind)42);
+        var result = service.Materialize(package, (HostKind)42);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.HostUnsupported, result.Failure!.Code);
     }
 
-    private static IReadOnlyList<ISkillHostAdapter> GetSupportedAdapters ()
+    private static IReadOnlyList<HostRegistration> GetSupportedHosts ()
     {
-        return SkillTestData.CreateDefaultHostAdapterSet().Adapters;
+        return HostRegistration.Registrations;
     }
 
-    private static string[] GetExpectedPaths (
+    private static PackageRelativePath[] GetExpectedPaths (
         CanonicalSkillPackage package,
         ISkillHostAdapter adapter)
     {
@@ -153,31 +157,31 @@ public sealed class SkillMaterializationServiceTests
             .Where(file => !hostArtifactPaths.Contains(file.RelativePath))
             .Select(static file => file.RelativePath)
             .Concat(adapter.Descriptor.MetadataArtifactPath is null ? [] : [adapter.Descriptor.MetadataArtifactPath])
-            .Order(StringComparer.Ordinal)
+            .OrderBy(static path => path.Value, StringComparer.Ordinal)
             .ToArray();
     }
 
-    private static IReadOnlyDictionary<string, string> GetCanonicalHostIndependentContent (CanonicalSkillPackage package)
+    private static IReadOnlyDictionary<PackageRelativePath, string> GetCanonicalHostIndependentContent (CanonicalSkillPackage package)
     {
         var hostArtifactPaths = GetHostArtifactPaths(package);
 
         return package.Files
             .Where(file => !hostArtifactPaths.Contains(file.RelativePath))
-            .ToDictionary(static file => file.RelativePath, static file => file.Content, StringComparer.Ordinal);
+            .ToDictionary(static file => file.RelativePath, static file => file.Content);
     }
 
-    private static IReadOnlyDictionary<string, string> GetMaterializedHostIndependentContent (
+    private static IReadOnlyDictionary<PackageRelativePath, string> GetMaterializedHostIndependentContent (
         CanonicalSkillPackage package,
         ISkillHostAdapter adapter,
-        IReadOnlyList<SkillPackageFile> materializedFiles)
+        IReadOnlyList<PackageTextFile> materializedFiles)
     {
         var hostArtifactPaths = GetHostArtifactPaths(package);
-        var content = new Dictionary<string, string>(StringComparer.Ordinal);
+        var content = new Dictionary<PackageRelativePath, string>();
         var expectedFrontmatter = adapter.BuildArtifacts(CreateHostMetadata(package)).Frontmatter;
 
         foreach (var file in materializedFiles.Where(file => !hostArtifactPaths.Contains(file.RelativePath)))
         {
-            if (string.Equals(file.RelativePath, "SKILL.md", StringComparison.Ordinal))
+            if (string.Equals(file.RelativePath.Value, "SKILL.md", StringComparison.Ordinal))
             {
                 Assert.True(SkillHostMaterializationInspector.TryExtractFrontmatter(file.Content, out var frontmatter));
                 Assert.Equal(expectedFrontmatter, frontmatter);
@@ -191,13 +195,13 @@ public sealed class SkillMaterializationServiceTests
         return content;
     }
 
-    private static HashSet<string> GetHostArtifactPaths (CanonicalSkillPackage package)
+    private static HashSet<PackageRelativePath> GetHostArtifactPaths (CanonicalSkillPackage package)
     {
         return package.Manifest.HostArtifacts
             .Select(static artifact => artifact.Path)
-            .Where(static path => !string.IsNullOrWhiteSpace(path))
+            .Where(static path => path is not null)
             .Select(static path => path!)
-            .ToHashSet(StringComparer.Ordinal);
+            .ToHashSet();
     }
 
     private static SkillHostMetadata CreateHostMetadata (CanonicalSkillPackage package)
@@ -209,11 +213,11 @@ public sealed class SkillMaterializationServiceTests
     }
 
     private static void AssertFileMapEqual (
-        IReadOnlyDictionary<string, string> expected,
-        IReadOnlyDictionary<string, string> actual)
+        IReadOnlyDictionary<PackageRelativePath, string> expected,
+        IReadOnlyDictionary<PackageRelativePath, string> actual)
     {
-        var expectedPaths = expected.Keys.Order(StringComparer.Ordinal).ToArray();
-        var actualPaths = actual.Keys.Order(StringComparer.Ordinal).ToArray();
+        var expectedPaths = expected.Keys.OrderBy(static path => path.Value, StringComparer.Ordinal).ToArray();
+        var actualPaths = actual.Keys.OrderBy(static path => path.Value, StringComparer.Ordinal).ToArray();
         Assert.Equal(expectedPaths, actualPaths);
 
         foreach (var path in expectedPaths)

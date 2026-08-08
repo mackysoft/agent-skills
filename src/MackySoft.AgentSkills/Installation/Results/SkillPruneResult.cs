@@ -1,3 +1,5 @@
+using MackySoft.FileSystem;
+
 namespace MackySoft.AgentSkills.Installation.Results;
 
 /// <summary> Represents a planned or completed SKILL prune operation. </summary>
@@ -5,12 +7,12 @@ public sealed class SkillPruneResult
 {
     /// <summary> Initializes one planned or completed prune operation. </summary>
     internal SkillPruneResult (
-        string targetRoot,
+        AbsolutePath targetRoot,
         IReadOnlyList<SkillPruneAction> actions,
         bool dryRun,
         bool force)
     {
-        TargetRoot = SkillActionContractGuard.ValidateTargetRoot(targetRoot, nameof(targetRoot));
+        TargetRoot = targetRoot ?? throw new ArgumentNullException(nameof(targetRoot));
         Actions = SkillActionContractGuard.Snapshot(actions, nameof(actions));
         foreach (var action in Actions)
         {
@@ -22,7 +24,7 @@ public sealed class SkillPruneResult
     }
 
     /// <summary> Gets the canonical absolute bundle target root. </summary>
-    public string TargetRoot { get; }
+    public AbsolutePath TargetRoot { get; }
 
     /// <summary> Gets an immutable snapshot of per-SKILL prune actions. </summary>
     public IReadOnlyList<SkillPruneAction> Actions { get; }

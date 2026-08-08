@@ -1,5 +1,5 @@
 using MackySoft.AgentSkills.Doctor;
-using MackySoft.AgentSkills.Installation.Targeting;
+using MackySoft.AgentSkills.OperationReports.Literals;
 
 namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
@@ -7,10 +7,10 @@ namespace MackySoft.AgentSkills.OperationReports.Contracts;
 public sealed class SkillDoctorReport
 {
     internal SkillDoctorReport (
-        SkillHostKind host,
+        HostKind host,
         IReadOnlyList<string> categories,
         IReadOnlyList<string> skillNames,
-        SkillScopeKind scope,
+        OperationScopeKind scope,
         string? repositoryRoot,
         string targetRoot,
         string reloadGuidance,
@@ -39,7 +39,7 @@ public sealed class SkillDoctorReport
     }
 
     /// <summary> Gets the host diagnosed by the doctor workflow. </summary>
-    public SkillHostKind Host { get; }
+    public HostKind Host { get; }
 
     /// <summary> Gets the selected category literals. </summary>
     public IReadOnlyList<string> Categories { get; }
@@ -48,7 +48,7 @@ public sealed class SkillDoctorReport
     public IReadOnlyList<string> SkillNames { get; }
 
     /// <summary> Gets the install scope. </summary>
-    public SkillScopeKind Scope { get; }
+    public OperationScopeKind Scope { get; }
 
     /// <summary> Gets the canonical absolute repository root for project scope, or <see langword="null" /> for user scope. </summary>
     public string? RepositoryRoot { get; }

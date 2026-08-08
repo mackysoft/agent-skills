@@ -4,7 +4,6 @@ using System.Text.Json;
 using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Digests;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Agents.Manifests;
@@ -28,7 +27,7 @@ public sealed class AgentManifestJsonSerializer
     {
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
-        var artifacts = root.GetProperty("hostArtifacts").EnumerateArray().Select(static item => new AgentHostArtifactManifest(ParseHost(item.GetProperty("host").GetString() ?? string.Empty), item.GetProperty("path").GetString() ?? string.Empty, Sha256Digest.Parse(item.GetProperty("digest").GetString() ?? string.Empty))).ToArray();
+        var artifacts = root.GetProperty("hostArtifacts").EnumerateArray().Select(static item => new AgentHostArtifactManifest(ParseHost(item.GetProperty("host").GetString() ?? string.Empty), PackageRelativePath.Parse(item.GetProperty("path").GetString() ?? string.Empty), Sha256Digest.Parse(item.GetProperty("digest").GetString() ?? string.Empty))).ToArray();
         return new AgentManifest(root.GetProperty("schemaVersion").GetInt32(), new AgentSkillsBundleVersion(root.GetProperty("bundleVersion").GetInt32()), new SkillCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty), new AgentCategory(root.GetProperty("category").GetString() ?? string.Empty), new AgentName(root.GetProperty("agentName").GetString() ?? string.Empty), root.GetProperty("displayName").GetString() ?? string.Empty, root.GetProperty("description").GetString() ?? string.Empty, root.GetProperty("skillDependencies").EnumerateArray().Select(static item => new SkillName(item.GetString() ?? string.Empty)).ToArray(), Sha256Digest.Parse(root.GetProperty("contentDigest").GetString() ?? string.Empty), Sha256Digest.Parse(root.GetProperty("manifestDigest").GetString() ?? string.Empty), artifacts);
     }
 
@@ -70,7 +69,7 @@ public sealed class AgentManifestJsonSerializer
             {
                 writer.WriteStartObject();
                 writer.WriteString("host", Vocabulary.GetText(artifact.HostId));
-                writer.WriteString("path", artifact.Path);
+                writer.WriteString("path", artifact.Path.Value);
                 writer.WriteString("digest", artifact.Digest.ToString());
                 writer.WriteEndObject();
             }
@@ -83,9 +82,9 @@ public sealed class AgentManifestJsonSerializer
         return result.EndsWith('\n') ? result : result + "\n";
     }
 
-    private static AgentHostKind ParseHost (string literal)
+    private static HostKind ParseHost (string literal)
     {
-        if (!Vocabulary.TryGetValue(literal, out AgentHostKind host))
+        if (!Vocabulary.TryGetValue(literal, out HostKind host))
         {
             throw new ArgumentException("Agent manifest host is unsupported.", nameof(literal));
         }

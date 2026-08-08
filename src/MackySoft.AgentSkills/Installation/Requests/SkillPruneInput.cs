@@ -1,7 +1,5 @@
 using MackySoft.AgentSkills.Catalogs;
-using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Installation.Targeting;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 
 namespace MackySoft.AgentSkills.Installation.Requests;

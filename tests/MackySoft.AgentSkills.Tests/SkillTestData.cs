@@ -1,6 +1,6 @@
+using MackySoft.AgentSkills.Agents.Installation.Targeting;
 using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Catalogs;
-using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Doctor;
@@ -16,7 +16,6 @@ using MackySoft.AgentSkills.Installation.Transactions;
 using MackySoft.AgentSkills.Installation.Validation;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Materialization;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.AgentSkills.Sources;
@@ -69,6 +68,58 @@ internal static class SkillTestData
         throw new DirectoryNotFoundException("Could not locate tests/Fixtures/SkillBundle from the test output directory.");
     }
 
+    internal static SkillInstallRequest CreateInstallRequest (
+        HostKind host,
+        SkillScopeKind scope,
+        string? repositoryRoot,
+        string? targetRoot = null)
+    {
+        var repositoryPath = repositoryRoot is null
+            ? null
+            : AbsolutePath.Parse(Path.GetFullPath(repositoryRoot));
+        return new SkillInstallRequest(
+            host,
+            scope,
+            repositoryPath,
+            ResolveTargetPath(repositoryPath, targetRoot));
+    }
+
+    internal static AgentTargetRequest CreateAgentTargetRequest (
+        HostKind host,
+        AgentInstallScopeKind scope,
+        string? repositoryRoot,
+        string? targetRoot = null)
+    {
+        var repositoryPath = repositoryRoot is null
+            ? null
+            : AbsolutePath.Parse(Path.GetFullPath(repositoryRoot));
+        return new AgentTargetRequest(
+            host,
+            scope,
+            repositoryPath,
+            ResolveTargetPath(repositoryPath, targetRoot));
+    }
+
+    private static AbsolutePath? ResolveTargetPath (AbsolutePath? repositoryRoot, string? targetRoot)
+    {
+        if (targetRoot is null)
+        {
+            return null;
+        }
+
+        if (AbsolutePath.TryParse(targetRoot, out var absoluteTargetRoot, out _))
+        {
+            return absoluteTargetRoot;
+        }
+
+        if (repositoryRoot is null)
+        {
+            throw new ArgumentException("A relative test target requires a repository root.", nameof(targetRoot));
+        }
+
+        return ContainedPath.Create(repositoryRoot, RootRelativePath.Parse(targetRoot)).Target;
+    }
+
     internal static async Task<IReadOnlyList<CanonicalSkillPackage>> GenerateFixturePackagesAsync ()
     {
         var bundle = await GenerateFixtureBundleAsync();
@@ -78,33 +129,23 @@ internal static class SkillTestData
     internal static async Task<CanonicalSkillBundle> GenerateFixtureBundleAsync ()
     {
         var service = CreatePackageGenerationService();
-        var result = await service.GenerateAllAsync(GetSkillBundleRoot(), CancellationToken.None);
+        var result = await service.GenerateAllAsync(AbsolutePath.Parse(GetSkillBundleRoot()), CancellationToken.None);
         Assert.True(result.IsSuccess, result.Failure?.Message);
         return result.Value!;
-    }
-
-    internal static SkillHostAdapterSet CreateDefaultHostAdapterSet ()
-    {
-        return new SkillHostAdapterSet();
     }
 
     internal static SkillPackageGenerationService CreatePackageGenerationService ()
     {
         var manifestSerializer = new SkillManifestJsonSerializer();
         var bundleDigestCalculator = new SkillBundleDigestCalculator(manifestSerializer);
-        var hostAdapters = CreateDefaultHostAdapterSet();
         var digestCalculator = new SkillDigestCalculator();
-        var manifestFactory = new SkillManifest.Factory(
-            hostAdapters,
-            new SkillManifestDigestCalculator(manifestSerializer));
+        var manifestFactory = new SkillManifest.Factory(new SkillManifestDigestCalculator(manifestSerializer));
         var packageFactory = new CanonicalSkillPackage.Factory(
-            hostAdapters,
             digestCalculator,
             manifestSerializer);
         return new SkillPackageGenerationService(
             new SkillBundleDefinitionReader(new SkillBundleJsonSerializer()),
             new SkillSourceDefinitionReader(),
-            hostAdapters,
             digestCalculator,
             manifestSerializer,
             manifestFactory,
@@ -129,7 +170,7 @@ internal static class SkillTestData
 
     internal static CanonicalSkillPackage CreateCanonicalPackage (
         SkillManifest manifest,
-        IReadOnlyList<SkillPackageFile> files)
+        IReadOnlyList<PackageTextFile> files)
     {
         var result = CreateCanonicalPackageFactory().CreateCanonical(
             new CanonicalSkillPackageCandidate(manifest, files));
@@ -151,10 +192,8 @@ internal static class SkillTestData
     private static CanonicalSkillPackage.Factory CreateCanonicalPackageFactory (
         SkillManifestJsonSerializer? manifestSerializer = null)
     {
-        var hostAdapters = CreateDefaultHostAdapterSet();
         manifestSerializer ??= new SkillManifestJsonSerializer();
         return new CanonicalSkillPackage.Factory(
-            hostAdapters,
             new SkillDigestCalculator(),
             manifestSerializer);
     }
@@ -162,14 +201,12 @@ internal static class SkillTestData
     internal static SkillManifest.Factory CreateManifestFactory (SkillManifestJsonSerializer? manifestSerializer = null)
     {
         manifestSerializer ??= new SkillManifestJsonSerializer();
-        return new SkillManifest.Factory(
-            CreateDefaultHostAdapterSet(),
-            new SkillManifestDigestCalculator(manifestSerializer));
+        return new SkillManifest.Factory(new SkillManifestDigestCalculator(manifestSerializer));
     }
 
     internal static SkillMaterializationService CreateMaterializationService ()
     {
-        return new SkillMaterializationService(CreateDefaultHostAdapterSet());
+        return new SkillMaterializationService();
     }
 
     internal static SkillExportService CreateExportService ()
@@ -179,66 +216,60 @@ internal static class SkillTestData
 
     internal static SkillInstallService CreateInstallService (ISkillMaterializedPackageWriter? packageWriter = null)
     {
-        var hostAdapters = CreateDefaultHostAdapterSet();
-        var installedPackageValidator = CreateInstalledPackageValidator(hostAdapters);
+        var installedPackageValidator = CreateInstalledPackageValidator();
         return new SkillInstallService(
-            CreateCatalogTargetRootSelector(hostAdapters),
-            new SkillMaterializationService(hostAdapters),
+            CreateCatalogTargetRootSelector(),
+            new SkillMaterializationService(),
             new SkillInstalledTargetStateAnalyzer(
-                CreateInstalledManifestReader(hostAdapters),
+                CreateInstalledManifestReader(),
                 installedPackageValidator,
-                CreateInstalledPackageIntegrityVerifier(hostAdapters)),
+                CreateInstalledPackageIntegrityVerifier()),
             packageWriter ?? CreatePackageWriter(),
             new SkillMaterializedPackageDiffBuilder());
     }
 
     internal static SkillUpdateService CreateUpdateService (ISkillMaterializedPackageWriter? packageWriter = null)
     {
-        var hostAdapters = CreateDefaultHostAdapterSet();
-        var installedPackageValidator = CreateInstalledPackageValidator(hostAdapters);
+        var installedPackageValidator = CreateInstalledPackageValidator();
         return new SkillUpdateService(
-            CreateCatalogTargetRootSelector(hostAdapters),
-            new SkillMaterializationService(hostAdapters),
+            CreateCatalogTargetRootSelector(),
+            new SkillMaterializationService(),
             new SkillInstalledTargetStateAnalyzer(
-                CreateInstalledManifestReader(hostAdapters),
+                CreateInstalledManifestReader(),
                 installedPackageValidator,
-                CreateInstalledPackageIntegrityVerifier(hostAdapters)),
+                CreateInstalledPackageIntegrityVerifier()),
             packageWriter ?? CreatePackageWriter(),
             new SkillMaterializedPackageDiffBuilder());
     }
 
     internal static SkillUninstallService CreateUninstallService (ISkillInstalledPackageRemover? packageRemover = null)
     {
-        var hostAdapters = CreateDefaultHostAdapterSet();
-        var installedPackageValidator = CreateInstalledPackageValidator(hostAdapters);
+        var installedPackageValidator = CreateInstalledPackageValidator();
         return new SkillUninstallService(
-            CreateCatalogTargetRootSelector(hostAdapters),
+            CreateCatalogTargetRootSelector(),
             new SkillInstalledTargetStateAnalyzer(
-                CreateInstalledManifestReader(hostAdapters),
+                CreateInstalledManifestReader(),
                 installedPackageValidator,
-                CreateInstalledPackageIntegrityVerifier(hostAdapters)),
+                CreateInstalledPackageIntegrityVerifier()),
             packageRemover ?? CreatePackageRemover(),
             new SkillMaterializedPackageDiffBuilder());
     }
 
     internal static SkillPruneService CreatePruneService (ISkillInstalledPackageRemover? packageRemover = null)
     {
-        var hostAdapters = CreateDefaultHostAdapterSet();
         return new SkillPruneService(
-            CreateCatalogTargetRootSelector(hostAdapters),
-            CreateInstalledManifestReader(hostAdapters),
-            CreateInstalledPackageIntegrityVerifier(hostAdapters),
+            CreateCatalogTargetRootSelector(),
+            CreateInstalledManifestReader(),
+            CreateInstalledPackageIntegrityVerifier(),
             packageRemover ?? CreatePackageRemover(),
             new SkillMaterializedPackageDiffBuilder());
     }
 
     internal static SkillInstallationScanner CreateInstallationScanner ()
     {
-        var hostAdapters = CreateDefaultHostAdapterSet();
         return new SkillInstallationScanner(
-            hostAdapters,
-            CreateInstalledManifestReader(hostAdapters),
-            CreateInstalledPackageValidator(hostAdapters));
+            CreateInstalledManifestReader(),
+            CreateInstalledPackageValidator());
     }
 
     internal static SkillMaterializedPackageWriter CreatePackageWriter ()
@@ -258,37 +289,29 @@ internal static class SkillTestData
             Environment.GetEnvironmentVariable);
     }
 
-    internal static SkillInstallTargetResolver CreateInstallTargetResolver (SkillHostAdapterSet? hostAdapters = null)
+    internal static SkillInstallTargetResolver CreateInstallTargetResolver ()
     {
-        hostAdapters ??= CreateDefaultHostAdapterSet();
-        return new SkillInstallTargetResolver(
-            hostAdapters,
-            CreateUserTargetRootResolver());
+        return new SkillInstallTargetResolver(CreateUserTargetRootResolver());
     }
 
-    internal static SkillCatalogTargetRootSelector CreateCatalogTargetRootSelector (SkillHostAdapterSet? hostAdapters = null)
+    internal static SkillCatalogTargetRootSelector CreateCatalogTargetRootSelector ()
     {
-        hostAdapters ??= CreateDefaultHostAdapterSet();
         return new SkillCatalogTargetRootSelector(
-            CreateInstallTargetResolver(hostAdapters),
-            CreateInstalledManifestReader(hostAdapters));
+            CreateInstallTargetResolver(),
+            CreateInstalledManifestReader());
     }
 
     internal static SkillDoctorService CreateDoctorService ()
     {
-        var hostAdapters = CreateDefaultHostAdapterSet();
-        return new SkillDoctorService(
-            hostAdapters,
-            CreateTargetStateAnalyzer(hostAdapters));
+        return new SkillDoctorService(CreateTargetStateAnalyzer());
     }
 
-    internal static SkillInstalledTargetStateAnalyzer CreateTargetStateAnalyzer (SkillHostAdapterSet? hostAdapters = null)
+    internal static SkillInstalledTargetStateAnalyzer CreateTargetStateAnalyzer ()
     {
-        hostAdapters ??= CreateDefaultHostAdapterSet();
         return new SkillInstalledTargetStateAnalyzer(
-            CreateInstalledManifestReader(hostAdapters),
-            CreateInstalledPackageValidator(hostAdapters),
-            CreateInstalledPackageIntegrityVerifier(hostAdapters));
+            CreateInstalledManifestReader(),
+            CreateInstalledPackageValidator(),
+            CreateInstalledPackageIntegrityVerifier());
     }
 
     internal static IReadOnlyList<CanonicalSkillPackage> ReplacePackage (
@@ -305,13 +328,13 @@ internal static class SkillTestData
         int? skillBundleVersion = null)
     {
         var files = package.Files
-            .Select(static file => string.Equals(file.RelativePath, "SKILL.md", StringComparison.Ordinal)
-                ? new SkillPackageFile("SKILL.md", file.Content + "\nFixture update.\n")
+            .Select(static file => string.Equals(file.RelativePath.Value, "SKILL.md", StringComparison.Ordinal)
+                ? new PackageTextFile(PackageRelativePath.Parse("SKILL.md"), file.Content + "\nFixture update.\n")
                 : file)
             .ToArray();
         var contentDigest = new SkillDigestCalculator().ComputeDigest(files
-            .Where(static file => string.Equals(file.RelativePath, "SKILL.md", StringComparison.Ordinal)
-                || file.RelativePath.StartsWith("references/", StringComparison.Ordinal))
+            .Where(static file => string.Equals(file.RelativePath.Value, "SKILL.md", StringComparison.Ordinal)
+                || file.RelativePath.Value.StartsWith("references/", StringComparison.Ordinal))
             .Select(static file => new SkillDigestInputFile(file.RelativePath, file.Content)));
         var manifestCandidate = CopyManifest(
             package.Manifest,
@@ -320,8 +343,8 @@ internal static class SkillTestData
         var manifest = WithComputedManifestDigest(manifestCandidate);
         var manifestText = new SkillManifestJsonSerializer().Serialize(manifest);
         files = files
-            .Select(file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal)
-                ? new SkillPackageFile("agent-skill.json", manifestText)
+            .Select(file => string.Equals(file.RelativePath.Value, "agent-skill.json", StringComparison.Ordinal)
+                ? new PackageTextFile(PackageRelativePath.Parse("agent-skill.json"), manifestText)
                 : file)
             .ToArray();
 
@@ -340,8 +363,8 @@ internal static class SkillTestData
             catalogId: catalogId));
         var manifestText = new SkillManifestJsonSerializer().Serialize(manifest);
         var files = package.Files
-            .Select(file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal)
-                ? new SkillPackageFile("agent-skill.json", manifestText)
+            .Select(file => string.Equals(file.RelativePath.Value, "agent-skill.json", StringComparison.Ordinal)
+                ? new PackageTextFile(PackageRelativePath.Parse("agent-skill.json"), manifestText)
                 : file)
             .ToArray();
 
@@ -354,11 +377,11 @@ internal static class SkillTestData
         const string DisplayName = "Ordinal Culture Contract";
         const string Description = "Use this skill to verify ordinal package ordering.";
 
-        var bodyFile = new SkillPackageFile("SKILL.md", "# Ordinal Culture Contract\n");
+        var bodyFile = new PackageTextFile(PackageRelativePath.Parse("SKILL.md"), "# Ordinal Culture Contract\n");
         var referenceFiles = new[]
         {
-            new SkillPackageFile("references/a.md", "lowercase reference\n"),
-            new SkillPackageFile("references/B.md", "uppercase reference\n"),
+            new PackageTextFile(PackageRelativePath.Parse("references/a.md"), "lowercase reference\n"),
+            new PackageTextFile(PackageRelativePath.Parse("references/B.md"), "uppercase reference\n"),
         };
         var digestCalculator = new SkillDigestCalculator();
         var contentDigest = digestCalculator.ComputeDigest(
@@ -366,17 +389,18 @@ internal static class SkillTestData
                 .Concat(referenceFiles.Select(static file => new SkillDigestInputFile(file.RelativePath, file.Content))));
         var metadata = new SkillHostMetadata(new SkillName(SkillName), DisplayName, Description);
         var hostArtifacts = new List<SkillHostArtifactManifest>();
-        var hostArtifactFiles = new List<SkillPackageFile>();
+        var hostArtifactFiles = new List<PackageTextFile>();
 
-        foreach (var adapter in CreateDefaultHostAdapterSet().Adapters)
+        foreach (var registration in HostRegistration.Registrations)
         {
+            var adapter = registration.SkillAdapter;
             var artifacts = adapter.BuildArtifacts(metadata);
-            var frontmatterDigest = digestCalculator.ComputeSingleFileDigest("SKILL.md.frontmatter", artifacts.Frontmatter);
-            var metadataArtifactPath = adapter.Descriptor.MetadataArtifactPath;
+            var frontmatterDigest = digestCalculator.ComputeSingleFileDigest(PackageRelativePath.Parse("SKILL.md.frontmatter"), artifacts.Frontmatter);
+            var metadataArtifactPath = registration.Skill.MetadataArtifactPath;
             if (metadataArtifactPath is null)
             {
                 hostArtifacts.Add(new SkillHostArtifactManifest(
-                    adapter.Descriptor.Host,
+                    registration.Host,
                     null,
                     null,
                     frontmatterDigest));
@@ -385,11 +409,11 @@ internal static class SkillTestData
 
             Assert.NotNull(artifacts.MetadataContent);
             hostArtifacts.Add(new SkillHostArtifactManifest(
-                adapter.Descriptor.Host,
-                metadataArtifactPath,
-                digestCalculator.ComputeSingleFileDigest(metadataArtifactPath, artifacts.MetadataContent),
-                frontmatterDigest));
-            hostArtifactFiles.Add(new SkillPackageFile(metadataArtifactPath, artifacts.MetadataContent));
+                    registration.Host,
+                    metadataArtifactPath,
+                    digestCalculator.ComputeSingleFileDigest(metadataArtifactPath, artifacts.MetadataContent),
+                    frontmatterDigest));
+            hostArtifactFiles.Add(new PackageTextFile(metadataArtifactPath, artifacts.MetadataContent));
         }
 
         var manifest = WithComputedManifestDigest(new SkillManifestCandidate(
@@ -404,11 +428,11 @@ internal static class SkillTestData
             contentDigest,
             null,
             hostArtifacts));
-        var manifestFile = new SkillPackageFile("agent-skill.json", new SkillManifestJsonSerializer().Serialize(manifest));
+        var manifestFile = new PackageTextFile(PackageRelativePath.Parse("agent-skill.json"), new SkillManifestJsonSerializer().Serialize(manifest));
         var files = new[] { bodyFile, manifestFile }
             .Concat(referenceFiles)
             .Concat(hostArtifactFiles)
-            .OrderBy(static file => file.RelativePath, StringComparer.Ordinal)
+            .OrderBy(static file => file.RelativePath.Value, StringComparer.Ordinal)
             .ToArray();
 
         return CreateCanonicalPackage(manifest, files);
@@ -421,29 +445,29 @@ internal static class SkillTestData
             skillBundleVersion: package.Manifest.SkillBundleVersion.Next().Value,
             displayName: package.Manifest.DisplayName + " Updated");
         var metadata = new SkillHostMetadata(manifestCandidate.SkillName, manifestCandidate.DisplayName, manifestCandidate.Description);
-        var hostAdapters = CreateDefaultHostAdapterSet();
         var digestCalculator = new SkillDigestCalculator();
         string? openAiMetadata = null;
         var hostArtifacts = new List<SkillHostArtifactManifest>();
         foreach (var artifact in manifestCandidate.HostArtifacts.OrderBy(static artifact => artifact.Host))
         {
-            var adapterResult = hostAdapters.GetAdapter(artifact.Host);
-            Assert.True(adapterResult.IsSuccess, adapterResult.Failure?.Message);
-            var adapter = adapterResult.Value!;
+            var registrationResult = HostRegistration.Get(artifact.Host);
+            Assert.True(registrationResult.IsSuccess, registrationResult.Failure?.Message);
+            var registration = registrationResult.Value!;
+            var adapter = registration.SkillAdapter;
             var artifacts = adapter.BuildArtifacts(metadata);
-            var frontmatterDigest = digestCalculator.ComputeSingleFileDigest("SKILL.md.frontmatter", artifacts.Frontmatter);
-            var metadataArtifactPath = adapter.Descriptor.MetadataArtifactPath;
+            var frontmatterDigest = digestCalculator.ComputeSingleFileDigest(PackageRelativePath.Parse("SKILL.md.frontmatter"), artifacts.Frontmatter);
+            var metadataArtifactPath = registration.Skill.MetadataArtifactPath;
             var metadataDigest = artifacts.MetadataContent is null || metadataArtifactPath is null
                 ? null
                 : digestCalculator.ComputeSingleFileDigest(metadataArtifactPath, artifacts.MetadataContent);
 
-            if (adapter.Descriptor.Host == SkillHostKind.OpenAi)
+            if (registration.Host == HostKind.Codex)
             {
                 openAiMetadata = artifacts.MetadataContent;
             }
 
             hostArtifacts.Add(new SkillHostArtifactManifest(
-                adapter.Descriptor.Host,
+                registration.Host,
                 metadataArtifactPath,
                 metadataDigest,
                 frontmatterDigest));
@@ -455,15 +479,15 @@ internal static class SkillTestData
         var files = package.Files
             .Select(file =>
             {
-                if (string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal))
+                if (string.Equals(file.RelativePath.Value, "agent-skill.json", StringComparison.Ordinal))
                 {
-                    return new SkillPackageFile("agent-skill.json", manifestText);
+                    return new PackageTextFile(PackageRelativePath.Parse("agent-skill.json"), manifestText);
                 }
 
-                if (string.Equals(file.RelativePath, "agents/openai.yaml", StringComparison.Ordinal))
+                if (string.Equals(file.RelativePath.Value, "agents/openai.yaml", StringComparison.Ordinal))
                 {
                     Assert.NotNull(openAiMetadata);
-                    return new SkillPackageFile("agents/openai.yaml", openAiMetadata!);
+                    return new PackageTextFile(PackageRelativePath.Parse("agents/openai.yaml"), openAiMetadata!);
                 }
 
                 return file;
@@ -482,40 +506,40 @@ internal static class SkillTestData
             skillBundleVersion: skillBundleVersion));
         var manifestText = new SkillManifestJsonSerializer().Serialize(manifest);
         var files = package.Files
-            .Select(file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal)
-                ? new SkillPackageFile("agent-skill.json", manifestText)
+            .Select(file => string.Equals(file.RelativePath.Value, "agent-skill.json", StringComparison.Ordinal)
+                ? new PackageTextFile(PackageRelativePath.Parse("agent-skill.json"), manifestText)
                 : file)
             .ToArray();
 
         return CreateCanonicalPackage(manifest, files);
     }
 
-    internal static SkillInstalledPackageValidator CreateInstalledPackageValidator (SkillHostAdapterSet hostAdapters)
+    internal static SkillInstalledPackageValidator CreateInstalledPackageValidator ()
     {
         return new SkillInstalledPackageValidator(
-            CreateInstalledManifestReader(hostAdapters),
-            new SkillMaterializationService(hostAdapters),
+            CreateInstalledManifestReader(),
+            new SkillMaterializationService(),
             new SkillInstalledContentDigestVerifier(new SkillDigestCalculator()),
             new SkillInstalledFileSetVerifier(),
-            new SkillHostMaterializationInspector(hostAdapters, new SkillDigestCalculator()));
+            new SkillHostMaterializationInspector(new SkillDigestCalculator()));
     }
 
-    internal static SkillInstalledPackageIntegrityVerifier CreateInstalledPackageIntegrityVerifier (SkillHostAdapterSet hostAdapters)
+    internal static SkillInstalledPackageIntegrityVerifier CreateInstalledPackageIntegrityVerifier ()
     {
         var manifestSerializer = new SkillManifestJsonSerializer();
         return new SkillInstalledPackageIntegrityVerifier(
-            CreateInstalledManifestReader(hostAdapters),
+            CreateInstalledManifestReader(),
             manifestSerializer,
-            new SkillHostMaterializationInspector(hostAdapters, new SkillDigestCalculator()),
+            new SkillHostMaterializationInspector(new SkillDigestCalculator()),
             new SkillDigestCalculator());
     }
 
-    internal static SkillInstalledManifestReader CreateInstalledManifestReader (SkillHostAdapterSet hostAdapters)
+    internal static SkillInstalledManifestReader CreateInstalledManifestReader ()
     {
         var manifestSerializer = new SkillManifestJsonSerializer();
         return new SkillInstalledManifestReader(
             manifestSerializer,
-            new SkillManifest.Factory(hostAdapters, new SkillManifestDigestCalculator(manifestSerializer)));
+            new SkillManifest.Factory(new SkillManifestDigestCalculator(manifestSerializer)));
     }
 
     internal static void TamperManifestDigest (string manifestPath)

@@ -195,9 +195,6 @@ done
 consoleappframework_package_files="$(unzip -Z1 "$consoleappframework_package")"
 grep -Fxq 'lib/net8.0/MackySoft.AgentSkills.ConsoleAppFramework.dll' <<< "$consoleappframework_package_files"
 grep -Fxq 'buildTransitive/MackySoft.AgentSkills.ConsoleAppFramework.props' <<< "$consoleappframework_package_files"
-grep -Fxq 'contentFiles/cs/any/MackySoft.AgentSkills.ConsoleAppFramework/AgentSkillsListCommand.cs' <<< "$consoleappframework_package_files"
-grep -Fxq 'contentFiles/cs/any/MackySoft.AgentSkills.ConsoleAppFramework/AgentSkillsAgentsListCommand.cs' <<< "$consoleappframework_package_files"
-grep -Fxq 'contentFiles/cs/any/MackySoft.AgentSkills.ConsoleAppFramework/AgentSkillsAgentsInstallCommand.cs' <<< "$consoleappframework_package_files"
 
 cli_package_files="$(unzip -Z1 "$cli_package")"
 grep -Fxq 'tools/net8.0/any/skills/bundle.json' <<< "$cli_package_files"
@@ -234,7 +231,7 @@ dotnet build "$consumer_dir/consumer.csproj" --configuration "$configuration" --
 
 console_consumer_dir="$work_root/console-consumer"
 dotnet new console --output "$console_consumer_dir" --no-restore >/dev/null
-cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/SkillBundle/generated" "$console_consumer_dir/skills"
+cp -R "$DOTNET_REPO_ROOT/skills/generated" "$console_consumer_dir/skills"
 dotnet add "$console_consumer_dir/console-consumer.csproj" package MackySoft.AgentSkills.ConsoleAppFramework \
   --version "$package_version" \
   --source "$package_dir" >/dev/null
@@ -245,20 +242,18 @@ using System.IO;
 using ConsoleAppFramework;
 using MackySoft.AgentSkills.ConsoleAppFramework;
 using MackySoft.AgentSkills.Hosting.Composition;
+using MackySoft.FileSystem;
 using Microsoft.Extensions.Hosting;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddAgentSkillsCommandRuntime(options =>
 {
     options.ProductName = "Smoke CLI";
-    options.PackageBaseDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
-    options.CommandRoot = "agent-skills";
-    options.AgentsCommandRoot = "custom-agents";
+    options.PackageBaseDirectory = AbsolutePath.Parse(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..")));
 });
 
 var app = builder.ToConsoleAppBuilder();
 app.RegisterAgentSkillsCommands();
-app.RegisterAgentSkillsAgentsCommands();
 await app.RunAsync(args);
 return Environment.ExitCode;
 CS
@@ -270,24 +265,40 @@ dotnet build "$console_consumer_dir/console-consumer.csproj" \
   --no-restore \
   -p:ImplicitUsings=disable \
   -p:Nullable=enable \
-  -p:TreatWarningsAsErrors=true \
-  -p:AgentSkillsConsoleAppFrameworkCommandRoot=agent-skills \
-  -p:AgentSkillsConsoleAppFrameworkAgentsCommandRoot=custom-agents >/dev/null
+  -p:TreatWarningsAsErrors=true >/dev/null
 dotnet run \
   --project "$console_consumer_dir/console-consumer.csproj" \
   --configuration "$configuration" \
   --no-build \
-  -- agent-skills list --pretty > "$work_root/skills-list.json"
-grep -q '"Command": "agent-skills.list"' "$work_root/skills-list.json"
+  -- --help > "$work_root/console-help.txt"
+grep -Eq '^  skills list[[:space:]]' "$work_root/console-help.txt"
+grep -Eq '^  agents list[[:space:]]' "$work_root/console-help.txt"
+if grep -Eq '^  (list|export|install|update|uninstall|prune|doctor)[[:space:]]' "$work_root/console-help.txt"; then
+  printf 'ConsoleAppFramework consumer exposed a root-level artifact operation.\n' >&2
+  exit 1
+fi
+dotnet run \
+  --project "$console_consumer_dir/console-consumer.csproj" \
+  --configuration "$configuration" \
+  --no-build \
+  -- skills list --pretty > "$work_root/skills-list.json"
+grep -q '"Command": "skills.list"' "$work_root/skills-list.json"
 grep -q '"Status": "ok"' "$work_root/skills-list.json"
-grep -q '"SkillName": "agent-skills-plan-apply"' "$work_root/skills-list.json"
+grep -q '"SkillName": "agent-skills-packaging"' "$work_root/skills-list.json"
+dotnet run \
+  --project "$console_consumer_dir/console-consumer.csproj" \
+  --configuration "$configuration" \
+  --no-build \
+  -- agents list --pretty > "$work_root/agents-list.json"
+grep -q '"Command": "agents.list"' "$work_root/agents-list.json"
+grep -q '"Status": "ok"' "$work_root/agents-list.json"
 mkdir -p "$work_root/install-target"
 dotnet run \
   --project "$console_consumer_dir/console-consumer.csproj" \
   --configuration "$configuration" \
   --no-build \
-  -- agent-skills install --host openai --scope project --category core --repository-root "$work_root/install-target" --dry-run --pretty > "$work_root/skills-install.json"
-grep -q '"Command": "agent-skills.install"' "$work_root/skills-install.json"
+  -- skills install --host codex --scope project --category basic --repository-root "$work_root/install-target" --dry-run --pretty > "$work_root/skills-install.json"
+grep -q '"Command": "skills.install"' "$work_root/skills-install.json"
 grep -q '"Status": "ok"' "$work_root/skills-install.json"
 grep -q '"DryRun": true' "$work_root/skills-install.json"
 
@@ -300,6 +311,14 @@ mkdir -p "$tool_dir"
     --version "$package_version" \
     --add-source "$package_dir" >/dev/null
 
+  dotnet tool run agent-skills -- --help > "$work_root/tool-help.txt"
+  grep -Eq '^  skills list[[:space:]]' "$work_root/tool-help.txt"
+  grep -Eq '^  agents list[[:space:]]' "$work_root/tool-help.txt"
+  if grep -Eq '^  (list|export|install|update|uninstall|prune|doctor)[[:space:]]' "$work_root/tool-help.txt"; then
+    printf 'Standalone CLI exposed a root-level artifact operation.\n' >&2
+    exit 1
+  fi
+
   bundle_root="$work_root/skill-bundle"
   cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/SkillBundle" "$bundle_root"
   rm -rf "$bundle_root/generated"
@@ -307,22 +326,26 @@ mkdir -p "$tool_dir"
 
   diff -ruN "$DOTNET_REPO_ROOT/tests/Fixtures/SkillBundle/generated" "$bundle_root/generated"
 
-  dotnet tool run agent-skills -- list --pretty > "$work_root/agent-skills-own-list.json"
-  grep -q '"Command": "agent-skills.list"' "$work_root/agent-skills-own-list.json"
+  dotnet tool run agent-skills -- skills list --pretty > "$work_root/agent-skills-own-list.json"
+  grep -q '"Command": "skills.list"' "$work_root/agent-skills-own-list.json"
   grep -q '"Status": "ok"' "$work_root/agent-skills-own-list.json"
   grep -q '"Category": "basic"' "$work_root/agent-skills-own-list.json"
   grep -q '"SkillName": "agent-skills-packaging"' "$work_root/agent-skills-own-list.json"
 
+  dotnet tool run agent-skills -- agents list --pretty > "$work_root/agent-skills-own-agents-list.json"
+  grep -q '"Command": "agents.list"' "$work_root/agent-skills-own-agents-list.json"
+  grep -q '"Status": "ok"' "$work_root/agent-skills-own-agents-list.json"
+
   own_install_root="$work_root/agent-skills-own-install"
   mkdir -p "$own_install_root"
-  dotnet tool run agent-skills -- install \
-    --host openai \
+  dotnet tool run agent-skills -- skills install \
+    --host codex \
     --scope project \
     --category basic \
-    --repositoryRoot "$own_install_root" \
-    --dryRun \
+    --repository-root "$own_install_root" \
+    --dry-run \
     --pretty > "$work_root/agent-skills-own-install.json"
-  grep -q '"Command": "agent-skills.install"' "$work_root/agent-skills-own-install.json"
+  grep -q '"Command": "skills.install"' "$work_root/agent-skills-own-install.json"
   grep -q '"Status": "ok"' "$work_root/agent-skills-own-install.json"
   grep -q '"DryRun": true' "$work_root/agent-skills-own-install.json"
 )

@@ -6,8 +6,9 @@ using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Packaging.Canonical;
-using MackySoft.AgentSkills.Packaging.FileSystem;
+using MackySoft.AgentSkills.Packaging.Paths;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Installation.Services;
 
@@ -67,7 +68,10 @@ public sealed class SkillUninstallService
             cancellationToken.ThrowIfCancellationRequested();
 
             var skillName = package.Manifest.SkillName;
-            var skillDirectoryResult = SkillPackagePathBoundary.ResolvePackageDirectory(targetRoot, skillName.Value);
+            var skillDirectoryPath = ContainedPath.Create(
+                targetRoot,
+                RootRelativePath.Parse(skillName.Value)).Target;
+            var skillDirectoryResult = PackagePathResolver.ResolveUnderRoot(targetRoot, skillDirectoryPath);
             if (!skillDirectoryResult.IsSuccess)
             {
                 return SkillOperationResult<SkillUninstallResult>.FailureResult(skillDirectoryResult.Failure!.Code, skillDirectoryResult.Failure.Message);
@@ -150,7 +154,7 @@ public sealed class SkillUninstallService
 
     private async ValueTask<SkillOperationResult<SkillUninstallActionPlan>> CreateActionPlanAsync (
         CanonicalSkillPackage package,
-        string skillDirectory,
+        AbsolutePath skillDirectory,
         SkillInstallIdentity identity,
         SkillInstalledTargetState state,
         SkillUninstallInput input,
@@ -200,7 +204,7 @@ public sealed class SkillUninstallService
 
     private async ValueTask<SkillOperationResult<SkillUninstallActionPlan>> CreateLocalModificationActionPlanAsync (
         CanonicalSkillPackage package,
-        string skillDirectory,
+        AbsolutePath skillDirectory,
         SkillInstallIdentity identity,
         SkillInstalledTargetState state,
         SkillUninstallInput input,
@@ -233,7 +237,7 @@ public sealed class SkillUninstallService
 
     private async ValueTask<SkillOperationResult<SkillUninstallActionPlan>> CreateDeleteActionPlanAsync (
         CanonicalSkillPackage package,
-        string skillDirectory,
+        AbsolutePath skillDirectory,
         SkillInstallIdentity identity,
         SkillInstalledTargetState state,
         CancellationToken cancellationToken)
@@ -261,8 +265,8 @@ public sealed class SkillUninstallService
 
     private async ValueTask<SkillOperationResult<bool>> ValidateDeletePreconditionAsync (
         CanonicalSkillPackage package,
-        SkillHostKind host,
-        string skillDirectory,
+        HostKind host,
+        AbsolutePath skillDirectory,
         SkillActionTargetSnapshot? targetSnapshot,
         bool force,
         CancellationToken cancellationToken)
@@ -300,7 +304,7 @@ public sealed class SkillUninstallService
     }
 
     private async ValueTask<SkillOperationResult<bool>> ValidateTargetSnapshotAsync (
-        string skillDirectory,
+        AbsolutePath skillDirectory,
         SkillActionTargetSnapshot expectedSnapshot,
         SkillInstalledTargetState state,
         CancellationToken cancellationToken)
@@ -325,13 +329,13 @@ public sealed class SkillUninstallService
     {
         public SkillUninstallActionPlan (
             SkillUninstallAction action,
-            string skillDirectory,
+            AbsolutePath skillDirectory,
             CanonicalSkillPackage package,
             bool shouldDelete,
             SkillActionTargetSnapshot? targetSnapshot)
         {
             Action = action ?? throw new ArgumentNullException(nameof(action));
-            ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+            ArgumentNullException.ThrowIfNull(skillDirectory);
             if (shouldDelete != (targetSnapshot is not null))
             {
                 throw new ArgumentException("A delete action plan must have a target snapshot, and a non-delete plan must not have one.", nameof(targetSnapshot));
@@ -345,7 +349,7 @@ public sealed class SkillUninstallService
 
         public SkillUninstallAction Action { get; }
 
-        public string SkillDirectory { get; }
+        public AbsolutePath SkillDirectory { get; }
 
         public CanonicalSkillPackage Package { get; }
 

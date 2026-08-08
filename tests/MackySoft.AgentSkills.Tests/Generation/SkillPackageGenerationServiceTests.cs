@@ -1,10 +1,8 @@
 using System.Globalization;
 using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Catalogs;
-using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Manifests;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.AgentSkills.Sources;
@@ -23,9 +21,9 @@ public sealed class SkillPackageGenerationServiceTests
         Assert.Equal(SkillTestData.ExpectedSkillNames, packages.Select(static package => package.Manifest.SkillName.Value).ToArray());
         foreach (var package in packages)
         {
-            Assert.Contains(package.Files, static file => string.Equals(file.RelativePath, "SKILL.md", StringComparison.Ordinal));
-            Assert.Contains(package.Files, static file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal));
-            Assert.Contains(package.Files, static file => string.Equals(file.RelativePath, "agents/openai.yaml", StringComparison.Ordinal));
+            Assert.Contains(package.Files, static file => string.Equals(file.RelativePath.Value, "SKILL.md", StringComparison.Ordinal));
+            Assert.Contains(package.Files, static file => string.Equals(file.RelativePath.Value, "agent-skill.json", StringComparison.Ordinal));
+            Assert.Contains(package.Files, static file => string.Equals(file.RelativePath.Value, "agents/openai.yaml", StringComparison.Ordinal));
             Assert.Equal(SkillManifest.CurrentSchemaVersion, package.Manifest.SchemaVersion);
             Assert.Equal(1, package.Manifest.SkillBundleVersion.Value);
             Assert.False(string.IsNullOrWhiteSpace(package.Manifest.DisplayName));
@@ -33,7 +31,7 @@ public sealed class SkillPackageGenerationServiceTests
             Assert.Empty(package.Manifest.Dependencies);
             Assert.Equal(SkillTestData.ExpectedCategory, package.Manifest.Category.Value);
             Assert.Equal(
-                new[] { SkillHostKind.Claude, SkillHostKind.Copilot, SkillHostKind.OpenAi },
+                new[] { HostKind.Codex, HostKind.ClaudeCode, HostKind.GitHubCopilot },
                 package.Manifest.HostArtifacts.Select(static artifact => artifact.Host).ToArray());
         }
     }
@@ -48,8 +46,8 @@ public sealed class SkillPackageGenerationServiceTests
         foreach (var package in packages)
         {
             var expectedDigest = calculator.ComputeDigest(package.Files
-                .Where(static file => string.Equals(file.RelativePath, "SKILL.md", StringComparison.Ordinal)
-                    || file.RelativePath.StartsWith("references/", StringComparison.Ordinal))
+                .Where(static file => string.Equals(file.RelativePath.Value, "SKILL.md", StringComparison.Ordinal)
+                    || file.RelativePath.Value.StartsWith("references/", StringComparison.Ordinal))
                 .Select(static file => new SkillDigestInputFile(file.RelativePath, file.Content)));
 
             Assert.Equal(expectedDigest, package.Manifest.ContentDigest);
@@ -97,7 +95,7 @@ public sealed class SkillPackageGenerationServiceTests
 
         foreach (var package in packages)
         {
-            var manifestFile = package.Files.Single(static file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal));
+            var manifestFile = package.Files.Single(static file => string.Equals(file.RelativePath.Value, "agent-skill.json", StringComparison.Ordinal));
             var candidate = serializer.Deserialize(manifestFile.Content);
             var result = SkillTestData.CreateManifestFactory(serializer).CreateCanonical(candidate);
             Assert.True(result.IsSuccess, result.Failure?.Message);
@@ -121,14 +119,14 @@ public sealed class SkillPackageGenerationServiceTests
     }
 
     private static (
-        SkillHostKind Host,
+        HostKind Host,
         string? Path,
         Sha256Digest? Digest,
         Sha256Digest MaterializedFrontmatterDigest) ToHostArtifactContract (SkillHostArtifactManifest artifact)
     {
         return (
             artifact.Host,
-            artifact.Path,
+            artifact.Path?.Value,
             artifact.Digest,
             artifact.MaterializedFrontmatterDigest);
     }
@@ -157,7 +155,7 @@ public sealed class SkillPackageGenerationServiceTests
                     new SkillSourceReference("B.md", "uppercase reference\n"),
                 ]));
 
-            var paths = package.Files.Select(static file => file.RelativePath).ToArray();
+            var paths = package.Files.Select(static file => file.RelativePath.Value).ToArray();
             var ordinalPaths = paths.Order(StringComparer.Ordinal).ToArray();
 
             Assert.Contains("agents/openai.yaml", paths);
@@ -189,7 +187,7 @@ public sealed class SkillPackageGenerationServiceTests
             "Use this skill to verify reference-free package generation.\n",
             []));
 
-        var paths = package.Files.Select(static file => file.RelativePath).ToArray();
+        var paths = package.Files.Select(static file => file.RelativePath.Value).ToArray();
 
         Assert.Contains("SKILL.md", paths);
         Assert.Contains("agent-skill.json", paths);
@@ -214,7 +212,7 @@ public sealed class SkillPackageGenerationServiceTests
             "Use this skill to verify generated heading insertion.\n",
             []));
 
-        var body = package.Files.Single(static file => string.Equals(file.RelativePath, "SKILL.md", StringComparison.Ordinal)).Content;
+        var body = package.Files.Single(static file => string.Equals(file.RelativePath.Value, "SKILL.md", StringComparison.Ordinal)).Content;
 
         Assert.StartsWith("# heading-free-skill\n\nUse this skill", body, StringComparison.Ordinal);
     }
@@ -231,7 +229,7 @@ public sealed class SkillPackageGenerationServiceTests
         }
         scope.CreateDirectory("definitions");
 
-        var result = await service.GenerateAllAsync(scope.FullPath, CancellationToken.None);
+        var result = await service.GenerateAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -257,7 +255,7 @@ public sealed class SkillPackageGenerationServiceTests
 
         var service = SkillTestData.CreatePackageGenerationService();
 
-        var result = await service.GenerateAllAsync(scope.FullPath, CancellationToken.None);
+        var result = await service.GenerateAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -282,7 +280,7 @@ public sealed class SkillPackageGenerationServiceTests
             });
         var service = SkillTestData.CreatePackageGenerationService();
 
-        var result = await service.GenerateAllAsync(scope.FullPath, CancellationToken.None);
+        var result = await service.GenerateAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var source = result.Value!.Packages.Single(static package => package.Manifest.SkillName.Value == "source-skill");
@@ -302,7 +300,7 @@ public sealed class SkillPackageGenerationServiceTests
             skillTemplate: "Use this skill without another skill.\n");
         var service = SkillTestData.CreatePackageGenerationService();
 
-        var result = await service.GenerateAllAsync(scope.FullPath, CancellationToken.None);
+        var result = await service.GenerateAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var source = result.Value!.Packages.Single(static package => package.Manifest.SkillName.Value == "source-skill");
@@ -318,7 +316,7 @@ public sealed class SkillPackageGenerationServiceTests
         WriteDefinition(scope, "source-skill", dependencies: ["target-skill"]);
         var service = SkillTestData.CreatePackageGenerationService();
 
-        var result = await service.GenerateAllAsync(scope.FullPath, CancellationToken.None);
+        var result = await service.GenerateAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -334,7 +332,7 @@ public sealed class SkillPackageGenerationServiceTests
         WriteDefinition(scope, "source-skill", skillTemplate: "Use $target-skill.\n");
         var service = SkillTestData.CreatePackageGenerationService();
 
-        var result = await service.GenerateAllAsync(scope.FullPath, CancellationToken.None);
+        var result = await service.GenerateAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -349,7 +347,7 @@ public sealed class SkillPackageGenerationServiceTests
         WriteDefinition(scope, "source-skill", skillTemplate: "Use $unknown-skill when it is available elsewhere.\n");
         var service = SkillTestData.CreatePackageGenerationService();
 
-        var result = await service.GenerateAllAsync(scope.FullPath, CancellationToken.None);
+        var result = await service.GenerateAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Empty(result.Value!.Packages.Single().Manifest.Dependencies);
@@ -363,7 +361,7 @@ public sealed class SkillPackageGenerationServiceTests
         WriteDefinition(scope, "source-skill", skillTemplate: "Use $source-skill to restart the workflow.\n");
         var service = SkillTestData.CreatePackageGenerationService();
 
-        var result = await service.GenerateAllAsync(scope.FullPath, CancellationToken.None);
+        var result = await service.GenerateAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Empty(result.Value!.Packages.Single().Manifest.Dependencies);
@@ -379,7 +377,7 @@ public sealed class SkillPackageGenerationServiceTests
         WriteDefinition(scope, "skill-b");
         var service = SkillTestData.CreatePackageGenerationService();
 
-        var result = await service.GenerateAllAsync(scope.FullPath, CancellationToken.None);
+        var result = await service.GenerateAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal("com.mackysoft.agent-skills", result.Value!.Descriptor.CatalogId.Value);
@@ -393,7 +391,7 @@ public sealed class SkillPackageGenerationServiceTests
 
     private static string GetManifestContent (CanonicalSkillPackage package)
     {
-        return package.Files.Single(static file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal)).Content;
+        return package.Files.Single(static file => string.Equals(file.RelativePath.Value, "agent-skill.json", StringComparison.Ordinal)).Content;
     }
 
     private static string WriteDefinition (

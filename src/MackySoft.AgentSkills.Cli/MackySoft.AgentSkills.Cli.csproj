@@ -14,8 +14,6 @@
     <PackageId>MackySoft.AgentSkills.Cli</PackageId>
     <Description>.NET CLI tool for building and operating agent skill and custom-agent packages.</Description>
     <PackageTags>agent;skills;cli;tool;generator;installer</PackageTags>
-    <AgentSkillsConsoleAppFrameworkGenerateRegistrar>false</AgentSkillsConsoleAppFrameworkGenerateRegistrar>
-    <AgentSkillsConsoleAppFrameworkGenerateAgentsRegistrar>false</AgentSkillsConsoleAppFrameworkGenerateAgentsRegistrar>
   </PropertyGroup>
 
   <ItemGroup>

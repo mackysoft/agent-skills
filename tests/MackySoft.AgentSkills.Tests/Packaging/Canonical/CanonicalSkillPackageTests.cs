@@ -30,8 +30,8 @@ public sealed class CanonicalSkillPackageTests
         var package = SkillTestData.CreateCanonicalPackage(generated.Manifest, files);
 
         Assert.Equal(
-            files.Select(static file => file.RelativePath).Order(StringComparer.Ordinal),
-            package.Files.Select(static file => file.RelativePath));
+            files.Select(static file => file.RelativePath.Value).Order(StringComparer.Ordinal),
+            package.Files.Select(static file => file.RelativePath.Value));
     }
 
     [Fact]
@@ -42,7 +42,7 @@ public sealed class CanonicalSkillPackageTests
 
         Assert.Throws<ArgumentException>(() => new CanonicalSkillPackageCandidate(
             generated.Manifest,
-            [new SkillPackageFile("SKILL.md", "content\n"), null!]));
+            [new PackageTextFile(PackageRelativePath.Parse("SKILL.md"), "content\n"), null!]));
     }
 
     [Theory]
@@ -56,14 +56,13 @@ public sealed class CanonicalSkillPackageTests
         var generated = (await SkillTestData.GenerateFixturePackagesAsync())[0];
 
         var factory = new CanonicalSkillPackage.Factory(
-            SkillTestData.CreateDefaultHostAdapterSet(),
             new SkillDigestCalculator(),
             new SkillManifestJsonSerializer());
         var result = factory.CreateCanonical(new CanonicalSkillPackageCandidate(
             generated.Manifest,
             [
-                new SkillPackageFile(firstPath, "first\n"),
-                new SkillPackageFile(secondPath, "second\n"),
+                new PackageTextFile(PackageRelativePath.Parse(firstPath), "first\n"),
+                new PackageTextFile(PackageRelativePath.Parse(secondPath), "second\n"),
             ]));
 
         Assert.False(result.IsSuccess);

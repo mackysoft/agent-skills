@@ -12,8 +12,8 @@ public sealed class SkillHostArtifactManifest
     /// <param name="digest"> The host artifact digest, or <see langword="null" /> when no file artifact exists. </param>
     /// <param name="materializedFrontmatterDigest"> The materialized SKILL.md frontmatter digest. </param>
     public SkillHostArtifactManifest (
-        SkillHostKind host,
-        string? path,
+        HostKind host,
+        PackageRelativePath? path,
         Sha256Digest? digest,
         Sha256Digest materializedFrontmatterDigest)
     {
@@ -25,11 +25,6 @@ public sealed class SkillHostArtifactManifest
         {
             throw new ArgumentException("Host artifact path and digest must either both be present or both be absent.");
         }
-        if (path is not null && !PackageRelativePath.TryParse(path, out _))
-        {
-            throw new ArgumentException("Host artifact path must be a safe relative file path.", nameof(path));
-        }
-
         Host = host;
         Path = path;
         Digest = digest;
@@ -37,10 +32,10 @@ public sealed class SkillHostArtifactManifest
     }
 
     /// <summary> Gets the canonical host literal. </summary>
-    public SkillHostKind Host { get; }
+    public HostKind Host { get; }
 
     /// <summary> Gets the host artifact path, or <see langword="null" /> when the artifact is frontmatter-only. </summary>
-    public string? Path { get; }
+    public PackageRelativePath? Path { get; }
 
     /// <summary> Gets the host artifact digest, or <see langword="null" /> when no file artifact exists. </summary>
     public Sha256Digest? Digest { get; }

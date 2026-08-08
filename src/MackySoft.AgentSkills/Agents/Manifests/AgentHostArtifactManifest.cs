@@ -7,27 +7,22 @@ namespace MackySoft.AgentSkills.Agents.Manifests;
 public sealed class AgentHostArtifactManifest
 {
     /// <summary> Initializes an artifact manifest. </summary>
-    internal AgentHostArtifactManifest (AgentHostKind hostId, string path, Sha256Digest digest)
+    internal AgentHostArtifactManifest (HostKind hostId, PackageRelativePath path, Sha256Digest digest)
     {
         if (!Vocabulary.IsDefined(hostId))
         {
             throw new ArgumentOutOfRangeException(nameof(hostId), hostId, "Unsupported agent host.");
         }
-        if (!PackageRelativePath.TryParse(path, out _))
-        {
-            throw new ArgumentException("Agent host artifact path must be safe.", nameof(path));
-        }
-
         HostId = hostId;
-        Path = path;
+        Path = path ?? throw new ArgumentNullException(nameof(path));
         Digest = digest ?? throw new ArgumentNullException(nameof(digest));
     }
 
     /// <summary> Gets the host identifier. </summary>
-    public AgentHostKind HostId { get; }
+    public HostKind HostId { get; }
 
     /// <summary> Gets the package-relative artifact path. </summary>
-    public string Path { get; }
+    public PackageRelativePath Path { get; }
 
     /// <summary> Gets the artifact content digest. </summary>
     public Sha256Digest Digest { get; }

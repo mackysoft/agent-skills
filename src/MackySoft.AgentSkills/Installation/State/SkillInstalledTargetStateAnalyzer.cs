@@ -2,6 +2,7 @@ using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Installation.Validation;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Installation.State;
 
@@ -34,15 +35,15 @@ public sealed class SkillInstalledTargetStateAnalyzer
     /// <returns> The target state or a hard safety failure. </returns>
     public async ValueTask<SkillOperationResult<SkillInstalledTargetState>> AnalyzeAsync (
         CanonicalSkillPackage package,
-        string skillDirectory,
-        SkillHostKind host,
+        AbsolutePath skillDirectory,
+        HostKind host,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(package);
-        ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+        ArgumentNullException.ThrowIfNull(skillDirectory);
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!Directory.Exists(skillDirectory))
+        if (!Directory.Exists(skillDirectory.Value))
         {
             return SkillOperationResult<SkillInstalledTargetState>.Success(
                 SkillInstalledTargetState.Missing(package.Manifest.SkillBundleVersion));
@@ -128,8 +129,8 @@ public sealed class SkillInstalledTargetStateAnalyzer
 
     private static async ValueTask<SkillOperationResult<SkillInstalledTargetState>> CreateDriftStateAsync (
         CanonicalSkillPackage package,
-        string skillDirectory,
-        SkillHostKind host,
+        AbsolutePath skillDirectory,
+        HostKind host,
         SkillFailure currentFailure,
         SkillFailure integrityFailure,
         CancellationToken cancellationToken)
@@ -220,8 +221,8 @@ public sealed class SkillInstalledTargetStateAnalyzer
 
     private static ValueTask<SkillOperationResult<SkillInstalledTargetFileSet>> ReadCurrentFileSetDriftAsync (
         CanonicalSkillPackage package,
-        string skillDirectory,
-        SkillHostKind host,
+        AbsolutePath skillDirectory,
+        HostKind host,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -246,7 +247,7 @@ public sealed class SkillInstalledTargetStateAnalyzer
         var fileSetResult = SkillInstalledFileSetVerifier.VerifyInstalledEntries(
             skillDirectory,
             requiredPathsResult.Value!,
-            Array.Empty<string>(),
+            Array.Empty<PackageRelativePath>(),
             entriesResult.Value!,
             cancellationToken);
         if (!fileSetResult.IsSuccess)

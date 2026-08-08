@@ -2,6 +2,7 @@ using MackySoft.AgentSkills.Agents.Installation.Targeting;
 using MackySoft.AgentSkills.Agents.Manifests;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Agents.Installation.State;
 
@@ -136,13 +137,13 @@ public sealed class AgentInstalledTargetInspector
                 return SkillOperationResult<AgentInstalledTargetState>.Success(new AgentInstalledTargetState(AgentInstalledTargetStateKind.Invalid, relativePathResult.Failure!.Message));
             }
 
-            var pathResult = AgentPathGuard.ResolveArtifactPath(target.ArtifactRoot, relativePathResult.Value!);
+            var pathResult = AgentPathGuard.Validate(ContainedPath.Create(target.ArtifactRoot, relativePathResult.Value!.RootRelativePath));
             if (!pathResult.IsSuccess)
             {
                 return SkillOperationResult<AgentInstalledTargetState>.FailureResult(pathResult.Failure!.Code, pathResult.Failure.Message);
             }
 
-            if (File.Exists(pathResult.Value!) || Directory.Exists(pathResult.Value!))
+            if (File.Exists(pathResult.Value!.Value) || Directory.Exists(pathResult.Value.Value))
             {
                 return SkillOperationResult<AgentInstalledTargetState>.Success(new AgentInstalledTargetState(AgentInstalledTargetStateKind.Unmanaged));
             }
@@ -154,13 +155,13 @@ public sealed class AgentInstalledTargetInspector
 
     private static SkillOperationResult<bool> ValidateTargetRoots (AgentResolvedTarget target)
     {
-        var artifactResult = AgentPathGuard.ResolveStandaloneRoot(target.ArtifactRoot);
+        var artifactResult = AgentPathGuard.Validate(ContainedPath.Create(target.ArtifactRoot, target.ArtifactRoot));
         if (!artifactResult.IsSuccess)
         {
             return SkillOperationResult<bool>.FailureResult(artifactResult.Failure!.Code, artifactResult.Failure.Message);
         }
 
-        var stateResult = AgentPathGuard.ResolveStandaloneRoot(target.StateRoot);
+        var stateResult = AgentPathGuard.Validate(ContainedPath.Create(target.StateRoot, target.StateRoot));
         return stateResult.IsSuccess
             ? SkillOperationResult<bool>.Success(true)
             : SkillOperationResult<bool>.FailureResult(stateResult.Failure!.Code, stateResult.Failure.Message);
@@ -169,9 +170,9 @@ public sealed class AgentInstalledTargetInspector
     private static SkillOperationResult<bool> ValidateManagedArtifactPaths (
         AgentInstallationState state,
         IReadOnlyList<AgentHostArtifactManifest> expectedArtifacts,
-        AgentHostKind hostId)
+        HostKind hostId)
     {
-        var expectedPaths = new List<string>(expectedArtifacts.Count);
+        var expectedPaths = new List<PackageRelativePath>(expectedArtifacts.Count);
         foreach (var expectedArtifact in expectedArtifacts)
         {
             var pathResult = AgentHostArtifactPath.ResolveTargetRelativePath(expectedArtifact.Path, hostId);
@@ -183,25 +184,34 @@ public sealed class AgentInstalledTargetInspector
             expectedPaths.Add(pathResult.Value!);
         }
 
-        var managedPaths = state.ManagedArtifacts.Select(static artifact => artifact.Path).Order(StringComparer.Ordinal).ToArray();
-        return expectedPaths.Order(StringComparer.Ordinal).SequenceEqual(managedPaths, StringComparer.Ordinal)
+        var managedPaths = state.ManagedArtifacts.Select(static artifact => artifact.Path).OrderBy(static path => path.Value, StringComparer.Ordinal).ToArray();
+        return expectedPaths.OrderBy(static path => path.Value, StringComparer.Ordinal).SequenceEqual(managedPaths)
             ? SkillOperationResult<bool>.Success(true)
             : SkillOperationResult<bool>.FailureResult(SkillFailureCodes.ManifestInvalid, "Agent ownership state managed artifact paths do not match the generated host artifacts.");
     }
 
     private async ValueTask<SkillOperationResult<AgentForeignStateLookupResult>> FindForeignStateAsync (AgentResolvedTarget target, AgentManifest manifest, CancellationToken cancellationToken)
     {
-        if (!Directory.Exists(target.StateRoot))
+        if (!Directory.Exists(target.StateRoot.Value))
         {
             return SkillOperationResult<AgentForeignStateLookupResult>.Success(new AgentForeignStateLookupResult(null));
         }
 
         try
         {
-            foreach (var catalogDirectory in Directory.EnumerateDirectories(target.StateRoot).Order(StringComparer.Ordinal))
+            foreach (var catalogDirectory in Directory.EnumerateDirectories(target.StateRoot.Value).Order(StringComparer.Ordinal))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var statePathResult = AgentPathGuard.ResolveUnderRoot(catalogDirectory, Path.Combine(catalogDirectory, $"{manifest.AgentName.Value}.json"));
+                var catalogPath = AbsolutePath.Parse(catalogDirectory);
+                var statePath = ContainedPath.Create(catalogPath, RootRelativePath.Parse($"{manifest.AgentName.Value}.json")).Target;
+                if (!ContainedPath.TryCreate(target.StateRoot, statePath, out var containedStatePath, out var containmentFailure))
+                {
+                    return SkillOperationResult<AgentForeignStateLookupResult>.FailureResult(
+                        SkillFailureCodes.PathUnsafe,
+                        $"Agent state path is invalid: {containmentFailure.Message}");
+                }
+
+                var statePathResult = AgentPathGuard.Validate(containedStatePath);
                 if (!statePathResult.IsSuccess)
                 {
                     return SkillOperationResult<AgentForeignStateLookupResult>.FailureResult(statePathResult.Failure!.Code, statePathResult.Failure.Message);
@@ -233,21 +243,21 @@ public sealed class AgentInstalledTargetInspector
         foreach (var artifact in state.ManagedArtifacts)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var pathResult = AgentPathGuard.ResolveArtifactPath(target.ArtifactRoot, artifact.Path);
+            var pathResult = AgentPathGuard.Validate(ContainedPath.Create(target.ArtifactRoot, artifact.Path.RootRelativePath));
             if (!pathResult.IsSuccess)
             {
                 return SkillOperationResult<AgentInstalledTargetState>.FailureResult(pathResult.Failure!.Code, pathResult.Failure.Message);
             }
 
             var path = pathResult.Value!;
-            if (!File.Exists(path) || Directory.Exists(path))
+            if (!File.Exists(path.Value) || Directory.Exists(path.Value))
             {
                 return SkillOperationResult<AgentInstalledTargetState>.Success(new AgentInstalledTargetState(AgentInstalledTargetStateKind.LocallyModified, $"Managed agent artifact is missing: {artifact.Path}"));
             }
 
             try
             {
-                var content = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
+                var content = await File.ReadAllTextAsync(path.Value, cancellationToken).ConfigureAwait(false);
                 if (digestCalculator.ComputeSingleFileDigest(artifact.Path, content) != artifact.Digest)
                 {
                     return SkillOperationResult<AgentInstalledTargetState>.Success(new AgentInstalledTargetState(AgentInstalledTargetStateKind.LocallyModified, $"Managed agent artifact changed: {artifact.Path}"));

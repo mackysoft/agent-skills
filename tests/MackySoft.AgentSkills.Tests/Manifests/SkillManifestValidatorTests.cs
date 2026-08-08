@@ -1,9 +1,7 @@
 using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Catalogs;
-using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Manifests;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Tests.Manifests;
@@ -69,9 +67,9 @@ public sealed class SkillManifestFactoryTests
         var valid = CreateManifest("sample-skill");
         return new TheoryData<object>
         {
-            SkillTestData.CopyManifest(valid, hostArtifacts: valid.HostArtifacts.Where(static artifact => artifact.Host != SkillHostKind.Copilot).ToArray()),
-            SkillTestData.CopyManifest(valid, hostArtifacts: valid.HostArtifacts.Select(static artifact => artifact.Host == SkillHostKind.Claude ? new SkillHostArtifactManifest(artifact.Host, "claude.yaml", Digest('6'), artifact.MaterializedFrontmatterDigest) : artifact).ToArray()),
-            SkillTestData.CopyManifest(valid, hostArtifacts: valid.HostArtifacts.Select(static artifact => artifact.Host == SkillHostKind.OpenAi ? new SkillHostArtifactManifest(artifact.Host, "agents/other.yaml", artifact.Digest, artifact.MaterializedFrontmatterDigest) : artifact).ToArray()),
+            SkillTestData.CopyManifest(valid, hostArtifacts: valid.HostArtifacts.Where(static artifact => artifact.Host != HostKind.GitHubCopilot).ToArray()),
+            SkillTestData.CopyManifest(valid, hostArtifacts: valid.HostArtifacts.Select(static artifact => artifact.Host == HostKind.ClaudeCode ? new SkillHostArtifactManifest(artifact.Host, PackageRelativePath.Parse("claude.yaml"), Digest('6'), artifact.MaterializedFrontmatterDigest) : artifact).ToArray()),
+            SkillTestData.CopyManifest(valid, hostArtifacts: valid.HostArtifacts.Select(static artifact => artifact.Host == HostKind.Codex ? new SkillHostArtifactManifest(artifact.Host, PackageRelativePath.Parse("agents/other.yaml"), artifact.Digest, artifact.MaterializedFrontmatterDigest) : artifact).ToArray()),
         };
     }
 
@@ -96,9 +94,9 @@ public sealed class SkillManifestFactoryTests
             Digest('0'),
             null,
             [
-                new SkillHostArtifactManifest(SkillHostKind.Claude, null, null, Digest('1')),
-                new SkillHostArtifactManifest(SkillHostKind.Copilot, null, null, Digest('2')),
-                new SkillHostArtifactManifest(SkillHostKind.OpenAi, "agents/openai.yaml", Digest('3'), Digest('4')),
+                new SkillHostArtifactManifest(HostKind.ClaudeCode, null, null, Digest('1')),
+                new SkillHostArtifactManifest(HostKind.GitHubCopilot, null, null, Digest('2')),
+                new SkillHostArtifactManifest(HostKind.Codex, PackageRelativePath.Parse("agents/openai.yaml"), Digest('3'), Digest('4')),
             ]);
 
     }

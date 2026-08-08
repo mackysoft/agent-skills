@@ -1,13 +1,17 @@
 using MackySoft.AgentSkills.Agents.Manifests;
 using MackySoft.AgentSkills.Digests;
-using MackySoft.AgentSkills.Packaging.FileSystem;
+using MackySoft.AgentSkills.Packaging.Canonical;
+using MackySoft.AgentSkills.Packaging.Paths;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Agents.Packaging;
 
 /// <summary> Reads canonical generated agent packages below a v2 agents root. </summary>
 internal sealed class CanonicalAgentPackageReader
 {
+    private static readonly PackageRelativePath ManifestPath = PackageRelativePath.Parse("agent-manifest.json");
+
     private readonly AgentManifestJsonSerializer serializer;
     private readonly SkillDigestCalculator digestCalculator;
     private readonly AgentManifestDigestCalculator manifestDigestCalculator;
@@ -30,35 +34,49 @@ internal sealed class CanonicalAgentPackageReader
     /// <param name="cancellationToken"> The cancellation token propagated through file access. </param>
     /// <returns>The canonical agent packages, or a manifest failure.</returns>
     internal async ValueTask<SkillOperationResult<IReadOnlyList<CanonicalAgentPackage>>> ReadAllAsync (
-        string agentsRoot,
+        AbsolutePath agentsRoot,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(agentsRoot);
+        ArgumentNullException.ThrowIfNull(agentsRoot);
         cancellationToken.ThrowIfCancellationRequested();
-        if (!Directory.Exists(agentsRoot))
+        var fullAgentsRoot = agentsRoot;
+        if (!FileSystemEntryInspector.TryInspect(
+                fullAgentsRoot,
+                out var agentsRootObservation,
+                out _))
+        {
+            return SkillOperationResult<IReadOnlyList<CanonicalAgentPackage>>.FailureResult(
+                SkillFailureCodes.PathUnsafe,
+                $"Generated agents root could not be inspected: {fullAgentsRoot.Value}");
+        }
+
+        if (agentsRootObservation.State == FileSystemEntryState.Missing)
         {
             return SkillOperationResult<IReadOnlyList<CanonicalAgentPackage>>.Success([]);
         }
 
-        var fullAgentsRoot = Path.GetFullPath(agentsRoot);
-        if (!SkillPackageFileSystemEntryGuard.IsDirectory(fullAgentsRoot))
+        if (agentsRootObservation.State != FileSystemEntryState.Directory)
         {
-            return Failure($"Generated agents root must be a regular directory: {fullAgentsRoot}");
+            return Failure($"Generated agents root must be a regular directory: {fullAgentsRoot.Value}");
         }
 
-        foreach (var rootEntry in Directory.EnumerateFileSystemEntries(fullAgentsRoot).Order(StringComparer.Ordinal))
+        foreach (var rootEntry in Directory.EnumerateFileSystemEntries(fullAgentsRoot.Value).Order(StringComparer.Ordinal))
         {
-            if (!Directory.Exists(rootEntry) || !SkillPackageFileSystemEntryGuard.IsDirectory(rootEntry))
+            if (!FileSystemEntryInspector.TryInspect(
+                    AbsolutePath.Parse(rootEntry),
+                    out var rootEntryObservation,
+                    out _)
+                || rootEntryObservation.State != FileSystemEntryState.Directory)
             {
                 return Failure($"Generated agents root contains an unsupported entry: {Path.GetFileName(rootEntry)}");
             }
         }
 
         var packages = new List<CanonicalAgentPackage>();
-        foreach (var directory in Directory.GetDirectories(fullAgentsRoot).Order(StringComparer.Ordinal))
+        foreach (var directory in Directory.GetDirectories(fullAgentsRoot.Value).Order(StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var packageResult = await ReadOneAsync(fullAgentsRoot, directory, cancellationToken).ConfigureAwait(false);
+            var packageResult = await ReadOneAsync(fullAgentsRoot, AbsolutePath.Parse(directory), cancellationToken).ConfigureAwait(false);
             if (!packageResult.IsSuccess)
             {
                 return Failure(packageResult.Failure!.Message);
@@ -71,11 +89,11 @@ internal sealed class CanonicalAgentPackageReader
     }
 
     private async ValueTask<SkillOperationResult<CanonicalAgentPackage>> ReadOneAsync (
-        string agentsRoot,
-        string agentDirectory,
+        AbsolutePath agentsRoot,
+        AbsolutePath agentDirectory,
         CancellationToken cancellationToken)
     {
-        var directoryResult = SkillPackagePathBoundary.ResolveUnderRoot(agentsRoot, agentDirectory);
+        var directoryResult = PackagePathResolver.ResolveUnderRoot(agentsRoot, agentDirectory);
         if (!directoryResult.IsSuccess)
         {
             return PackageFailure(directoryResult.Failure!.Code, directoryResult.Failure.Message);
@@ -89,7 +107,7 @@ internal sealed class CanonicalAgentPackageReader
 
         try
         {
-            var manifestFile = filesResult.Value!.SingleOrDefault(static file => file.RelativePath == "agent-manifest.json");
+            var manifestFile = filesResult.Value!.SingleOrDefault(static file => file.RelativePath == ManifestPath);
             if (manifestFile is null)
             {
                 return PackageFailure(SkillFailureCodes.ManifestInvalid, "Generated agent package is missing agent-manifest.json.");
@@ -102,7 +120,7 @@ internal sealed class CanonicalAgentPackageReader
                 return PackageFailure(SkillFailureCodes.ManifestInvalid, "agent-manifest.json is not canonical or its digest does not match manifest content.");
             }
 
-            if (!string.Equals(Path.GetFileName(directoryResult.Value!), manifest.AgentName.Value, StringComparison.Ordinal))
+            if (!string.Equals(Path.GetFileName(directoryResult.Value!.Value), manifest.AgentName.Value, StringComparison.Ordinal))
             {
                 return PackageFailure(SkillFailureCodes.ManifestInvalid, "agent-manifest.json agentName must match generated package directory name.");
             }
@@ -115,40 +133,44 @@ internal sealed class CanonicalAgentPackageReader
         }
     }
 
-    private async ValueTask<SkillOperationResult<IReadOnlyList<SkillPackageFile>>> ReadFilesAsync (
-        string agentDirectory,
+    private async ValueTask<SkillOperationResult<IReadOnlyList<PackageTextFile>>> ReadFilesAsync (
+        AbsolutePath agentDirectory,
         CancellationToken cancellationToken)
     {
-        var files = new List<SkillPackageFile>();
+        var files = new List<PackageTextFile>();
         var result = await ReadDirectoryEntriesAsync(agentDirectory, agentDirectory, files, cancellationToken).ConfigureAwait(false);
         return result.IsSuccess
-            ? SkillOperationResult<IReadOnlyList<SkillPackageFile>>.Success(files.OrderBy(static file => file.RelativePath, StringComparer.Ordinal).ToArray())
-            : SkillOperationResult<IReadOnlyList<SkillPackageFile>>.FailureResult(result.Failure!.Code, result.Failure.Message);
+            ? SkillOperationResult<IReadOnlyList<PackageTextFile>>.Success(files.OrderBy(static file => file.RelativePath.Value, StringComparer.Ordinal).ToArray())
+            : SkillOperationResult<IReadOnlyList<PackageTextFile>>.FailureResult(result.Failure!.Code, result.Failure.Message);
     }
 
     private async ValueTask<SkillOperationResult<bool>> ReadDirectoryEntriesAsync (
-        string agentDirectory,
-        string directoryPath,
-        List<SkillPackageFile> files,
+        AbsolutePath agentDirectory,
+        AbsolutePath directoryPath,
+        List<PackageTextFile> files,
         CancellationToken cancellationToken)
     {
-        foreach (var entryPath in Directory.EnumerateFileSystemEntries(directoryPath).Order(StringComparer.Ordinal))
+        foreach (var entryPathText in Directory.EnumerateFileSystemEntries(directoryPath.Value).Order(StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var relativePath = Path.GetRelativePath(agentDirectory, entryPath).Replace(Path.DirectorySeparatorChar, '/');
+            var entryPath = AbsolutePath.Parse(entryPathText);
+            var relativePath = Path.GetRelativePath(agentDirectory.Value, entryPath.Value).Replace(Path.DirectorySeparatorChar, '/');
             if (!PackageRelativePath.TryParse(relativePath, out _))
             {
                 return BoolFailure(SkillFailureCodes.PathUnsafe, $"Generated agent package contains an unsafe path: {relativePath}");
             }
 
-            if (Directory.Exists(entryPath))
+            if (!FileSystemEntryInspector.TryInspect(
+                    entryPath,
+                    out var entryObservation,
+                    out _))
             {
-                if (!SkillPackageFileSystemEntryGuard.IsDirectory(entryPath))
-                {
-                    return BoolFailure(SkillFailureCodes.PathUnsafe, $"Generated agent package contains an unsupported non-regular directory: {relativePath}");
-                }
+                return BoolFailure(SkillFailureCodes.PathUnsafe, $"Generated agent package contains an unsupported non-regular path: {relativePath}");
+            }
 
-                var childResult = SkillPackagePathBoundary.ResolveUnderRoot(agentDirectory, entryPath);
+            if (entryObservation.State == FileSystemEntryState.Directory)
+            {
+                var childResult = PackagePathResolver.ResolveUnderRoot(agentDirectory, entryPath);
                 if (!childResult.IsSuccess)
                 {
                     return BoolFailure(childResult.Failure!.Code, childResult.Failure.Message);
@@ -163,24 +185,24 @@ internal sealed class CanonicalAgentPackageReader
                 continue;
             }
 
-            if (!File.Exists(entryPath) || !SkillPackageFileSystemEntryGuard.IsRegularFile(entryPath))
+            if (entryObservation.State != FileSystemEntryState.RegularFile)
             {
-                return BoolFailure(SkillFailureCodes.PathUnsafe, $"Generated agent package contains an unsupported non-regular file: {relativePath}");
+                return BoolFailure(SkillFailureCodes.PathUnsafe, $"Generated agent package contains an unsupported non-regular path: {relativePath}");
             }
 
-            var fileResult = SkillPackagePathBoundary.ResolveUnderRoot(agentDirectory, entryPath);
+            var fileResult = PackagePathResolver.ResolveUnderRoot(agentDirectory, entryPath);
             if (!fileResult.IsSuccess)
             {
                 return BoolFailure(fileResult.Failure!.Code, fileResult.Failure.Message);
             }
 
-            var textResult = await SkillPackageTextFileReader.ReadAsync(fileResult.Value!, cancellationToken).ConfigureAwait(false);
+            var textResult = await CanonicalPackageTextReader.ReadAsync(fileResult.Value!, cancellationToken).ConfigureAwait(false);
             if (!textResult.IsSuccess)
             {
                 return BoolFailure(textResult.Failure!.Code, textResult.Failure.Message);
             }
 
-            files.Add(new SkillPackageFile(relativePath, textResult.Value!));
+            files.Add(new PackageTextFile(PackageRelativePath.Parse(relativePath), textResult.Value!));
         }
 
         return SkillOperationResult<bool>.Success(true);

@@ -18,7 +18,7 @@ internal static class SkillSourceDependencyReferenceValidator
                 .Concat(definition.References.Select(static reference => reference.Template));
             var referencedSkillNames = SkillDependencyReferenceScanner.FindReferences(sourceTexts)
                 .Where(knownSkillNames.Contains)
-                .Where(skillName => !string.Equals(skillName.Value, definition.Metadata.SkillName.Value, StringComparison.Ordinal))
+                .Where(skillName => skillName != definition.Metadata.SkillName)
                 .ToHashSet();
             var declaredSkillNames = definition.Metadata.Dependencies.ToHashSet();
 

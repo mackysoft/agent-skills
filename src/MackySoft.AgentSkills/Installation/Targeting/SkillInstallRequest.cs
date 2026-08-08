@@ -1,3 +1,5 @@
+using MackySoft.FileSystem;
+
 namespace MackySoft.AgentSkills.Installation.Targeting;
 
 /// <summary> Represents one SKILL install target request. </summary>
@@ -6,15 +8,16 @@ public sealed class SkillInstallRequest
     /// <summary> Initializes one SKILL install target request. </summary>
     /// <param name="host"> The target host. </param>
     /// <param name="scope"> The install scope. </param>
-    /// <param name="repositoryRoot"> The canonical absolute repository root required for project scope; <see langword="null" /> for user scope. </param>
-    /// <param name="targetRoot"> The optional explicit bundle target root. User-scope roots must be absolute. </param>
+    /// <param name="repositoryRoot"> The absolute repository root required for project scope; <see langword="null" /> for user scope. </param>
+    /// <param name="targetRoot"> The optional absolute bundle target root. </param>
     /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="host" /> or <paramref name="scope" /> is unsupported. </exception>
-    /// <exception cref="ArgumentException"> Thrown when the paths do not satisfy the selected scope contract. </exception>
+    /// <exception cref="ArgumentNullException"> Thrown when project scope is selected without <paramref name="repositoryRoot" />. </exception>
+    /// <exception cref="ArgumentException"> Thrown when user scope is selected with <paramref name="repositoryRoot" />. </exception>
     public SkillInstallRequest (
-        SkillHostKind host,
+        HostKind host,
         SkillScopeKind scope,
-        string? repositoryRoot,
-        string? targetRoot = null)
+        AbsolutePath? repositoryRoot,
+        AbsolutePath? targetRoot = null)
     {
         if (!Vocabulary.IsDefined(host))
         {
@@ -26,77 +29,33 @@ public sealed class SkillInstallRequest
             throw new ArgumentOutOfRangeException(nameof(scope), scope, "Unsupported SKILL install scope.");
         }
 
-        string? normalizedRepositoryRoot;
-        string? normalizedTargetRoot;
         if (scope == SkillScopeKind.Project)
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(repositoryRoot);
-            if (!Path.IsPathFullyQualified(repositoryRoot))
-            {
-                throw new ArgumentException("Project-scope repository root must be an absolute path.", nameof(repositoryRoot));
-            }
-
-            normalizedRepositoryRoot = Path.GetFullPath(repositoryRoot);
-            normalizedTargetRoot = NormalizeProjectTargetRoot(targetRoot);
+            ArgumentNullException.ThrowIfNull(repositoryRoot);
         }
-        else
+        else if (repositoryRoot is not null)
         {
-            if (repositoryRoot is not null)
-            {
-                throw new ArgumentException("User-scope install request must not contain a repository root.", nameof(repositoryRoot));
-            }
-
-            normalizedRepositoryRoot = null;
-            normalizedTargetRoot = NormalizeUserTargetRoot(targetRoot);
+            throw new ArgumentException("User-scope install request must not contain a repository root.", nameof(repositoryRoot));
         }
 
         Host = host;
         Scope = scope;
-        RepositoryRoot = normalizedRepositoryRoot;
-        TargetRoot = normalizedTargetRoot;
+        RepositoryRoot = repositoryRoot;
+        TargetRoot = targetRoot;
     }
 
     /// <summary> Gets the target host. </summary>
-    public SkillHostKind Host { get; }
+    public HostKind Host { get; }
 
     /// <summary> Gets the install scope. </summary>
     public SkillScopeKind Scope { get; }
 
     /// <summary> Gets the canonical absolute repository root for project scope, or <see langword="null" /> for user scope. </summary>
-    public string? RepositoryRoot { get; }
+    public AbsolutePath? RepositoryRoot { get; }
 
     /// <summary>
     /// Gets the optional explicit bundle target root. The host-specific catalog-directory layout is applied only when
     /// this value is <see langword="null" />. User-scope roots are canonical and absolute.
     /// </summary>
-    public string? TargetRoot { get; }
-
-    private static string? NormalizeProjectTargetRoot (string? targetRoot)
-    {
-        if (targetRoot is null)
-        {
-            return null;
-        }
-
-        ArgumentException.ThrowIfNullOrWhiteSpace(targetRoot);
-        return Path.IsPathFullyQualified(targetRoot)
-            ? Path.GetFullPath(targetRoot)
-            : targetRoot;
-    }
-
-    private static string? NormalizeUserTargetRoot (string? targetRoot)
-    {
-        if (targetRoot is null)
-        {
-            return null;
-        }
-
-        ArgumentException.ThrowIfNullOrWhiteSpace(targetRoot);
-        if (!Path.IsPathFullyQualified(targetRoot))
-        {
-            throw new ArgumentException("User-scope target root must be an absolute path.", nameof(targetRoot));
-        }
-
-        return Path.GetFullPath(targetRoot);
-    }
+    public AbsolutePath? TargetRoot { get; }
 }

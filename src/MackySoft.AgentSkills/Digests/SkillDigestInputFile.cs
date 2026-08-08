@@ -11,14 +11,10 @@ public sealed class SkillDigestInputFile
     /// <exception cref="ArgumentException"> Thrown when <paramref name="relativePath" /> is not a safe relative file path. </exception>
     /// <exception cref="ArgumentNullException"> Thrown when <paramref name="content" /> is <see langword="null" />. </exception>
     public SkillDigestInputFile (
-        string relativePath,
+        PackageRelativePath relativePath,
         string content)
     {
-        if (!PackageRelativePath.TryParse(relativePath, out _))
-        {
-            throw new ArgumentException("Digest file path must be a safe slash-separated relative path.", nameof(relativePath));
-        }
-
+        ArgumentNullException.ThrowIfNull(relativePath);
         ArgumentNullException.ThrowIfNull(content);
 
         RelativePath = relativePath;
@@ -26,7 +22,7 @@ public sealed class SkillDigestInputFile
     }
 
     /// <summary> Gets the slash-separated relative path. </summary>
-    public string RelativePath { get; }
+    public PackageRelativePath RelativePath { get; }
 
     /// <summary> Gets the content normalized to LF line endings. </summary>
     public string Content { get; }

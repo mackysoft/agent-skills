@@ -15,32 +15,32 @@ public sealed class AgentExportServiceTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-agent-export", "directory");
         var skills = await SkillTestData.GenerateFixturePackagesAsync();
-        var agent = AgentDistributionTestData.CreateAgent(skills, "planning", "planner", AgentHostKind.OpenAi, "planner.toml");
+        var agent = AgentDistributionTestData.CreateAgent(skills, "planning", "planner", HostKind.Codex, "planner.toml");
         var catalog = AgentDistributionTestData.CreateCatalog(skills, [agent]);
         var outputPath = scope.GetPath("exported");
         var service = new AgentExportService(SkillTestData.CreateMaterializationService());
 
         var result = await service.ExportAsync(
             catalog,
-            AgentHostKind.OpenAi,
-            outputPath,
+            HostKind.Codex,
+            AbsolutePath.Parse(outputPath),
             SkillExportFormat.Directory,
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(Path.GetFileName(outputPath), Path.GetFileName(result.Value));
-        Assert.True(Directory.Exists(result.Value));
+        Assert.True(result.Value!.IsSameAs(AbsolutePath.Parse(outputPath)));
+        Assert.True(Directory.Exists(result.Value.Value));
         Assert.Equal("name = \"planner\"\n", await File.ReadAllTextAsync(Path.Combine(outputPath, "agents", "planner.toml")));
         Assert.False(Directory.Exists(Path.Combine(outputPath, "agents", "planner")));
 
         var materializationService = SkillTestData.CreateMaterializationService();
         foreach (var skill in skills)
         {
-            var materialized = materializationService.Materialize(skill, SkillHostKind.OpenAi);
+            var materialized = materializationService.Materialize(skill, HostKind.Codex);
             Assert.True(materialized.IsSuccess, materialized.Failure?.Message);
             foreach (var file in materialized.Value!.Files)
             {
-                var path = Path.Combine(outputPath, "skills", skill.Manifest.SkillName.Value, file.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+                var path = Path.Combine(outputPath, "skills", skill.Manifest.SkillName.Value, file.RelativePath.Value.Replace('/', Path.DirectorySeparatorChar));
                 Assert.Equal(file.Content, await File.ReadAllTextAsync(path));
             }
         }
@@ -52,14 +52,14 @@ public sealed class AgentExportServiceTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-agent-export", "zip");
         var skills = await SkillTestData.GenerateFixturePackagesAsync();
-        var agent = AgentDistributionTestData.CreateAgent(skills, "planning", "planner", AgentHostKind.OpenAi, "planner.toml");
+        var agent = AgentDistributionTestData.CreateAgent(skills, "planning", "planner", HostKind.Codex, "planner.toml");
         var catalog = AgentDistributionTestData.CreateCatalog(skills, [agent]);
         var service = new AgentExportService(SkillTestData.CreateMaterializationService());
         var firstPath = scope.GetPath("first.zip");
         var secondPath = scope.GetPath("second.zip");
 
-        var firstResult = await service.ExportAsync(catalog, AgentHostKind.OpenAi, firstPath, SkillExportFormat.Zip, CancellationToken.None);
-        var secondResult = await service.ExportAsync(catalog, AgentHostKind.OpenAi, secondPath, SkillExportFormat.Zip, CancellationToken.None);
+        var firstResult = await service.ExportAsync(catalog, HostKind.Codex, AbsolutePath.Parse(firstPath), SkillExportFormat.Zip, CancellationToken.None);
+        var secondResult = await service.ExportAsync(catalog, HostKind.Codex, AbsolutePath.Parse(secondPath), SkillExportFormat.Zip, CancellationToken.None);
 
         Assert.True(firstResult.IsSuccess, firstResult.Failure?.Message);
         Assert.True(secondResult.IsSuccess, secondResult.Failure?.Message);
@@ -78,13 +78,13 @@ public sealed class AgentExportServiceTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-agent-export", "artifact-collision");
         var skills = await SkillTestData.GenerateFixturePackagesAsync();
-        var first = AgentDistributionTestData.CreateAgent(skills, "planning", "planner", AgentHostKind.OpenAi, "shared.toml");
-        var second = AgentDistributionTestData.CreateAgent(skills, "quality", "reviewer", AgentHostKind.OpenAi, "shared.toml");
+        var first = AgentDistributionTestData.CreateAgent(skills, "planning", "planner", HostKind.Codex, "shared.toml");
+        var second = AgentDistributionTestData.CreateAgent(skills, "quality", "reviewer", HostKind.Codex, "shared.toml");
         var catalog = AgentDistributionTestData.CreateCatalog(skills, [second, first]);
         var outputPath = scope.GetPath("exported");
         var service = new AgentExportService(SkillTestData.CreateMaterializationService());
 
-        var result = await service.ExportAsync(catalog, AgentHostKind.OpenAi, outputPath, SkillExportFormat.Directory, CancellationToken.None);
+        var result = await service.ExportAsync(catalog, HostKind.Codex, AbsolutePath.Parse(outputPath), SkillExportFormat.Directory, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
@@ -117,13 +117,13 @@ public sealed class AgentExportServiceTests
         }
 
         var skills = await SkillTestData.GenerateFixturePackagesAsync();
-        var agent = AgentDistributionTestData.CreateAgent(skills, "planning", "planner", AgentHostKind.OpenAi, "planner.toml");
+        var agent = AgentDistributionTestData.CreateAgent(skills, "planning", "planner", HostKind.Codex, "planner.toml");
         var service = new AgentExportService(SkillTestData.CreateMaterializationService());
 
         var result = await service.ExportAsync(
             AgentDistributionTestData.CreateCatalog(skills, [agent]),
-            AgentHostKind.OpenAi,
-            outputPath,
+            HostKind.Codex,
+            AbsolutePath.Parse(outputPath),
             SkillExportFormat.Directory,
             CancellationToken.None);
 

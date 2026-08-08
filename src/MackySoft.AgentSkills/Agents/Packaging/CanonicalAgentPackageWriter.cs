@@ -1,5 +1,7 @@
-using MackySoft.AgentSkills.Packaging.FileSystem;
+using MackySoft.AgentSkills.Packaging.Paths;
+using MackySoft.AgentSkills.Serialization;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Agents.Packaging;
 
@@ -7,33 +9,36 @@ namespace MackySoft.AgentSkills.Agents.Packaging;
 internal sealed class CanonicalAgentPackageWriter
 {
     /// <summary> Writes one agent package. </summary>
-    public async ValueTask<SkillOperationResult<string>> WriteToStagingAsync (CanonicalAgentPackage package, string agentsStagingRoot, CancellationToken cancellationToken)
+    public async ValueTask<SkillOperationResult<AbsolutePath>> WriteToStagingAsync (CanonicalAgentPackage package, AbsolutePath agentsStagingRoot, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(package);
-        ArgumentException.ThrowIfNullOrWhiteSpace(agentsStagingRoot);
+        ArgumentNullException.ThrowIfNull(agentsStagingRoot);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(agentsStagingRoot));
-        Directory.CreateDirectory(root);
-        var directoryResult = SkillPackagePathBoundary.ResolvePackageDirectory(root, package.Manifest.AgentName.Value);
+        Directory.CreateDirectory(agentsStagingRoot.Value);
+        var directoryResult = PackagePathResolver.ResolveUnderRoot(
+            agentsStagingRoot,
+            ContainedPath.Create(agentsStagingRoot, RootRelativePath.Parse(package.Manifest.AgentName.Value)).Target);
         if (!directoryResult.IsSuccess)
         {
-            return SkillOperationResult<string>.FailureResult(directoryResult.Failure!.Code, directoryResult.Failure.Message);
+            return SkillOperationResult<AbsolutePath>.FailureResult(directoryResult.Failure!.Code, directoryResult.Failure.Message);
         }
 
         var directory = directoryResult.Value!;
         foreach (var file in package.Files)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var pathResult = SkillPackagePathBoundary.ResolvePackageFilePathUnderRoot(root, directory, file.RelativePath);
+            var pathResult = PackagePathResolver.ResolveUnderRoot(
+                agentsStagingRoot,
+                ContainedPath.Create(directory, file.RelativePath.RootRelativePath).Target);
             if (!pathResult.IsSuccess)
             {
-                return SkillOperationResult<string>.FailureResult(pathResult.Failure!.Code, pathResult.Failure.Message);
+                return SkillOperationResult<AbsolutePath>.FailureResult(pathResult.Failure!.Code, pathResult.Failure.Message);
             }
 
-            await SkillPackageFileWriter.WriteAllTextAtomicallyAsync(pathResult.Value!, file.Content, cancellationToken).ConfigureAwait(false);
+            await CanonicalTextFilePublisher.PublishAsync(pathResult.Value!, file.Content, cancellationToken).ConfigureAwait(false);
         }
 
-        return SkillOperationResult<string>.Success(directory);
+        return SkillOperationResult<AbsolutePath>.Success(directory);
     }
 }

@@ -1,6 +1,6 @@
 using MackySoft.AgentSkills.Generation;
-using MackySoft.AgentSkills.Packaging.FileSystem;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Bundles;
 
@@ -57,7 +57,7 @@ public sealed class SkillBundleBuildService
         ArgumentException.ThrowIfNullOrWhiteSpace(bundleRoot);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var fullBundleRoot = Path.GetFullPath(bundleRoot);
+        var fullBundleRoot = AbsolutePath.Parse(Path.GetFullPath(bundleRoot));
         var sourceResult = await generationService.ReadSourceAsync(fullBundleRoot, cancellationToken).ConfigureAwait(false);
         if (!sourceResult.IsSuccess)
         {
@@ -89,25 +89,21 @@ public sealed class SkillBundleBuildService
         }
 
         var candidate = generationService.GenerateAll(source, targetVersion);
-        var generatedRoot = Path.Combine(fullBundleRoot, "generated");
+        var generatedRoot = ContainedPath.Create(fullBundleRoot, RootRelativePath.Parse("generated")).Target;
         CanonicalSkillBundle? generatedBundle = null;
 
-        if (File.Exists(generatedRoot))
+        if (!FileSystemEntryInspector.TryInspect(
+                generatedRoot,
+                out var generatedRootObservation,
+                out _))
         {
             return SkillOperationResult<SkillBundleBuildResult>.FailureResult(
                 SkillFailureCodes.PathUnsafe,
-                $"Generated SKILL bundle output must be a directory: {generatedRoot}");
+                $"Generated SKILL bundle output could not be inspected: {generatedRoot}");
         }
 
-        if (Directory.Exists(generatedRoot))
+        if (generatedRootObservation.State == FileSystemEntryState.Directory)
         {
-            if (!SkillPackageFileSystemEntryGuard.IsDirectory(generatedRoot))
-            {
-                return SkillOperationResult<SkillBundleBuildResult>.FailureResult(
-                    SkillFailureCodes.PathUnsafe,
-                    $"Generated SKILL bundle output must be a regular directory: {generatedRoot}");
-            }
-
             var generatedResult = await bundleReader.ReadAsync(generatedRoot, cancellationToken).ConfigureAwait(false);
             if (!generatedResult.IsSuccess)
             {
@@ -115,6 +111,12 @@ public sealed class SkillBundleBuildService
             }
 
             generatedBundle = generatedResult.Value!;
+        }
+        else if (generatedRootObservation.State != FileSystemEntryState.Missing)
+        {
+            return SkillOperationResult<SkillBundleBuildResult>.FailureResult(
+                SkillFailureCodes.PathUnsafe,
+                $"Generated SKILL bundle output must be a regular directory: {generatedRoot}");
         }
 
         var updatesSourceDefinition = targetVersion != authoredVersion;
@@ -134,7 +136,7 @@ public sealed class SkillBundleBuildService
                 $"Canonical SKILL bundle requires generation at version {targetVersion}: {fullBundleRoot}");
         }
 
-        SkillOperationResult<string> publicationResult;
+        SkillOperationResult<AbsolutePath> publicationResult;
         if (updatesSourceDefinition)
         {
             var authoredBundle = source.BundleDefinition;

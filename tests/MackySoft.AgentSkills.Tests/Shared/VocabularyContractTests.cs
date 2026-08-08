@@ -15,8 +15,7 @@ public sealed class VocabularyContractTests
 {
     public static TheoryData<Type, string[]> StableVocabularyContracts => new()
     {
-        { typeof(SkillHostKind), ["claude", "copilot", "openai"] },
-        { typeof(AgentHostKind), ["openai"] },
+        { typeof(HostKind), ["codex", "claude-code", "github-copilot"] },
         { typeof(SkillBundleTargetRootLayout), ["flat", "catalog-directory"] },
         { typeof(SkillScopeKind), ["project", "user"] },
         { typeof(SkillExportFormat), ["directory", "zip"] },
@@ -36,7 +35,10 @@ public sealed class VocabularyContractTests
                 "blockedHostConflict",
             ]
         },
-        { typeof(SkillOperationActionStatus), ["changed", "noOp", "skipped", "blocked"] },
+        { typeof(OperationActionStatus), ["changed", "noOp", "skipped", "blocked"] },
+        { typeof(OperationScopeKind), ["project", "user"] },
+        { typeof(AgentDiagnosticArea), ["package", "hostArtifact", "targetState"] },
+        { typeof(AgentOperationTargetState), ["missing", "current", "locallyModified", "unmanaged", "otherCatalog", "invalid", "cleanOutdated"] },
         {
             typeof(SkillBlockedReason),
             [

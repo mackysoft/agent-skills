@@ -16,20 +16,6 @@ internal static class AgentSkillsCommandCatalog
         ArgumentNullException.ThrowIfNull(app);
 
         app.Add<BuildCommand>();
-        app.Add<AgentSkillsListCommand>();
-        app.Add<AgentSkillsExportCommand>();
-        app.Add<AgentSkillsInstallCommand>();
-        app.Add<AgentSkillsUpdateCommand>();
-        app.Add<AgentSkillsUninstallCommand>();
-        app.Add<AgentSkillsPruneCommand>();
-        app.Add<AgentSkillsDoctorCommand>();
-        app.Add<AgentSkillsAgentsListCommand>("agents");
-        app.Add<AgentSkillsAgentsExportCommand>("agents");
-        app.Add<AgentSkillsAgentsInstallCommand>("agents");
-        app.Add<AgentSkillsAgentsUpdateCommand>("agents");
-        app.Add<AgentSkillsAgentsUninstallCommand>("agents");
-        app.Add<AgentSkillsAgentsPruneCommand>("agents");
-        app.Add<AgentSkillsAgentsDoctorCommand>("agents");
-        return app;
+        return app.RegisterAgentSkillsCommands();
     }
 }

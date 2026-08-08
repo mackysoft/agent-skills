@@ -35,7 +35,7 @@ public sealed class AgentInstallationStateJsonSerializer
             foreach (var artifact in state.ManagedArtifacts)
             {
                 writer.WriteStartObject();
-                writer.WriteString("path", artifact.Path);
+                writer.WriteString("path", artifact.Path.Value);
                 writer.WriteString("digest", artifact.Digest.ToString());
                 writer.WriteEndObject();
             }
@@ -69,8 +69,14 @@ public sealed class AgentInstallationStateJsonSerializer
                     throw new FormatException("Agent installation state managed artifact has an invalid property shape.");
                 }
 
+                var pathText = artifact.GetProperty("path").GetString();
+                if (!PackageRelativePath.TryParse(pathText, out var path))
+                {
+                    throw new FormatException("Agent installation state managed artifact path is invalid.");
+                }
+
                 return new AgentInstalledArtifact(
-                    artifact.GetProperty("path").GetString() ?? string.Empty,
+                    path,
                     Sha256Digest.Parse(artifact.GetProperty("digest").GetString() ?? string.Empty));
             }).ToArray();
             var state = new AgentInstallationState(
@@ -97,9 +103,9 @@ public sealed class AgentInstallationStateJsonSerializer
         return SkillOperationResult<AgentInstallationState>.FailureResult(SkillFailureCodes.ManifestInvalid, message);
     }
 
-    private static AgentHostKind ParseHost (string literal)
+    private static HostKind ParseHost (string literal)
     {
-        if (!Vocabulary.TryGetValue(literal, out AgentHostKind host))
+        if (!Vocabulary.TryGetValue(literal, out HostKind host))
         {
             throw new ArgumentException("Agent installation state host is unsupported.", nameof(literal));
         }

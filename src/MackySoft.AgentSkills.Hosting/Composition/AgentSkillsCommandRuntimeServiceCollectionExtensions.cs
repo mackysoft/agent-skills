@@ -9,7 +9,6 @@ using MackySoft.AgentSkills.Doctor;
 using MackySoft.AgentSkills.Hosting.Commands;
 using MackySoft.AgentSkills.Hosting.Configuration;
 using MackySoft.AgentSkills.Hosting.Reporting;
-using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Contracts;
 using MackySoft.AgentSkills.Installation.Diffing;
 using MackySoft.AgentSkills.Installation.Inventory;
@@ -46,20 +45,11 @@ public static class AgentSkillsCommandRuntimeServiceCollectionExtensions
         var configuration = options.CreateValidatedConfiguration();
 
         services.AddSingleton(configuration);
-        services.AddAgentSkillsHostServices();
         services.AddAgentSkillsPackageServices(configuration);
         services.AddAgentSkillsInstallationServices();
-        services.AddSingleton<AgentSkillsCommandRunner>();
-        services.AddSingleton<AgentSkillsAgentsCommandRunner>();
+        services.AddSingleton<SkillCommandRunner>();
+        services.AddSingleton<AgentCommandRunner>();
         services.AddSingleton<IAgentSkillsCommandResultEmitter, AgentSkillsJsonCommandResultEmitter>();
-
-        return services;
-    }
-
-    private static IServiceCollection AddAgentSkillsHostServices (this IServiceCollection services)
-    {
-        services.AddSingleton<SkillHostAdapterSet>();
-        services.AddSingleton<AgentHostAdapterSet>();
 
         return services;
     }

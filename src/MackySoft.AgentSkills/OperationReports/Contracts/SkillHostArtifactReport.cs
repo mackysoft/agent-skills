@@ -6,7 +6,7 @@ namespace MackySoft.AgentSkills.OperationReports.Contracts;
 public sealed class SkillHostArtifactReport
 {
     internal SkillHostArtifactReport (
-        SkillHostKind host,
+        HostKind host,
         string? path,
         Sha256Digest? digest,
         Sha256Digest materializedFrontmatterDigest)
@@ -33,7 +33,7 @@ public sealed class SkillHostArtifactReport
     }
 
     /// <summary> Gets the host that owns the artifact. </summary>
-    public SkillHostKind Host { get; }
+    public HostKind Host { get; }
 
     /// <summary> Gets the host artifact path, or <see langword="null" /> when the artifact is frontmatter-only. </summary>
     public string? Path { get; }

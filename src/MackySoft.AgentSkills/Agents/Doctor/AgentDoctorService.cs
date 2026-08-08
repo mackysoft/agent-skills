@@ -68,8 +68,8 @@ public sealed class AgentDoctorService
                 continue;
             }
 
-            var prefix = $"hosts/{Vocabulary.GetText(agentTarget.HostId)}/";
-            var invalidArtifact = hostArtifacts.FirstOrDefault(artifact => !artifact.Path.StartsWith(prefix, StringComparison.Ordinal));
+            var hostDirectoryPath = PackageRelativePath.Parse($"hosts/{Vocabulary.GetText(agentTarget.HostId)}");
+            var invalidArtifact = hostArtifacts.FirstOrDefault(artifact => !artifact.Path.IsDescendantOf(hostDirectoryPath));
             if (invalidArtifact is not null)
             {
                 diagnostics.Add(new AgentDoctorDiagnostic(
@@ -107,7 +107,7 @@ public sealed class AgentDoctorService
         var skillResult = await skillDoctorService.DiagnoseAsync(
             input.Catalog.ResolvedSkills,
             skillTargetResult.Value!.Host,
-            skillTargetResult.Value.TargetRoot,
+            skillTargetResult.Value.TargetRoot.Value,
             cancellationToken).ConfigureAwait(false);
         return SkillOperationResult<AgentDoctorResult>.Success(new AgentDoctorResult(
             agentTarget.ArtifactRoot,

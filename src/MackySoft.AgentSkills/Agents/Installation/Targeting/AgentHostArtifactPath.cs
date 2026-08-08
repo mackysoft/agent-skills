@@ -6,24 +6,21 @@ namespace MackySoft.AgentSkills.Agents.Installation.Targeting;
 internal static class AgentHostArtifactPath
 {
     /// <summary> Removes the canonical host package prefix from one artifact path. </summary>
-    public static SkillOperationResult<string> ResolveTargetRelativePath (string packageArtifactPath, AgentHostKind hostId)
+    public static SkillOperationResult<PackageRelativePath> ResolveTargetRelativePath (PackageRelativePath packageArtifactPath, HostKind hostId)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(packageArtifactPath);
+        ArgumentNullException.ThrowIfNull(packageArtifactPath);
         if (!Vocabulary.IsDefined(hostId))
         {
             throw new ArgumentOutOfRangeException(nameof(hostId), hostId, "Unsupported agent host.");
         }
 
         var hostLiteral = Vocabulary.GetText(hostId);
-        var prefix = $"hosts/{hostLiteral}/";
-        if (!packageArtifactPath.StartsWith(prefix, StringComparison.Ordinal))
+        var hostDirectoryPath = PackageRelativePath.Parse($"hosts/{hostLiteral}");
+        if (!packageArtifactPath.TryGetRelativeTo(hostDirectoryPath, out var targetRelativePath))
         {
-            return SkillOperationResult<string>.FailureResult(SkillFailureCodes.ManifestInvalid, $"Agent host artifact path does not belong to '{hostLiteral}': {packageArtifactPath}");
+            return SkillOperationResult<PackageRelativePath>.FailureResult(SkillFailureCodes.ManifestInvalid, $"Agent host artifact path does not belong to '{hostLiteral}': {packageArtifactPath.Value}");
         }
 
-        var relativePath = packageArtifactPath[prefix.Length..];
-        return PackageRelativePath.TryParse(relativePath, out var targetRelativePath)
-            ? SkillOperationResult<string>.Success(targetRelativePath.Value)
-            : SkillOperationResult<string>.FailureResult(SkillFailureCodes.ManifestInvalid, $"Agent host artifact path is unsafe: {packageArtifactPath}");
+        return SkillOperationResult<PackageRelativePath>.Success(targetRelativePath);
     }
 }

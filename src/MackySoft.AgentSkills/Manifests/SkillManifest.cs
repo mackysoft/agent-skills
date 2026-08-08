@@ -1,9 +1,7 @@
 using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Catalogs;
-using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Hosts.Registration;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Manifests;
@@ -72,17 +70,12 @@ public sealed class SkillManifest
     /// <summary> Validates manifest candidates and creates canonical manifest instances. </summary>
     public sealed class Factory
     {
-        private readonly SkillHostAdapterSet hostAdapters;
         private readonly SkillManifestDigestCalculator manifestDigestCalculator;
 
         /// <summary> Initializes the canonical manifest construction boundary. </summary>
-        /// <param name="hostAdapters"> The complete supported host adapter set. </param>
         /// <param name="manifestDigestCalculator"> The canonical manifest digest calculator. </param>
-        public Factory (
-            SkillHostAdapterSet hostAdapters,
-            SkillManifestDigestCalculator manifestDigestCalculator)
+        public Factory (SkillManifestDigestCalculator manifestDigestCalculator)
         {
-            this.hostAdapters = hostAdapters ?? throw new ArgumentNullException(nameof(hostAdapters));
             this.manifestDigestCalculator = manifestDigestCalculator ?? throw new ArgumentNullException(nameof(manifestDigestCalculator));
         }
 
@@ -123,7 +116,7 @@ public sealed class SkillManifest
         {
             ArgumentNullException.ThrowIfNull(candidate);
 
-            var expectedHosts = hostAdapters.Adapters.Select(static adapter => adapter.Descriptor.Host).Order().ToArray();
+            var expectedHosts = HostRegistration.Registrations.Select(static registration => registration.Host).Order().ToArray();
             var artifactHosts = candidate.HostArtifacts.Select(static artifact => artifact.Host).Order().ToArray();
             if (!expectedHosts.SequenceEqual(artifactHosts))
             {
@@ -131,10 +124,10 @@ public sealed class SkillManifest
             }
 
             var artifactByHost = candidate.HostArtifacts.ToDictionary(static artifact => artifact.Host);
-            foreach (var adapter in hostAdapters.Adapters)
+            foreach (var registration in HostRegistration.Registrations)
             {
-                var artifact = artifactByHost[adapter.Descriptor.Host];
-                var metadataArtifactPath = adapter.Descriptor.MetadataArtifactPath;
+                var artifact = artifactByHost[registration.Host];
+                var metadataArtifactPath = registration.Skill.MetadataArtifactPath;
                 if (metadataArtifactPath is null)
                 {
                     if (artifact.Path is not null || artifact.Digest is not null)
@@ -145,7 +138,7 @@ public sealed class SkillManifest
                     continue;
                 }
 
-                if (!string.Equals(artifact.Path, metadataArtifactPath, StringComparison.Ordinal) || artifact.Digest is null)
+                if (artifact.Path != metadataArtifactPath || artifact.Digest is null)
                 {
                     return ShapeFailure($"Host artifact '{Vocabulary.GetText(artifact.Host)}' must contain metadata artifact digest.");
                 }

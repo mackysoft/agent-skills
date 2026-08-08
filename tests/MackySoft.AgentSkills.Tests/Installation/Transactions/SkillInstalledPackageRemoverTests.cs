@@ -18,7 +18,11 @@ public sealed class SkillInstalledPackageRemoverTests
         scope.WriteFile(Path.Combine(".agents", "skills", "sample-skill", "nested", "file.md"), "# Nested\n");
         var remover = new SkillInstalledPackageRemover(new DeleteMovedDirectoryFailingOperations());
 
-        var result = await remover.DeleteAsync(targetRoot, skillDirectory, CancellationToken.None);
+        var result = await remover.DeleteAsync(
+            AbsolutePath.Parse(targetRoot),
+            AbsolutePath.Parse(skillDirectory),
+            null,
+            CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.False(Directory.Exists(skillDirectory));
@@ -39,8 +43,8 @@ public sealed class SkillInstalledPackageRemoverTests
         var preconditionCallCount = 0;
 
         var result = await remover.DeleteAsync(
-            targetRoot,
-            skillDirectory,
+            AbsolutePath.Parse(targetRoot),
+            AbsolutePath.Parse(skillDirectory),
             (_, _) => ValueTask.FromResult(
                 ++preconditionCallCount == 1
                     ? SkillOperationResult<bool>.Success(true)
@@ -65,8 +69,8 @@ public sealed class SkillInstalledPackageRemoverTests
         var preconditionCallCount = 0;
 
         var result = await remover.DeleteAsync(
-            targetRoot,
-            skillDirectory,
+            AbsolutePath.Parse(targetRoot),
+            AbsolutePath.Parse(skillDirectory),
             (_, _) =>
             {
                 preconditionCallCount++;
@@ -81,39 +85,39 @@ public sealed class SkillInstalledPackageRemoverTests
 
     private sealed class DeleteMovedDirectoryFailingOperations : ISkillPackageDirectoryOperations
     {
-        public bool Exists (string path)
+        public bool Exists (AbsolutePath path)
         {
-            return Directory.Exists(path);
+            return Directory.Exists(path.Value);
         }
 
-        public void Create (string path)
+        public void Create (AbsolutePath path)
         {
-            Directory.CreateDirectory(path);
+            Directory.CreateDirectory(path.Value);
         }
 
         public void Move (
-            string sourceDirectoryName,
-            string destinationDirectoryName)
+            AbsolutePath sourceDirectoryName,
+            AbsolutePath destinationDirectoryName)
         {
-            Directory.Move(sourceDirectoryName, destinationDirectoryName);
+            Directory.Move(sourceDirectoryName.Value, destinationDirectoryName.Value);
         }
 
         public void Delete (
-            string path,
+            AbsolutePath path,
             bool recursive)
         {
-            if (path.Contains(".delete.", StringComparison.Ordinal))
+            if (path.Value.Contains(".delete.", StringComparison.Ordinal))
             {
-                File.Delete(Path.Combine(path, "SKILL.md"));
+                File.Delete(Path.Combine(path.Value, "SKILL.md"));
                 throw new IOException("Injected moved directory delete failure.");
             }
 
-            if (path.Contains(".agent-skills-skill-transactions", StringComparison.Ordinal))
+            if (path.Value.Contains(".agent-skills-skill-transactions", StringComparison.Ordinal))
             {
                 throw new IOException("Injected transaction cleanup failure.");
             }
 
-            Directory.Delete(path, recursive);
+            Directory.Delete(path.Value, recursive);
         }
     }
 }

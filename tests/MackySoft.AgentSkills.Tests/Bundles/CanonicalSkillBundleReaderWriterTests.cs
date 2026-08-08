@@ -14,7 +14,7 @@ public sealed class CanonicalSkillBundleReaderWriterTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "canonical-bundle-roundtrip");
         var bundle = await SkillTestData.GenerateFixtureBundleAsync();
-        var outputRoot = scope.GetPath("generated");
+        var outputRoot = AbsolutePath.Parse(scope.GetPath("generated"));
         var oldMarker = scope.WriteFile("generated/old-bundle.txt", "old bundle\n");
         var services = CreateServices();
 
@@ -30,7 +30,7 @@ public sealed class CanonicalSkillBundleReaderWriterTests
         Assert.Equal(
             bundle.Packages.Select(static package => package.Manifest.SkillName),
             readResult.Value.Packages.Select(static package => package.Manifest.SkillName));
-        Assert.True(File.Exists(Path.Combine(outputRoot, "bundle.json")));
+        Assert.True(File.Exists(Path.Combine(outputRoot.Value, "bundle.json")));
         Assert.False(File.Exists(oldMarker));
         Assert.Empty(GetPublicationArtifacts(scope.FullPath));
     }
@@ -41,7 +41,7 @@ public sealed class CanonicalSkillBundleReaderWriterTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "canonical-bundle-digest-mismatch");
         var bundle = await SkillTestData.GenerateFixtureBundleAsync();
-        var outputRoot = scope.GetPath("generated");
+        var outputRoot = AbsolutePath.Parse(scope.GetPath("generated"));
         var services = CreateServices();
         var writeResult = await services.Writer.WriteAsync(bundle, outputRoot, CancellationToken.None);
         Assert.True(writeResult.IsSuccess, writeResult.Failure?.Message);
@@ -55,7 +55,7 @@ public sealed class CanonicalSkillBundleReaderWriterTests
             bundle.Descriptor.SkillBundleVersion,
             replacementDigest);
         File.WriteAllText(
-            Path.Combine(outputRoot, "bundle.json"),
+            Path.Combine(outputRoot.Value, "bundle.json"),
             services.BundleSerializer.SerializeDescriptor(driftedDescriptor));
 
         var readResult = await services.Reader.ReadAsync(outputRoot, CancellationToken.None);
@@ -71,13 +71,13 @@ public sealed class CanonicalSkillBundleReaderWriterTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "canonical-bundle-package-symlink");
         var bundle = await SkillTestData.GenerateFixtureBundleAsync();
-        var outputRoot = scope.GetPath("generated");
+        var outputRoot = AbsolutePath.Parse(scope.GetPath("generated"));
         var services = CreateServices();
         var writeResult = await services.Writer.WriteAsync(bundle, outputRoot, CancellationToken.None);
         Assert.True(writeResult.IsSuccess, writeResult.Failure?.Message);
 
-        var packageDirectory = Path.Combine(outputRoot, bundle.Packages[0].Manifest.SkillName.Value);
-        if (!TestSymbolicLinks.TryCreateDirectory(Path.Combine(outputRoot, "linked-package"), packageDirectory))
+        var packageDirectory = Path.Combine(outputRoot.Value, bundle.Packages[0].Manifest.SkillName.Value);
+        if (!TestSymbolicLinks.TryCreateDirectory(Path.Combine(outputRoot.Value, "linked-package"), packageDirectory))
         {
             return;
         }
@@ -95,7 +95,7 @@ public sealed class CanonicalSkillBundleReaderWriterTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "canonical-bundle-cancelled");
         var bundle = await SkillTestData.GenerateFixtureBundleAsync();
-        var outputRoot = scope.CreateDirectory("generated");
+        var outputRoot = AbsolutePath.Parse(scope.CreateDirectory("generated"));
         var oldMarker = scope.WriteFile("generated/old-bundle.txt", "old bundle\n");
         var services = CreateServices();
         using var cancellationSource = new CancellationTokenSource();
@@ -105,7 +105,7 @@ public sealed class CanonicalSkillBundleReaderWriterTests
             await services.Writer.WriteAsync(bundle, outputRoot, cancellationSource.Token));
 
         Assert.True(File.Exists(oldMarker));
-        Assert.False(File.Exists(Path.Combine(outputRoot, "bundle.json")));
+        Assert.False(File.Exists(Path.Combine(outputRoot.Value, "bundle.json")));
         Assert.Empty(GetPublicationArtifacts(scope.FullPath));
     }
 

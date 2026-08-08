@@ -1,5 +1,3 @@
-using MackySoft.AgentSkills.Names;
-
 namespace MackySoft.AgentSkills.Agents.Sources;
 
 /// <summary> Represents host-independent metadata assembled from one agent source directory. </summary>

@@ -11,8 +11,8 @@ public sealed class BundledSkillPackageRootResolverTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "bundled-root");
         var baseDirectory = scope.CreateDirectory("app");
-        var skillsDirectory = scope.CreateDirectory("app/skills");
-        var resolver = new BundledSkillPackageRootResolver(baseDirectory);
+        var skillsDirectory = AbsolutePath.Parse(scope.CreateDirectory("app/skills"));
+        var resolver = new BundledSkillPackageRootResolver(AbsolutePath.Parse(baseDirectory));
 
         var result = resolver.Resolve();
 
@@ -26,7 +26,7 @@ public sealed class BundledSkillPackageRootResolverTests
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "bundled-root-parent");
         var baseDirectory = scope.CreateDirectory("app");
         scope.CreateDirectory("skills");
-        var resolver = new BundledSkillPackageRootResolver(baseDirectory);
+        var resolver = new BundledSkillPackageRootResolver(AbsolutePath.Parse(baseDirectory));
 
         var exception = Assert.Throws<DirectoryNotFoundException>(resolver.Resolve);
 

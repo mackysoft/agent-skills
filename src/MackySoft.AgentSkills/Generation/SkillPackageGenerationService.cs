@@ -3,9 +3,10 @@ using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Packaging.Canonical;
+using MackySoft.AgentSkills.Paths;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.FileSystem;
 using MackySoft.AgentSkills.Sources;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Generation;
 
@@ -14,7 +15,6 @@ public sealed class SkillPackageGenerationService
 {
     private readonly SkillBundleDefinitionReader bundleReader;
     private readonly SkillSourceDefinitionReader sourceReader;
-    private readonly SkillHostAdapterSet hostAdapters;
     private readonly SkillDigestCalculator digestCalculator;
     private readonly SkillManifestJsonSerializer manifestSerializer;
     private readonly SkillManifest.Factory manifestFactory;
@@ -25,7 +25,6 @@ public sealed class SkillPackageGenerationService
     /// <summary> Initializes a new instance of the <see cref="SkillPackageGenerationService" /> class. </summary>
     /// <param name="bundleReader"> The authored bundle definition reader. </param>
     /// <param name="sourceReader"> The source skill definition reader. </param>
-    /// <param name="hostAdapters"> The supported host adapter set. </param>
     /// <param name="digestCalculator"> The digest calculator. </param>
     /// <param name="manifestSerializer"> The manifest serializer. </param>
     /// <param name="manifestFactory"> The canonical manifest construction boundary. </param>
@@ -35,7 +34,6 @@ public sealed class SkillPackageGenerationService
     public SkillPackageGenerationService (
         SkillBundleDefinitionReader bundleReader,
         SkillSourceDefinitionReader sourceReader,
-        SkillHostAdapterSet hostAdapters,
         SkillDigestCalculator digestCalculator,
         SkillManifestJsonSerializer manifestSerializer,
         SkillManifest.Factory manifestFactory,
@@ -45,7 +43,6 @@ public sealed class SkillPackageGenerationService
     {
         this.bundleReader = bundleReader ?? throw new ArgumentNullException(nameof(bundleReader));
         this.sourceReader = sourceReader ?? throw new ArgumentNullException(nameof(sourceReader));
-        this.hostAdapters = hostAdapters ?? throw new ArgumentNullException(nameof(hostAdapters));
         this.digestCalculator = digestCalculator ?? throw new ArgumentNullException(nameof(digestCalculator));
         this.manifestSerializer = manifestSerializer ?? throw new ArgumentNullException(nameof(manifestSerializer));
         this.manifestFactory = manifestFactory ?? throw new ArgumentNullException(nameof(manifestFactory));
@@ -59,10 +56,10 @@ public sealed class SkillPackageGenerationService
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The generated descriptor and complete canonical package set, or a source validation failure. </returns>
     internal async ValueTask<SkillOperationResult<CanonicalSkillBundle>> GenerateAllAsync (
-        string bundleRoot,
+        AbsolutePath bundleRoot,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(bundleRoot);
+        ArgumentNullException.ThrowIfNull(bundleRoot);
         cancellationToken.ThrowIfCancellationRequested();
 
         var sourceResult = await ReadSourceAsync(bundleRoot, cancellationToken).ConfigureAwait(false);
@@ -81,10 +78,10 @@ public sealed class SkillPackageGenerationService
     /// <param name="cancellationToken"> The cancellation token propagated through source access. </param>
     /// <returns> The validated source snapshot, or a source validation failure. </returns>
     internal async ValueTask<SkillOperationResult<SkillPackageGenerationSource>> ReadSourceAsync (
-        string bundleRoot,
+        AbsolutePath bundleRoot,
         CancellationToken cancellationToken)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(bundleRoot);
+        ArgumentNullException.ThrowIfNull(bundleRoot);
         cancellationToken.ThrowIfCancellationRequested();
 
         var bundleResult = await bundleReader.ReadAsync(bundleRoot, cancellationToken).ConfigureAwait(false);
@@ -93,11 +90,9 @@ public sealed class SkillPackageGenerationService
             return SourceFailure(bundleResult.Failure!);
         }
 
-        var fullBundleRoot = Path.GetFullPath(bundleRoot);
-        var definitionsRootResult = SkillPathBoundary.ResolveUnderRoot(
-            fullBundleRoot,
-            Path.Combine(fullBundleRoot, "definitions"),
-            SkillFailureCodes.SourceInvalid,
+        var definitionsRootResult = AuthoredSourcePathResolver.ResolveDirectory(
+            bundleRoot,
+            RootRelativePath.Parse("definitions"),
             "SKILL bundle definitions path");
         if (!definitionsRootResult.IsSuccess)
         {
@@ -115,7 +110,7 @@ public sealed class SkillPackageGenerationService
         {
             return SkillOperationResult<SkillPackageGenerationSource>.FailureResult(
                 SkillFailureCodes.SourceInvalid,
-                $"SKILL definitions directory does not contain any definitions: {definitionsRoot}");
+                $"SKILL definitions directory does not contain any definitions: {definitionsRoot.Value}");
         }
 
         var dependencyReferenceResult = SkillSourceDependencyReferenceValidator.Validate(sourceResult.Value);
@@ -173,10 +168,10 @@ public sealed class SkillPackageGenerationService
         ArgumentNullException.ThrowIfNull(bundle);
         ArgumentNullException.ThrowIfNull(definition);
 
-        var bodyFile = new SkillPackageFile("SKILL.md", CreateSkillBody(definition));
+        var bodyFile = new PackageTextFile(PackageRelativePath.Parse("SKILL.md"), CreateSkillBody(definition));
         var referenceFiles = definition.References
             .OrderBy(static reference => reference.FileName, StringComparer.Ordinal)
-            .Select(static reference => new SkillPackageFile($"references/{reference.FileName}", reference.Template))
+            .Select(static reference => new PackageTextFile(PackageRelativePath.Parse($"references/{reference.FileName}"), reference.Template))
             .ToArray();
 
         var contentDigest = digestCalculator.ComputeDigest(
@@ -210,15 +205,15 @@ public sealed class SkillPackageGenerationService
 
         var manifest = manifestResult.Value!;
 
-        var manifestFile = new SkillPackageFile("agent-skill.json", manifestSerializer.Serialize(manifest));
+        var manifestFile = new PackageTextFile(PackageRelativePath.Parse("agent-skill.json"), manifestSerializer.Serialize(manifest));
         var hostArtifactFiles = hostArtifactOutputs
             .SelectMany(static artifact => artifact.Files)
-            .OrderBy(static file => file.RelativePath, StringComparer.Ordinal)
+            .OrderBy(static file => file.RelativePath.Value, StringComparer.Ordinal)
             .ToArray();
         var files = new[] { bodyFile, manifestFile }
             .Concat(referenceFiles)
             .Concat(hostArtifactFiles)
-            .OrderBy(static file => file.RelativePath, StringComparer.Ordinal)
+            .OrderBy(static file => file.RelativePath.Value, StringComparer.Ordinal)
             .ToArray();
 
         var packageResult = packageFactory.CreateCanonical(new CanonicalSkillPackageCandidate(manifest, files));
@@ -249,37 +244,38 @@ public sealed class SkillPackageGenerationService
     private IEnumerable<GeneratedHostArtifactOutput> CreateHostArtifactOutputs (SkillSourceMetadata metadata)
     {
         var hostMetadata = new SkillHostMetadata(metadata.SkillName, metadata.DisplayName, metadata.Description);
-        foreach (var adapter in hostAdapters.Adapters)
+        foreach (var registration in HostRegistration.Registrations)
         {
+            var adapter = registration.SkillAdapter;
             var artifacts = adapter.BuildArtifacts(hostMetadata);
-            var frontmatterDigest = digestCalculator.ComputeSingleFileDigest("SKILL.md.frontmatter", artifacts.Frontmatter);
-            var metadataArtifactPath = adapter.Descriptor.MetadataArtifactPath;
+            var frontmatterDigest = digestCalculator.ComputeSingleFileDigest(PackageRelativePath.Parse("SKILL.md.frontmatter"), artifacts.Frontmatter);
+            var metadataArtifactPath = registration.Skill.MetadataArtifactPath;
 
             if (metadataArtifactPath is null)
             {
                 if (artifacts.MetadataContent is not null)
                 {
-                    throw new InvalidOperationException($"Host adapter '{Vocabulary.GetText(adapter.Descriptor.Host)}' must not emit metadata artifacts.");
+                    throw new InvalidOperationException($"Host adapter '{Vocabulary.GetText(registration.Host)}' must not emit metadata artifacts.");
                 }
 
                 yield return new GeneratedHostArtifactOutput(
-                    new SkillHostArtifactManifest(adapter.Descriptor.Host, null, null, frontmatterDigest),
+                    new SkillHostArtifactManifest(registration.Host, null, null, frontmatterDigest),
                     []);
                 continue;
             }
 
             if (artifacts.MetadataContent is null)
             {
-                throw new InvalidOperationException($"Host adapter '{Vocabulary.GetText(adapter.Descriptor.Host)}' must emit metadata artifact '{metadataArtifactPath}'.");
+                throw new InvalidOperationException($"Host adapter '{Vocabulary.GetText(registration.Host)}' must emit metadata artifact '{metadataArtifactPath}'.");
             }
 
             yield return new GeneratedHostArtifactOutput(
                 new SkillHostArtifactManifest(
-                    adapter.Descriptor.Host,
+                    registration.Host,
                     metadataArtifactPath,
                     digestCalculator.ComputeSingleFileDigest(metadataArtifactPath, artifacts.MetadataContent),
                     frontmatterDigest),
-                [new SkillPackageFile(metadataArtifactPath, artifacts.MetadataContent)]);
+                [new PackageTextFile(metadataArtifactPath, artifacts.MetadataContent)]);
         }
     }
 
@@ -287,7 +283,7 @@ public sealed class SkillPackageGenerationService
     {
         internal GeneratedHostArtifactOutput (
             SkillHostArtifactManifest manifest,
-            IReadOnlyList<SkillPackageFile> files)
+            IReadOnlyList<PackageTextFile> files)
         {
             Manifest = manifest ?? throw new ArgumentNullException(nameof(manifest));
             ArgumentNullException.ThrowIfNull(files);
@@ -301,6 +297,6 @@ public sealed class SkillPackageGenerationService
 
         internal SkillHostArtifactManifest Manifest { get; }
 
-        internal IReadOnlyList<SkillPackageFile> Files { get; }
+        internal IReadOnlyList<PackageTextFile> Files { get; }
     }
 }

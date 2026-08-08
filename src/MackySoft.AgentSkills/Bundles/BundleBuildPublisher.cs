@@ -1,4 +1,5 @@
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Bundles;
 
@@ -6,12 +7,12 @@ namespace MackySoft.AgentSkills.Bundles;
 internal sealed class BundleBuildPublisher<TBundle>
     where TBundle : class
 {
-    private readonly Func<TBundle, string, CancellationToken, ValueTask<SkillOperationResult<string>>> writeGeneratedBundle;
+    private readonly Func<TBundle, AbsolutePath, CancellationToken, ValueTask<SkillOperationResult<AbsolutePath>>> writeGeneratedBundle;
     private readonly ISkillBundleBuildFileSystem fileSystem;
 
     /// <summary> Initializes one bundle publication boundary. </summary>
     internal BundleBuildPublisher (
-        Func<TBundle, string, CancellationToken, ValueTask<SkillOperationResult<string>>> writeGeneratedBundle,
+        Func<TBundle, AbsolutePath, CancellationToken, ValueTask<SkillOperationResult<AbsolutePath>>> writeGeneratedBundle,
         ISkillBundleBuildFileSystem fileSystem)
     {
         this.writeGeneratedBundle = writeGeneratedBundle ?? throw new ArgumentNullException(nameof(writeGeneratedBundle));
@@ -19,33 +20,32 @@ internal sealed class BundleBuildPublisher<TBundle>
     }
 
     /// <summary> Atomically replaces generated output without changing the source definition. </summary>
-    internal ValueTask<SkillOperationResult<string>> PublishGeneratedAsync (
+    internal ValueTask<SkillOperationResult<AbsolutePath>> PublishGeneratedAsync (
         TBundle bundle,
-        string generatedRoot,
+        AbsolutePath generatedRoot,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(bundle);
-        ArgumentException.ThrowIfNullOrWhiteSpace(generatedRoot);
+        ArgumentNullException.ThrowIfNull(generatedRoot);
         return writeGeneratedBundle(bundle, generatedRoot, cancellationToken);
     }
 
     /// <summary> Publishes generated output and its matching source definition as one rollback boundary. </summary>
-    internal async ValueTask<SkillOperationResult<string>> PublishSourceAndGeneratedAsync (
-        string bundleRoot,
+    internal async ValueTask<SkillOperationResult<AbsolutePath>> PublishSourceAndGeneratedAsync (
+        AbsolutePath bundleRoot,
         string sourceContents,
         TBundle bundle,
         CancellationToken cancellationToken)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(bundleRoot);
+        ArgumentNullException.ThrowIfNull(bundleRoot);
         ArgumentNullException.ThrowIfNull(sourceContents);
         ArgumentNullException.ThrowIfNull(bundle);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var fullBundleRoot = Path.GetFullPath(bundleRoot);
-        var generatedRoot = Path.Combine(fullBundleRoot, "generated");
-        var sourceBundlePath = Path.Combine(fullBundleRoot, "bundle.json");
-        var backupRoot = Path.Combine(fullBundleRoot, $".generated.build-backup.{Guid.NewGuid():N}");
-        string? previousGeneratedRoot = null;
+        var generatedRoot = ContainedPath.Create(bundleRoot, RootRelativePath.Parse("generated")).Target;
+        var sourceBundlePath = ContainedPath.Create(bundleRoot, RootRelativePath.Parse("bundle.json")).Target;
+        var backupRoot = ContainedPath.Create(bundleRoot, RootRelativePath.Parse($".generated.build-backup.{Guid.NewGuid():N}")).Target;
+        AbsolutePath? previousGeneratedRoot = null;
         var publicationStarted = false;
 
         try
@@ -97,8 +97,8 @@ internal sealed class BundleBuildPublisher<TBundle>
     }
 
     private void RestoreGeneratedBundle (
-        string generatedRoot,
-        string? previousGeneratedRoot)
+        AbsolutePath generatedRoot,
+        AbsolutePath? previousGeneratedRoot)
     {
         if (fileSystem.DirectoryExists(generatedRoot))
         {
@@ -118,7 +118,7 @@ internal sealed class BundleBuildPublisher<TBundle>
         fileSystem.MoveDirectory(previousGeneratedRoot, generatedRoot);
     }
 
-    private void TryDeleteDirectory (string path)
+    private void TryDeleteDirectory (AbsolutePath path)
     {
         try
         {

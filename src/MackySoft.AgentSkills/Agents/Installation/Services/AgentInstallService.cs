@@ -62,7 +62,7 @@ public sealed class AgentInstallService
             return Failure(plansResult.Failure!);
         }
 
-        var skillPlanResult = await skillInstallService.InstallAsync(
+        var skillPlanResult = await skillInstallService.PlanAsync(
             new SkillInstallInput(
                 input.Catalog.BundleDescriptor.CatalogId,
                 input.Catalog.ResolvedSkills,
@@ -78,7 +78,7 @@ public sealed class AgentInstallService
 
         if (input.DryRun)
         {
-            return Success(input, target, plansResult.Value!, skillPlanResult.Value!);
+            return Success(input, target, plansResult.Value!, skillPlanResult.Value!.CreateResult(dryRun: true));
         }
 
         var agentBlocker = AgentOperationBlocker.ValidateAgents(plansResult.Value!);
@@ -87,30 +87,22 @@ public sealed class AgentInstallService
             return Failure(agentBlocker.Failure!);
         }
 
-        var skillBlocker = AgentOperationBlocker.ValidateSkills(skillPlanResult.Value!);
+        var skillBlocker = AgentOperationBlocker.ValidateSkills(skillPlanResult.Value!.CreateResult(dryRun: true));
         if (!skillBlocker.IsSuccess)
         {
             return Failure(skillBlocker.Failure!);
-        }
-
-        var skillWriteResult = await skillInstallService.InstallAsync(
-            new SkillInstallInput(
-                input.Catalog.BundleDescriptor.CatalogId,
-                input.Catalog.ResolvedSkills,
-                input.SkillTargetRequest,
-                dryRun: false,
-                input.Force,
-                input.PrintDiff),
-            cancellationToken).ConfigureAwait(false);
-        if (!skillWriteResult.IsSuccess)
-        {
-            return Failure(skillWriteResult.Failure!);
         }
 
         var preconditionResult = await ValidatePreconditionsAsync(plansResult.Value!, target, cancellationToken).ConfigureAwait(false);
         if (!preconditionResult.IsSuccess)
         {
             return Failure(preconditionResult.Failure!);
+        }
+
+        var skillWriteResult = await skillInstallService.ApplyAsync(skillPlanResult.Value!, cancellationToken).ConfigureAwait(false);
+        if (!skillWriteResult.IsSuccess)
+        {
+            return Failure(skillWriteResult.Failure!);
         }
 
         foreach (var plan in plansResult.Value!)

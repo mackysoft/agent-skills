@@ -4,7 +4,7 @@ namespace MackySoft.AgentSkills.Agents.Sources;
 internal sealed class AgentHostBindingSource
 {
     /// <summary> Initializes one host binding source. </summary>
-    public AgentHostBindingSource (AgentHostKind hostId, string json)
+    public AgentHostBindingSource (HostKind hostId, string json)
     {
         if (!Vocabulary.IsDefined(hostId))
         {
@@ -17,7 +17,7 @@ internal sealed class AgentHostBindingSource
     }
 
     /// <summary> Gets the host identifier derived from the file name. </summary>
-    public AgentHostKind HostId { get; }
+    public HostKind HostId { get; }
 
     /// <summary> Gets canonical binding JSON text. </summary>
     public string Json { get; }

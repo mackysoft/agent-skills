@@ -4,29 +4,26 @@ public sealed class SkillUserTargetRootPolicyTests
 {
     [Theory]
     [Trait("Size", "Small")]
-    [InlineData(null, null, "../skills")]
-    [InlineData(null, "skills", ".agents/skills")]
-    [InlineData("AGENT_HOME", "../skills", ".agents/skills")]
-    [InlineData(" ", null, ".agents/skills")]
+    [InlineData(null, true)]
+    [InlineData(" ", false)]
     public void Constructor_RejectsInvalidRootPolicy (
         string? environmentVariableName,
-        string? environmentVariableChildDirectory,
-        string homeRelativeDirectory)
+        bool hasChildDirectory)
     {
         Assert.Throws<ArgumentException>(() => new SkillUserTargetRootPolicy(
             environmentVariableName,
-            environmentVariableChildDirectory,
-            homeRelativeDirectory));
+            hasChildDirectory ? RootRelativePath.Parse("skills") : null,
+            RootRelativePath.Parse(".agents/skills")));
     }
 
     [Fact]
     [Trait("Size", "Small")]
     public void Constructor_AllowsEnvironmentVariableRootWithoutChildDirectory ()
     {
-        var policy = new SkillUserTargetRootPolicy("AGENT_HOME", null, ".agents/skills");
+        var policy = new SkillUserTargetRootPolicy("AGENT_HOME", null, RootRelativePath.Parse(".agents/skills"));
 
         Assert.Equal("AGENT_HOME", policy.EnvironmentVariableName);
         Assert.Null(policy.EnvironmentVariableChildDirectory);
-        Assert.Equal(".agents/skills", policy.HomeRelativeDirectory);
+        Assert.Equal(".agents/skills", policy.HomeRelativeDirectory.Value);
     }
 }

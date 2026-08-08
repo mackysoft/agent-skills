@@ -98,7 +98,7 @@ public sealed class AgentUninstallService
         CancellationToken cancellationToken)
     {
         var plans = new List<AgentRemovalPlan>(packages.Count);
-        var managedPaths = new Dictionary<string, AgentName>(StringComparer.Ordinal);
+        var managedPaths = new Dictionary<PackageRelativePath, AgentName>(PackageRelativePath.PortableFileSystemComparer);
         foreach (var package in packages.OrderBy(static package => package.Manifest.AgentName.Value, StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();

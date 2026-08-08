@@ -1,5 +1,7 @@
-using MackySoft.AgentSkills.Packaging.FileSystem;
+using MackySoft.AgentSkills.Packaging.Paths;
+using MackySoft.AgentSkills.Serialization;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Packaging.Canonical;
 
@@ -11,23 +13,22 @@ public sealed class CanonicalSkillPackageWriter
     /// <param name="stagingRoot"> The bundle staging directory. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The full staged package directory path or failure. </returns>
-    internal async ValueTask<SkillOperationResult<string>> WriteToStagingAsync (
+    internal async ValueTask<SkillOperationResult<AbsolutePath>> WriteToStagingAsync (
         CanonicalSkillPackage package,
-        string stagingRoot,
+        AbsolutePath stagingRoot,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(package);
-        ArgumentException.ThrowIfNullOrWhiteSpace(stagingRoot);
+        ArgumentNullException.ThrowIfNull(stagingRoot);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var fullStagingRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(stagingRoot));
-        Directory.CreateDirectory(fullStagingRoot);
-        var skillDirectoryResult = SkillPackagePathBoundary.ResolvePackageDirectory(
-            fullStagingRoot,
-            package.Manifest.SkillName.Value);
+        Directory.CreateDirectory(stagingRoot.Value);
+        var skillDirectoryResult = PackagePathResolver.ResolveUnderRoot(
+            stagingRoot,
+            ContainedPath.Create(stagingRoot, RootRelativePath.Parse(package.Manifest.SkillName.Value)).Target);
         if (!skillDirectoryResult.IsSuccess)
         {
-            return SkillOperationResult<string>.FailureResult(
+            return SkillOperationResult<AbsolutePath>.FailureResult(
                 skillDirectoryResult.Failure!.Code,
                 skillDirectoryResult.Failure.Message);
         }
@@ -37,24 +38,23 @@ public sealed class CanonicalSkillPackageWriter
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var filePathResult = SkillPackagePathBoundary.ResolvePackageFilePathUnderRoot(
-                fullStagingRoot,
-                skillDirectory,
-                file.RelativePath);
+            var filePathResult = PackagePathResolver.ResolveUnderRoot(
+                stagingRoot,
+                ContainedPath.Create(skillDirectory, file.RelativePath.RootRelativePath).Target);
             if (!filePathResult.IsSuccess)
             {
-                return SkillOperationResult<string>.FailureResult(
+                return SkillOperationResult<AbsolutePath>.FailureResult(
                     filePathResult.Failure!.Code,
                     filePathResult.Failure.Message);
             }
 
-            await SkillPackageFileWriter.WriteAllTextAtomicallyAsync(
+            await CanonicalTextFilePublisher.PublishAsync(
                     filePathResult.Value!,
                     file.Content,
                     cancellationToken)
                 .ConfigureAwait(false);
         }
 
-        return SkillOperationResult<string>.Success(skillDirectory);
+        return SkillOperationResult<AbsolutePath>.Success(skillDirectory);
     }
 }

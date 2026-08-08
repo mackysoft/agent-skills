@@ -62,7 +62,7 @@ public sealed class AgentUpdateService
             return Failure(plansResult.Failure!);
         }
 
-        var skillPlanResult = await skillUpdateService.UpdateAsync(
+        var skillPlanResult = await skillUpdateService.PlanAsync(
             new SkillUpdateInput(
                 input.Catalog.BundleDescriptor.CatalogId,
                 input.Catalog.ResolvedSkills,
@@ -78,7 +78,7 @@ public sealed class AgentUpdateService
 
         if (input.DryRun)
         {
-            return Success(input, target, plansResult.Value!, skillPlanResult.Value!);
+            return Success(input, target, plansResult.Value!, skillPlanResult.Value!.CreateResult(dryRun: true));
         }
 
         var agentBlocker = AgentOperationBlocker.ValidateAgents(plansResult.Value!);
@@ -87,30 +87,22 @@ public sealed class AgentUpdateService
             return Failure(agentBlocker.Failure!);
         }
 
-        var skillBlocker = AgentOperationBlocker.ValidateSkills(skillPlanResult.Value!);
+        var skillBlocker = AgentOperationBlocker.ValidateSkills(skillPlanResult.Value!.CreateResult(dryRun: true));
         if (!skillBlocker.IsSuccess)
         {
             return Failure(skillBlocker.Failure!);
-        }
-
-        var skillWriteResult = await skillUpdateService.UpdateAsync(
-            new SkillUpdateInput(
-                input.Catalog.BundleDescriptor.CatalogId,
-                input.Catalog.ResolvedSkills,
-                input.SkillTargetRequest,
-                dryRun: false,
-                input.Force,
-                input.PrintDiff),
-            cancellationToken).ConfigureAwait(false);
-        if (!skillWriteResult.IsSuccess)
-        {
-            return Failure(skillWriteResult.Failure!);
         }
 
         var preconditionResult = await ValidatePreconditionsAsync(plansResult.Value!, target, cancellationToken).ConfigureAwait(false);
         if (!preconditionResult.IsSuccess)
         {
             return Failure(preconditionResult.Failure!);
+        }
+
+        var skillWriteResult = await skillUpdateService.ApplyAsync(skillPlanResult.Value!, cancellationToken).ConfigureAwait(false);
+        if (!skillWriteResult.IsSuccess)
+        {
+            return Failure(skillWriteResult.Failure!);
         }
 
         foreach (var plan in plansResult.Value!)

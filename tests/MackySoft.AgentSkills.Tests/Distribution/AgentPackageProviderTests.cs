@@ -1,11 +1,9 @@
-using MackySoft.AgentSkills.Agents;
 using MackySoft.AgentSkills.Agents.Manifests;
 using MackySoft.AgentSkills.Agents.Packaging;
 using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Manifests;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
@@ -134,11 +132,10 @@ public sealed class AgentPackageProviderTests
         var skillManifestSerializer = new SkillManifestJsonSerializer();
         var agentManifestSerializer = new AgentManifestJsonSerializer();
         var digestCalculator = new SkillDigestCalculator();
-        var skillHosts = SkillTestData.CreateDefaultHostAdapterSet();
         var skillReader = new CanonicalSkillPackageReader(
             skillManifestSerializer,
-            new SkillManifest.Factory(skillHosts, new SkillManifestDigestCalculator(skillManifestSerializer)),
-            new CanonicalSkillPackage.Factory(skillHosts, digestCalculator, skillManifestSerializer));
+            new SkillManifest.Factory(new SkillManifestDigestCalculator(skillManifestSerializer)),
+            new CanonicalSkillPackage.Factory(digestCalculator, skillManifestSerializer));
         var agentManifestDigestCalculator = new AgentManifestDigestCalculator(agentManifestSerializer);
         var agentReader = new CanonicalAgentPackageReader(
             agentManifestSerializer,
@@ -150,7 +147,7 @@ public sealed class AgentPackageProviderTests
             agentReader,
             new AgentSkillsBundleDigestCalculator(skillManifestSerializer, agentManifestSerializer, digestCalculator));
         return new AgentPackageProvider(
-            new BundledAgentSkillsPackageRootResolver(packageBaseDirectory),
+            new BundledAgentSkillsPackageRootResolver(AbsolutePath.Parse(packageBaseDirectory)),
             bundleReader);
     }
 
@@ -177,8 +174,8 @@ public sealed class AgentPackageProviderTests
             new AgentSkillsBundleJsonSerializer(),
             new CanonicalSkillPackageReader(
                 skillManifestSerializer,
-                new SkillManifest.Factory(SkillTestData.CreateDefaultHostAdapterSet(), new SkillManifestDigestCalculator(skillManifestSerializer)),
-                new CanonicalSkillPackage.Factory(SkillTestData.CreateDefaultHostAdapterSet(), digestCalculator, skillManifestSerializer)),
+                new SkillManifest.Factory(new SkillManifestDigestCalculator(skillManifestSerializer)),
+                new CanonicalSkillPackage.Factory(digestCalculator, skillManifestSerializer)),
             agentReader,
             new AgentSkillsBundleDigestCalculator(skillManifestSerializer, agentManifestSerializer, digestCalculator));
         var writer = new CanonicalAgentSkillsBundleWriter(
@@ -187,7 +184,7 @@ public sealed class AgentPackageProviderTests
             new AgentSkillsBundleJsonSerializer(),
             bundleReader);
 
-        var result = await writer.WriteAsync(bundle, Path.Combine(packageBaseDirectory, "skills"), CancellationToken.None);
+        var result = await writer.WriteAsync(bundle, AbsolutePath.Parse(Path.Combine(packageBaseDirectory, "skills")), CancellationToken.None);
         Assert.True(result.IsSuccess, result.Failure?.Message);
     }
 
@@ -201,10 +198,11 @@ public sealed class AgentPackageProviderTests
         var digestCalculator = new SkillDigestCalculator();
         var bundleVersion = new AgentSkillsBundleVersion(skills[0].Manifest.SkillBundleVersion.Value);
         const string instructions = "# Agent\n";
-        const string artifactPath = "hosts/openai/agent.toml";
+        var artifactPath = PackageRelativePath.Parse("hosts/codex/agent.toml");
+        var instructionsPath = PackageRelativePath.Parse("AGENT.md");
         const string artifactContent = "name = \"fixture\"\n";
         var artifact = new AgentHostArtifactManifest(
-            AgentHostKind.OpenAi,
+            HostKind.Codex,
             artifactPath,
             digestCalculator.ComputeSingleFileDigest(artifactPath, artifactContent));
         var provisional = new AgentManifest(
@@ -216,7 +214,7 @@ public sealed class AgentPackageProviderTests
             agentName.Value,
             $"Fixture {agentName.Value}.",
             skillDependencies,
-            digestCalculator.ComputeSingleFileDigest("AGENT.md", instructions),
+            digestCalculator.ComputeSingleFileDigest(instructionsPath, instructions),
             Sha256Digest.Parse(new string('0', 64)),
             [artifact]);
         var manifest = new AgentManifest(
@@ -231,11 +229,11 @@ public sealed class AgentPackageProviderTests
             provisional.ContentDigest,
             new AgentManifestDigestCalculator(agentManifestSerializer).ComputeManifestDigest(provisional),
             provisional.HostArtifacts);
-        var files = new SkillPackageFile[]
+        var files = new PackageTextFile[]
         {
-            new("AGENT.md", instructions),
+            new(instructionsPath, instructions),
             new(artifactPath, artifactContent),
-            new("agent-manifest.json", agentManifestSerializer.Serialize(manifest)),
+            new(PackageRelativePath.Parse("agent-manifest.json"), agentManifestSerializer.Serialize(manifest)),
         };
 
         return new CanonicalAgentPackage(manifest, files, agentManifestSerializer, digestCalculator);

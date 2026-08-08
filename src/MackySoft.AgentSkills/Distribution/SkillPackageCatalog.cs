@@ -1,6 +1,4 @@
 using MackySoft.AgentSkills.Bundles;
-using MackySoft.AgentSkills.Categories;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 
 namespace MackySoft.AgentSkills.Distribution;

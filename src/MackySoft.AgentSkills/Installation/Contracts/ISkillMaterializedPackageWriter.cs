@@ -1,5 +1,6 @@
 using MackySoft.AgentSkills.Materialization;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Installation.Contracts;
 
@@ -15,10 +16,10 @@ public interface ISkillMaterializedPackageWriter
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> Success when the directory is atomically replaced; otherwise a failure. </returns>
     ValueTask<SkillOperationResult<bool>> WriteAsync (
-        string targetRoot,
-        string skillDirectory,
+        AbsolutePath targetRoot,
+        AbsolutePath skillDirectory,
         SkillMaterializedPackage materializedPackage,
         SkillMaterializedPackageWriteMode writeMode,
-        Func<string, CancellationToken, ValueTask<SkillOperationResult<bool>>>? precondition,
+        Func<AbsolutePath, CancellationToken, ValueTask<SkillOperationResult<bool>>>? precondition,
         CancellationToken cancellationToken = default);
 }

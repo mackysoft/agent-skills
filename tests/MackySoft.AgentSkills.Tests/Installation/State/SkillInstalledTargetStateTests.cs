@@ -10,12 +10,18 @@ public sealed class SkillInstalledTargetStateTests
     [Trait("Size", "Small")]
     public void FileSet_CapturesSortedPathSnapshots ()
     {
-        var missingFiles = new List<string> { "z.md", "a.md" };
+        var missingFiles = new List<PackageRelativePath>
+        {
+            PackageRelativePath.Parse("z.md"),
+            PackageRelativePath.Parse("a.md"),
+        };
         var fileSet = new SkillInstalledTargetFileSet(missingFiles, [], []);
 
         missingFiles.Clear();
 
-        Assert.Equal(["a.md", "z.md"], fileSet.MissingFiles);
+        Assert.Equal(
+            [PackageRelativePath.Parse("a.md"), PackageRelativePath.Parse("z.md")],
+            fileSet.MissingFiles);
     }
 
     [Fact]

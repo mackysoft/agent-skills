@@ -1,6 +1,7 @@
 using System.Text.Json;
+using MackySoft.AgentSkills.Paths;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.FileSystem;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Bundles;
 
@@ -8,24 +9,18 @@ namespace MackySoft.AgentSkills.Bundles;
 public sealed class BundleSchemaVersionReader
 {
     /// <summary> Reads the schema version from <c>bundle.json</c>. </summary>
-    public async ValueTask<SkillOperationResult<int>> ReadAsync (string bundleRoot, CancellationToken cancellationToken)
+    public async ValueTask<SkillOperationResult<int>> ReadAsync (AbsolutePath bundleRoot, CancellationToken cancellationToken)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(bundleRoot);
+        ArgumentNullException.ThrowIfNull(bundleRoot);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var rootResult = SourcePathBoundary.ParseRoot(bundleRoot, "Source bundle root");
-        if (!rootResult.IsSuccess)
-        {
-            return Failure(rootResult.Failure!.Message);
-        }
-
-        var validatedRootResult = SourcePathBoundary.ValidateDirectoryRoot(rootResult.Value!, "Source bundle root");
+        var validatedRootResult = AuthoredSourcePathResolver.ValidateDirectoryRoot(bundleRoot, "Source bundle root");
         if (!validatedRootResult.IsSuccess)
         {
             return Failure(validatedRootResult.Failure!.Message);
         }
 
-        var pathResult = SourcePathBoundary.ResolveRegularFile(validatedRootResult.Value!, "bundle.json", "Source bundle.json");
+        var pathResult = AuthoredSourcePathResolver.ResolveRegularFile(validatedRootResult.Value!, RootRelativePath.Parse("bundle.json"), "Source bundle.json");
         if (!pathResult.IsSuccess)
         {
             return Failure(pathResult.Failure!.Message);

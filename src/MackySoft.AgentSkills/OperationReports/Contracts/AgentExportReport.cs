@@ -1,4 +1,5 @@
 using MackySoft.AgentSkills.Distribution;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
@@ -6,11 +7,11 @@ namespace MackySoft.AgentSkills.OperationReports.Contracts;
 public sealed class AgentExportReport
 {
     internal AgentExportReport (
-        AgentHostKind hostId,
+        HostKind hostId,
         IReadOnlyList<string> categories,
         IReadOnlyList<string> agentNames,
         SkillExportFormat format,
-        string outputPath,
+        AbsolutePath outputPath,
         IReadOnlyList<string> agents,
         IReadOnlyList<string> skills)
     {
@@ -24,18 +25,18 @@ public sealed class AgentExportReport
             throw new ArgumentOutOfRangeException(nameof(format), format, "Unsupported export format.");
         }
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
+        ArgumentNullException.ThrowIfNull(outputPath);
         HostId = hostId;
         Categories = OperationReportContractGuard.SnapshotRequiredStrings(categories, nameof(categories));
         AgentNames = OperationReportContractGuard.SnapshotRequiredStrings(agentNames, nameof(agentNames));
         Format = format;
-        OutputPath = Path.GetFullPath(outputPath);
+        OutputPath = outputPath.Value;
         Agents = OperationReportContractGuard.SnapshotRequiredStrings(agents, nameof(agents));
         Skills = OperationReportContractGuard.SnapshotRequiredStrings(skills, nameof(skills));
     }
 
     /// <summary> Gets the host identifier used for export. </summary>
-    public AgentHostKind HostId { get; }
+    public HostKind HostId { get; }
 
     /// <summary> Gets selected agent category literals. </summary>
     public IReadOnlyList<string> Categories { get; }

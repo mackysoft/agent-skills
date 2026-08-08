@@ -1,5 +1,6 @@
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Manifests;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Installation.Inventory;
 
@@ -12,15 +13,11 @@ public sealed class SkillInstalledSkill
     /// <param name="manifest"> The scanned manifest. </param>
     internal SkillInstalledSkill (
         SkillInstallIdentity identity,
-        string skillDirectory,
+        AbsolutePath skillDirectory,
         SkillManifest manifest)
     {
         ArgumentNullException.ThrowIfNull(identity);
-        ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
-        if (!Path.IsPathFullyQualified(skillDirectory))
-        {
-            throw new ArgumentException("Installed SKILL directory must be an absolute path.", nameof(skillDirectory));
-        }
+        ArgumentNullException.ThrowIfNull(skillDirectory);
 
         ArgumentNullException.ThrowIfNull(manifest);
         if (manifest.SkillName != identity.SkillName)
@@ -28,19 +25,16 @@ public sealed class SkillInstalledSkill
             throw new ArgumentException("Installed manifest SKILL name must match the install identity.", nameof(manifest));
         }
 
-        var canonicalSkillDirectory = Path.GetFullPath(skillDirectory);
-        var expectedSkillDirectory = Path.GetFullPath(Path.Combine(identity.TargetRoot, identity.SkillName.Value));
-        var pathComparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        if (!string.Equals(
-                Path.TrimEndingDirectorySeparator(canonicalSkillDirectory),
-                Path.TrimEndingDirectorySeparator(expectedSkillDirectory),
-                pathComparison))
+        var expectedSkillDirectory = ContainedPath.Create(
+            identity.TargetRoot,
+            RootRelativePath.Parse(identity.SkillName.Value)).Target;
+        if (!skillDirectory.IsSameAs(expectedSkillDirectory))
         {
             throw new ArgumentException("Installed SKILL directory must match the install identity.", nameof(skillDirectory));
         }
 
         Identity = identity;
-        SkillDirectory = canonicalSkillDirectory;
+        SkillDirectory = skillDirectory;
         Manifest = manifest;
     }
 
@@ -48,7 +42,7 @@ public sealed class SkillInstalledSkill
     public SkillInstallIdentity Identity { get; }
 
     /// <summary> Gets the canonical absolute skill directory. </summary>
-    public string SkillDirectory { get; }
+    public AbsolutePath SkillDirectory { get; }
 
     /// <summary> Gets the scanned manifest. </summary>
     public SkillManifest Manifest { get; }

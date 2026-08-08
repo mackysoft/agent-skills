@@ -1,4 +1,5 @@
 using MackySoft.AgentSkills.Manifests;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Installation.Validation;
 
@@ -10,30 +11,26 @@ public sealed class SkillInstalledManifest
     /// <param name="manifestText"> The installed manifest JSON text. </param>
     /// <param name="manifest"> The validated manifest model. </param>
     internal SkillInstalledManifest (
-        string manifestPath,
+        AbsolutePath manifestPath,
         string manifestText,
         SkillManifest manifest)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(manifestPath);
-        if (!Path.IsPathFullyQualified(manifestPath))
-        {
-            throw new ArgumentException("Installed manifest path must be absolute.", nameof(manifestPath));
-        }
+        ArgumentNullException.ThrowIfNull(manifestPath);
 
-        if (!string.Equals(Path.GetFileName(manifestPath), "agent-skill.json", StringComparison.Ordinal))
+        if (!string.Equals(Path.GetFileName(manifestPath.Value), "agent-skill.json", StringComparison.Ordinal))
         {
             throw new ArgumentException("Installed manifest path must identify agent-skill.json.", nameof(manifestPath));
         }
 
         ArgumentException.ThrowIfNullOrWhiteSpace(manifestText);
 
-        ManifestPath = Path.GetFullPath(manifestPath);
+        ManifestPath = manifestPath;
         ManifestText = manifestText;
         Manifest = manifest ?? throw new ArgumentNullException(nameof(manifest));
     }
 
     /// <summary> Gets the installed manifest file path. </summary>
-    public string ManifestPath { get; }
+    public AbsolutePath ManifestPath { get; }
 
     /// <summary> Gets the installed manifest JSON text. </summary>
     public string ManifestText { get; }

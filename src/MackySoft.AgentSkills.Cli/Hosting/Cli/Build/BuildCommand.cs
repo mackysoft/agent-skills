@@ -1,6 +1,6 @@
 using ConsoleAppFramework;
 using MackySoft.AgentSkills.Bundles;
-using MackySoft.AgentSkills.Cli.Hosting.Cli.Common.Contracts;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Cli.Hosting.Cli.Build;
 
@@ -22,12 +22,12 @@ internal sealed class BuildCommand
 
     /// <summary> Reconciles a canonical runtime bundle from a fixed-layout source bundle root. </summary>
     /// <param name="root"> The root containing <c>bundle.json</c>, <c>definitions</c>, and generated output. </param>
-    /// <param name="skillBundleVersion">--skill-bundle-version, The exact target bundle version. Omit it to preserve the version authored in bundle.json.</param>
-    /// <param name="bundleVersion">--bundle-version, The exact target v2 mixed-bundle version.</param>
+    /// <param name="skillBundleVersion"> The exact target bundle version. Omit it to preserve the version authored in bundle.json. </param>
+    /// <param name="bundleVersion"> The exact target v2 mixed-bundle version. </param>
     /// <param name="check"> Whether to fail without writing when generated output requires changes. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The process exit code. </returns>
-    [Command(AgentSkillsCommandNames.Build)]
+    [Command("build")]
     public async Task<int> BuildAsync (
         string root = "skills",
         int? skillBundleVersion = null,
@@ -37,7 +37,18 @@ internal sealed class BuildCommand
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var schemaResult = await schemaVersionReader.ReadAsync(root, cancellationToken).ConfigureAwait(false);
+        AbsolutePath bundleRoot;
+        try
+        {
+            bundleRoot = AbsolutePath.Parse(Path.GetFullPath(root));
+        }
+        catch (Exception exception) when (exception is ArgumentException or IOException or NotSupportedException or PathTooLongException)
+        {
+            Console.Error.WriteLine($"Source bundle root is invalid: {exception.Message}");
+            return 1;
+        }
+
+        var schemaResult = await schemaVersionReader.ReadAsync(bundleRoot, cancellationToken).ConfigureAwait(false);
         if (!schemaResult.IsSuccess)
         {
             Console.Error.WriteLine(schemaResult.Failure!.Message);

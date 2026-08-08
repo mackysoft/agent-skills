@@ -1,7 +1,6 @@
-using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Installation.Targeting;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.OperationReports.Contracts;
+using MackySoft.AgentSkills.OperationReports.Literals;
 
 namespace MackySoft.AgentSkills.OperationReports.Projection;
 
@@ -9,29 +8,34 @@ namespace MackySoft.AgentSkills.OperationReports.Projection;
 public sealed class SkillOperationReportContext
 {
     /// <summary> Initializes immutable context for one operation report. </summary>
-    /// <param name="hostDescriptor"> The descriptor for the host used for the operation. </param>
+    /// <param name="host"> The host used for the operation. </param>
     /// <param name="scope"> The install scope used for the operation. </param>
     /// <param name="repositoryRoot"> The canonical absolute repository root for project scope; <see langword="null" /> for user scope. </param>
     /// <param name="selectedCategories"> The selected product-owned SKILL categories. </param>
     /// <param name="selectedSkillNames"> The exact selected SKILL names. Empty means no name filter. </param>
-    /// <exception cref="ArgumentNullException"> Thrown when <paramref name="hostDescriptor" />, a project-scope <paramref name="repositoryRoot" />, <paramref name="selectedCategories" />, or <paramref name="selectedSkillNames" /> is <see langword="null" />. </exception>
+    /// <exception cref="ArgumentNullException"> Thrown when a project-scope <paramref name="repositoryRoot" />, <paramref name="selectedCategories" />, or <paramref name="selectedSkillNames" /> is <see langword="null" />. </exception>
     /// <exception cref="ArgumentException"> Thrown when the repository root does not match the selected scope, or when a selected category or SKILL name is <see langword="null" />. </exception>
     /// <exception cref="ArgumentOutOfRangeException"> Thrown when <paramref name="scope" /> is unsupported. </exception>
     public SkillOperationReportContext (
-        SkillHostDescriptor hostDescriptor,
+        HostKind host,
         SkillScopeKind scope,
         string? repositoryRoot,
         IReadOnlyList<SkillCategory> selectedCategories,
         IReadOnlyList<SkillName> selectedSkillNames)
     {
-        HostDescriptor = hostDescriptor ?? throw new ArgumentNullException(nameof(hostDescriptor));
+        if (!Vocabulary.IsDefined(host))
+        {
+            throw new ArgumentOutOfRangeException(nameof(host), host, "Unsupported SKILL host.");
+        }
+
+        Host = host;
         if (!Vocabulary.IsDefined(scope))
         {
             throw new ArgumentOutOfRangeException(nameof(scope), scope, "Unsupported SKILL install scope.");
         }
 
         Scope = scope;
-        RepositoryRoot = OperationReportContractGuard.NormalizeRepositoryRoot(scope, repositoryRoot, nameof(repositoryRoot));
+        RepositoryRoot = OperationReportContractGuard.NormalizeRepositoryRoot(ToOperationScope(scope), repositoryRoot, nameof(repositoryRoot));
         ArgumentNullException.ThrowIfNull(selectedCategories);
         ArgumentNullException.ThrowIfNull(selectedSkillNames);
 
@@ -51,8 +55,8 @@ public sealed class SkillOperationReportContext
         SelectedSkillNames = Array.AsReadOnly(skillNameSnapshot);
     }
 
-    /// <summary> Gets the descriptor for the host used for the operation. </summary>
-    public SkillHostDescriptor HostDescriptor { get; }
+    /// <summary> Gets the host used for the operation. </summary>
+    public HostKind Host { get; }
 
     /// <summary> Gets the install scope used for the operation. </summary>
     public SkillScopeKind Scope { get; }
@@ -65,4 +69,14 @@ public sealed class SkillOperationReportContext
 
     /// <summary> Gets exact selected SKILL names. Empty means no name filter. </summary>
     public IReadOnlyList<SkillName> SelectedSkillNames { get; }
+
+    internal static OperationScopeKind ToOperationScope (SkillScopeKind scope)
+    {
+        return scope switch
+        {
+            SkillScopeKind.Project => OperationScopeKind.Project,
+            SkillScopeKind.User => OperationScopeKind.User,
+            _ => throw new ArgumentOutOfRangeException(nameof(scope), scope, "Unsupported SKILL install scope."),
+        };
+    }
 }

@@ -1,17 +1,18 @@
 using MackySoft.AgentSkills.Digests;
+using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Agents.Installation.Services;
 
 internal sealed class AgentPlannedArtifact
 {
-    public AgentPlannedArtifact (string relativePath, string content, Sha256Digest digest)
+    public AgentPlannedArtifact (PackageRelativePath relativePath, string content, Sha256Digest digest)
     {
         RelativePath = relativePath;
         Content = content;
         Digest = digest;
     }
 
-    public string RelativePath { get; }
+    public PackageRelativePath RelativePath { get; }
 
     public string Content { get; }
 

@@ -1,4 +1,5 @@
-using MackySoft.AgentSkills.Packaging.FileSystem;
+using MackySoft.AgentSkills.Serialization;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Bundles;
 
@@ -6,31 +7,31 @@ namespace MackySoft.AgentSkills.Bundles;
 internal sealed class SkillBundleBuildFileSystem : ISkillBundleBuildFileSystem
 {
     /// <inheritdoc />
-    public bool DirectoryExists (string path)
+    public bool DirectoryExists (AbsolutePath path)
     {
-        return Directory.Exists(path);
+        return Directory.Exists(path.Value);
     }
 
     /// <inheritdoc />
     public void MoveDirectory (
-        string sourcePath,
-        string destinationPath)
+        AbsolutePath sourcePath,
+        AbsolutePath destinationPath)
     {
-        Directory.Move(sourcePath, destinationPath);
+        Directory.Move(sourcePath.Value, destinationPath.Value);
     }
 
     /// <inheritdoc />
-    public void DeleteDirectory (string path)
+    public void DeleteDirectory (AbsolutePath path)
     {
-        Directory.Delete(path, recursive: true);
+        Directory.Delete(path.Value, recursive: true);
     }
 
     /// <inheritdoc />
     public ValueTask WriteSourceBundleAsync (
-        string path,
+        AbsolutePath path,
         string contents,
         CancellationToken cancellationToken)
     {
-        return SkillPackageFileWriter.WriteAllTextAtomicallyAsync(path, contents, cancellationToken);
+        return CanonicalTextFilePublisher.PublishAsync(path, contents, cancellationToken);
     }
 }

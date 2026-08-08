@@ -1,4 +1,5 @@
 using MackySoft.AgentSkills.Digests;
+using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Tests.Digests;
 
@@ -8,19 +9,15 @@ public sealed class SkillDigestInputFileTests
     [Trait("Size", "Small")]
     public void Constructor_NormalizesContentToLf ()
     {
-        var input = new SkillDigestInputFile("references/example.md", "first\r\nsecond\rthird\n");
+        var input = new SkillDigestInputFile(PackageRelativePath.Parse("references/example.md"), "first\r\nsecond\rthird\n");
 
         Assert.Equal("first\nsecond\nthird\n", input.Content);
     }
 
-    [Theory]
+    [Fact]
     [Trait("Size", "Small")]
-    [InlineData("")]
-    [InlineData("../outside.md")]
-    [InlineData("references\\example.md")]
-    [InlineData("/absolute.md")]
-    public void Constructor_RejectsUnsafeRelativePath (string relativePath)
+    public void Constructor_NullRelativePath_ThrowsArgumentNullException ()
     {
-        Assert.Throws<ArgumentException>(() => new SkillDigestInputFile(relativePath, "content"));
+        Assert.Throws<ArgumentNullException>(() => new SkillDigestInputFile(null!, "content"));
     }
 }

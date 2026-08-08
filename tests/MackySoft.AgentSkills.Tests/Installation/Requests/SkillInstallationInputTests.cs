@@ -1,9 +1,7 @@
 using MackySoft.AgentSkills.Catalogs;
-using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Installation.Requests;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Manifests;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 
@@ -148,7 +146,7 @@ public sealed class SkillInstallationInputTests
 
     private static SkillInstallRequest CreateTargetRequest ()
     {
-        return new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, Path.GetFullPath("repository"));
+        return SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, Path.GetFullPath("repository"));
     }
 
     private static async Task<IReadOnlyList<CanonicalSkillPackage>> CreateDistinctPackagesWithSameSkillNameAsync ()
@@ -167,9 +165,10 @@ public sealed class SkillInstallationInputTests
         var foreignManifest = SkillTestData.CopyManifest(package.Manifest, catalogId: catalogId);
         var foreignCanonicalManifest = SkillTestData.WithComputedManifestDigest(foreignManifest);
         var manifestText = new SkillManifestJsonSerializer().Serialize(foreignCanonicalManifest);
+        var manifestPath = PackageRelativePath.Parse("agent-skill.json");
         var foreignFiles = package.Files
-            .Select(file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal)
-                ? new SkillPackageFile(file.RelativePath, manifestText)
+            .Select(file => file.RelativePath.Equals(manifestPath)
+                ? new PackageTextFile(file.RelativePath, manifestText)
                 : file)
             .ToArray();
         return SkillTestData.CreateCanonicalPackage(foreignCanonicalManifest, foreignFiles);

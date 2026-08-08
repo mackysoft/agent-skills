@@ -1,4 +1,3 @@
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Materialization;
@@ -12,8 +11,8 @@ public sealed class SkillMaterializedPackage
     /// <param name="files"> The complete materialized package files. </param>
     public SkillMaterializedPackage (
         SkillName skillName,
-        SkillHostKind host,
-        IReadOnlyList<SkillPackageFile> files)
+        HostKind host,
+        IReadOnlyList<PackageTextFile> files)
     {
         ArgumentNullException.ThrowIfNull(skillName);
         if (!Vocabulary.IsDefined(host))
@@ -28,7 +27,7 @@ public sealed class SkillMaterializedPackage
             throw new ArgumentException("Materialized package files must not contain null items.", nameof(files));
         }
 
-        var portablePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var portablePaths = new HashSet<PackageRelativePath>(PackageRelativePath.PortableFileSystemComparer);
         foreach (var file in fileSnapshot)
         {
             if (!portablePaths.Add(file.RelativePath))
@@ -40,7 +39,7 @@ public sealed class SkillMaterializedPackage
         SkillName = skillName;
         Host = host;
         Files = Array.AsReadOnly(fileSnapshot
-            .OrderBy(static file => file.RelativePath, StringComparer.Ordinal)
+            .OrderBy(static file => file.RelativePath.Value, StringComparer.Ordinal)
             .ToArray());
     }
 
@@ -48,8 +47,8 @@ public sealed class SkillMaterializedPackage
     public SkillName SkillName { get; }
 
     /// <summary> Gets the host. </summary>
-    public SkillHostKind Host { get; }
+    public HostKind Host { get; }
 
     /// <summary> Gets the materialized package files in ordinal path order. </summary>
-    public IReadOnlyList<SkillPackageFile> Files { get; }
+    public IReadOnlyList<PackageTextFile> Files { get; }
 }

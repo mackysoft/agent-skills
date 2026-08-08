@@ -1,5 +1,8 @@
 namespace MackySoft.AgentSkills.Bundles;
 
+using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
+
 /// <summary> Publishes generated v2 output and coordinates source version updates with rollback. </summary>
 internal sealed class AgentSkillsBundleBuildPublisher
 {
@@ -18,22 +21,22 @@ internal sealed class AgentSkillsBundleBuildPublisher
     }
 
     /// <summary> Atomically replaces generated output without changing the source definition. </summary>
-    internal ValueTask<Shared.SkillOperationResult<string>> PublishGeneratedAsync (
+    internal ValueTask<SkillOperationResult<AbsolutePath>> PublishGeneratedAsync (
         CanonicalAgentSkillsBundle bundle,
-        string generatedRoot,
+        AbsolutePath generatedRoot,
         CancellationToken cancellationToken)
     {
         return publisher.PublishGeneratedAsync(bundle, generatedRoot, cancellationToken);
     }
 
     /// <summary> Publishes generated output and its matching source version as one rollback boundary. </summary>
-    internal ValueTask<Shared.SkillOperationResult<string>> PublishSourceAndGeneratedAsync (
-        string bundleRoot,
+    internal ValueTask<SkillOperationResult<AbsolutePath>> PublishSourceAndGeneratedAsync (
+        AbsolutePath bundleRoot,
         AgentSkillsBundleDefinition sourceDefinition,
         CanonicalAgentSkillsBundle bundle,
         CancellationToken cancellationToken)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(bundleRoot);
+        ArgumentNullException.ThrowIfNull(bundleRoot);
         ArgumentNullException.ThrowIfNull(sourceDefinition);
         ArgumentNullException.ThrowIfNull(bundle);
         ValidateMatchingIdentity(sourceDefinition, bundle.Descriptor);

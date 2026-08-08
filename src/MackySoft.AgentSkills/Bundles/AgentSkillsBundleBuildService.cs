@@ -4,10 +4,10 @@ using MackySoft.AgentSkills.Agents.Packaging;
 using MackySoft.AgentSkills.Agents.Sources;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Generation;
-using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Bundles;
 
@@ -28,7 +28,7 @@ public sealed class AgentSkillsBundleBuildService
         this.publisher = publisher ?? throw new ArgumentNullException(nameof(publisher));
     }
 
-    /// <summary> Creates the default v2 build service with no product-specific agent host adapters. </summary>
+    /// <summary> Creates the default v2 build service with all built-in host modules. </summary>
     public static AgentSkillsBundleBuildService CreateDefault ()
     {
         return Create(new SkillBundleBuildFileSystem());
@@ -39,27 +39,24 @@ public sealed class AgentSkillsBundleBuildService
     {
         ArgumentNullException.ThrowIfNull(fileSystem);
         var skillManifestSerializer = new SkillManifestJsonSerializer();
-        var skillHosts = new SkillHostAdapterSet();
         var digestCalculator = new SkillDigestCalculator();
         var skillGenerator = new SkillPackageGenerationService(
             new SkillBundleDefinitionReader(new SkillBundleJsonSerializer()),
             new Sources.SkillSourceDefinitionReader(),
-            skillHosts,
             digestCalculator,
             skillManifestSerializer,
-            new SkillManifest.Factory(skillHosts, new SkillManifestDigestCalculator(skillManifestSerializer)),
-            new CanonicalSkillPackage.Factory(skillHosts, digestCalculator, skillManifestSerializer),
+            new SkillManifest.Factory(new SkillManifestDigestCalculator(skillManifestSerializer)),
+            new CanonicalSkillPackage.Factory(digestCalculator, skillManifestSerializer),
             new SkillBundleDigestCalculator(skillManifestSerializer),
             new CanonicalSkillBundle.Factory(new SkillBundleDigestCalculator(skillManifestSerializer)));
         var agentManifestSerializer = new AgentManifestJsonSerializer();
-        var agentHosts = new AgentHostAdapterSet();
-        var agentGenerator = new AgentPackageGenerationService(agentHosts, agentManifestSerializer, new AgentManifestDigestCalculator(agentManifestSerializer), digestCalculator);
+        var agentGenerator = new AgentPackageGenerationService(agentManifestSerializer, new AgentManifestDigestCalculator(agentManifestSerializer), digestCalculator);
         var mixedDigest = new AgentSkillsBundleDigestCalculator(skillManifestSerializer, agentManifestSerializer, digestCalculator);
         var agentReader = new CanonicalAgentPackageReader(
             agentManifestSerializer,
             digestCalculator,
             new AgentManifestDigestCalculator(agentManifestSerializer));
-        var skillReader = new CanonicalSkillPackageReader(skillManifestSerializer, new SkillManifest.Factory(skillHosts, new SkillManifestDigestCalculator(skillManifestSerializer)), new CanonicalSkillPackage.Factory(skillHosts, digestCalculator, skillManifestSerializer));
+        var skillReader = new CanonicalSkillPackageReader(skillManifestSerializer, new SkillManifest.Factory(new SkillManifestDigestCalculator(skillManifestSerializer)), new CanonicalSkillPackage.Factory(digestCalculator, skillManifestSerializer));
         var mixedSerializer = new AgentSkillsBundleJsonSerializer();
         var mixedBundleReader = new CanonicalAgentSkillsBundleReader(
             mixedSerializer,
@@ -75,7 +72,7 @@ public sealed class AgentSkillsBundleBuildService
             new AgentSkillsBundleGenerationService(
                 new AgentSkillsBundleDefinitionReader(mixedSerializer),
                 new Sources.SkillSourceDefinitionReader(),
-                new AgentSourceDefinitionReader(agentHosts),
+                new AgentSourceDefinitionReader(),
                 skillGenerator,
                 agentGenerator,
                 mixedDigest),
@@ -93,7 +90,7 @@ public sealed class AgentSkillsBundleBuildService
         ArgumentException.ThrowIfNullOrWhiteSpace(bundleRoot);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var fullBundleRoot = Path.GetFullPath(bundleRoot);
+        var fullBundleRoot = AbsolutePath.Parse(Path.GetFullPath(bundleRoot));
         var sourceResult = await generationService.ReadSourceAsync(fullBundleRoot, cancellationToken).ConfigureAwait(false);
         if (!sourceResult.IsSuccess)
         {
@@ -133,8 +130,8 @@ public sealed class AgentSkillsBundleBuildService
                 SkillFailureCodes.SourceInvalid,
                 $"The v2 source bundle could not be generated: {exception.Message}");
         }
-        var generatedRoot = Path.Combine(fullBundleRoot, "generated");
-        var currentResult = Directory.Exists(generatedRoot) ? await bundleReader.ReadAsync(generatedRoot, cancellationToken).ConfigureAwait(false) : null;
+        var generatedRoot = ContainedPath.Create(fullBundleRoot, RootRelativePath.Parse("generated")).Target;
+        var currentResult = Directory.Exists(generatedRoot.Value) ? await bundleReader.ReadAsync(generatedRoot, cancellationToken).ConfigureAwait(false) : null;
         if (currentResult is not null && !currentResult.IsSuccess)
         {
             return SkillOperationResult<AgentSkillsBundleBuildResult>.FailureResult(currentResult.Failure!.Code, currentResult.Failure.Message);
@@ -152,7 +149,7 @@ public sealed class AgentSkillsBundleBuildService
             return SkillOperationResult<AgentSkillsBundleBuildResult>.FailureResult(SkillFailureCodes.BundleUpdateRequired, "Canonical v2 bundle requires generation.");
         }
 
-        SkillOperationResult<string> write;
+        SkillOperationResult<AbsolutePath> write;
         if (sourceChanged)
         {
             var updated = new AgentSkillsBundleDefinition(

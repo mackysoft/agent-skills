@@ -1,4 +1,4 @@
-using MackySoft.AgentSkills.Installation.Targeting;
+using MackySoft.AgentSkills.OperationReports.Literals;
 
 namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
@@ -6,18 +6,18 @@ namespace MackySoft.AgentSkills.OperationReports.Contracts;
 public sealed class SkillOperationReport
 {
     internal SkillOperationReport (
-        SkillHostKind host,
+        HostKind host,
         IReadOnlyList<string> categories,
         IReadOnlyList<string> skillNames,
-        SkillScopeKind scope,
+        OperationScopeKind scope,
         string? repositoryRoot,
         string targetRoot,
         bool dryRun,
         bool force,
         string reloadGuidance,
         IReadOnlyList<SkillOperationActionReport> actions,
-        IReadOnlyList<SkillOperationCountReport> actionCounts,
-        IReadOnlyList<SkillOperationCountReport> statusCounts)
+        IReadOnlyList<OperationCountReport> actionCounts,
+        IReadOnlyList<OperationCountReport> statusCounts)
     {
         if (!Vocabulary.IsDefined(host))
         {
@@ -46,7 +46,7 @@ public sealed class SkillOperationReport
     }
 
     /// <summary> Gets the host used for the operation. </summary>
-    public SkillHostKind Host { get; }
+    public HostKind Host { get; }
 
     /// <summary> Gets the selected category literals. </summary>
     public IReadOnlyList<string> Categories { get; }
@@ -55,7 +55,7 @@ public sealed class SkillOperationReport
     public IReadOnlyList<string> SkillNames { get; }
 
     /// <summary> Gets the install scope. </summary>
-    public SkillScopeKind Scope { get; }
+    public OperationScopeKind Scope { get; }
 
     /// <summary> Gets the canonical absolute repository root for project scope, or <see langword="null" /> for user scope. </summary>
     public string? RepositoryRoot { get; }
@@ -76,8 +76,8 @@ public sealed class SkillOperationReport
     public IReadOnlyList<SkillOperationActionReport> Actions { get; }
 
     /// <summary> Gets counts for every action literal supported by the operation. </summary>
-    public IReadOnlyList<SkillOperationCountReport> ActionCounts { get; }
+    public IReadOnlyList<OperationCountReport> ActionCounts { get; }
 
     /// <summary> Gets counts for every coarse status literal. </summary>
-    public IReadOnlyList<SkillOperationCountReport> StatusCounts { get; }
+    public IReadOnlyList<OperationCountReport> StatusCounts { get; }
 }

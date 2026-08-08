@@ -56,8 +56,8 @@ cd -- "${repository_root}"
 dotnet tool restore
 
 build_arguments=(tool run agent-skills -- build --root "${cli_root}")
-if [[ -n "${AGENT_SKILLS_SKILL_BUNDLE_VERSION:-}" ]]; then
-  build_arguments+=(--skill-bundle-version "${AGENT_SKILLS_SKILL_BUNDLE_VERSION}")
+if [[ -n "${AGENT_SKILLS_BUNDLE_VERSION:-}" ]]; then
+  build_arguments+=(--bundle-version "${AGENT_SKILLS_BUNDLE_VERSION}")
 fi
 
 if [[ "${operation}" == "verify" ]]; then

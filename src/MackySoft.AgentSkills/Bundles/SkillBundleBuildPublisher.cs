@@ -1,4 +1,5 @@
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Bundles;
 
@@ -23,22 +24,22 @@ internal sealed class SkillBundleBuildPublisher
     }
 
     /// <summary> Atomically replaces generated output without changing the authored source definition. </summary>
-    internal ValueTask<SkillOperationResult<string>> PublishGeneratedAsync (
+    internal ValueTask<SkillOperationResult<AbsolutePath>> PublishGeneratedAsync (
         CanonicalSkillBundle bundle,
-        string generatedRoot,
+        AbsolutePath generatedRoot,
         CancellationToken cancellationToken)
     {
         return publisher.PublishGeneratedAsync(bundle, generatedRoot, cancellationToken);
     }
 
     /// <summary> Publishes generated output and its matching authored version as one rollback boundary. </summary>
-    internal async ValueTask<SkillOperationResult<string>> PublishSourceAndGeneratedAsync (
-        string bundleRoot,
+    internal async ValueTask<SkillOperationResult<AbsolutePath>> PublishSourceAndGeneratedAsync (
+        AbsolutePath bundleRoot,
         SkillBundleDefinition sourceDefinition,
         CanonicalSkillBundle bundle,
         CancellationToken cancellationToken)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(bundleRoot);
+        ArgumentNullException.ThrowIfNull(bundleRoot);
         ArgumentNullException.ThrowIfNull(sourceDefinition);
         ArgumentNullException.ThrowIfNull(bundle);
         cancellationToken.ThrowIfCancellationRequested();

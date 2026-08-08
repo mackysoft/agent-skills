@@ -6,7 +6,7 @@ namespace MackySoft.AgentSkills.OperationReports.Contracts;
 public sealed class AgentHostArtifactReport
 {
     internal AgentHostArtifactReport (
-        AgentHostKind hostId,
+        HostKind hostId,
         string path,
         Sha256Digest digest)
     {
@@ -22,7 +22,7 @@ public sealed class AgentHostArtifactReport
     }
 
     /// <summary> Gets the host identifier that owns the artifact. </summary>
-    public AgentHostKind HostId { get; }
+    public HostKind HostId { get; }
 
     /// <summary> Gets the canonical package-relative artifact path. </summary>
     public string Path { get; }

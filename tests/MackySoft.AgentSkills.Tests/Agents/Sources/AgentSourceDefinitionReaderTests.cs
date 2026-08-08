@@ -1,5 +1,4 @@
 using MackySoft.AgentSkills.Agents.Sources;
-using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
 
@@ -13,7 +12,7 @@ public sealed class AgentSourceDefinitionReaderTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-agents", "absent-namespace");
 
-        var result = await CreateReader().ReadAllAsync(scope.GetPath("agents"), CancellationToken.None);
+        var result = await CreateReader().ReadAllAsync(AbsolutePath.Parse(scope.GetPath("agents")), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Empty(result.Value!);
@@ -35,7 +34,7 @@ public sealed class AgentSourceDefinitionReaderTests
             return;
         }
 
-        var result = await CreateReader().ReadAllAsync(agentsRoot, CancellationToken.None);
+        var result = await CreateReader().ReadAllAsync(AbsolutePath.Parse(agentsRoot), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -57,7 +56,7 @@ public sealed class AgentSourceDefinitionReaderTests
             WriteDefinition(scope, writeHostBinding: false);
         }
 
-        var result = await CreateReader().ReadAllAsync(scope.FullPath, CancellationToken.None);
+        var result = await CreateReader().ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -66,7 +65,7 @@ public sealed class AgentSourceDefinitionReaderTests
     [Theory]
     [InlineData("agent.json")]
     [InlineData("AGENT.md.template")]
-    [InlineData("hosts/openai.json")]
+    [InlineData("hosts/codex.json")]
     [Trait("Size", "Small")]
     public async Task ReadAllAsync_WhenAuthoredFileIsSymbolicLink_ReturnsSourceInvalid (string relativeFile)
     {
@@ -86,7 +85,7 @@ public sealed class AgentSourceDefinitionReaderTests
             return;
         }
 
-        var result = await CreateReader().ReadAllAsync(scope.FullPath, CancellationToken.None);
+        var result = await CreateReader().ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -109,7 +108,7 @@ public sealed class AgentSourceDefinitionReaderTests
             return;
         }
 
-        var result = await CreateReader().ReadAllAsync(scope.FullPath, CancellationToken.None);
+        var result = await CreateReader().ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -123,7 +122,7 @@ public sealed class AgentSourceDefinitionReaderTests
         WriteDefinition(scope);
         scope.WriteFile("core/architect/notes.txt", "not part of the authored layout\n");
 
-        var result = await CreateReader().ReadAllAsync(scope.FullPath, CancellationToken.None);
+        var result = await CreateReader().ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -135,9 +134,9 @@ public sealed class AgentSourceDefinitionReaderTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-agents", "unsupported-host-binding");
         WriteDefinition(scope, writeHostBinding: false);
-        scope.WriteFile("core/architect/hosts/unknown.json", CreateOpenAiBinding());
+        scope.WriteFile("core/architect/hosts/unknown.json", CreateCodexBinding());
 
-        var result = await CreateReader().ReadAllAsync(scope.FullPath, CancellationToken.None);
+        var result = await CreateReader().ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.HostUnsupported, result.Failure!.Code);
@@ -145,7 +144,7 @@ public sealed class AgentSourceDefinitionReaderTests
 
     private static AgentSourceDefinitionReader CreateReader ()
     {
-        return new AgentSourceDefinitionReader(new AgentHostAdapterSet());
+        return new AgentSourceDefinitionReader();
     }
 
     private static void WriteDefinition (
@@ -166,7 +165,7 @@ public sealed class AgentSourceDefinitionReaderTests
         scope.CreateDirectory("core/architect/hosts");
         if (writeHostBinding)
         {
-            scope.WriteFile("core/architect/hosts/openai.json", CreateOpenAiBinding());
+            scope.WriteFile("core/architect/hosts/codex.json", CreateCodexBinding());
         }
     }
 
@@ -183,24 +182,18 @@ public sealed class AgentSourceDefinitionReaderTests
                 }
                 """,
             "AGENT.md.template" => "Create an implementation-ready design.\n",
-            _ => CreateOpenAiBinding(),
+            _ => CreateCodexBinding(),
         };
     }
 
-    private static string CreateOpenAiBinding ()
+    private static string CreateCodexBinding ()
     {
         return """
             {
               "schemaVersion": 1,
-              "modelProvider": "openai",
               "model": "gpt-5.6-terra",
               "reasoningEffort": "high",
-              "verbosity": "low",
-              "sandboxMode": "workspace-write",
-              "features": {
-                "multiAgent": false
-              },
-              "overridesBuiltIn": false
+              "sandboxMode": "workspace-write"
             }
             """;
     }

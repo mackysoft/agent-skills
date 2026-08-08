@@ -3,12 +3,16 @@ using MackySoft.AgentSkills.Agents.Packaging;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Packaging.Canonical;
+using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Bundles;
 
 /// <summary> Computes a version-independent digest for all v2 skill and agent package files. </summary>
 public sealed class AgentSkillsBundleDigestCalculator
 {
+    private static readonly PackageRelativePath SkillManifestPath = PackageRelativePath.Parse("agent-skill.json");
+    private static readonly PackageRelativePath AgentManifestPath = PackageRelativePath.Parse("agent-manifest.json");
+
     private readonly SkillManifestJsonSerializer skillManifestSerializer;
     private readonly AgentManifestJsonSerializer agentManifestSerializer;
     private readonly SkillDigestCalculator digestCalculator;
@@ -26,10 +30,10 @@ public sealed class AgentSkillsBundleDigestCalculator
     {
         ArgumentNullException.ThrowIfNull(skills);
         ArgumentNullException.ThrowIfNull(agents);
-        var files = skills.SelectMany(package => package.Files.Select(file => new SkillDigestInputFile($"skills/{package.Manifest.SkillName.Value}/{file.RelativePath}", file.RelativePath == "agent-skill.json" ? skillManifestSerializer.SerializeForBundleDigest(package.Manifest) : file.Content)))
-            .Concat(agents.SelectMany(package => package.Files.Select(file => new SkillDigestInputFile($"agents/{package.Manifest.AgentName.Value}/{file.RelativePath}", file.RelativePath == "agent-manifest.json" ? agentManifestSerializer.SerializeForBundleDigest(package.Manifest) : file.Content))))
+        var files = skills.SelectMany(package => package.Files.Select(file => new SkillDigestInputFile(PackageRelativePath.Parse($"skills/{package.Manifest.SkillName.Value}/{file.RelativePath.Value}"), file.RelativePath == SkillManifestPath ? skillManifestSerializer.SerializeForBundleDigest(package.Manifest) : file.Content)))
+            .Concat(agents.SelectMany(package => package.Files.Select(file => new SkillDigestInputFile(PackageRelativePath.Parse($"agents/{package.Manifest.AgentName.Value}/{file.RelativePath.Value}"), file.RelativePath == AgentManifestPath ? agentManifestSerializer.SerializeForBundleDigest(package.Manifest) : file.Content))))
             .ToArray();
-        if (files.Length == 0 || files.GroupBy(static file => file.RelativePath, StringComparer.Ordinal).Any(static group => group.Count() != 1))
+        if (files.Length == 0 || files.GroupBy(static file => file.RelativePath).Any(static group => group.Count() != 1))
         {
             throw new ArgumentException("Mixed bundle digest input must be non-empty and unique.");
         }

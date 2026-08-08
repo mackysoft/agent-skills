@@ -1,7 +1,5 @@
-using MackySoft.AgentSkills.Agents;
 using MackySoft.AgentSkills.Agents.Packaging;
 using MackySoft.AgentSkills.Bundles;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 
 namespace MackySoft.AgentSkills.Distribution;

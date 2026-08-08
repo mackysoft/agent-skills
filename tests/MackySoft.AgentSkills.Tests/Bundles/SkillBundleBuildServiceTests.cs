@@ -18,7 +18,7 @@ public sealed class SkillBundleBuildServiceTests
         var services = CreateServices();
 
         var result = await services.BuildService.BuildAsync(scope.FullPath, check: false, cancellationToken: CancellationToken.None);
-        var generatedResult = await services.Reader.ReadAsync(scope.GetPath("generated"), CancellationToken.None);
+        var generatedResult = await services.Reader.ReadAsync(AbsolutePath.Parse(scope.GetPath("generated")), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.True(result.Value!.Changed);
@@ -42,7 +42,7 @@ public sealed class SkillBundleBuildServiceTests
             check: false,
             cancellationToken: CancellationToken.None);
         var sourceDefinition = await ReadSourceDefinitionAsync(scope, services.Serializer);
-        var generatedResult = await services.Reader.ReadAsync(scope.GetPath("generated"), CancellationToken.None);
+        var generatedResult = await services.Reader.ReadAsync(AbsolutePath.Parse(scope.GetPath("generated")), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.True(result.Value!.Changed);
@@ -86,7 +86,7 @@ public sealed class SkillBundleBuildServiceTests
 
         var result = await services.BuildService.BuildAsync(scope.FullPath, check: false, cancellationToken: CancellationToken.None);
         var sourceDefinition = await ReadSourceDefinitionAsync(scope, services.Serializer);
-        var generatedResult = await services.Reader.ReadAsync(scope.GetPath("generated"), CancellationToken.None);
+        var generatedResult = await services.Reader.ReadAsync(AbsolutePath.Parse(scope.GetPath("generated")), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.True(result.Value!.Changed);
@@ -112,7 +112,7 @@ public sealed class SkillBundleBuildServiceTests
 
         var result = await services.BuildService.BuildAsync(scope.FullPath, check: false, cancellationToken: CancellationToken.None);
         var sourceDefinition = await ReadSourceDefinitionAsync(scope, services.Serializer);
-        var generatedResult = await services.Reader.ReadAsync(scope.GetPath("generated"), CancellationToken.None);
+        var generatedResult = await services.Reader.ReadAsync(AbsolutePath.Parse(scope.GetPath("generated")), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.True(result.Value!.Changed);
@@ -138,7 +138,7 @@ public sealed class SkillBundleBuildServiceTests
 
         var result = await services.BuildService.BuildAsync(scope.FullPath, check: false, cancellationToken: CancellationToken.None);
         var sourceDefinition = await ReadSourceDefinitionAsync(scope, services.Serializer);
-        var generatedResult = await services.Reader.ReadAsync(scope.GetPath("generated"), CancellationToken.None);
+        var generatedResult = await services.Reader.ReadAsync(AbsolutePath.Parse(scope.GetPath("generated")), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.True(result.Value!.Changed);
@@ -157,7 +157,7 @@ public sealed class SkillBundleBuildServiceTests
         var services = CreateServices();
         var initialResult = await services.BuildService.BuildAsync(scope.FullPath, check: false, cancellationToken: CancellationToken.None);
         Assert.True(initialResult.IsSuccess, initialResult.Failure?.Message);
-        var initialGeneratedResult = await services.Reader.ReadAsync(scope.GetPath("generated"), CancellationToken.None);
+        var initialGeneratedResult = await services.Reader.ReadAsync(AbsolutePath.Parse(scope.GetPath("generated")), CancellationToken.None);
         Assert.True(initialGeneratedResult.IsSuccess, initialGeneratedResult.Failure?.Message);
 
         var result = await services.BuildService.BuildAsync(
@@ -166,7 +166,7 @@ public sealed class SkillBundleBuildServiceTests
             check: false,
             cancellationToken: CancellationToken.None);
         var sourceDefinition = await ReadSourceDefinitionAsync(scope, services.Serializer);
-        var generatedResult = await services.Reader.ReadAsync(scope.GetPath("generated"), CancellationToken.None);
+        var generatedResult = await services.Reader.ReadAsync(AbsolutePath.Parse(scope.GetPath("generated")), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.True(result.Value!.Changed);
@@ -406,7 +406,7 @@ public sealed class SkillBundleBuildServiceTests
         SkillBundleJsonSerializer serializer)
     {
         var reader = new SkillBundleDefinitionReader(serializer);
-        var result = await reader.ReadAsync(scope.FullPath, CancellationToken.None);
+        var result = await reader.ReadAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
         Assert.True(result.IsSuccess, result.Failure?.Message);
         return result.Value!;
     }
@@ -484,25 +484,25 @@ public sealed class SkillBundleBuildServiceTests
     {
         public bool SourceWriteAttempted { get; private set; }
 
-        public bool DirectoryExists (string path)
+        public bool DirectoryExists (AbsolutePath path)
         {
-            return Directory.Exists(path);
+            return Directory.Exists(path.Value);
         }
 
         public void MoveDirectory (
-            string sourcePath,
-            string destinationPath)
+            AbsolutePath sourcePath,
+            AbsolutePath destinationPath)
         {
-            Directory.Move(sourcePath, destinationPath);
+            Directory.Move(sourcePath.Value, destinationPath.Value);
         }
 
-        public void DeleteDirectory (string path)
+        public void DeleteDirectory (AbsolutePath path)
         {
-            Directory.Delete(path, recursive: true);
+            Directory.Delete(path.Value, recursive: true);
         }
 
         public ValueTask WriteSourceBundleAsync (
-            string path,
+            AbsolutePath path,
             string contents,
             CancellationToken cancellationToken)
         {
@@ -524,30 +524,30 @@ public sealed class SkillBundleBuildServiceTests
 
         public bool SourceWriteAttempted { get; private set; }
 
-        public bool DirectoryExists (string path)
+        public bool DirectoryExists (AbsolutePath path)
         {
-            return Directory.Exists(path);
+            return Directory.Exists(path.Value);
         }
 
         public void MoveDirectory (
-            string sourcePath,
-            string destinationPath)
+            AbsolutePath sourcePath,
+            AbsolutePath destinationPath)
         {
-            Directory.Move(sourcePath, destinationPath);
-            if (Path.GetFileName(destinationPath).StartsWith(".generated.build-backup.", StringComparison.Ordinal))
+            Directory.Move(sourcePath.Value, destinationPath.Value);
+            if (Path.GetFileName(destinationPath.Value).StartsWith(".generated.build-backup.", StringComparison.Ordinal))
             {
                 BackupCreated = true;
                 cancellationSource.Cancel();
             }
         }
 
-        public void DeleteDirectory (string path)
+        public void DeleteDirectory (AbsolutePath path)
         {
-            Directory.Delete(path, recursive: true);
+            Directory.Delete(path.Value, recursive: true);
         }
 
         public ValueTask WriteSourceBundleAsync (
-            string path,
+            AbsolutePath path,
             string contents,
             CancellationToken cancellationToken)
         {
@@ -567,25 +567,25 @@ public sealed class SkillBundleBuildServiceTests
 
         public bool SourceWriteAttempted { get; private set; }
 
-        public bool DirectoryExists (string path)
+        public bool DirectoryExists (AbsolutePath path)
         {
-            return Directory.Exists(path);
+            return Directory.Exists(path.Value);
         }
 
         public void MoveDirectory (
-            string sourcePath,
-            string destinationPath)
+            AbsolutePath sourcePath,
+            AbsolutePath destinationPath)
         {
-            Directory.Move(sourcePath, destinationPath);
+            Directory.Move(sourcePath.Value, destinationPath.Value);
         }
 
-        public void DeleteDirectory (string path)
+        public void DeleteDirectory (AbsolutePath path)
         {
-            Directory.Delete(path, recursive: true);
+            Directory.Delete(path.Value, recursive: true);
         }
 
         public ValueTask WriteSourceBundleAsync (
-            string path,
+            AbsolutePath path,
             string contents,
             CancellationToken cancellationToken)
         {

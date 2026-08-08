@@ -7,19 +7,14 @@ namespace MackySoft.AgentSkills.Agents.Installation.State;
 public sealed class AgentInstalledArtifact
 {
     /// <summary> Initializes one managed artifact record. </summary>
-    public AgentInstalledArtifact (string path, Sha256Digest digest)
+    public AgentInstalledArtifact (PackageRelativePath path, Sha256Digest digest)
     {
-        if (!PackageRelativePath.TryParse(path, out _))
-        {
-            throw new ArgumentException("Managed agent artifact path must be safe.", nameof(path));
-        }
-
-        Path = path;
+        Path = path ?? throw new ArgumentNullException(nameof(path));
         Digest = digest ?? throw new ArgumentNullException(nameof(digest));
     }
 
     /// <summary> Gets the agent artifact-root-relative path. </summary>
-    public string Path { get; }
+    public PackageRelativePath Path { get; }
 
     /// <summary> Gets the digest observed when the artifact was installed. </summary>
     public Sha256Digest Digest { get; }

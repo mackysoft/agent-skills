@@ -1,5 +1,6 @@
 using MackySoft.AgentSkills.Agents.Installation.Results;
 using MackySoft.AgentSkills.Agents.Installation.State;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Agents.Installation.Services;
 
@@ -7,7 +8,7 @@ internal sealed class AgentRemovalPlan
 {
     public AgentRemovalPlan (
         AgentInstallationState? state,
-        string? statePath,
+        AbsolutePath? statePath,
         AgentInstalledTargetState targetState,
         AgentRemovalAction action)
     {
@@ -19,7 +20,7 @@ internal sealed class AgentRemovalPlan
 
     public AgentInstallationState? State { get; }
 
-    public string? StatePath { get; }
+    public AbsolutePath? StatePath { get; }
 
     public AgentInstalledTargetState TargetState { get; }
 

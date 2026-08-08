@@ -1,6 +1,7 @@
 using System.Text.Json;
+using MackySoft.AgentSkills.Paths;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.FileSystem;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Bundles;
 
@@ -21,28 +22,21 @@ public sealed class SkillBundleDefinitionReader
     /// <param name="cancellationToken"> The cancellation token propagated through file access. </param>
     /// <returns> The authored definition, or a source-invalid failure when it is missing, unsafe, malformed, or non-canonical. </returns>
     public async ValueTask<SkillOperationResult<SkillBundleDefinition>> ReadAsync (
-        string bundleRoot,
+        AbsolutePath bundleRoot,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(bundleRoot);
+        ArgumentNullException.ThrowIfNull(bundleRoot);
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!Directory.Exists(bundleRoot))
+        var validatedRootResult = AuthoredSourcePathResolver.ValidateDirectoryRoot(bundleRoot, "SKILL bundle root");
+        if (!validatedRootResult.IsSuccess)
         {
-            return Failure($"SKILL bundle root does not exist: {bundleRoot}");
+            return Failure(validatedRootResult.Failure!.Message);
         }
 
-        var fullBundleRoot = Path.GetFullPath(bundleRoot);
-        var bundlePath = Path.Combine(fullBundleRoot, "bundle.json");
-        if (!File.Exists(bundlePath))
-        {
-            return Failure($"bundle.json is missing from SKILL bundle root: {fullBundleRoot}");
-        }
-
-        var pathResult = SkillPathBoundary.ResolveUnderRoot(
-            fullBundleRoot,
-            bundlePath,
-            SkillFailureCodes.SourceInvalid,
+        var pathResult = AuthoredSourcePathResolver.ResolveRegularFile(
+            validatedRootResult.Value!,
+            RootRelativePath.Parse("bundle.json"),
             "Source bundle path");
         if (!pathResult.IsSuccess)
         {

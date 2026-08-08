@@ -1,7 +1,7 @@
 using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Digests;
-using MackySoft.AgentSkills.Names;
+using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Agents.Manifests;
 
@@ -29,7 +29,11 @@ public sealed class AgentManifest
         ArgumentNullException.ThrowIfNull(hostArtifacts);
         var dependencies = skillDependencies.ToArray();
         var artifacts = hostArtifacts.ToArray();
-        if (dependencies.Any(static dependency => dependency is null) || dependencies.Distinct().Count() != dependencies.Length || artifacts.Length == 0 || artifacts.Any(static artifact => artifact is null) || artifacts.GroupBy(static artifact => artifact.Path, StringComparer.Ordinal).Any(static group => group.Count() != 1))
+        if (dependencies.Any(static dependency => dependency is null)
+            || dependencies.Distinct().Count() != dependencies.Length
+            || artifacts.Length == 0
+            || artifacts.Any(static artifact => artifact is null)
+            || artifacts.GroupBy(static artifact => artifact.Path, PackageRelativePath.PortableFileSystemComparer).Any(static group => group.Count() != 1))
         {
             throw new ArgumentException("Agent manifest dependencies and artifacts must be unique and complete.");
         }
@@ -44,7 +48,7 @@ public sealed class AgentManifest
         SkillDependencies = Array.AsReadOnly(dependencies.OrderBy(static item => item.Value, StringComparer.Ordinal).ToArray());
         ContentDigest = contentDigest ?? throw new ArgumentNullException(nameof(contentDigest));
         ManifestDigest = manifestDigest ?? throw new ArgumentNullException(nameof(manifestDigest));
-        HostArtifacts = Array.AsReadOnly(artifacts.OrderBy(static item => item.Path, StringComparer.Ordinal).ToArray());
+        HostArtifacts = Array.AsReadOnly(artifacts.OrderBy(static item => item.Path.Value, StringComparer.Ordinal).ToArray());
     }
 
     /// <summary> Gets schema version. </summary>

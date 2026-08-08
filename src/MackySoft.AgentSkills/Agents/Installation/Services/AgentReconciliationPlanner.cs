@@ -4,6 +4,7 @@ using MackySoft.AgentSkills.Agents.Installation.Targeting;
 using MackySoft.AgentSkills.Agents.Packaging;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Agents.Installation.Services;
 
@@ -31,7 +32,7 @@ internal sealed class AgentReconciliationPlanner
         cancellationToken.ThrowIfCancellationRequested();
 
         var plans = new List<AgentReconciliationPlan>(packages.Count);
-        var artifactOwners = new Dictionary<string, AgentName>(StringComparer.Ordinal);
+        var artifactOwners = new Dictionary<PackageRelativePath, AgentName>(PackageRelativePath.PortableFileSystemComparer);
         foreach (var package in packages.OrderBy(static package => package.Manifest.AgentName.Value, StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -96,23 +97,22 @@ internal sealed class AgentReconciliationPlanner
         return SkillOperationResult<IReadOnlyList<AgentReconciliationPlan>>.Success(Array.AsReadOnly(plans.ToArray()));
     }
 
-    private SkillOperationResult<IReadOnlyList<AgentPlannedArtifact>> CreateArtifacts (CanonicalAgentPackage package, AgentHostKind hostId)
+    private SkillOperationResult<IReadOnlyList<AgentPlannedArtifact>> CreateArtifacts (CanonicalAgentPackage package, HostKind hostId)
     {
         var hostLiteral = Vocabulary.GetText(hostId);
-        var prefix = $"hosts/{hostLiteral}/";
-        var packageFiles = package.Files.ToDictionary(static file => file.RelativePath, StringComparer.Ordinal);
+        var hostDirectoryPath = PackageRelativePath.Parse($"hosts/{hostLiteral}");
+        var packageFiles = package.Files.ToDictionary(static file => file.RelativePath);
         var artifacts = new List<AgentPlannedArtifact>();
         foreach (var manifestArtifact in package.Manifest.HostArtifacts.Where(artifact => artifact.HostId == hostId))
         {
-            if (!manifestArtifact.Path.StartsWith(prefix, StringComparison.Ordinal))
+            if (!manifestArtifact.Path.TryGetRelativeTo(hostDirectoryPath, out var targetRelativePath))
             {
                 return SkillOperationResult<IReadOnlyList<AgentPlannedArtifact>>.FailureResult(
                     SkillFailureCodes.ManifestInvalid,
-                    $"Agent host artifact must be below '{prefix}': {manifestArtifact.Path}.");
+                    $"Agent host artifact must be below '{hostDirectoryPath}': {manifestArtifact.Path}.");
             }
 
-            var targetRelativePath = manifestArtifact.Path[prefix.Length..];
-            if (!PackageRelativePath.TryParse(targetRelativePath, out _) || !packageFiles.TryGetValue(manifestArtifact.Path, out var packageFile))
+            if (!packageFiles.TryGetValue(manifestArtifact.Path, out var packageFile))
             {
                 return SkillOperationResult<IReadOnlyList<AgentPlannedArtifact>>.FailureResult(
                     SkillFailureCodes.ManifestInvalid,
@@ -133,7 +133,7 @@ internal sealed class AgentReconciliationPlanner
         }
 
         return SkillOperationResult<IReadOnlyList<AgentPlannedArtifact>>.Success(
-            Array.AsReadOnly(artifacts.OrderBy(static artifact => artifact.RelativePath, StringComparer.Ordinal).ToArray()));
+            Array.AsReadOnly(artifacts.OrderBy(static artifact => artifact.RelativePath.Value, StringComparer.Ordinal).ToArray()));
     }
 
     private static AgentReconcileActionKind ResolveActionKind (
@@ -176,18 +176,18 @@ internal sealed class AgentReconciliationPlanner
         foreach (var artifact in artifacts)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var pathResult = AgentPathGuard.ResolveArtifactPath(target.ArtifactRoot, artifact.RelativePath);
+            var pathResult = AgentPathGuard.Validate(ContainedPath.Create(target.ArtifactRoot, artifact.RelativePath.RootRelativePath));
             if (!pathResult.IsSuccess)
             {
                 return SkillOperationResult<IReadOnlyList<AgentArtifactDiff>>.FailureResult(pathResult.Failure!.Code, pathResult.Failure.Message);
             }
 
             string? beforeContent = null;
-            if (File.Exists(pathResult.Value!))
+            if (File.Exists(pathResult.Value!.Value))
             {
                 try
                 {
-                    beforeContent = await File.ReadAllTextAsync(pathResult.Value!, cancellationToken).ConfigureAwait(false);
+                    beforeContent = await File.ReadAllTextAsync(pathResult.Value!.Value, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
                 {

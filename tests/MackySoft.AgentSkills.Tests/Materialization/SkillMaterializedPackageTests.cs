@@ -1,5 +1,4 @@
 using MackySoft.AgentSkills.Materialization;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Tests.Materialization;
@@ -10,31 +9,36 @@ public sealed class SkillMaterializedPackageTests
     [Trait("Size", "Small")]
     public void Constructor_CapturesOrdinalFileSnapshot ()
     {
-        var files = new List<SkillPackageFile>
+        var files = new List<PackageTextFile>
         {
-            new("references/b.md", "b\n"),
-            new("SKILL.md", "body\n"),
+            new(PackageRelativePath.Parse("references/b.md"), "b\n"),
+            new(PackageRelativePath.Parse("SKILL.md"), "body\n"),
         };
-        var package = new SkillMaterializedPackage(new SkillName("sample-skill"), SkillHostKind.OpenAi, files);
+        var package = new SkillMaterializedPackage(new SkillName("sample-skill"), HostKind.Codex, files);
 
-        files[0] = new SkillPackageFile("references/a.md", "a\n");
+        files[0] = new PackageTextFile(PackageRelativePath.Parse("references/a.md"), "a\n");
 
-        Assert.Equal(["SKILL.md", "references/b.md"], package.Files.Select(static file => file.RelativePath).ToArray());
+        Assert.Equal(
+            [PackageRelativePath.Parse("SKILL.md"), PackageRelativePath.Parse("references/b.md")],
+            package.Files.Select(static file => file.RelativePath).ToArray());
     }
 
     [Fact]
     [Trait("Size", "Small")]
     public void Constructor_RejectsInvalidIdentityAndFileSet ()
     {
-        Assert.Throws<ArgumentNullException>(() => new SkillMaterializedPackage(null!, SkillHostKind.OpenAi, []));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new SkillMaterializedPackage(new SkillName("sample-skill"), (SkillHostKind)42, []));
+        Assert.Throws<ArgumentNullException>(() => new SkillMaterializedPackage(null!, HostKind.Codex, []));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new SkillMaterializedPackage(new SkillName("sample-skill"), (HostKind)42, []));
         Assert.Throws<ArgumentException>(() => new SkillMaterializedPackage(
             new SkillName("sample-skill"),
-            SkillHostKind.OpenAi,
-            [new SkillPackageFile("SKILL.md", "body\n"), null!]));
+            HostKind.Codex,
+            [new PackageTextFile(PackageRelativePath.Parse("SKILL.md"), "body\n"), null!]));
         Assert.Throws<ArgumentException>(() => new SkillMaterializedPackage(
             new SkillName("sample-skill"),
-            SkillHostKind.OpenAi,
-            [new SkillPackageFile("references/a.md", "a\n"), new SkillPackageFile("references/A.md", "A\n")]));
+            HostKind.Codex,
+            [
+                new PackageTextFile(PackageRelativePath.Parse("references/a.md"), "a\n"),
+                new PackageTextFile(PackageRelativePath.Parse("references/A.md"), "A\n"),
+            ]));
     }
 }

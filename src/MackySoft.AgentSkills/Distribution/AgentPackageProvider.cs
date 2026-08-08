@@ -1,7 +1,7 @@
-using MackySoft.AgentSkills.Agents;
 using MackySoft.AgentSkills.Agents.Selection;
 using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Distribution;
 
@@ -71,7 +71,7 @@ public sealed class AgentPackageProvider
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        string packageRoot;
+        AbsolutePath packageRoot;
         try
         {
             packageRoot = packageRootResolver.Resolve();

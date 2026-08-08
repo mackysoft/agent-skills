@@ -1,7 +1,6 @@
 using MackySoft.AgentSkills.Installation.Contracts;
 using MackySoft.AgentSkills.Installation.Transactions;
 using MackySoft.AgentSkills.Materialization;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
 
@@ -11,7 +10,7 @@ public sealed class SkillMaterializedPackageWriterTests
 {
     [Fact]
     [Trait("Size", "Small")]
-    public async Task WriteAsync_WhenStagingWriteFails_PreservesExistingTargetAndCleansTransactionDirectory ()
+    public async Task WriteAsync_WhenPackagePathsConflict_ReturnsPathUnsafeAndPreservesExistingTarget ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "writer-staging-failure-preserves");
         var targetRoot = scope.CreateDirectory(".agents/skills");
@@ -20,16 +19,22 @@ public sealed class SkillMaterializedPackageWriterTests
         var writer = SkillTestData.CreatePackageWriter();
         var package = new SkillMaterializedPackage(
             new SkillName("sample-skill"),
-            SkillHostKind.OpenAi,
+            HostKind.Codex,
             [
-                new SkillPackageFile("nested", "file"),
-                new SkillPackageFile("nested/file.md", "nested"),
+                new PackageTextFile(PackageRelativePath.Parse("nested"), "file"),
+                new PackageTextFile(PackageRelativePath.Parse("nested/file.md"), "nested"),
             ]);
 
-        var result = await writer.WriteAsync(targetRoot, skillDirectory, package, CancellationToken.None);
+        var result = await writer.WriteAsync(
+            AbsolutePath.Parse(targetRoot),
+            AbsolutePath.Parse(skillDirectory),
+            package,
+            SkillMaterializedPackageWriteMode.ReplaceExisting,
+            null,
+            CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetWriteFailed, result.Failure!.Code);
+        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
         Assert.True(Directory.Exists(skillDirectory));
         Assert.Equal("# Existing\n", File.ReadAllText(skillPath));
         Assert.False(Directory.Exists(Path.Combine(targetRoot, ".agent-skills-skill-transactions")));
@@ -46,13 +51,19 @@ public sealed class SkillMaterializedPackageWriterTests
         var writer = new SkillMaterializedPackageWriter(new CommitMoveFailingDirectoryOperations());
         var package = new SkillMaterializedPackage(
             new SkillName("sample-skill"),
-            SkillHostKind.OpenAi,
+            HostKind.Codex,
             [
-                new SkillPackageFile("SKILL.md", "# New\n"),
-                new SkillPackageFile("new.md", "# New file\n"),
+                new PackageTextFile(PackageRelativePath.Parse("SKILL.md"), "# New\n"),
+                new PackageTextFile(PackageRelativePath.Parse("new.md"), "# New file\n"),
             ]);
 
-        var result = await writer.WriteAsync(targetRoot, skillDirectory, package, CancellationToken.None);
+        var result = await writer.WriteAsync(
+            AbsolutePath.Parse(targetRoot),
+            AbsolutePath.Parse(skillDirectory),
+            package,
+            SkillMaterializedPackageWriteMode.ReplaceExisting,
+            null,
+            CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.InstallTargetWriteFailed, result.Failure!.Code);
@@ -73,15 +84,15 @@ public sealed class SkillMaterializedPackageWriterTests
         var writer = SkillTestData.CreatePackageWriter();
         var package = new SkillMaterializedPackage(
             new SkillName("sample-skill"),
-            SkillHostKind.OpenAi,
+            HostKind.Codex,
             [
-                new SkillPackageFile("SKILL.md", "# New\n"),
+                new PackageTextFile(PackageRelativePath.Parse("SKILL.md"), "# New\n"),
             ]);
         var preconditionCallCount = 0;
 
         var result = await writer.WriteAsync(
-            targetRoot,
-            skillDirectory,
+            AbsolutePath.Parse(targetRoot),
+            AbsolutePath.Parse(skillDirectory),
             package,
             SkillMaterializedPackageWriteMode.ReplaceExisting,
             (_, _) => ValueTask.FromResult(
@@ -107,9 +118,11 @@ public sealed class SkillMaterializedPackageWriterTests
         var outsideSkillDirectory = Path.Combine(outsideScope.FullPath, "skill");
 
         var result = await writer.WriteAsync(
-            targetScope.FullPath,
-            outsideSkillDirectory,
-            new SkillMaterializedPackage(new SkillName("skill"), SkillHostKind.OpenAi, []),
+            AbsolutePath.Parse(targetScope.FullPath),
+            AbsolutePath.Parse(outsideSkillDirectory),
+            new SkillMaterializedPackage(new SkillName("skill"), HostKind.Codex, []),
+            SkillMaterializedPackageWriteMode.CreateNew,
+            null,
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -122,19 +135,19 @@ public sealed class SkillMaterializedPackageWriterTests
     {
         private int moveCount;
 
-        public bool Exists (string path)
+        public bool Exists (AbsolutePath path)
         {
-            return Directory.Exists(path);
+            return Directory.Exists(path.Value);
         }
 
-        public void Create (string path)
+        public void Create (AbsolutePath path)
         {
-            Directory.CreateDirectory(path);
+            Directory.CreateDirectory(path.Value);
         }
 
         public void Move (
-            string sourceDirectoryName,
-            string destinationDirectoryName)
+            AbsolutePath sourceDirectoryName,
+            AbsolutePath destinationDirectoryName)
         {
             moveCount++;
             if (moveCount == 2)
@@ -142,14 +155,14 @@ public sealed class SkillMaterializedPackageWriterTests
                 throw new IOException("Injected commit move failure.");
             }
 
-            Directory.Move(sourceDirectoryName, destinationDirectoryName);
+            Directory.Move(sourceDirectoryName.Value, destinationDirectoryName.Value);
         }
 
         public void Delete (
-            string path,
+            AbsolutePath path,
             bool recursive)
         {
-            Directory.Delete(path, recursive);
+            Directory.Delete(path.Value, recursive);
         }
     }
 }

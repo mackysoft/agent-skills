@@ -1,9 +1,8 @@
 using MackySoft.AgentSkills.Bundles;
-using MackySoft.AgentSkills.Categories;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Selection;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Distribution;
 
@@ -166,7 +165,7 @@ public sealed class SkillPackageProvider
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        string packageRoot;
+        AbsolutePath packageRoot;
         try
         {
             packageRoot = packageRootResolver.Resolve();

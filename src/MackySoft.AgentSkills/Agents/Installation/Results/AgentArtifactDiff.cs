@@ -1,12 +1,14 @@
 namespace MackySoft.AgentSkills.Agents.Installation.Results;
 
+using MackySoft.AgentSkills.Shared;
+
 /// <summary> Represents one requested custom-agent artifact content diff. </summary>
 public sealed class AgentArtifactDiff
 {
     /// <summary> Initializes one immutable artifact diff. </summary>
-    internal AgentArtifactDiff (string relativePath, string? beforeContent, string afterContent)
+    internal AgentArtifactDiff (PackageRelativePath relativePath, string? beforeContent, string afterContent)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(relativePath);
+        ArgumentNullException.ThrowIfNull(relativePath);
         ArgumentNullException.ThrowIfNull(afterContent);
         RelativePath = relativePath;
         BeforeContent = beforeContent;
@@ -14,7 +16,7 @@ public sealed class AgentArtifactDiff
     }
 
     /// <summary> Gets the artifact-root-relative path. </summary>
-    public string RelativePath { get; }
+    public PackageRelativePath RelativePath { get; }
 
     /// <summary> Gets the existing content, or <see langword="null" /> when the artifact is created. </summary>
     public string? BeforeContent { get; }

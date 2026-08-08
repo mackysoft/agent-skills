@@ -1,4 +1,3 @@
-using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Tests.Categories;

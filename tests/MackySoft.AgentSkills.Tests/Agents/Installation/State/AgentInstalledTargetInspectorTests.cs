@@ -1,12 +1,10 @@
-using MackySoft.AgentSkills.Agents;
 using MackySoft.AgentSkills.Agents.Installation.State;
 using MackySoft.AgentSkills.Agents.Installation.Targeting;
 using MackySoft.AgentSkills.Agents.Manifests;
 using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Digests;
-using MackySoft.AgentSkills.Hosts.Registration;
-using MackySoft.AgentSkills.Names;
+using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
 
 namespace MackySoft.AgentSkills.Tests.Agents.Installation.State;
@@ -33,8 +31,8 @@ public sealed class AgentInstalledTargetInspectorTests
         var target = ResolveProjectTarget(scope.FullPath);
         var manifest = CreateManifest("com.example.catalog");
         var content = "name = \"architect\"\n";
-        Directory.CreateDirectory(target.ArtifactRoot);
-        await File.WriteAllTextAsync(Path.Combine(target.ArtifactRoot, "architect.toml"), content);
+        Directory.CreateDirectory(target.ArtifactRoot.Value);
+        await File.WriteAllTextAsync(Path.Combine(target.ArtifactRoot.Value, "architect.toml"), content);
         await WriteStateAsync(target, manifest, content);
 
         var result = await CreateInspector().InspectAsync(manifest, target);
@@ -50,8 +48,8 @@ public sealed class AgentInstalledTargetInspectorTests
         using var scope = TestDirectories.CreateTempScope("agent-skills-agents", "inspect-modified");
         var target = ResolveProjectTarget(scope.FullPath);
         var manifest = CreateManifest("com.example.catalog");
-        Directory.CreateDirectory(target.ArtifactRoot);
-        await File.WriteAllTextAsync(Path.Combine(target.ArtifactRoot, "architect.toml"), "changed\n");
+        Directory.CreateDirectory(target.ArtifactRoot.Value);
+        await File.WriteAllTextAsync(Path.Combine(target.ArtifactRoot.Value, "architect.toml"), "changed\n");
         await WriteStateAsync(target, manifest, "original\n");
 
         var result = await CreateInspector().InspectAsync(manifest, target);
@@ -66,8 +64,8 @@ public sealed class AgentInstalledTargetInspectorTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-agents", "inspect-unmanaged");
         var target = ResolveProjectTarget(scope.FullPath);
-        Directory.CreateDirectory(target.ArtifactRoot);
-        await File.WriteAllTextAsync(Path.Combine(target.ArtifactRoot, "architect.toml"), "unmanaged\n");
+        Directory.CreateDirectory(target.ArtifactRoot.Value);
+        await File.WriteAllTextAsync(Path.Combine(target.ArtifactRoot.Value, "architect.toml"), "unmanaged\n");
 
         var result = await CreateInspector().InspectAsync(CreateManifest("com.example.catalog"), target);
 
@@ -81,9 +79,9 @@ public sealed class AgentInstalledTargetInspectorTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-agents", "inspect-unmanaged-nested");
         var target = ResolveProjectTarget(scope.FullPath);
-        Directory.CreateDirectory(Path.Combine(target.ArtifactRoot, "profiles"));
-        await File.WriteAllTextAsync(Path.Combine(target.ArtifactRoot, "profiles", "architect.toml"), "unmanaged\n");
-        var manifest = CreateManifest("com.example.catalog", "hosts/openai/profiles/architect.toml");
+        Directory.CreateDirectory(Path.Combine(target.ArtifactRoot.Value, "profiles"));
+        await File.WriteAllTextAsync(Path.Combine(target.ArtifactRoot.Value, "profiles", "architect.toml"), "unmanaged\n");
+        var manifest = CreateManifest("com.example.catalog", "hosts/codex/profiles/architect.toml");
 
         var result = await CreateInspector().InspectAsync(manifest, target);
 
@@ -97,9 +95,9 @@ public sealed class AgentInstalledTargetInspectorTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-agents", "inspect-invalid-artifact-path");
         var target = ResolveProjectTarget(scope.FullPath);
-        var manifest = CreateManifest("com.example.catalog", "hosts/openai/profiles/architect.toml");
-        Directory.CreateDirectory(target.ArtifactRoot);
-        await File.WriteAllTextAsync(Path.Combine(target.ArtifactRoot, "architect.toml"), "original\n");
+        var manifest = CreateManifest("com.example.catalog", "hosts/codex/profiles/architect.toml");
+        Directory.CreateDirectory(target.ArtifactRoot.Value);
+        await File.WriteAllTextAsync(Path.Combine(target.ArtifactRoot.Value, "architect.toml"), "original\n");
         await WriteStateAsync(target, manifest, "original\n");
 
         var result = await CreateInspector().InspectAsync(manifest, target);
@@ -117,8 +115,8 @@ public sealed class AgentInstalledTargetInspectorTests
         var manifest = CreateManifest("com.example.catalog");
         var statePathResult = new AgentInstallationStatePathResolver().Resolve(target, manifest.CatalogId, manifest.AgentName);
         Assert.True(statePathResult.IsSuccess, statePathResult.Failure?.Message);
-        Directory.CreateDirectory(Path.GetDirectoryName(statePathResult.Value!)!);
-        await File.WriteAllTextAsync(statePathResult.Value!, "{}\n");
+        Directory.CreateDirectory(Path.GetDirectoryName(statePathResult.Value!.Value)!);
+        await File.WriteAllTextAsync(statePathResult.Value.Value, "{}\n");
 
         var result = await CreateInspector().InspectAsync(manifest, target);
 
@@ -134,8 +132,8 @@ public sealed class AgentInstalledTargetInspectorTests
         var target = ResolveProjectTarget(scope.FullPath);
         var requested = CreateManifest("com.example.catalog");
         var foreign = CreateManifest("com.other.catalog");
-        Directory.CreateDirectory(target.ArtifactRoot);
-        await File.WriteAllTextAsync(Path.Combine(target.ArtifactRoot, "architect.toml"), "foreign\n");
+        Directory.CreateDirectory(target.ArtifactRoot.Value);
+        await File.WriteAllTextAsync(Path.Combine(target.ArtifactRoot.Value, "architect.toml"), "foreign\n");
         await WriteStateAsync(target, foreign, "foreign\n");
 
         var result = await CreateInspector().InspectAsync(requested, target);
@@ -156,9 +154,8 @@ public sealed class AgentInstalledTargetInspectorTests
     private static AgentResolvedTarget ResolveProjectTarget (string repositoryRoot)
     {
         var resolver = new AgentInstallTargetResolver(
-            new AgentHostAdapterSet(),
             new AgentUserTargetRootResolver(() => repositoryRoot, _ => null));
-        var result = resolver.ResolveTarget(new AgentTargetRequest(AgentHostKind.OpenAi, AgentInstallScopeKind.Project, repositoryRoot));
+        var result = resolver.ResolveTarget(SkillTestData.CreateAgentTargetRequest(HostKind.Codex, AgentInstallScopeKind.Project, repositoryRoot));
         Assert.True(result.IsSuccess, result.Failure?.Message);
         return result.Value!;
     }
@@ -174,14 +171,16 @@ public sealed class AgentInstalledTargetInspectorTests
             manifest.Category,
             manifest.AgentName,
             manifest.ManifestDigest,
-            [new AgentInstalledArtifact("architect.toml", digestCalculator.ComputeSingleFileDigest("architect.toml", content))]);
+            [new AgentInstalledArtifact(
+                PackageRelativePath.Parse("architect.toml"),
+                digestCalculator.ComputeSingleFileDigest(PackageRelativePath.Parse("architect.toml"), content))]);
         var statePathResult = new AgentInstallationStatePathResolver().Resolve(target, manifest.CatalogId, manifest.AgentName);
         Assert.True(statePathResult.IsSuccess, statePathResult.Failure?.Message);
         var writeResult = await new AgentInstallationStateStore(new AgentInstallationStateJsonSerializer()).WriteAsync(statePathResult.Value!, state);
         Assert.True(writeResult.IsSuccess, writeResult.Failure?.Message);
     }
 
-    private static AgentManifest CreateManifest (string catalogId, string hostArtifactPath = "hosts/openai/architect.toml")
+    private static AgentManifest CreateManifest (string catalogId, string hostArtifactPath = "hosts/codex/architect.toml")
     {
         var digest = Sha256Digest.Parse(new string('a', 64));
         return new AgentManifest(
@@ -195,6 +194,6 @@ public sealed class AgentInstalledTargetInspectorTests
             Array.Empty<SkillName>(),
             digest,
             digest,
-            [new AgentHostArtifactManifest(AgentHostKind.OpenAi, hostArtifactPath, digest)]);
+            [new AgentHostArtifactManifest(HostKind.Codex, PackageRelativePath.Parse(hostArtifactPath), digest)]);
     }
 }

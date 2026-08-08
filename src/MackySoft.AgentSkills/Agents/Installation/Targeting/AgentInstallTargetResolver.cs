@@ -7,13 +7,11 @@ namespace MackySoft.AgentSkills.Agents.Installation.Targeting;
 /// <summary> Resolves custom-agent artifact and installation-state targets. </summary>
 public sealed class AgentInstallTargetResolver
 {
-    private readonly AgentHostAdapterSet hostAdapters;
     private readonly AgentUserTargetRootResolver userTargetRootResolver;
 
     /// <summary> Initializes an agent target resolver. </summary>
-    public AgentInstallTargetResolver (AgentHostAdapterSet hostAdapters, AgentUserTargetRootResolver userTargetRootResolver)
+    public AgentInstallTargetResolver (AgentUserTargetRootResolver userTargetRootResolver)
     {
-        this.hostAdapters = hostAdapters ?? throw new ArgumentNullException(nameof(hostAdapters));
         this.userTargetRootResolver = userTargetRootResolver ?? throw new ArgumentNullException(nameof(userTargetRootResolver));
     }
 
@@ -21,13 +19,13 @@ public sealed class AgentInstallTargetResolver
     public SkillOperationResult<AgentResolvedTarget> ResolveTarget (AgentTargetRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var adapterResult = hostAdapters.GetAdapter(request.HostId);
-        if (!adapterResult.IsSuccess)
+        var registrationResult = HostRegistration.Get(request.HostId);
+        if (!registrationResult.IsSuccess)
         {
-            return SkillOperationResult<AgentResolvedTarget>.FailureResult(adapterResult.Failure!.Code, adapterResult.Failure.Message);
+            return SkillOperationResult<AgentResolvedTarget>.FailureResult(registrationResult.Failure!.Code, registrationResult.Failure.Message);
         }
 
-        var descriptor = adapterResult.Value!.Descriptor;
+        var descriptor = registrationResult.Value!.AgentTargetPolicy;
         return request.ArtifactTargetRoot is not null
             ? ResolveExplicitTarget(request, descriptor)
             : request.Scope == AgentInstallScopeKind.Project
@@ -35,7 +33,7 @@ public sealed class AgentInstallTargetResolver
                 : ResolveDefaultUserTarget(request, descriptor);
     }
 
-    private static SkillOperationResult<AgentResolvedTarget> ResolveDefaultProjectTarget (AgentTargetRequest request, Agents.Hosts.AgentHostDescriptor descriptor)
+    private static SkillOperationResult<AgentResolvedTarget> ResolveDefaultProjectTarget (AgentTargetRequest request, AgentHostTargetPolicy descriptor)
     {
         var root = request.RepositoryRoot!;
         return CreateResolvedTarget(
@@ -44,18 +42,18 @@ public sealed class AgentInstallTargetResolver
             ResolveProjectRelativePath(root, descriptor.ProjectDefaultStateRootPath));
     }
 
-    private SkillOperationResult<AgentResolvedTarget> ResolveDefaultUserTarget (AgentTargetRequest request, Agents.Hosts.AgentHostDescriptor descriptor)
+    private SkillOperationResult<AgentResolvedTarget> ResolveDefaultUserTarget (AgentTargetRequest request, AgentHostTargetPolicy descriptor)
     {
         var rootsResult = userTargetRootResolver.ResolveDefaultTargetRoots(descriptor);
         return rootsResult.IsSuccess
             ? CreateResolvedTarget(
                 request,
-                SkillOperationResult<string>.Success(rootsResult.Value!.ArtifactRoot),
-                SkillOperationResult<string>.Success(rootsResult.Value.StateRoot))
+                SkillOperationResult<AbsolutePath>.Success(rootsResult.Value!.ArtifactRoot),
+                SkillOperationResult<AbsolutePath>.Success(rootsResult.Value.StateRoot))
             : SkillOperationResult<AgentResolvedTarget>.FailureResult(rootsResult.Failure!.Code, rootsResult.Failure.Message);
     }
 
-    private static SkillOperationResult<AgentResolvedTarget> ResolveExplicitTarget (AgentTargetRequest request, Agents.Hosts.AgentHostDescriptor descriptor)
+    private static SkillOperationResult<AgentResolvedTarget> ResolveExplicitTarget (AgentTargetRequest request, AgentHostTargetPolicy descriptor)
     {
         var artifactTarget = request.ArtifactTargetRoot!;
         var artifactResult = request.Scope == AgentInstallScopeKind.Project
@@ -66,35 +64,41 @@ public sealed class AgentInstallTargetResolver
             return SkillOperationResult<AgentResolvedTarget>.FailureResult(artifactResult.Failure!.Code, artifactResult.Failure.Message);
         }
 
-        var resolvedArtifactTarget = AbsolutePath.Parse(artifactResult.Value!);
+        var resolvedArtifactTarget = artifactResult.Value!;
         if (!resolvedArtifactTarget.TryGetParent(out var parent))
         {
             return SkillOperationResult<AgentResolvedTarget>.FailureResult(SkillFailureCodes.PathUnsafe, "Explicit agent artifact target must have a parent directory for installation state.");
         }
 
         var artifactName = Path.GetFileName(resolvedArtifactTarget.Value);
-        var stateRelativePath = RootRelativePath.Parse($"{descriptor.ExplicitTargetStateDirectoryName}/{artifactName}");
-        var stateTarget = ContainedPath.Create(parent, stateRelativePath).Target;
+        var stateDirectory = ContainedPath.Create(parent, descriptor.ExplicitTargetStateDirectory).Target;
+        var stateTarget = ContainedPath.Create(stateDirectory, RootRelativePath.Parse(artifactName)).Target;
+        if (!ContainedPath.TryCreate(parent, stateTarget, out var containedStateTarget, out _))
+        {
+            throw new InvalidOperationException("The typed explicit-state path must remain contained by its established parent.");
+        }
+
         var stateResult = request.Scope == AgentInstallScopeKind.Project
             ? ResolveUnderRoot(request.RepositoryRoot!, stateTarget)
-            : AgentPathGuard.ValidateContainedPath(ContainedPath.Create(parent, stateRelativePath));
+            : AgentPathGuard.Validate(containedStateTarget);
+
         return CreateResolvedTarget(request, artifactResult, stateResult);
     }
 
-    private static SkillOperationResult<string> ResolveProjectRelativePath (AbsolutePath root, string relativePath)
+    private static SkillOperationResult<AbsolutePath> ResolveProjectRelativePath (AbsolutePath root, RootRelativePath relativePath)
     {
-        var target = ContainedPath.Create(root, RootRelativePath.Parse(relativePath));
-        return AgentPathGuard.ValidateContainedPath(target);
+        var target = ContainedPath.Create(root, relativePath);
+        return AgentPathGuard.Validate(target);
     }
 
-    private static SkillOperationResult<string> ResolveUnderRoot (AbsolutePath root, AbsolutePath target)
+    private static SkillOperationResult<AbsolutePath> ResolveUnderRoot (AbsolutePath root, AbsolutePath target)
     {
         return ContainedPath.TryCreate(root, target, out var containedPath, out var failure)
-            ? AgentPathGuard.ValidateContainedPath(containedPath)
-            : SkillOperationResult<string>.FailureResult(SkillFailureCodes.PathUnsafe, $"Agent path is invalid: {failure.Message}");
+            ? AgentPathGuard.Validate(containedPath)
+            : SkillOperationResult<AbsolutePath>.FailureResult(SkillFailureCodes.PathUnsafe, $"Agent path is invalid: {failure.Message}");
     }
 
-    private static SkillOperationResult<AgentResolvedTarget> CreateResolvedTarget (AgentTargetRequest request, SkillOperationResult<string> artifactResult, SkillOperationResult<string> stateResult)
+    private static SkillOperationResult<AgentResolvedTarget> CreateResolvedTarget (AgentTargetRequest request, SkillOperationResult<AbsolutePath> artifactResult, SkillOperationResult<AbsolutePath> stateResult)
     {
         if (!artifactResult.IsSuccess)
         {
@@ -102,7 +106,12 @@ public sealed class AgentInstallTargetResolver
         }
 
         return stateResult.IsSuccess
-            ? SkillOperationResult<AgentResolvedTarget>.Success(new AgentResolvedTarget(request.HostId, request.Scope, request.RepositoryRoot?.Value, artifactResult.Value!, stateResult.Value!))
+            ? SkillOperationResult<AgentResolvedTarget>.Success(new AgentResolvedTarget(
+                request.HostId,
+                request.Scope,
+                request.RepositoryRoot,
+                artifactResult.Value!,
+                stateResult.Value!))
             : SkillOperationResult<AgentResolvedTarget>.FailureResult(stateResult.Failure!.Code, stateResult.Failure.Message);
     }
 }

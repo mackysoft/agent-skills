@@ -1,4 +1,5 @@
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Installation.Contracts;
 
@@ -12,8 +13,8 @@ public interface ISkillInstalledPackageRemover
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> Success when the directory is deleted or already absent; otherwise a failure. </returns>
     ValueTask<SkillOperationResult<bool>> DeleteAsync (
-        string targetRoot,
-        string skillDirectory,
-        Func<string, CancellationToken, ValueTask<SkillOperationResult<bool>>>? precondition,
+        AbsolutePath targetRoot,
+        AbsolutePath skillDirectory,
+        Func<AbsolutePath, CancellationToken, ValueTask<SkillOperationResult<bool>>>? precondition,
         CancellationToken cancellationToken = default);
 }

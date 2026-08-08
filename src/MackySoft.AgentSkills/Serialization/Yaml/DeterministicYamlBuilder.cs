@@ -51,6 +51,55 @@ internal sealed class DeterministicYamlBuilder
         return this;
     }
 
+    /// <summary> Appends a mapping whose value is an integer scalar. </summary>
+    /// <param name="key"> The mapping key. </param>
+    /// <param name="value"> The mapping value. </param>
+    /// <param name="indentationLevel"> The indentation level. </param>
+    /// <returns> This builder. </returns>
+    public DeterministicYamlBuilder Mapping (
+        string key,
+        int value,
+        int indentationLevel = 0)
+    {
+        AppendKey(key, indentationLevel);
+        builder.Append(' ');
+        builder.Append(value);
+        builder.Append('\n');
+        return this;
+    }
+
+    /// <summary> Appends a mapping whose value is a sequence of double-quoted scalars. </summary>
+    /// <param name="key"> The mapping key. </param>
+    /// <param name="values"> The sequence values. </param>
+    /// <param name="indentationLevel"> The indentation level. </param>
+    /// <returns> This builder. </returns>
+    public DeterministicYamlBuilder Sequence (
+        string key,
+        IReadOnlyList<string> values,
+        int indentationLevel = 0)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+        AppendKey(key, indentationLevel);
+        if (values.Count == 0)
+        {
+            builder.Append(" []\n");
+            return this;
+        }
+
+        builder.Append('\n');
+
+        foreach (var value in values)
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            builder.Append(' ', (indentationLevel + 1) * SpacesPerIndentLevel);
+            builder.Append("- ");
+            builder.Append(YamlScalarFormatter.DoubleQuoted(value));
+            builder.Append('\n');
+        }
+
+        return this;
+    }
+
     /// <summary> Appends a nested mapping section. </summary>
     /// <param name="key"> The section key. </param>
     /// <param name="indentationLevel"> The indentation level. </param>

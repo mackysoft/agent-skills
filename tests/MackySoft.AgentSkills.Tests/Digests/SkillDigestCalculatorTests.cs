@@ -1,4 +1,5 @@
 using MackySoft.AgentSkills.Digests;
+using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Tests.Digests;
 
@@ -12,13 +13,13 @@ public sealed class SkillDigestCalculatorTests
 
         var first = calculator.ComputeDigest(
         [
-            new SkillDigestInputFile("b.md", "second\n"),
-            new SkillDigestInputFile("a.md", "first\n"),
+            new SkillDigestInputFile(PackageRelativePath.Parse("b.md"), "second\n"),
+            new SkillDigestInputFile(PackageRelativePath.Parse("a.md"), "first\n"),
         ]);
         var second = calculator.ComputeDigest(
         [
-            new SkillDigestInputFile("a.md", "first\n"),
-            new SkillDigestInputFile("b.md", "second\n"),
+            new SkillDigestInputFile(PackageRelativePath.Parse("a.md"), "first\n"),
+            new SkillDigestInputFile(PackageRelativePath.Parse("b.md"), "second\n"),
         ]);
 
         Assert.Equal(first, second);
@@ -30,8 +31,8 @@ public sealed class SkillDigestCalculatorTests
     {
         var calculator = new SkillDigestCalculator();
 
-        var lf = calculator.ComputeDigest([new SkillDigestInputFile("SKILL.md", "line1\nline2\n")]);
-        var crlf = calculator.ComputeDigest([new SkillDigestInputFile("SKILL.md", "line1\r\nline2\r\n")]);
+        var lf = calculator.ComputeDigest([new SkillDigestInputFile(PackageRelativePath.Parse("SKILL.md"), "line1\nline2\n")]);
+        var crlf = calculator.ComputeDigest([new SkillDigestInputFile(PackageRelativePath.Parse("SKILL.md"), "line1\r\nline2\r\n")]);
 
         Assert.Equal(lf, crlf);
     }
@@ -42,8 +43,8 @@ public sealed class SkillDigestCalculatorTests
     {
         var calculator = new SkillDigestCalculator();
 
-        var first = calculator.ComputeDigest([new SkillDigestInputFile("ab", "c")]);
-        var second = calculator.ComputeDigest([new SkillDigestInputFile("a", "bc")]);
+        var first = calculator.ComputeDigest([new SkillDigestInputFile(PackageRelativePath.Parse("ab"), "c")]);
+        var second = calculator.ComputeDigest([new SkillDigestInputFile(PackageRelativePath.Parse("a"), "bc")]);
 
         Assert.NotEqual(first, second);
     }

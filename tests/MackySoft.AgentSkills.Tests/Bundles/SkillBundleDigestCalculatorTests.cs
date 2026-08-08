@@ -1,5 +1,4 @@
 using MackySoft.AgentSkills.Bundles;
-using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Packaging.Canonical;
@@ -73,11 +72,11 @@ public sealed class SkillBundleDigestCalculatorTests
         SkillManifestJsonSerializer serializer)
     {
         var canonicalManifest = SkillTestData.WithComputedManifestDigest(manifest);
-        var manifestFile = new SkillPackageFile("agent-skill.json", serializer.Serialize(canonicalManifest));
+        var manifestFile = new PackageTextFile(PackageRelativePath.Parse("agent-skill.json"), serializer.Serialize(canonicalManifest));
         return SkillTestData.CreateCanonicalPackage(
             canonicalManifest,
             package.Files
-                .Select(file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal) ? manifestFile : file)
+                .Select(file => string.Equals(file.RelativePath.Value, "agent-skill.json", StringComparison.Ordinal) ? manifestFile : file)
                 .ToArray());
     }
 }

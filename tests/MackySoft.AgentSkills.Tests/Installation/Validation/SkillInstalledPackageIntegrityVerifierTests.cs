@@ -16,17 +16,17 @@ public sealed class SkillInstalledPackageIntegrityVerifierTests
         var install = await installService.InstallAsync(
             package.Manifest.CatalogId,
             [package],
-            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
+            SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
-        var skillDirectory = Path.Combine(install.Value!.TargetRoot, package.Manifest.SkillName.Value);
+        var skillDirectory = Path.Combine(install.Value!.TargetRoot.Value, package.Manifest.SkillName.Value);
         var manifestPath = Path.Combine(skillDirectory, "agent-skill.json");
         var unsupportedSchemaVersionText = File.ReadAllText(manifestPath)
             .Replace("\"schemaVersion\": 1", "\"schemaVersion\": 0", StringComparison.Ordinal);
         File.WriteAllText(manifestPath, unsupportedSchemaVersionText);
-        var verifier = SkillTestData.CreateInstalledPackageIntegrityVerifier(SkillTestData.CreateDefaultHostAdapterSet());
+        var verifier = SkillTestData.CreateInstalledPackageIntegrityVerifier();
 
-        var result = await verifier.VerifyAsync(skillDirectory, SkillHostKind.OpenAi, CancellationToken.None);
+        var result = await verifier.VerifyAsync(AbsolutePath.Parse(skillDirectory), HostKind.Codex, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
@@ -43,14 +43,13 @@ public sealed class SkillInstalledPackageIntegrityVerifierTests
 
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "integrity-reference-directory-symlink");
         using var outsideScope = TestDirectories.CreateTempScope("agent-skills-skills", "integrity-reference-directory-symlink-outside");
-        var hostAdapters = SkillTestData.CreateDefaultHostAdapterSet();
         var package = (await SkillTestData.GenerateFixturePackagesAsync()).First();
-        var materializedResult = SkillTestData.CreateMaterializationService().Materialize(package, SkillHostKind.OpenAi);
+        var materializedResult = SkillTestData.CreateMaterializationService().Materialize(package, HostKind.Codex);
         Assert.True(materializedResult.IsSuccess, materializedResult.Failure?.Message);
         var skillDirectory = scope.CreateDirectory(package.Manifest.SkillName.Value);
         foreach (var file in materializedResult.Value!.Files)
         {
-            scope.WriteFile(Path.Combine(package.Manifest.SkillName.Value, file.RelativePath), file.Content);
+            scope.WriteFile(Path.Combine(package.Manifest.SkillName.Value, file.RelativePath.Value), file.Content);
         }
 
         const string outsideFileName = "outside-secret.md";
@@ -60,9 +59,9 @@ public sealed class SkillInstalledPackageIntegrityVerifierTests
             return;
         }
 
-        var verifier = SkillTestData.CreateInstalledPackageIntegrityVerifier(hostAdapters);
+        var verifier = SkillTestData.CreateInstalledPackageIntegrityVerifier();
 
-        var result = await verifier.VerifyAsync(skillDirectory, SkillHostKind.OpenAi, CancellationToken.None);
+        var result = await verifier.VerifyAsync(AbsolutePath.Parse(skillDirectory), HostKind.Codex, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);

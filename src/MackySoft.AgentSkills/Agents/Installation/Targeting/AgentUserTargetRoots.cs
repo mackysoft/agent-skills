@@ -6,15 +6,15 @@ namespace MackySoft.AgentSkills.Agents.Installation.Targeting;
 public sealed class AgentUserTargetRoots
 {
     /// <summary> Initializes resolved user-scope roots. </summary>
-    internal AgentUserTargetRoots (string artifactRoot, string stateRoot)
+    internal AgentUserTargetRoots (AbsolutePath artifactRoot, AbsolutePath stateRoot)
     {
-        ArtifactRoot = AbsolutePath.Parse(artifactRoot).Value;
-        StateRoot = AbsolutePath.Parse(stateRoot).Value;
+        ArtifactRoot = artifactRoot ?? throw new ArgumentNullException(nameof(artifactRoot));
+        StateRoot = stateRoot ?? throw new ArgumentNullException(nameof(stateRoot));
     }
 
     /// <summary> Gets the host-discovered artifact root. </summary>
-    public string ArtifactRoot { get; }
+    public AbsolutePath ArtifactRoot { get; }
 
     /// <summary> Gets the host-unobserved installation-state root. </summary>
-    public string StateRoot { get; }
+    public AbsolutePath StateRoot { get; }
 }
