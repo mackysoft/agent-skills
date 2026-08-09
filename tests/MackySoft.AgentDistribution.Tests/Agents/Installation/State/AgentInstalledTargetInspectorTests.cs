@@ -5,7 +5,6 @@ using MackySoft.AgentDistribution.Bundles;
 using MackySoft.AgentDistribution.Catalogs;
 using MackySoft.AgentDistribution.Digests;
 using MackySoft.AgentDistribution.Shared;
-using MackySoft.Tests;
 
 namespace MackySoft.AgentDistribution.Tests.Agents.Installation.State;
 

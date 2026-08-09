@@ -4,7 +4,6 @@ using MackySoft.AgentDistribution.Installation.Results;
 using MackySoft.AgentDistribution.Installation.Targeting;
 using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Shared;
-using MackySoft.Tests;
 
 namespace MackySoft.AgentDistribution.Tests.Installation.Services;
 
@@ -492,10 +491,7 @@ public sealed class SkillPruneServiceTests
         var manifestPath = PackageRelativePath.Parse("agent-skill.json");
         outsideScope.WriteFile("agent-skill.json", orphan.Files.Single(file => file.RelativePath.Equals(manifestPath)).Content);
         var manifestLink = Path.Combine(skillDirectory, "agent-skill.json");
-        if (!TestSymbolicLinks.TryCreateFile(manifestLink, Path.Combine(outsideScope.FullPath, "agent-skill.json")))
-        {
-            return;
-        }
+        File.CreateSymbolicLink(manifestLink, Path.Combine(outsideScope.FullPath, "agent-skill.json"));
 
         var pruneService = SkillTestData.CreatePruneService();
         var request = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath);

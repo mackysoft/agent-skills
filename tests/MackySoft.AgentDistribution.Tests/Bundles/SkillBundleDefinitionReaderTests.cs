@@ -2,7 +2,6 @@ using MackySoft.AgentDistribution.Bundles;
 using MackySoft.AgentDistribution.Catalogs;
 using MackySoft.AgentDistribution.Digests;
 using MackySoft.AgentDistribution.Shared;
-using MackySoft.Tests;
 
 namespace MackySoft.AgentDistribution.Tests.Bundles;
 
@@ -73,10 +72,7 @@ public sealed class SkillBundleDefinitionReaderTests
             new SkillCatalogId("com.mackysoft.agent-distribution"),
             new SkillBundleVersion(3));
         var outsideBundlePath = outsideScope.WriteFile("bundle.json", serializer.SerializeDefinition(definition));
-        if (!TryCreateFileSymbolicLink(scope.GetPath("bundle.json"), outsideBundlePath))
-        {
-            return;
-        }
+        File.CreateSymbolicLink(scope.GetPath("bundle.json"), outsideBundlePath);
 
         var reader = CreateReader(serializer);
 
@@ -91,22 +87,4 @@ public sealed class SkillBundleDefinitionReaderTests
         return new SkillBundleDefinitionReader(serializer);
     }
 
-    private static bool TryCreateFileSymbolicLink (
-        string linkPath,
-        string targetPath)
-    {
-        try
-        {
-            File.CreateSymbolicLink(linkPath, targetPath);
-            return true;
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
-        }
-    }
 }

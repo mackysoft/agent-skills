@@ -1,7 +1,6 @@
 using MackySoft.AgentDistribution.Installation.Contracts;
 using MackySoft.AgentDistribution.Installation.Transactions;
 using MackySoft.AgentDistribution.Shared;
-using MackySoft.Tests;
 
 namespace MackySoft.AgentDistribution.Tests.Installation.Transactions;
 

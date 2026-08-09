@@ -2,7 +2,6 @@ using MackySoft.AgentDistribution.Hosting.Commands;
 using MackySoft.AgentDistribution.Hosting.Composition;
 using MackySoft.AgentDistribution.Hosting.Configuration;
 using MackySoft.AgentDistribution.Hosting.Reporting;
-using MackySoft.Tests;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MackySoft.AgentDistribution.Tests.Hosting;

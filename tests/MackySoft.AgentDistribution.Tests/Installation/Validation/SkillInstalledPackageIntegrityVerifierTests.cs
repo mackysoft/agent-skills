@@ -1,6 +1,5 @@
 using MackySoft.AgentDistribution.Installation.Targeting;
 using MackySoft.AgentDistribution.Shared;
-using MackySoft.Tests;
 
 namespace MackySoft.AgentDistribution.Tests.Installation.Validation;
 
@@ -54,10 +53,7 @@ public sealed class SkillInstalledPackageIntegrityVerifierTests
 
         const string outsideFileName = "outside-secret.md";
         outsideScope.WriteFile(outsideFileName, "# Outside\n");
-        if (!TestSymbolicLinks.TryCreateDirectory(Path.Combine(skillDirectory, "references", "outside"), outsideScope.FullPath))
-        {
-            return;
-        }
+        Directory.CreateSymbolicLink(Path.Combine(skillDirectory, "references", "outside"), outsideScope.FullPath);
 
         var verifier = SkillTestData.CreateInstalledPackageIntegrityVerifier();
 

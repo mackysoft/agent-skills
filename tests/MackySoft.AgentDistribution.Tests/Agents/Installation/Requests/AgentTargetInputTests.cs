@@ -2,7 +2,6 @@ using MackySoft.AgentDistribution.Agents.Doctor;
 using MackySoft.AgentDistribution.Agents.Installation.Requests;
 using MackySoft.AgentDistribution.Agents.Installation.Targeting;
 using MackySoft.AgentDistribution.Installation.Targeting;
-using MackySoft.Tests;
 
 namespace MackySoft.AgentDistribution.Tests.Agents.Installation.Requests;
 

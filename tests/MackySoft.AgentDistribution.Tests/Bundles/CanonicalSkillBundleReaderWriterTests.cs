@@ -2,7 +2,6 @@ using MackySoft.AgentDistribution.Bundles;
 using MackySoft.AgentDistribution.Digests;
 using MackySoft.AgentDistribution.Manifests;
 using MackySoft.AgentDistribution.Shared;
-using MackySoft.Tests;
 
 namespace MackySoft.AgentDistribution.Tests.Bundles;
 
@@ -77,10 +76,7 @@ public sealed class CanonicalSkillBundleReaderWriterTests
         Assert.True(writeResult.IsSuccess, writeResult.Failure?.Message);
 
         var packageDirectory = Path.Combine(outputRoot.Value, bundle.Packages[0].Manifest.SkillName.Value);
-        if (!TestSymbolicLinks.TryCreateDirectory(Path.Combine(outputRoot.Value, "linked-package"), packageDirectory))
-        {
-            return;
-        }
+        Directory.CreateSymbolicLink(Path.Combine(outputRoot.Value, "linked-package"), packageDirectory);
 
         var readResult = await services.Reader.ReadAsync(outputRoot, CancellationToken.None);
 

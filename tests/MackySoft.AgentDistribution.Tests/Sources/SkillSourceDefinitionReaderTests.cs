@@ -1,6 +1,5 @@
 using MackySoft.AgentDistribution.Shared;
 using MackySoft.AgentDistribution.Sources;
-using MackySoft.Tests;
 
 namespace MackySoft.AgentDistribution.Tests.Sources;
 
@@ -428,10 +427,7 @@ public sealed class SkillSourceDefinitionReaderTests
         using var outsideScope = TestDirectories.CreateTempScope("agent-distribution-skills", "template-symlink-outside");
         var skillDirectory = WriteMinimalDefinition(scope, writeSkillTemplate: false);
         var outsideTemplate = outsideScope.WriteFile("outside-template.md", "# Outside\n");
-        if (!TryCreateFileSymbolicLink(Path.Combine(skillDirectory, "SKILL.md.template"), outsideTemplate))
-        {
-            return;
-        }
+        File.CreateSymbolicLink(Path.Combine(skillDirectory, "SKILL.md.template"), outsideTemplate);
 
         var reader = new SkillSourceDefinitionReader();
 
@@ -455,10 +451,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var skillDirectory = WriteMinimalDefinition(scope, writeReferenceTemplates: false);
         var outsideTemplate = outsideScope.WriteFile("outside-reference.md", "# Outside\n");
         Directory.CreateDirectory(Path.Combine(skillDirectory, "references"));
-        if (!TryCreateFileSymbolicLink(Path.Combine(skillDirectory, "references", "reference.md.template"), outsideTemplate))
-        {
-            return;
-        }
+        File.CreateSymbolicLink(Path.Combine(skillDirectory, "references", "reference.md.template"), outsideTemplate);
 
         var reader = new SkillSourceDefinitionReader();
 
@@ -526,22 +519,4 @@ public sealed class SkillSourceDefinitionReaderTests
             : "[\n" + string.Join(",\n", values.Select(static value => $"    \"{value}\"")) + "\n  ]";
     }
 
-    private static bool TryCreateFileSymbolicLink (
-        string linkPath,
-        string targetPath)
-    {
-        try
-        {
-            File.CreateSymbolicLink(linkPath, targetPath);
-            return true;
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
-        }
-    }
 }
