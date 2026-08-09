@@ -2,9 +2,9 @@
 
 ## 文書の位置付け
 
-この文書は、Agent Skills にカスタムエージェントの生成、配布、導入、更新、削除、診断を追加するための設計正本である。従来このファイルに記載していた設計を置き換える。
+この文書は、Agent Distribution にカスタムエージェントの生成、配布、導入、更新、削除、診断を追加するための設計正本である。従来このファイルに記載していた設計を置き換える。
 
-対象読者は Agent Skills の実装者とレビュー担当者である。個々のエージェントの成果責務やオーケストレーション手順は採用製品が所有し、この基盤では定めない。
+対象読者は Agent Distribution の実装者とレビュー担当者である。個々のエージェントの成果責務やオーケストレーション手順は採用製品が所有し、この基盤では定めない。
 
 この文書は、実装とテストが従う現在有効な契約を記載する。実装過程や置換前の構造は記録しない。
 
@@ -33,7 +33,7 @@
 | ホスト対象方針 | project/user scope の探索先、管理状態の配置、再読込み案内を表すホスト固有契約 |
 | ホスト登録 | ホスト識別子、Skill アダプター、Agent 成果物アダプター、Agent 対象方針を対応付ける一つの登録 |
 | 正規パッケージ | ソース定義から生成され、導入前の意味と digest を保持する配布単位 |
-| 管理状態 | Agent Skills が書いたファイル、導入時 digest、カタログ、対象を記録する状態 |
+| 管理状態 | Agent Distribution が書いたファイル、導入時 digest、カタログ、対象を記録する状態 |
 
 ## 不変条件と依存方向
 
@@ -96,13 +96,13 @@ OpenAI はモデル提供者であり実行ホストではないため、`OpenAi
 
 GitHub Copilot の project 成果物は公開 custom-agent contract を使う。初期 user scope は Copilot CLI の `~/.copilot/agents/` だけを対象とし、IDE 固有の user profile や organization/enterprise 配布は扱わない。
 
-ホスト仕様は外部契約であり、将来変更され得る。各アダプターは対応する入力スキーマと出力 fixture の契約テストを持ち、仕様変更はアダプター単位の変更として取り込む。Agent Skills はホスト仕様の未知の変更を推測して受け入れない。
+ホスト仕様は外部契約であり、将来変更され得る。各アダプターは対応する入力スキーマと出力 fixture の契約テストを持ち、仕様変更はアダプター単位の変更として取り込む。Agent Distribution はホスト仕様の未知の変更を推測して受け入れない。
 
 ### ホスト固有機能と配布依存を分ける
 
 - Codex の `skills.config` は Codex のセッション設定である。
 - Claude Code の `skills` はスキル本文を開始時コンテキストへ注入する設定である。
-- GitHub Copilot の現在の custom-agent frontmatter には、Agent Skills の配布依存に相当する共通フィールドはない。
+- GitHub Copilot の現在の custom-agent frontmatter には、Agent Distribution の配布依存に相当する共通フィールドはない。
 
 これらを `skillDependencies` から自動生成しない。初期バインディングスキーマにも skill preload 設定を含めない。将来ホスト固有の preload を追加する場合は、配布依存とは異なる実行時効果として別途設計する。
 
@@ -311,7 +311,7 @@ generated/
 
 ### Build
 
-`agent-skills build --root <bundle-root>` は一つのカタログ全体を次の順で処理する。
+`agent-distribution build --root <bundle-root>` は一つのカタログ全体を次の順で処理する。
 
 1. ソーススキーマを選択する。
 2. 全 Skill と Agent の構造、名前、メタデータを読む。
@@ -345,7 +345,7 @@ Agent と Skill の2対象ルートをまたぐ完全な transaction と rollbac
 
 ### コマンド構成
 
-組込み先の実行ファイル名と command root は製品が所有する。Agent Skills の ConsoleAppFramework 統合は、固定 token `skills` と `agents` を製品の command root 直下へ同格な resource group として登録する。
+組込み先の実行ファイル名と command root は製品が所有する。Agent Distribution の ConsoleAppFramework 統合は、固定 token `skills` と `agents` を製品の command root 直下へ同格な resource group として登録する。
 
 ```text
 skills list|export|install|update|uninstall|prune|doctor
@@ -355,12 +355,12 @@ agents list|export|install|update|uninstall|prune|doctor
 単独 CLI は次になる。
 
 ```text
-agent-skills skills list
-agent-skills agents list
-agent-skills build
+agent-distribution skills list
+agent-distribution agents list
+agent-distribution build
 ```
 
-ConsoleAppFramework 統合では `RegisterAgentSkillsCommands()` が両 resource group を登録する。単独 CLI の実行ファイル名 `agent-skills` や製品側の実行ファイル名を、登録 token や runtime 設定として扱わない。
+ConsoleAppFramework 統合では `RegisterAgentDistributionCommands()` が両 resource group を登録する。単独 CLI の実行ファイル名 `agent-distribution` や製品側の実行ファイル名を、登録 token や runtime 設定として扱わない。
 
 `build` はソースを所有する単独 CLI の生成コマンドであり、組込み先製品の runtime command tree へ自動登録しない。
 
@@ -404,9 +404,9 @@ Skill サービスをそのまま複製した `Agent*` サービスを作らず�
 | 明示的な link/missing-tail policy と物理 containment snapshot | `PhysicalPathResolver` |
 | 同一ディレクトリ一時ファイルによる単一ファイル公開 | `AtomicFilePublisher` |
 
-Agent Skills はこれらと同じ責務の helper、platform 分岐、symlink 検査、atomic publish を再実装しない。
+Agent Distribution はこれらと同じ責務の helper、platform 分岐、symlink 検査、atomic publish を再実装しない。
 
-Foundation の resolution は操作時点の snapshot であり、永続的な安全 proof ではない。書込み直前の再検証、複数ファイル transaction、locking、access-control policy、製品固有の診断文言は Agent Skills が所有する。
+Foundation の resolution は操作時点の snapshot であり、永続的な安全 proof ではない。書込み直前の再検証、複数ファイル transaction、locking、access-control policy、製品固有の診断文言は Agent Distribution が所有する。
 
 ## 管理状態と安全性
 

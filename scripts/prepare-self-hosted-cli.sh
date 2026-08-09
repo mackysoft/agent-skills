@@ -52,18 +52,21 @@ if [ -z "$package_version" ] || [ -z "$package_output" ]; then
   exit 2
 fi
 
-cli_project="$DOTNET_REPO_ROOT/src/MackySoft.AgentSkills.Cli/MackySoft.AgentSkills.Cli.csproj"
+cli_project="$DOTNET_REPO_ROOT/src/MackySoft.AgentDistribution.Cli/MackySoft.AgentDistribution.Cli.csproj"
+artifacts_path="$(mktemp -d "${TMPDIR:-/tmp}/agent-distribution-self-host.XXXXXX")"
+trap 'rm -rf "$artifacts_path"' EXIT
 
-dotnet restore "$cli_project"
+dotnet restore "$cli_project" --artifacts-path "$artifacts_path"
 dotnet pack "$cli_project" \
   --configuration Release \
   --no-restore \
+  --artifacts-path "$artifacts_path" \
   -p:Version="$package_version" \
   -p:PackageVersion="$package_version" \
   --output "$package_output"
 
-dotnet nuget add source "$package_output" --name agent-skills-self
-dotnet tool update MackySoft.AgentSkills.Cli \
+dotnet nuget add source "$package_output" --name agent-distribution-self
+dotnet tool update MackySoft.AgentDistribution.Cli \
   --local \
   --version "$package_version" \
   --add-source "$package_output" \

@@ -1,0 +1,127 @@
+using MackySoft.AgentDistribution.OperationReports.Literals;
+using MackySoft.AgentDistribution.Shared;
+using MackySoft.FileSystem;
+
+namespace MackySoft.AgentDistribution.OperationReports.Contracts;
+
+/// <summary> Validates and snapshots values stored by operation report contracts. </summary>
+internal static class OperationReportContractGuard
+{
+    public static string? NormalizeRepositoryRoot (
+        OperationScopeKind scope,
+        string? repositoryRoot,
+        string parameterName)
+    {
+        if (scope == OperationScopeKind.User)
+        {
+            if (repositoryRoot is not null)
+            {
+                throw new ArgumentException("User-scope reports must not contain a repository root.", parameterName);
+            }
+
+            return null;
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(repositoryRoot, parameterName);
+        return NormalizeAbsolutePath(repositoryRoot, parameterName);
+    }
+
+    public static string NormalizeAbsolutePath (
+        string path,
+        string parameterName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path, parameterName);
+        if (!AbsolutePath.TryParse(path, out var absolutePath, out var failure))
+        {
+            throw new ArgumentException($"Report paths must be absolute and canonicalizable: {failure.Message}", parameterName);
+        }
+
+        return absolutePath.Value;
+    }
+
+    public static string NormalizeTargetRoot (
+        OperationScopeKind scope,
+        string? repositoryRoot,
+        string targetRoot,
+        string parameterName)
+    {
+        var normalizedTargetRoot = NormalizeAbsolutePath(targetRoot, parameterName);
+        var allowedRoot = AbsolutePath.Parse(scope == OperationScopeKind.Project
+            ? repositoryRoot!
+            : normalizedTargetRoot);
+        var absoluteTargetRoot = AbsolutePath.Parse(normalizedTargetRoot);
+        if (!ContainedPath.TryCreate(allowedRoot, absoluteTargetRoot, out _, out var failure))
+        {
+            throw new ArgumentException($"Report target path is outside the allowed root: {failure.Message}", parameterName);
+        }
+
+        return absoluteTargetRoot.Value;
+    }
+
+    public static IReadOnlyList<string> SnapshotRequiredStrings (
+        IReadOnlyList<string> values,
+        string parameterName)
+    {
+        ArgumentNullException.ThrowIfNull(values, parameterName);
+
+        var snapshot = values.ToArray();
+        if (snapshot.Any(string.IsNullOrWhiteSpace))
+        {
+            throw new ArgumentException("Report string collections must not contain null, empty, or whitespace values.", parameterName);
+        }
+
+        return Array.AsReadOnly(snapshot);
+    }
+
+    public static IReadOnlyList<T> SnapshotRequiredItems<T> (
+        IReadOnlyList<T> values,
+        string parameterName)
+        where T : class
+    {
+        ArgumentNullException.ThrowIfNull(values, parameterName);
+
+        var snapshot = values.ToArray();
+        if (snapshot.Any(static value => value is null))
+        {
+            throw new ArgumentException("Report collections must not contain null items.", parameterName);
+        }
+
+        return Array.AsReadOnly(snapshot);
+    }
+
+    public static IReadOnlyList<string> SnapshotSafeRelativePaths (
+        IReadOnlyList<string> relativePaths,
+        string parameterName)
+    {
+        ArgumentNullException.ThrowIfNull(relativePaths, parameterName);
+
+        var snapshot = relativePaths.ToArray();
+        foreach (var relativePath in snapshot)
+        {
+            ValidateSafeRelativePath(relativePath, parameterName);
+        }
+
+        Array.Sort(snapshot, StringComparer.Ordinal);
+        return Array.AsReadOnly(snapshot);
+    }
+
+    public static void ValidateOptionalText (
+        string? value,
+        string parameterName)
+    {
+        if (value is not null && string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException("Optional report text must be null or non-whitespace.", parameterName);
+        }
+    }
+
+    public static void ValidateSafeRelativePath (
+        string? relativePath,
+        string parameterName)
+    {
+        if (!PackageRelativePath.TryParse(relativePath, out _))
+        {
+            throw new ArgumentException($"Operation report path must be a safe slash-separated relative path: {relativePath}", parameterName);
+        }
+    }
+}

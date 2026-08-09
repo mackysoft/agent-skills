@@ -289,7 +289,7 @@ dotnet_naming_style.camel_case.word_separator =
 dotnet_naming_style.camel_case.capitalization = camel_case
 
 # These files are compiled in consumer projects whose implicit using policy is unknown.
-[src/MackySoft.AgentSkills.ConsoleAppFramework/contentFiles/**/*.cs]
+[src/MackySoft.AgentDistribution.ConsoleAppFramework/contentFiles/**/*.cs]
 dotnet_diagnostic.IDE0005.severity = none
 
 [src/Ucli.Unity/**/*.cs]

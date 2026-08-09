@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "displayName": "Agent Distribution Plan Apply",
+  "description": "Use when building, validating, planning, and applying a Agent Distribution JSON request for Unity changes. Enforces read -> describe -> build request -> validate -> plan -> call -> verify.",
+  "dependencies": []
+}

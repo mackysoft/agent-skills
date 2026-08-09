@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "skillBundleVersion": 1,
+  "catalogId": "com.mackysoft.agent-distribution",
+  "category": "basic",
+  "skillName": "agent-distribution-packaging",
+  "displayName": "Agent Distribution Packaging",
+  "description": "完成したエージェントスキルの責務、発火条件、判断、成果、完了状態を保持して、Agent Distribution 採用製品へソース定義を初回追加または更新し、正規の生成、製品への収録、製品から利用できることまで検証する。既存のソース定義、生成物、依存関係、製品設定を編集せずレビューし、問題、根拠、必要な差分、未検証範囲を整理するときにも使う。",
+  "dependencies": [],
+  "contentDigest": "23c9b6f6d59ca78b72110f2d8280da51874ea1073fac1e0ba7fd8e64f19f6269",
+  "manifestDigest": "af69ce1770e2adbb49e02ac80c49a2879085276466cef589a3a65ba569b444bc",
+  "hostArtifacts": [
+    {
+      "host": "codex",
+      "path": "agents/openai.yaml",
+      "digest": "d4b8011122a811f4ad3344334877a4cf1fc0ae64d6416d6b388b86a3883c08f7",
+      "materializedFrontmatterDigest": "10e4c5eaf7267c75368536bd264b67f69b4a420ce7bc83637b032bac6298b36f"
+    },
+    {
+      "host": "claude-code",
+      "materializedFrontmatterDigest": "fceeb508a1ed41b7dee5b8c9cb419471391fa32caf2bb9622893cd251c8e48e0"
+    },
+    {
+      "host": "github-copilot",
+      "materializedFrontmatterDigest": "6e031009857d2d819017b058bc0db8e149e813a6e1df49a047ac463ad752f078"
+    }
+  ]
+}

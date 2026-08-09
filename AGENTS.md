@@ -6,9 +6,9 @@
 - 成果物に含める各記述は「成果物の目的・読者・利用シーン」に対して必要性を説明できるものに限り、説明できない要素は出力しない。
 
 ## プロジェクト構成
-- 共通ライブラリ: `src/MackySoft.AgentSkills/`
-- CLI: `src/MackySoft.AgentSkills.Cli/`
-- テスト: `tests/MackySoft.AgentSkills.Tests/`
+- 共通ライブラリ: `src/MackySoft.AgentDistribution/`
+- CLI: `src/MackySoft.AgentDistribution.Cli/`
+- テスト: `tests/MackySoft.AgentDistribution.Tests/`
 
 ## コーディング規約
 - SOLID原則を遵守し、高凝集・低結合を前提にモジュール分割する

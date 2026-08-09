@@ -1,0 +1,79 @@
+using System.Security.Cryptography;
+using System.Text;
+using MackySoft.AgentDistribution.Bundles;
+using MackySoft.AgentDistribution.Catalogs;
+using MackySoft.AgentDistribution.Digests;
+using MackySoft.AgentDistribution.Manifests;
+using MackySoft.AgentDistribution.Shared;
+
+namespace MackySoft.AgentDistribution.Tests.Manifests;
+
+public sealed class SkillManifestDigestCalculatorTests
+{
+    [Fact]
+    [Trait("Size", "Small")]
+    public void ComputeManifestDigest_UsesCanonicalManifestJsonUtf8BytesWithoutManifestDigest ()
+    {
+        var expectedDigestInput = string.Join('\n', [
+            "{",
+            "  \"schemaVersion\": 1,",
+            "  \"skillBundleVersion\": 1,",
+            "  \"catalogId\": \"com.mackysoft.agent-distribution\",",
+            "  \"category\": \"core\",",
+            "  \"skillName\": \"sample-skill\",",
+            "  \"displayName\": \"Sample Skill\",",
+            "  \"description\": \"Use this sample skill for tests.\",",
+            "  \"dependencies\": [",
+            "    \"a-helper\",",
+            "    \"z-helper\"",
+            "  ],",
+            "  \"contentDigest\": \"0000000000000000000000000000000000000000000000000000000000000000\",",
+            "  \"hostArtifacts\": [",
+            "    {",
+            "      \"host\": \"codex\",",
+            "      \"path\": \"agents/openai.yaml\",",
+            "      \"digest\": \"3333333333333333333333333333333333333333333333333333333333333333\",",
+            "      \"materializedFrontmatterDigest\": \"4444444444444444444444444444444444444444444444444444444444444444\"",
+            "    },",
+            "    {",
+            "      \"host\": \"claude-code\",",
+            "      \"materializedFrontmatterDigest\": \"1111111111111111111111111111111111111111111111111111111111111111\"",
+            "    },",
+            "    {",
+            "      \"host\": \"github-copilot\",",
+            "      \"materializedFrontmatterDigest\": \"2222222222222222222222222222222222222222222222222222222222222222\"",
+            "    }",
+            "  ]",
+            "}",
+        ]) + "\n";
+        var manifest = new SkillManifestCandidate(
+            SkillManifest.CurrentSchemaVersion,
+            new SkillBundleVersion(1),
+            new SkillCatalogId("com.mackysoft.agent-distribution"),
+            new SkillCategory("core"),
+            new SkillName("sample-skill"),
+            "Sample Skill",
+            "Use this sample skill for tests.",
+            [new SkillName("z-helper"), new SkillName("a-helper")],
+            Digest('0'),
+            Digest('f'),
+            [
+                new SkillHostArtifactManifest(HostKind.Codex, PackageRelativePath.Parse("agents/openai.yaml"), Digest('3'), Digest('4')),
+                new SkillHostArtifactManifest(HostKind.ClaudeCode, null, null, Digest('1')),
+                new SkillHostArtifactManifest(HostKind.GitHubCopilot, null, null, Digest('2')),
+            ]);
+        var calculator = new SkillManifestDigestCalculator(new SkillManifestJsonSerializer());
+        var expectedHash = SHA256.HashData(Encoding.UTF8.GetBytes(expectedDigestInput));
+        var expectedDigest = Convert.ToHexString(expectedHash).ToLowerInvariant();
+
+        var actualDigest = calculator.ComputeManifestDigest(manifest);
+
+        Assert.Equal(expectedDigest, actualDigest.ToString());
+        Assert.Equal(actualDigest.ToString().ToLowerInvariant(), actualDigest.ToString());
+    }
+
+    private static Sha256Digest Digest (char value)
+    {
+        return Sha256Digest.Parse(new string(value, 64));
+    }
+}

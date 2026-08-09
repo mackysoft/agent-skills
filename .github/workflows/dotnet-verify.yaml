@@ -38,16 +38,16 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('AgentSkills.slnx', '**/*.csproj') }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('AgentDistribution.slnx', '**/*.csproj') }}
 
       - name: Verify
         run: bash scripts/verify.sh --configuration Release
 
-      - name: Prepare self-hosted Agent Skills CLI
+      - name: Prepare self-hosted Agent Distribution CLI
         run: >-
           bash scripts/prepare-self-hosted-cli.sh
           --version "${SELF_HOSTED_PACKAGE_VERSION}"
-          --output "${RUNNER_TEMP}/agent-skills-feed"
+          --output "${RUNNER_TEMP}/agent-distribution-feed"
 
       - name: Verify repository skills through the Action
         uses: ./actions/verify

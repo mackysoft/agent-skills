@@ -24,7 +24,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 run_options=(
-  --project "$DOTNET_REPO_ROOT/src/MackySoft.AgentSkills.Cli/MackySoft.AgentSkills.Cli.csproj"
+  --project "$DOTNET_REPO_ROOT/src/MackySoft.AgentDistribution.Cli/MackySoft.AgentDistribution.Cli.csproj"
   --configuration Release
 )
 if [ "$restore" = false ]; then

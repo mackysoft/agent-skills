@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MackySoft.AgentDistribution/MackySoft.AgentDistribution.csproj" />
+    <Project Path="src/MackySoft.AgentDistribution.Cli/MackySoft.AgentDistribution.Cli.csproj" />
+    <Project Path="src/MackySoft.AgentDistribution.Hosting/MackySoft.AgentDistribution.Hosting.csproj" />
+    <Project Path="src/MackySoft.AgentDistribution.ConsoleAppFramework/MackySoft.AgentDistribution.ConsoleAppFramework.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MackySoft.AgentDistribution.Tests/MackySoft.AgentDistribution.Tests.csproj" />
+    <Project Path="tests/Tests.Helper/Tests.Helper.csproj" />
+  </Folder>
+</Solution>

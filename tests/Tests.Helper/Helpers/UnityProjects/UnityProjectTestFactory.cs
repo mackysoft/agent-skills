@@ -5,7 +5,7 @@ internal static class UnityProjectTestFactory
 {
     private const string DefaultProjectVersionContent = "m_EditorVersion: 6000.1.4f1";
 
-    private const string AgentSkillsUnityPluginMarkerContent =
+    private const string AgentDistributionUnityPluginMarkerContent =
         """
         {
           "pluginId": "com.mackysoft.ucli.unity",
@@ -39,7 +39,7 @@ internal static class UnityProjectTestFactory
     /// <param name="scope"> The root test-directory scope. </param>
     /// <param name="projectRelativePath"> The relative project path under the scope root. </param>
     /// <returns> A task that resolves to the written marker file path. </returns>
-    internal static Task<string> WriteAgentSkillsUnityPluginMarkerAsync (
+    internal static Task<string> WriteAgentDistributionUnityPluginMarkerAsync (
         TestDirectoryScope scope,
         string projectRelativePath)
     {
@@ -51,8 +51,8 @@ internal static class UnityProjectTestFactory
                 projectRelativePath,
                 "Assets",
                 "MackySoft",
-                "MackySoft.AgentSkills.Unity",
+                "MackySoft.AgentDistribution.Unity",
                 "ucli-plugin.json"),
-            AgentSkillsUnityPluginMarkerContent);
+            AgentDistributionUnityPluginMarkerContent);
     }
 }

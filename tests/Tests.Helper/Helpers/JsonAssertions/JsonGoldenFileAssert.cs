@@ -140,7 +140,7 @@ internal static class JsonGoldenFileAssert
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory != null)
         {
-            if (File.Exists(Path.Combine(directory.FullName, "AgentSkills.slnx")))
+            if (File.Exists(Path.Combine(directory.FullName, "AgentDistribution.slnx")))
             {
                 return directory.FullName;
             }

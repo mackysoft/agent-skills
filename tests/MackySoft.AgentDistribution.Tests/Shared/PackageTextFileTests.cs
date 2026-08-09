@@ -1,0 +1,22 @@
+using MackySoft.AgentDistribution.Shared;
+
+namespace MackySoft.AgentDistribution.Tests.Shared;
+
+public sealed class PackageTextFileTests
+{
+    [Fact]
+    [Trait("Size", "Small")]
+    public void Constructor_RejectsByteOrderMark ()
+    {
+        Assert.Throws<ArgumentException>(() => new PackageTextFile(PackageRelativePath.Parse("SKILL.md"), "\uFEFFcontent\n"));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void Constructor_NormalizesLineEndings ()
+    {
+        var file = new PackageTextFile(PackageRelativePath.Parse("SKILL.md"), "line 1\r\nline 2\r");
+
+        Assert.Equal("line 1\nline 2\n", file.Content);
+    }
+}

@@ -44,7 +44,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('AgentSkills.slnx', '**/*.csproj') }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('AgentDistribution.slnx', '**/*.csproj') }}
 
       - name: Guard release source
         id: release_source
@@ -124,10 +124,10 @@ jobs:
           fi
 
           expected_packages=(
-            "MackySoft.AgentSkills.${PACKAGE_VERSION}.nupkg"
-            "MackySoft.AgentSkills.Cli.${PACKAGE_VERSION}.nupkg"
-            "MackySoft.AgentSkills.Hosting.${PACKAGE_VERSION}.nupkg"
-            "MackySoft.AgentSkills.ConsoleAppFramework.${PACKAGE_VERSION}.nupkg"
+            "MackySoft.AgentDistribution.${PACKAGE_VERSION}.nupkg"
+            "MackySoft.AgentDistribution.Cli.${PACKAGE_VERSION}.nupkg"
+            "MackySoft.AgentDistribution.Hosting.${PACKAGE_VERSION}.nupkg"
+            "MackySoft.AgentDistribution.ConsoleAppFramework.${PACKAGE_VERSION}.nupkg"
           )
 
           for package_file in "${expected_packages[@]}"; do
@@ -165,10 +165,10 @@ jobs:
           mode: inspect
           package-version: ${{ env.PACKAGE_VERSION }}
           package-ids: |
-            MackySoft.AgentSkills
-            MackySoft.AgentSkills.Cli
-            MackySoft.AgentSkills.Hosting
-            MackySoft.AgentSkills.ConsoleAppFramework
+            MackySoft.AgentDistribution
+            MackySoft.AgentDistribution.Cli
+            MackySoft.AgentDistribution.Hosting
+            MackySoft.AgentDistribution.ConsoleAppFramework
 
       - name: Publish packages to nuget.org
         if: ${{ steps.package_state.outputs['publish-required'] == 'true' }}
@@ -183,10 +183,10 @@ jobs:
           mode: wait
           package-version: ${{ env.PACKAGE_VERSION }}
           package-ids: |
-            MackySoft.AgentSkills
-            MackySoft.AgentSkills.Cli
-            MackySoft.AgentSkills.Hosting
-            MackySoft.AgentSkills.ConsoleAppFramework
+            MackySoft.AgentDistribution
+            MackySoft.AgentDistribution.Cli
+            MackySoft.AgentDistribution.Hosting
+            MackySoft.AgentDistribution.ConsoleAppFramework
           max-attempts: 30
           interval-seconds: 10
 
@@ -222,17 +222,17 @@ jobs:
           }
 
           download_published_package \
-            "MackySoft.AgentSkills" \
-            "artifacts/packages/MackySoft.AgentSkills.${PACKAGE_VERSION}.nupkg"
+            "MackySoft.AgentDistribution" \
+            "artifacts/packages/MackySoft.AgentDistribution.${PACKAGE_VERSION}.nupkg"
           download_published_package \
-            "MackySoft.AgentSkills.Cli" \
-            "artifacts/packages/MackySoft.AgentSkills.Cli.${PACKAGE_VERSION}.nupkg"
+            "MackySoft.AgentDistribution.Cli" \
+            "artifacts/packages/MackySoft.AgentDistribution.Cli.${PACKAGE_VERSION}.nupkg"
           download_published_package \
-            "MackySoft.AgentSkills.Hosting" \
-            "artifacts/packages/MackySoft.AgentSkills.Hosting.${PACKAGE_VERSION}.nupkg"
+            "MackySoft.AgentDistribution.Hosting" \
+            "artifacts/packages/MackySoft.AgentDistribution.Hosting.${PACKAGE_VERSION}.nupkg"
           download_published_package \
-            "MackySoft.AgentSkills.ConsoleAppFramework" \
-            "artifacts/packages/MackySoft.AgentSkills.ConsoleAppFramework.${PACKAGE_VERSION}.nupkg"
+            "MackySoft.AgentDistribution.ConsoleAppFramework" \
+            "artifacts/packages/MackySoft.AgentDistribution.ConsoleAppFramework.${PACKAGE_VERSION}.nupkg"
 
       - name: Re-guard release source
         uses: mackysoft/actions/release/source-guard@v1

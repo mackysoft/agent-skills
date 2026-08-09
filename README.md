@@ -1,6 +1,6 @@
-# Agent Skills
+# Agent Distribution
 
-Agent Skills helps product teams ship agent SKILL packages and host-specific custom-agent artifacts with their own CLI.
+Agent Distribution helps product teams ship skill packages and host-specific custom-agent artifacts with their own CLI.
 
 Use it when your product owns:
 
@@ -8,24 +8,26 @@ Use it when your product owns:
 - the category names represented by source definition directories;
 - the public CLI shape and output envelope.
 
-Agent Skills provides the build tool, package formats, dependency resolution, host materialization, command runtime, and report data needed to list, export, install, update, uninstall, prune, and diagnose skills and custom agents.
+Agent Distribution provides the build tool, package formats, dependency resolution, host materialization, command runtime, and report data needed to list, export, install, update, uninstall, prune, and diagnose skills and custom agents.
 
 ## Packages
 
 | Package | Use it when |
 | --- | --- |
-| `MackySoft.AgentSkills.Cli` | A product repository needs to build canonical packages, or a user wants to operate the Agent Skills catalog shipped by this repository. |
-| `MackySoft.AgentSkills` | A product needs the core package, host, install, export, prune, doctor, and report APIs without a hosted command runtime. |
-| `MackySoft.AgentSkills.Hosting` | A product CLI wants the standard Agent Skills command runtime and DI registration. |
-| `MackySoft.AgentSkills.ConsoleAppFramework` | A ConsoleAppFramework-based product CLI wants Agent Skills commands registered on its existing builder. |
+| `MackySoft.AgentDistribution.Cli` | A product repository needs to build canonical packages, or a user wants to operate the Agent Distribution catalog shipped by this repository. |
+| `MackySoft.AgentDistribution` | A product needs the core package, host, install, export, prune, doctor, and report APIs without a hosted command runtime. |
+| `MackySoft.AgentDistribution.Hosting` | A product CLI wants the standard Agent Distribution command runtime and DI registration. |
+| `MackySoft.AgentDistribution.ConsoleAppFramework` | A ConsoleAppFramework-based product CLI wants Agent Distribution commands registered on its existing builder. |
 
 All packages are versioned together.
 
-The core package uses [`MackySoft.FileSystem`](https://github.com/mackysoft/dotnet-foundations/tree/master/src/MackySoft.FileSystem) for typed lexical paths, physical entry inspection, physical containment resolution, and atomic single-file publication. It uses [`MackySoft.Text.Vocabularies`](https://github.com/mackysoft/dotnet-foundations/tree/master/src/MackySoft.Text.Vocabularies) for stable public literals. Agent Skills retains only product-specific path policies, failure mapping, deterministic package formats, and multi-file transactions.
+Version `3.0.0` is the first release under the Agent Distribution identity. Replace the corresponding `MackySoft.AgentSkills`, `MackySoft.AgentSkills.Cli`, `MackySoft.AgentSkills.Hosting`, and `MackySoft.AgentSkills.ConsoleAppFramework` package references with the package IDs above. The new packages do not provide namespace, assembly, command, or state-path aliases for the previous identity.
+
+The core package uses [`MackySoft.FileSystem`](https://github.com/mackysoft/dotnet-foundations/tree/master/src/MackySoft.FileSystem) for typed lexical paths, physical entry inspection, physical containment resolution, and atomic single-file publication. It uses [`MackySoft.Text.Vocabularies`](https://github.com/mackysoft/dotnet-foundations/tree/master/src/MackySoft.Text.Vocabularies) for stable public literals. Agent Distribution retains only product-specific path policies, failure mapping, deterministic package formats, and multi-file transactions.
 
 ## Create Distribution Bundles
 
-Agent Skills separates authored definitions from generated packages. Source schema `2` can contain skills, custom agents, or both. The namespaces are separate, and the only distribution dependency direction is Agent to Skill. Skills never depend on agents, and agents do not form a distribution dependency graph with other agents.
+Agent Distribution separates authored definitions from generated packages. Source schema `2` can contain skills, custom agents, or both. The namespaces are separate, and the only distribution dependency direction is Agent to Skill. Skills never depend on agents, and agents do not form a distribution dependency graph with other agents.
 
 ### Define the Source Layout
 
@@ -90,7 +92,7 @@ For each skill, create `definitions/skills/<category>/<skill-name>/skill.json`. 
 
 Do not repeat bundle identity, category, skill name, reference-file names, digests, or host artifacts in `skill.json`. Those values belong to the bundle, directory layout, reference files, or generated package.
 
-Use the [skill source definition contract](skills/generated/skills/agent-skills-packaging/references/source-definition-contract.md) shipped with `agent-skills-packaging` for the complete skill layout, naming, dependency, content, and encoding rules.
+Use the [skill source definition contract](skills/generated/skills/agent-distribution-packaging/references/source-definition-contract.md) shipped with `agent-distribution-packaging` for the complete skill layout, naming, dependency, content, and encoding rules.
 
 ### Define Custom Agents
 
@@ -159,15 +161,15 @@ Install the build tool in the product repository:
 
 ```bash
 dotnet new tool-manifest
-dotnet tool install MackySoft.AgentSkills.Cli --version 1.0.0
+dotnet tool install MackySoft.AgentDistribution.Cli --version 3.0.0
 ```
 
 Build the source bundle:
 
 ```bash
-dotnet tool run agent-skills -- build --root skills
-dotnet tool run agent-skills -- build --root skills --bundle-version 2
-dotnet tool run agent-skills -- build --root skills --check
+dotnet tool run agent-distribution -- build --root skills
+dotnet tool run agent-distribution -- build --root skills --bundle-version 2
+dotnet tool run agent-distribution -- build --root skills --check
 ```
 
 The command reads `bundle.json` and `definitions`, then publishes `generated` as one canonical bundle. Do not edit generated files manually. When packaging a product CLI, ship `generated` as `<PackageBaseDirectory>/skills`.
@@ -202,7 +204,7 @@ Each `generated/skills/<skill-name>/agent-skill.json` records the skill identity
 When generated output already matches the source definition and bundle version, the command does not write any files. To verify committed output without changing the working tree, use:
 
 ```bash
-dotnet tool run agent-skills -- build --root skills --check
+dotnet tool run agent-distribution -- build --root skills --check
 ```
 
 The repository provides separate `verify` and `sync` composite GitHub Actions. Both accept `root`, a bundle root relative to the GitHub workspace that resolves inside the checked-out Git worktree, and restore the CLI version pinned by the caller's .NET tool manifest. `sync` also accepts an optional exact `bundle-version`.
@@ -213,8 +215,8 @@ Use `verify` for pull requests and other read-only checks. It runs `build --chec
 - name: Checkout
   uses: actions/checkout@v5
 
-- name: Verify Agent Skills
-  uses: mackysoft/agent-skills/actions/verify@1.0.0
+- name: Verify Agent Distribution
+  uses: mackysoft/agent-distribution/actions/verify@3.0.0
   with:
     root: skills
 ```
@@ -229,9 +231,9 @@ steps:
   - name: Checkout
     uses: actions/checkout@v5
 
-  - name: Sync Agent Skills
-    id: agent-skills
-    uses: mackysoft/agent-skills/actions/sync@1.0.0
+  - name: Sync Agent Distribution
+    id: agent-distribution
+    uses: mackysoft/agent-distribution/actions/sync@3.0.0
     with:
       root: skills
       bundle-version: 2
@@ -241,25 +243,25 @@ Omit `bundle-version` when synchronization should preserve the value authored in
 
 Pushes made with the default `GITHUB_TOKEN` do not trigger another workflow run. If the caller supplies credentials that do trigger workflows, the synchronized bundle makes the next run a no-op because `build --check` passes. Branch protection still applies; use `verify` when direct bot pushes are not permitted.
 
-## Add Agent Skills to a Product CLI
+## Add Agent Distribution to a Product CLI
 
-Use the hosting package when the product CLI wants standard Agent Skills command behavior, report data, and DI registration.
+Use the hosting package when the product CLI wants standard Agent Distribution command behavior, report data, and DI registration.
 
 ### Command Runtime
 
 Add the hosting package to the product CLI.
 
 ```bash
-dotnet add <PROJECT>.csproj package MackySoft.AgentSkills.Hosting --version 1.0.0
+dotnet add <PROJECT>.csproj package MackySoft.AgentDistribution.Hosting --version 3.0.0
 ```
 
 Register the runtime in the product's DI container.
 
 ```csharp
-using MackySoft.AgentSkills.Hosting.Composition;
+using MackySoft.AgentDistribution.Hosting.Composition;
 using MackySoft.FileSystem;
 
-services.AddAgentSkillsCommandRuntime(options =>
+services.AddAgentDistributionCommandRuntime(options =>
 {
     options.ProductName = "Example CLI";
     options.PackageBaseDirectory = AbsolutePath.Parse(AppContext.BaseDirectory);
@@ -278,10 +280,10 @@ The package base directory must contain the shipped generated packages under `sk
 
 The runtime reads the catalog identity and available categories from the generated bundle descriptor and package manifests. Categories are not configured separately in product code.
 
-Project-scope commands use the current directory when `--repository-root` is omitted. If the product CLI already has a repository-root policy, set `RepositoryRootResolver` to keep Agent Skills commands aligned with it.
+Project-scope commands use the current directory when `--repository-root` is omitted. If the product CLI already has a repository-root policy, set `RepositoryRootResolver` to keep Agent Distribution commands aligned with it.
 
 ```csharp
-services.AddAgentSkillsCommandRuntime(options =>
+services.AddAgentDistributionCommandRuntime(options =>
 {
     options.RepositoryRootResolver = currentDirectory =>
         AbsolutePath.Parse(ProductRepositoryResolver.Resolve(currentDirectory.Value));
@@ -291,27 +293,27 @@ services.AddAgentSkillsCommandRuntime(options =>
 
 ### ConsoleAppFramework Integration
 
-Use the ConsoleAppFramework integration when the product CLI already uses ConsoleAppFramework and wants Agent Skills to add the standard command group to the existing app builder.
+Use the ConsoleAppFramework integration when the product CLI already uses ConsoleAppFramework and wants Agent Distribution to add the standard command group to the existing app builder.
 
 Add the integration package to the product CLI.
 
 ```bash
-dotnet add <PROJECT>.csproj package MackySoft.AgentSkills.ConsoleAppFramework --version 1.0.0
+dotnet add <PROJECT>.csproj package MackySoft.AgentDistribution.ConsoleAppFramework --version 3.0.0
 dotnet add <PROJECT>.csproj package Microsoft.Extensions.Hosting
 ```
 
-Register Agent Skills on the product's existing `ConsoleAppBuilder`. The product still creates and runs the builder.
+Register Agent Distribution on the product's existing `ConsoleAppBuilder`. The product still creates and runs the builder.
 
 ```csharp
 using ConsoleAppFramework;
-using MackySoft.AgentSkills.ConsoleAppFramework;
-using MackySoft.AgentSkills.Hosting.Composition;
+using MackySoft.AgentDistribution.ConsoleAppFramework;
+using MackySoft.AgentDistribution.Hosting.Composition;
 using MackySoft.FileSystem;
 using Microsoft.Extensions.Hosting;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
-builder.Services.AddAgentSkillsCommandRuntime(options =>
+builder.Services.AddAgentDistributionCommandRuntime(options =>
 {
     options.ProductName = "Example CLI";
     options.PackageBaseDirectory = AbsolutePath.Parse(AppContext.BaseDirectory);
@@ -320,13 +322,13 @@ builder.Services.AddAgentSkillsCommandRuntime(options =>
 ConsoleApp.ConsoleAppBuilder app = builder.ToConsoleAppBuilder();
 
 // Register product filters, global options, and product commands as usual.
-app.RegisterAgentSkillsCommands();
+app.RegisterAgentDistributionCommands();
 
 await app.RunAsync(args);
 return Environment.ExitCode;
 ```
 
-`RegisterAgentSkillsCommands()` adds the fixed, sibling `skills` and `agents` resource groups to the product's command root. It does not own the product executable name, add an extra parent group, create a builder, run the app, set `ConsoleApp.LogError`, replace the service provider, register filters, or change command validation. Command results use the resource path, such as `skills.list` or `agents.list`.
+`RegisterAgentDistributionCommands()` adds the fixed, sibling `skills` and `agents` resource groups to the product's command root. It does not own the product executable name, add an extra parent group, create a builder, run the app, set `ConsoleApp.LogError`, replace the service provider, register filters, or change command validation. Command results use the resource path, such as `skills.list` or `agents.list`.
 
 The command examples in this README use ConsoleAppFramework's default lower-kebab-case option names.
 
@@ -341,7 +343,7 @@ The product CLI still owns:
 - pre-dispatch command validation, help policy, filters, global options, and logging;
 - the output envelope, if the default JSON result shape is not appropriate.
 
-Register your own `IAgentSkillsCommandResultEmitter` after `AddAgentSkillsCommandRuntime(...)` when the product needs its own JSON envelope or text output.
+Register your own `IAgentDistributionCommandResultEmitter` after `AddAgentDistributionCommandRuntime(...)` when the product needs its own JSON envelope or text output.
 
 ## Run Standard Commands
 
@@ -365,13 +367,13 @@ agents prune
 agents doctor
 ```
 
-The standalone `MackySoft.AgentSkills.Cli` is the top-level composition root for the same command adapters and ships this repository's generated `basic/agent-skills-packaging` skill. The executable name supplies `agent-skills`; the resource group remains explicit:
+The standalone `MackySoft.AgentDistribution.Cli` is the top-level composition root for the same command adapters and ships this repository's generated `basic/agent-distribution-packaging` skill. The executable name supplies `agent-distribution`; the resource group remains explicit:
 
 ```bash
-dotnet tool run agent-skills -- skills list --pretty
-dotnet tool run agent-skills -- skills install --host codex --scope project --category basic --dry-run --pretty
-dotnet tool run agent-skills -- agents list --pretty
-dotnet tool run agent-skills -- agents install --host claude-code --scope project --category orchestration --dry-run --pretty
+dotnet tool run agent-distribution -- skills list --pretty
+dotnet tool run agent-distribution -- skills install --host codex --scope project --category basic --dry-run --pretty
+dotnet tool run agent-distribution -- agents list --pretty
+dotnet tool run agent-distribution -- agents install --host claude-code --scope project --category orchestration --dry-run --pretty
 ```
 
 The standalone executable and product integration both use lower-kebab-case option names.
@@ -437,13 +439,13 @@ example agents doctor --host github-copilot --scope project --category orchestra
 | `claude-code` | Claude Code | `.claude/skills` | `~/.claude/skills` | `.claude/agents` | `~/.claude/agents` |
 | `github-copilot` | GitHub Copilot | `.github/skills/<catalogId>` | `~/.copilot/skills/<catalogId>` | `.github/agents` | `~/.copilot/agents` |
 
-Codex and GitHub Copilot discover skills below an additional catalog directory, so Agent Skills uses that directory as the managed bundle boundary. Claude Code uses a flat skills directory. Each skill is installed directly below the Skill target shown above.
+Codex and GitHub Copilot discover skills below an additional catalog directory, so Agent Distribution uses that directory as the managed bundle boundary. Claude Code uses a flat skills directory. Each skill is installed directly below the Skill target shown above.
 
-Agent ownership state stays outside each host's discovery directory: below the corresponding `.codex/agent-skills/agents`, `.claude/agent-skills/agents`, `.github/agent-skills/agents`, or user-home equivalent. An explicit Agent target uses a hidden `.agent-skills` sibling state directory. Agent Skills does not edit a host's shared configuration file.
+Agent ownership state stays outside each host's discovery directory: below the corresponding `.codex/agent-distribution/agents`, `.claude/agent-distribution/agents`, `.github/agent-distribution/agents`, or user-home equivalent. An explicit Agent target uses a hidden `.agent-distribution` sibling state directory. Agent Distribution does not edit a host's shared configuration file.
 
-For a default target, Agent Skills first checks the current layout and the host adapter's compatible previous layouts. If exactly one target root already contains the same managed `catalogId`, install, update, uninstall, prune, and doctor continue to use that root. A new catalog uses the current layout. The operation stops instead of choosing arbitrarily if the same catalog exists under multiple compatible roots or the current catalog directory is already occupied by a flat skill.
+For a default target, Agent Distribution first checks the current layout and the host adapter's compatible previous layouts. If exactly one target root already contains the same managed `catalogId`, install, update, uninstall, prune, and doctor continue to use that root. A new catalog uses the current layout. The operation stops instead of choosing arbitrarily if the same catalog exists under multiple compatible roots or the current catalog directory is already occupied by a flat skill.
 
-`--target-dir` identifies the bundle target itself. Agent Skills does not append `<catalogId>` to an explicit target, regardless of host or scope. The catalog directory separates managed files on disk; it does not namespace the skill name exposed to the host.
+`--target-dir` identifies the bundle target itself. Agent Distribution does not append `<catalogId>` to an explicit target, regardless of host or scope. The catalog directory separates managed files on disk; it does not namespace the skill name exposed to the host.
 
 ### Prune Removed Skills
 
