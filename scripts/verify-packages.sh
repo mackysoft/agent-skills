@@ -95,9 +95,10 @@ if [[ -n "$repository_commit" && ! "$repository_commit" =~ ^[0-9a-fA-F]{40}$ ]];
   exit 2
 fi
 
-work_root="$(mktemp -d "${TMPDIR:-/tmp}/agent-skills-packages.XXXXXX")"
+work_root="$(mktemp -d "${TMPDIR:-/tmp}/agent-distribution-packages.XXXXXX")"
 cleanup_work_root=true
 trap 'if [ "$cleanup_work_root" = true ]; then rm -rf "$work_root"; fi' EXIT
+artifacts_path="$work_root/build-artifacts"
 
 export DOTNET_CLI_HOME="$work_root/dotnet-home"
 export NUGET_PACKAGES="$work_root/nuget-packages"
@@ -128,37 +129,41 @@ if [ -n "$repository_commit" ]; then
 fi
 
 cd "$DOTNET_REPO_ROOT"
-dotnet restore AgentSkills.slnx
-dotnet pack src/MackySoft.AgentSkills/MackySoft.AgentSkills.csproj \
+dotnet restore AgentDistribution.slnx --artifacts-path "$artifacts_path"
+dotnet pack src/MackySoft.AgentDistribution/MackySoft.AgentDistribution.csproj \
   --configuration "$configuration" \
   --no-restore \
+  --artifacts-path "$artifacts_path" \
   "${pack_properties[@]}" \
   --output "$package_dir"
-dotnet pack src/MackySoft.AgentSkills.Cli/MackySoft.AgentSkills.Cli.csproj \
+dotnet pack src/MackySoft.AgentDistribution.Cli/MackySoft.AgentDistribution.Cli.csproj \
   --configuration "$configuration" \
   --no-restore \
+  --artifacts-path "$artifacts_path" \
   "${pack_properties[@]}" \
   --output "$package_dir"
-dotnet pack src/MackySoft.AgentSkills.Hosting/MackySoft.AgentSkills.Hosting.csproj \
+dotnet pack src/MackySoft.AgentDistribution.Hosting/MackySoft.AgentDistribution.Hosting.csproj \
   --configuration "$configuration" \
   --no-restore \
+  --artifacts-path "$artifacts_path" \
   "${pack_properties[@]}" \
   --output "$package_dir"
-dotnet pack src/MackySoft.AgentSkills.ConsoleAppFramework/MackySoft.AgentSkills.ConsoleAppFramework.csproj \
+dotnet pack src/MackySoft.AgentDistribution.ConsoleAppFramework/MackySoft.AgentDistribution.ConsoleAppFramework.csproj \
   --configuration "$configuration" \
   --no-restore \
+  --artifacts-path "$artifacts_path" \
   "${pack_properties[@]}" \
   --output "$package_dir"
 
-library_package="$package_dir/MackySoft.AgentSkills.$package_version.nupkg"
-cli_package="$package_dir/MackySoft.AgentSkills.Cli.$package_version.nupkg"
-hosting_package="$package_dir/MackySoft.AgentSkills.Hosting.$package_version.nupkg"
-consoleappframework_package="$package_dir/MackySoft.AgentSkills.ConsoleAppFramework.$package_version.nupkg"
+library_package="$package_dir/MackySoft.AgentDistribution.$package_version.nupkg"
+cli_package="$package_dir/MackySoft.AgentDistribution.Cli.$package_version.nupkg"
+hosting_package="$package_dir/MackySoft.AgentDistribution.Hosting.$package_version.nupkg"
+consoleappframework_package="$package_dir/MackySoft.AgentDistribution.ConsoleAppFramework.$package_version.nupkg"
 expected_package_files=(
-  "MackySoft.AgentSkills.$package_version.nupkg"
-  "MackySoft.AgentSkills.Cli.$package_version.nupkg"
-  "MackySoft.AgentSkills.Hosting.$package_version.nupkg"
-  "MackySoft.AgentSkills.ConsoleAppFramework.$package_version.nupkg"
+  "MackySoft.AgentDistribution.$package_version.nupkg"
+  "MackySoft.AgentDistribution.Cli.$package_version.nupkg"
+  "MackySoft.AgentDistribution.Hosting.$package_version.nupkg"
+  "MackySoft.AgentDistribution.ConsoleAppFramework.$package_version.nupkg"
 )
 
 for package_file in "${expected_package_files[@]}"; do
@@ -192,36 +197,48 @@ for index in "${!sorted_expected_package_files[@]}"; do
   fi
 done
 
+for package_path in "$library_package" "$cli_package" "$hosting_package" "$consoleappframework_package"; do
+  if unzip -Z1 "$package_path" | grep -Ei 'MackySoft\.AgentSkills|agent-skills' >/dev/null; then
+    echo "package contains a legacy Agent Skills artifact: $package_path" >&2
+    exit 1
+  fi
+
+  if unzip -p "$package_path" '*.nuspec' | grep -Ei 'MackySoft\.AgentSkills|agent-skills' >/dev/null; then
+    echo "package metadata contains a legacy Agent Skills identity: $package_path" >&2
+    exit 1
+  fi
+done
+
 consoleappframework_package_files="$(unzip -Z1 "$consoleappframework_package")"
-grep -Fxq 'lib/net8.0/MackySoft.AgentSkills.ConsoleAppFramework.dll' <<< "$consoleappframework_package_files"
-grep -Fxq 'buildTransitive/MackySoft.AgentSkills.ConsoleAppFramework.props' <<< "$consoleappframework_package_files"
+grep -Fxq 'lib/net8.0/MackySoft.AgentDistribution.ConsoleAppFramework.dll' <<< "$consoleappframework_package_files"
+grep -Fxq 'buildTransitive/MackySoft.AgentDistribution.ConsoleAppFramework.props' <<< "$consoleappframework_package_files"
 
 cli_package_files="$(unzip -Z1 "$cli_package")"
 grep -Fxq 'tools/net8.0/any/skills/bundle.json' <<< "$cli_package_files"
-grep -Fxq 'tools/net8.0/any/skills/skills/agent-skills-packaging/agent-skill.json' <<< "$cli_package_files"
+grep -Fxq 'tools/net8.0/any/skills/skills/agent-distribution-packaging/agent-skill.json' <<< "$cli_package_files"
 
 if [ -n "$repository_commit" ]; then
   bash "$script_dir/validate-nuget-package-repository-commit.sh" \
-    --package-id MackySoft.AgentSkills \
+    --package-id MackySoft.AgentDistribution \
     --package-path "$library_package" \
     --expected-commit "$repository_commit"
   bash "$script_dir/validate-nuget-package-repository-commit.sh" \
-    --package-id MackySoft.AgentSkills.Cli \
+    --package-id MackySoft.AgentDistribution.Cli \
     --package-path "$cli_package" \
     --expected-commit "$repository_commit"
   bash "$script_dir/validate-nuget-package-repository-commit.sh" \
-    --package-id MackySoft.AgentSkills.Hosting \
+    --package-id MackySoft.AgentDistribution.Hosting \
     --package-path "$hosting_package" \
     --expected-commit "$repository_commit"
   bash "$script_dir/validate-nuget-package-repository-commit.sh" \
-    --package-id MackySoft.AgentSkills.ConsoleAppFramework \
+    --package-id MackySoft.AgentDistribution.ConsoleAppFramework \
     --package-path "$consoleappframework_package" \
     --expected-commit "$repository_commit"
 fi
 
 consumer_dir="$work_root/consumer"
 dotnet new console --output "$consumer_dir" --no-restore >/dev/null
-dotnet add "$consumer_dir/consumer.csproj" package MackySoft.AgentSkills \
+dotnet add "$consumer_dir/consumer.csproj" package MackySoft.AgentDistribution \
   --version "$package_version" \
   --source "$package_dir" >/dev/null
 dotnet restore "$consumer_dir/consumer.csproj" \
@@ -231,8 +248,8 @@ dotnet build "$consumer_dir/consumer.csproj" --configuration "$configuration" --
 
 console_consumer_dir="$work_root/console-consumer"
 dotnet new console --output "$console_consumer_dir" --no-restore >/dev/null
-cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/AgentSkillsBundle/generated" "$console_consumer_dir/skills"
-dotnet add "$console_consumer_dir/console-consumer.csproj" package MackySoft.AgentSkills.ConsoleAppFramework \
+cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/AgentDistributionBundle/generated" "$console_consumer_dir/skills"
+dotnet add "$console_consumer_dir/console-consumer.csproj" package MackySoft.AgentDistribution.ConsoleAppFramework \
   --version "$package_version" \
   --source "$package_dir" >/dev/null
 dotnet add "$console_consumer_dir/console-consumer.csproj" package Microsoft.Extensions.Hosting >/dev/null
@@ -240,20 +257,20 @@ cat > "$console_consumer_dir/Program.cs" <<'CS'
 using System;
 using System.IO;
 using ConsoleAppFramework;
-using MackySoft.AgentSkills.ConsoleAppFramework;
-using MackySoft.AgentSkills.Hosting.Composition;
+using MackySoft.AgentDistribution.ConsoleAppFramework;
+using MackySoft.AgentDistribution.Hosting.Composition;
 using MackySoft.FileSystem;
 using Microsoft.Extensions.Hosting;
 
 var builder = Host.CreateApplicationBuilder(args);
-builder.Services.AddAgentSkillsCommandRuntime(options =>
+builder.Services.AddAgentDistributionCommandRuntime(options =>
 {
     options.ProductName = "Smoke CLI";
     options.PackageBaseDirectory = AbsolutePath.Parse(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..")));
 });
 
 var app = builder.ToConsoleAppBuilder();
-app.RegisterAgentSkillsCommands();
+app.RegisterAgentDistributionCommands();
 await app.RunAsync(args);
 return Environment.ExitCode;
 CS
@@ -333,7 +350,7 @@ for host in codex claude-code github-copilot; do
     codex)
       test -f "$export_root/agents/architect.toml"
       test -f "$install_root/.codex/agents/architect.toml"
-      test -f "$install_root/.agents/skills/com.mackysoft.agent-skills.consumer-tests/review-context/SKILL.md"
+      test -f "$install_root/.agents/skills/com.mackysoft.agent-distribution.consumer-tests/review-context/SKILL.md"
       ;;
     claude-code)
       test -f "$export_root/agents/architect.md"
@@ -343,7 +360,7 @@ for host in codex claude-code github-copilot; do
     github-copilot)
       test -f "$export_root/agents/architect.agent.md"
       test -f "$install_root/.github/agents/architect.agent.md"
-      test -f "$install_root/.github/skills/com.mackysoft.agent-skills.consumer-tests/review-context/SKILL.md"
+      test -f "$install_root/.github/skills/com.mackysoft.agent-distribution.consumer-tests/review-context/SKILL.md"
       ;;
   esac
 done
@@ -363,11 +380,11 @@ mkdir -p "$tool_dir"
 (
   cd "$tool_dir"
   dotnet new tool-manifest >/dev/null
-  dotnet tool install MackySoft.AgentSkills.Cli \
+  dotnet tool install MackySoft.AgentDistribution.Cli \
     --version "$package_version" \
     --add-source "$package_dir" >/dev/null
 
-  dotnet tool run agent-skills -- --help > "$work_root/tool-help.txt"
+  dotnet tool run agent-distribution -- --help > "$work_root/tool-help.txt"
   grep -Eq '^  skills list[[:space:]]' "$work_root/tool-help.txt"
   grep -Eq '^  agents list[[:space:]]' "$work_root/tool-help.txt"
   if grep -Eq '^  (list|export|install|update|uninstall|prune|doctor)[[:space:]]' "$work_root/tool-help.txt"; then
@@ -378,39 +395,39 @@ mkdir -p "$tool_dir"
   bundle_root="$work_root/skill-bundle"
   cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/SkillBundle" "$bundle_root"
   rm -rf "$bundle_root/generated"
-  dotnet tool run agent-skills -- build --root "$bundle_root" >/dev/null
+  dotnet tool run agent-distribution -- build --root "$bundle_root" >/dev/null
 
   diff -ruN "$DOTNET_REPO_ROOT/tests/Fixtures/SkillBundle/generated" "$bundle_root/generated"
 
   agent_bundle_root="$work_root/agent-bundle"
-  cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/AgentSkillsBundle" "$agent_bundle_root"
+  cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/AgentDistributionBundle" "$agent_bundle_root"
   rm -rf "$agent_bundle_root/generated"
-  dotnet tool run agent-skills -- build --root "$agent_bundle_root" >/dev/null
+  dotnet tool run agent-distribution -- build --root "$agent_bundle_root" >/dev/null
 
-  diff -ruN "$DOTNET_REPO_ROOT/tests/Fixtures/AgentSkillsBundle/generated" "$agent_bundle_root/generated"
+  diff -ruN "$DOTNET_REPO_ROOT/tests/Fixtures/AgentDistributionBundle/generated" "$agent_bundle_root/generated"
 
-  dotnet tool run agent-skills -- skills list --pretty > "$work_root/agent-skills-own-list.json"
-  grep -q '"Command": "skills.list"' "$work_root/agent-skills-own-list.json"
-  grep -q '"Status": "ok"' "$work_root/agent-skills-own-list.json"
-  grep -q '"Category": "basic"' "$work_root/agent-skills-own-list.json"
-  grep -q '"SkillName": "agent-skills-packaging"' "$work_root/agent-skills-own-list.json"
+  dotnet tool run agent-distribution -- skills list --pretty > "$work_root/agent-distribution-own-list.json"
+  grep -q '"Command": "skills.list"' "$work_root/agent-distribution-own-list.json"
+  grep -q '"Status": "ok"' "$work_root/agent-distribution-own-list.json"
+  grep -q '"Category": "basic"' "$work_root/agent-distribution-own-list.json"
+  grep -q '"SkillName": "agent-distribution-packaging"' "$work_root/agent-distribution-own-list.json"
 
-  dotnet tool run agent-skills -- agents list --pretty > "$work_root/agent-skills-own-agents-list.json"
-  grep -q '"Command": "agents.list"' "$work_root/agent-skills-own-agents-list.json"
-  grep -q '"Status": "ok"' "$work_root/agent-skills-own-agents-list.json"
+  dotnet tool run agent-distribution -- agents list --pretty > "$work_root/agent-distribution-own-agents-list.json"
+  grep -q '"Command": "agents.list"' "$work_root/agent-distribution-own-agents-list.json"
+  grep -q '"Status": "ok"' "$work_root/agent-distribution-own-agents-list.json"
 
-  own_install_root="$work_root/agent-skills-own-install"
+  own_install_root="$work_root/agent-distribution-own-install"
   mkdir -p "$own_install_root"
-  dotnet tool run agent-skills -- skills install \
+  dotnet tool run agent-distribution -- skills install \
     --host codex \
     --scope project \
     --category basic \
     --repository-root "$own_install_root" \
     --dry-run \
-    --pretty > "$work_root/agent-skills-own-install.json"
-  grep -q '"Command": "skills.install"' "$work_root/agent-skills-own-install.json"
-  grep -q '"Status": "ok"' "$work_root/agent-skills-own-install.json"
-  grep -q '"DryRun": true' "$work_root/agent-skills-own-install.json"
+    --pretty > "$work_root/agent-distribution-own-install.json"
+  grep -q '"Command": "skills.install"' "$work_root/agent-distribution-own-install.json"
+  grep -q '"Status": "ok"' "$work_root/agent-distribution-own-install.json"
+  grep -q '"DryRun": true' "$work_root/agent-distribution-own-install.json"
 )
 
 echo "NuGet packages verified: $package_dir"

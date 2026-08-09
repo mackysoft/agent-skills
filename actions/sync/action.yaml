@@ -1,5 +1,5 @@
-name: Sync Agent Skills
-description: Reconcile, commit, and push a fixed-layout Agent Skills bundle from a branch workflow.
+name: Sync Agent Distribution
+description: Reconcile, commit, and push a fixed-layout Agent Distribution bundle from a branch workflow.
 
 inputs:
   root:
@@ -23,11 +23,11 @@ runs:
       with:
         dotnet-version: 8.0.x
 
-    - name: Sync Agent Skills bundle
+    - name: Sync Agent Distribution bundle
       id: sync
       shell: bash
       working-directory: ${{ github.workspace }}
       env:
-        AGENT_SKILLS_ROOT: ${{ inputs.root }}
-        AGENT_SKILLS_BUNDLE_VERSION: ${{ inputs.bundle-version }}
+        AGENT_DISTRIBUTION_ROOT: ${{ inputs.root }}
+        AGENT_DISTRIBUTION_BUNDLE_VERSION: ${{ inputs.bundle-version }}
       run: bash "${GITHUB_ACTION_PATH}/../run-bundle-operation.sh" sync

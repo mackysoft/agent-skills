@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>MackySoft.AgentDistribution.Hosting</AssemblyName>
+    <RootNamespace>MackySoft.AgentDistribution.Hosting</RootNamespace>
+    <LangVersion>13.0</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>true</IsPackable>
+    <PackageId>MackySoft.AgentDistribution.Hosting</PackageId>
+    <Description>Reusable command runtime services for product CLIs that expose skill and custom-agent workflows.</Description>
+    <PackageTags>agent;skills;cli;hosting;automation</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MackySoft.Text.Vocabularies.Json" Version="0.1.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
+    <ProjectReference Include="../MackySoft.AgentDistribution/MackySoft.AgentDistribution.csproj" />
+  </ItemGroup>
+
+</Project>

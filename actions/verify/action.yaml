@@ -1,5 +1,5 @@
-name: Verify Agent Skills
-description: Verify that a fixed-layout Agent Skills bundle is synchronized with its source definitions.
+name: Verify Agent Distribution
+description: Verify that a fixed-layout Agent Distribution bundle is synchronized with its source definitions.
 
 inputs:
   root:
@@ -15,9 +15,9 @@ runs:
       with:
         dotnet-version: 8.0.x
 
-    - name: Verify Agent Skills bundle
+    - name: Verify Agent Distribution bundle
       shell: bash
       working-directory: ${{ github.workspace }}
       env:
-        AGENT_SKILLS_ROOT: ${{ inputs.root }}
+        AGENT_DISTRIBUTION_ROOT: ${{ inputs.root }}
       run: bash "${GITHUB_ACTION_PATH}/../run-bundle-operation.sh" verify

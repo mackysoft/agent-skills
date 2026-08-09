@@ -2,8 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <AssemblyName>MackySoft.AgentSkills.Tests.Helper</AssemblyName>
-    <RootNamespace>MackySoft.AgentSkills.Tests.Helper</RootNamespace>
+    <AssemblyName>MackySoft.AgentDistribution.Tests.Helper</AssemblyName>
+    <RootNamespace>MackySoft.AgentDistribution.Tests.Helper</RootNamespace>
     <LangVersion>13.0</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>

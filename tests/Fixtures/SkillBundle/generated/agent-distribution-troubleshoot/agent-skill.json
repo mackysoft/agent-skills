@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "skillBundleVersion": 1,
+  "catalogId": "com.mackysoft.agent-distribution",
+  "category": "core",
+  "skillName": "agent-distribution-troubleshoot",
+  "displayName": "Agent Distribution Troubleshoot",
+  "description": "Use when diagnosing Agent Distribution daemon, lifecycle, readIndex freshness, timeout, compile or domain reload, logs, IPC, and Unity execution failures.",
+  "dependencies": [],
+  "contentDigest": "701a344f13fdca56f4541cad5d8a9b276431af714026c88e67834a120da091ad",
+  "manifestDigest": "076ad0a2f36fd6760dc49cd9ae3690ce52de5da63f2c3357930e599da673cbaa",
+  "hostArtifacts": [
+    {
+      "host": "codex",
+      "path": "agents/openai.yaml",
+      "digest": "f0a85f744a4518ac15f158f601d0a94cc196f75315b1f0a9ddfa42871e5dbeea",
+      "materializedFrontmatterDigest": "eb97a37b17922dd6a5d6fdc2ef4c515ba35ca454490a207878abee72b840895a"
+    },
+    {
+      "host": "claude-code",
+      "materializedFrontmatterDigest": "338f758bbb88ff9bda6f752c7c4b0532cf9f84faded57f3f56094addd7ccb0a7"
+    },
+    {
+      "host": "github-copilot",
+      "materializedFrontmatterDigest": "9bd78200c691420e325dfb9955d17bd2d3b64acc8a62a0c8b7ed167a4576fa85"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+interface:
+  display_name: "Agent Distribution Verify Changes"
+  short_description: "Use when verifying Agent Distribution-driven Unity changes with agent-distribution verify profiles, claim packets, follow-up reads, agent-distribution test, logs, artifacts, and opResults evidence after validation, plan, or call execution."
+  default_prompt: "Use $agent-distribution-verify-changes to follow the Agent Distribution Verify Changes workflow."
+
+policy:
+  allow_implicit_invocation: true

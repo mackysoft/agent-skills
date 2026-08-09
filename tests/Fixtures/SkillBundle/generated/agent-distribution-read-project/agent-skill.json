@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "skillBundleVersion": 1,
+  "catalogId": "com.mackysoft.agent-distribution",
+  "category": "core",
+  "skillName": "agent-distribution-read-project",
+  "displayName": "Agent Distribution Read Project",
+  "description": "Use when inspecting a Unity project with Agent Distribution before choosing selectors, operation metadata, schemas, or readIndex freshness. Guides read-first discovery without hard-coding operation contracts.",
+  "dependencies": [],
+  "contentDigest": "5d8fb768339602402f981280bb2770b016a0391427d573e0874c7f4f5bcd28b3",
+  "manifestDigest": "e2e0c5170a6167a3037c51f506e7b630a890a2663e8960fba07be56bc087eb36",
+  "hostArtifacts": [
+    {
+      "host": "codex",
+      "path": "agents/openai.yaml",
+      "digest": "d77c04c1621aa0ef596242a315f4a57a7694d93c75d838590302ecfa10c2210d",
+      "materializedFrontmatterDigest": "e8ead8ee71cf616607a31765b0c251ed0936bb9d4888efe9ebbc741b336f750d"
+    },
+    {
+      "host": "claude-code",
+      "materializedFrontmatterDigest": "7818153c2bebd3ab9ce309e6fba76819ea170d990b4a5253843430d757293fbd"
+    },
+    {
+      "host": "github-copilot",
+      "materializedFrontmatterDigest": "fe09cb85b66be0d7d6fb6c297acf4f4a80aec6592735483663be8d6a9059cf48"
+    }
+  ]
+}

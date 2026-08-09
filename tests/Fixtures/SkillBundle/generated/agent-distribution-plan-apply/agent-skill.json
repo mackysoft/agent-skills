@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "skillBundleVersion": 1,
+  "catalogId": "com.mackysoft.agent-distribution",
+  "category": "core",
+  "skillName": "agent-distribution-plan-apply",
+  "displayName": "Agent Distribution Plan Apply",
+  "description": "Use when building, validating, planning, and applying a Agent Distribution JSON request for Unity changes. Enforces read -> describe -> build request -> validate -> plan -> call -> verify.",
+  "dependencies": [],
+  "contentDigest": "2f20a26f36c71023d3c01dd960f8b1aa6a452df179141c2d7cb004232d8ff6e2",
+  "manifestDigest": "7bf7c58bf90f3ee302aac554fe4dd0eb036534aad76f8eed0685eb2907f25ef1",
+  "hostArtifacts": [
+    {
+      "host": "codex",
+      "path": "agents/openai.yaml",
+      "digest": "8a3962d04c080054894de5d5e0e7bba9f587d4fd7e79db8f9a2d231355391482",
+      "materializedFrontmatterDigest": "f717273d31e6d5a224207cfb47906b1065e6ae0d2d89abaacae61faf0204715d"
+    },
+    {
+      "host": "claude-code",
+      "materializedFrontmatterDigest": "b0dcd9566377d42e00462da4fbbc839f79e23616a1bb8d829c663ab087378b65"
+    },
+    {
+      "host": "github-copilot",
+      "materializedFrontmatterDigest": "1f5fb2d72ec0aa7a417a6d8fedda12063897c7dd04a9ea833adec978e6eef28a"
+    }
+  ]
+}

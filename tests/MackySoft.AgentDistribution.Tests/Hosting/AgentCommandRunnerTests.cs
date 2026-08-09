@@ -1,0 +1,103 @@
+using MackySoft.AgentDistribution.Hosting.Commands;
+using MackySoft.AgentDistribution.Hosting.Composition;
+using MackySoft.AgentDistribution.Shared;
+using MackySoft.Tests;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace MackySoft.AgentDistribution.Tests.Hosting;
+
+public sealed class AgentCommandRunnerTests
+{
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task InstallAsync_WhenSelectorIsOmitted_ReturnsAgentsInputFailureBeforeLoadingPackages ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-hosting", "agents-install-selector-required");
+        using var provider = CreateProvider(scope.FullPath);
+        var runner = provider.GetRequiredService<AgentCommandRunner>();
+
+        var result = await runner.InstallAsync(
+            new AgentInstallCommandRequest(
+                host: "codex",
+                scope: "project",
+                repositoryRoot: scope.FullPath),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Contains("--category", result.Failure.Message, StringComparison.Ordinal);
+        Assert.Contains("--agent", result.Failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task DoctorAsync_WhenUserAgentTargetIsRelative_ReturnsPathFailureBeforeLoadingPackages ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-hosting", "agents-doctor-relative-target");
+        using var provider = CreateProvider(scope.FullPath);
+        var runner = provider.GetRequiredService<AgentCommandRunner>();
+
+        var result = await runner.DoctorAsync(
+            new AgentDoctorCommandRequest(
+                host: "codex",
+                category: ["planning"],
+                scope: "user",
+                agentTargetDir: "relative-target"),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task PruneAsync_WhenSelectorIsOmitted_ReturnsAgentsInputFailureBeforeLoadingPackages ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-hosting", "agents-prune-selector-required");
+        using var provider = CreateProvider(scope.FullPath);
+        var runner = provider.GetRequiredService<AgentCommandRunner>();
+
+        var result = await runner.PruneAsync(
+            new AgentPruneCommandRequest(
+                host: "codex",
+                scope: "project",
+                repositoryRoot: scope.FullPath),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Contains("--category", result.Failure.Message, StringComparison.Ordinal);
+        Assert.Contains("--agent", result.Failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task InstallAsync_WhenUnsupportedHostLiteralIsUsed_ReturnsHostUnsupportedBeforeLoadingPackages ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-hosting", "agents-install-unsupported-host");
+        using var provider = CreateProvider(scope.FullPath);
+        var runner = provider.GetRequiredService<AgentCommandRunner>();
+
+        var result = await runner.InstallAsync(
+            new AgentInstallCommandRequest(
+                host: "claude",
+                category: ["planning"],
+                scope: "project",
+                repositoryRoot: scope.FullPath),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.HostUnsupported, result.Failure!.Code);
+    }
+
+    private static ServiceProvider CreateProvider (string packageBaseDirectory)
+    {
+        var services = new ServiceCollection();
+        services.AddAgentDistributionCommandRuntime(options =>
+        {
+            options.ProductName = "Example CLI";
+            options.PackageBaseDirectory = AbsolutePath.Parse(packageBaseDirectory);
+        });
+        return services.BuildServiceProvider();
+    }
+}

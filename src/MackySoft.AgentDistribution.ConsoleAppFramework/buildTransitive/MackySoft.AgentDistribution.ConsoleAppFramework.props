@@ -1,0 +1,63 @@
+<Project>
+  <!--
+    NOTE: ConsoleAppFramework generates its builder and dispatch in each consumer assembly and rejects command types from another project with CAF014, so the commands must remain consumer-side source integration.
+  -->
+  <ItemGroup>
+    <Compile
+      Include="$(MSBuildThisFileDirectory)..\contentFiles\cs\any\MackySoft.AgentDistribution.ConsoleAppFramework\*.cs"
+      Link="MackySoft.AgentDistribution.ConsoleAppFramework\%(Filename)%(Extension)"
+      Visible="false" />
+  </ItemGroup>
+
+  <Target
+    Name="GenerateAgentDistributionConsoleAppFrameworkRegistrar"
+    BeforeTargets="CoreCompile">
+    <PropertyGroup>
+      <_AgentDistributionConsoleAppFrameworkGeneratedDirectory>$(IntermediateOutputPath)MackySoft.AgentDistribution.ConsoleAppFramework\</_AgentDistributionConsoleAppFrameworkGeneratedDirectory>
+      <_AgentDistributionConsoleAppFrameworkRegistrarFile>$(_AgentDistributionConsoleAppFrameworkGeneratedDirectory)AgentDistributionConsoleAppCommandRegistrar.g.cs</_AgentDistributionConsoleAppFrameworkRegistrarFile>
+    </PropertyGroup>
+
+    <MakeDir Directories="$(_AgentDistributionConsoleAppFrameworkGeneratedDirectory)" />
+
+    <ItemGroup>
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="// &lt;auto-generated /&gt;" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="#nullable enable" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="using System%3B" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="using ConsoleAppFramework%3B" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="namespace MackySoft.AgentDistribution.ConsoleAppFramework%3B" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="internal static class AgentDistributionConsoleAppCommandRegistrar" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="{" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="    public static ConsoleApp.ConsoleAppBuilder RegisterAgentDistributionCommands (this ConsoleApp.ConsoleAppBuilder app)" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="    {" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="        ArgumentNullException.ThrowIfNull(app)%3B" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;SkillListCommand&gt;(&quot;skills&quot;)%3B" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;SkillExportCommand&gt;(&quot;skills&quot;)%3B" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;SkillInstallCommand&gt;(&quot;skills&quot;)%3B" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;SkillUpdateCommand&gt;(&quot;skills&quot;)%3B" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;SkillUninstallCommand&gt;(&quot;skills&quot;)%3B" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;SkillPruneCommand&gt;(&quot;skills&quot;)%3B" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;SkillDoctorCommand&gt;(&quot;skills&quot;)%3B" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentListCommand&gt;(&quot;agents&quot;)%3B" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentExportCommand&gt;(&quot;agents&quot;)%3B" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentInstallCommand&gt;(&quot;agents&quot;)%3B" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentUpdateCommand&gt;(&quot;agents&quot;)%3B" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentUninstallCommand&gt;(&quot;agents&quot;)%3B" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentPruneCommand&gt;(&quot;agents&quot;)%3B" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentDoctorCommand&gt;(&quot;agents&quot;)%3B" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="        return app%3B" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="    }" />
+      <_AgentDistributionConsoleAppFrameworkRegistrarLine Include="}" />
+    </ItemGroup>
+
+    <WriteLinesToFile
+      File="$(_AgentDistributionConsoleAppFrameworkRegistrarFile)"
+      Lines="@(_AgentDistributionConsoleAppFrameworkRegistrarLine)"
+      Overwrite="true"
+      Encoding="UTF-8" />
+
+    <ItemGroup>
+      <Compile Include="$(_AgentDistributionConsoleAppFrameworkRegistrarFile)" Visible="false" />
+    </ItemGroup>
+  </Target>
+
+</Project>

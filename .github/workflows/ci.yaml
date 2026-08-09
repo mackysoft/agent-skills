@@ -64,7 +64,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('AgentSkills.slnx', '**/*.csproj') }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('AgentDistribution.slnx', '**/*.csproj') }}
 
       - name: Pack and smoke test
         run: bash scripts/verify-packages.sh --configuration Release

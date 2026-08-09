@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "skillBundleVersion": 1,
+  "catalogId": "com.mackysoft.agent-distribution",
+  "category": "core",
+  "skillName": "agent-distribution-verify-changes",
+  "displayName": "Agent Distribution Verify Changes",
+  "description": "Use when verifying Agent Distribution-driven Unity changes with agent-distribution verify profiles, claim packets, follow-up reads, agent-distribution test, logs, artifacts, and opResults evidence after validation, plan, or call execution.",
+  "dependencies": [],
+  "contentDigest": "b902a50302739256cfb3c4d95fd5b878ab16de5b7335bfeb3fab41b2f862c371",
+  "manifestDigest": "922d2834b3caff70b7128de43263b98f41fe45405ea2d9a751bf52b93b1e09ef",
+  "hostArtifacts": [
+    {
+      "host": "codex",
+      "path": "agents/openai.yaml",
+      "digest": "05192950557a310598fd6c3f20652e252f18d646133a4f174de42d6c71def738",
+      "materializedFrontmatterDigest": "79452eefb556d6d2187f9e1f16d8cd06a14bf64ab46bf4530b89a0d0e3e4ed43"
+    },
+    {
+      "host": "claude-code",
+      "materializedFrontmatterDigest": "886f098d0cbe28fd04b9a086179ecae244d8d475553df042d79d32f8f7fcb194"
+    },
+    {
+      "host": "github-copilot",
+      "materializedFrontmatterDigest": "c22f30ffad1edfb2c85291042b8172099fadbe7893fabd864f101114eedf3444"
+    }
+  ]
+}

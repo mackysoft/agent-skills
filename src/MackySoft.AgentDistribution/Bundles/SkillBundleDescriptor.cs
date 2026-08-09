@@ -1,0 +1,42 @@
+using MackySoft.AgentDistribution.Catalogs;
+using MackySoft.AgentDistribution.Digests;
+
+namespace MackySoft.AgentDistribution.Bundles;
+
+/// <summary> Represents the runtime descriptor for one generated canonical SKILL bundle. </summary>
+public sealed class SkillBundleDescriptor
+{
+    /// <summary> Initializes one generated bundle descriptor. </summary>
+    /// <param name="schemaVersion"> The bundle descriptor schema version. </param>
+    /// <param name="catalogId"> The catalog ID shared by every package in the bundle. </param>
+    /// <param name="skillBundleVersion"> The release version shared by every package in the bundle. </param>
+    /// <param name="bundleDigest"> The SHA-256 digest of the version-independent canonical package set. </param>
+    public SkillBundleDescriptor (
+        int schemaVersion,
+        SkillCatalogId catalogId,
+        SkillBundleVersion skillBundleVersion,
+        Sha256Digest bundleDigest)
+    {
+        if (schemaVersion != SkillBundleDefinition.CurrentSchemaVersion)
+        {
+            throw new ArgumentOutOfRangeException(nameof(schemaVersion), schemaVersion, $"Bundle schema version must be {SkillBundleDefinition.CurrentSchemaVersion}.");
+        }
+
+        SchemaVersion = schemaVersion;
+        CatalogId = catalogId ?? throw new ArgumentNullException(nameof(catalogId));
+        SkillBundleVersion = skillBundleVersion ?? throw new ArgumentNullException(nameof(skillBundleVersion));
+        BundleDigest = bundleDigest ?? throw new ArgumentNullException(nameof(bundleDigest));
+    }
+
+    /// <summary> Gets the bundle descriptor schema version. </summary>
+    public int SchemaVersion { get; }
+
+    /// <summary> Gets the catalog ID shared by every package in the bundle. </summary>
+    public SkillCatalogId CatalogId { get; }
+
+    /// <summary> Gets the release version shared by every package in the bundle. </summary>
+    public SkillBundleVersion SkillBundleVersion { get; }
+
+    /// <summary> Gets the digest of the version-independent canonical package set. </summary>
+    public Sha256Digest BundleDigest { get; }
+}

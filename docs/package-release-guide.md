@@ -1,7 +1,7 @@
 # パッケージリリースガイド
 
 ## 目的
-この文書は、Agent Skills の NuGet パッケージ version を更新し、GitHub Release と NuGet.org へ公開する手順を固定するためのものです。
+この文書は、Agent Distribution の NuGet パッケージ version を更新し、GitHub Release と NuGet.org へ公開する手順を固定するためのものです。
 
 利用側 repository で公開済み package を取り込む手順ではなく、この repository から新しい package version をリリースする作業を対象にします。
 
@@ -10,22 +10,23 @@
 - `Directory.Build.props` の `<Version>` が package version の正本である。
 - release tag は `<Version>` と同じ SemVer 文字列にする。先頭に `v` を付けない。
 - `nuget-package` workflow は tag push で起動する。
+- NuGet.org の trusted publishing policy が、GitHub repository `mackysoft/agent-distribution` と workflow file `nuget-package.yaml` を許可している。
 - 次の NuGet package は同じ version で公開する。
 
-  - `MackySoft.AgentSkills`
-  - `MackySoft.AgentSkills.Cli`
-  - `MackySoft.AgentSkills.Hosting`
-  - `MackySoft.AgentSkills.ConsoleAppFramework`
+  - `MackySoft.AgentDistribution`
+  - `MackySoft.AgentDistribution.Cli`
+  - `MackySoft.AgentDistribution.Hosting`
+  - `MackySoft.AgentDistribution.ConsoleAppFramework`
 
 ## Version を決める
 1. 現在の最新 release tag と NuGet.org の公開済み version を確認する。
 
    ```bash
    git tag --list --sort=v:refname
-   curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentskills/index.json
-   curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentskills.cli/index.json
-   curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentskills.hosting/index.json
-   curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentskills.consoleappframework/index.json
+   curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentdistribution/index.json
+   curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentdistribution.cli/index.json
+   curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentdistribution.hosting/index.json
+   curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentdistribution.consoleappframework/index.json
    ```
 
 2. 直近 release tag から `master` までの差分を確認する。
@@ -37,7 +38,21 @@
 
 3. SemVer の次 version を決める。
 
-   1.0.0 以降は、互換性のない公開 API や契約の変更で major version、互換性のある機能追加で minor version、互換性のある修正で patch version を上げます。
+   公開 API や契約の互換性が失われる変更では major version、互換性を保つ機能追加では minor version、互換性を保つ修正では patch version を上げます。
+
+## 3.0.0 の package identity 移行
+`3.0.0` は repository、namespace、assembly、CLI command、状態保存先、NuGet package ID を Agent Distribution へ統一する改名 release です。NuGet.org では公開済み package ID を改名できないため、次の対応関係で新しい package を公開します。
+
+| 2.x まで | 3.0.0 以降 |
+| --- | --- |
+| `MackySoft.AgentSkills` | `MackySoft.AgentDistribution` |
+| `MackySoft.AgentSkills.Cli` | `MackySoft.AgentDistribution.Cli` |
+| `MackySoft.AgentSkills.Hosting` | `MackySoft.AgentDistribution.Hosting` |
+| `MackySoft.AgentSkills.ConsoleAppFramework` | `MackySoft.AgentDistribution.ConsoleAppFramework` |
+
+新しい trusted publishing policy を作成してからタグをプッシュします。新しい4つのパッケージの公開を確認するまでは、旧リポジトリを対象にした policy を削除しません。
+
+新しい4つのパッケージの公開後、旧パッケージの全バージョンをNuGet.orgで非推奨にし、対応する新パッケージを代替パッケージとして設定します。旧パッケージは自動的に非掲載にせず、既存利用者が正確なバージョンを復元できる状態を保ちます。新パッケージには、旧名前空間、旧アセンブリ名、旧コマンド名、旧状態保存先を維持する互換エイリアスを追加しません。
 
 ## Release 準備 PR
 1. `origin/master` から release 準備 branch を作成する。
@@ -115,32 +130,32 @@ workflow は次を実行します。
 1. NuGet.org で全 package の version を確認する。
 
    ```bash
-   curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentskills/index.json
-   curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentskills.cli/index.json
-   curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentskills.hosting/index.json
-   curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentskills.consoleappframework/index.json
+   curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentdistribution/index.json
+   curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentdistribution.cli/index.json
+   curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentdistribution.hosting/index.json
+   curl -fsSL https://api.nuget.org/v3-flatcontainer/mackysoft.agentdistribution.consoleappframework/index.json
    ```
 
 2. 公開済み `.nupkg` を取得し、repository commit が release tag の commit と一致することを確認する。
 
    ```bash
    bash scripts/validate-nuget-package-repository-commit.sh \
-     --package-id MackySoft.AgentSkills \
+     --package-id MackySoft.AgentDistribution \
      --package-path <DOWNLOADED_LIBRARY_NUPKG> \
      --expected-commit <RELEASE_TAG_COMMIT_SHA>
 
    bash scripts/validate-nuget-package-repository-commit.sh \
-     --package-id MackySoft.AgentSkills.Cli \
+     --package-id MackySoft.AgentDistribution.Cli \
      --package-path <DOWNLOADED_CLI_NUPKG> \
      --expected-commit <RELEASE_TAG_COMMIT_SHA>
 
    bash scripts/validate-nuget-package-repository-commit.sh \
-     --package-id MackySoft.AgentSkills.Hosting \
+     --package-id MackySoft.AgentDistribution.Hosting \
      --package-path <DOWNLOADED_HOSTING_NUPKG> \
      --expected-commit <RELEASE_TAG_COMMIT_SHA>
 
    bash scripts/validate-nuget-package-repository-commit.sh \
-     --package-id MackySoft.AgentSkills.ConsoleAppFramework \
+     --package-id MackySoft.AgentDistribution.ConsoleAppFramework \
      --package-path <DOWNLOADED_CONSOLEAPPFRAMEWORK_NUPKG> \
      --expected-commit <RELEASE_TAG_COMMIT_SHA>
    ```
@@ -156,6 +171,8 @@ workflow は次を実行します。
    ```bash
    gh release edit <VERSION> --notes-file <NOTES_FILE>
    ```
+
+5. `3.0.0` では、旧4パッケージを非推奨にして対応する新パッケージを案内した後、旧リポジトリ用の trusted publishing policy を削除する。
 
 ## 停止条件
 - 4 package の一部だけが NuGet.org に存在する。

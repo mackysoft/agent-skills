@@ -1,0 +1,31 @@
+using MackySoft.AgentDistribution.Installation.Targeting;
+using MackySoft.Tests;
+
+namespace MackySoft.AgentDistribution.Tests.Installation.Targeting;
+
+public sealed class SkillUserTargetRootResolverTests
+{
+    [Fact]
+    [Trait("Size", "Small")]
+    public void ResolveDefaultTargetRoot_UsesEnvironmentRootWhenPolicyHasNoChildDirectory ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "user-target-env-root");
+        var environmentRoot = scope.GetPath("env-root");
+        var resolver = new SkillUserTargetRootResolver(
+            () => scope.GetPath("home"),
+            name => string.Equals(name, "TEST_SKILLS_HOME", StringComparison.Ordinal) ? environmentRoot : null);
+        var descriptor = new SkillHostDescriptor(
+            RootRelativePath.Parse(".test/project-skills"),
+            new SkillUserTargetRootPolicy("TEST_SKILLS_HOME", null, RootRelativePath.Parse(".test/skills")),
+            SkillBundleTargetRootLayout.Flat,
+            [],
+            null,
+            "Reload test skills.");
+
+        var result = resolver.ResolveDefaultTargetRoot(descriptor);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.Equal(Path.GetFullPath(environmentRoot), result.Value!.Value);
+    }
+
+}
