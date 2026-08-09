@@ -11,12 +11,12 @@ public sealed class AgentPruneInput
     /// <param name="agentTargetRequest"> The custom-agent artifact target. </param>
     /// <param name="dryRun"> Whether to plan without deletions. </param>
     /// <param name="force"> Whether locally modified orphan artifacts may be deleted. </param>
+    /// <param name="selectedAgentNames"> Optional exact installed-agent name filters, including names absent from the current catalog. </param>
     public AgentPruneInput (
         AgentPackageCatalog currentCatalog,
         AgentTargetRequest agentTargetRequest,
         bool dryRun = false,
         bool force = false,
-        IReadOnlyList<AgentCategory>? selectedCategories = null,
         IReadOnlyList<AgentName>? selectedAgentNames = null)
     {
         CurrentCatalog = currentCatalog ?? throw new ArgumentNullException(nameof(currentCatalog));
@@ -28,7 +28,6 @@ public sealed class AgentPruneInput
         AgentTargetRequest = agentTargetRequest ?? throw new ArgumentNullException(nameof(agentTargetRequest));
         DryRun = dryRun;
         Force = force;
-        SelectedCategories = CopyOptional(selectedCategories, nameof(selectedCategories));
         SelectedAgentNames = CopyOptional(selectedAgentNames, nameof(selectedAgentNames));
     }
 
@@ -43,9 +42,6 @@ public sealed class AgentPruneInput
 
     /// <summary> Gets whether locally modified orphan artifacts may be deleted. </summary>
     public bool Force { get; }
-
-    /// <summary> Gets optional installed-agent category filters. Empty means every category. </summary>
-    public IReadOnlyList<AgentCategory> SelectedCategories { get; }
 
     /// <summary> Gets optional exact installed-agent name filters, including names absent from the current catalog. Empty means every name. </summary>
     public IReadOnlyList<AgentName> SelectedAgentNames { get; }

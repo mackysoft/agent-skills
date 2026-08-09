@@ -5,14 +5,14 @@ using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Distribution;
 
-/// <summary> Provides selected custom-agent packages and their resolved SKILL dependencies from one v2 mixed bundle. </summary>
+/// <summary> Provides selected custom-agent packages and their resolved SKILL dependencies from one v3 mixed bundle. </summary>
 public sealed class AgentPackageProvider
 {
     private readonly BundledAgentDistributionPackageRootResolver packageRootResolver;
     private readonly CanonicalAgentDistributionBundleReader bundleReader;
 
     /// <summary> Initializes an agent package provider. </summary>
-    /// <param name="packageRootResolver"> The v2 mixed generated bundle root resolver. </param>
+    /// <param name="packageRootResolver"> The v3 mixed generated bundle root resolver. </param>
     /// <param name="bundleReader"> The mixed canonical bundle reader. </param>
     public AgentPackageProvider (
         BundledAgentDistributionPackageRootResolver packageRootResolver,
@@ -22,26 +22,23 @@ public sealed class AgentPackageProvider
         this.bundleReader = bundleReader ?? throw new ArgumentNullException(nameof(bundleReader));
     }
 
-    /// <summary> Gets every agent in the v2 bundle and the SKILL dependencies they require. </summary>
+    /// <summary> Gets every agent in the v3 bundle and the SKILL dependencies they require. </summary>
     /// <param name="cancellationToken"> The cancellation token propagated through bundle reading. </param>
     /// <returns> The selected agent catalog, or a bundle-selection failure. </returns>
     public ValueTask<SkillOperationResult<AgentPackageCatalog>> GetPackageCatalogAsync (
         CancellationToken cancellationToken = default)
     {
-        return GetPackageCatalogAsync([], [], cancellationToken);
+        return GetPackageCatalogAsync([], cancellationToken);
     }
 
-    /// <summary> Gets agents selected by exact category and agent-name literals and their resolved SKILL dependencies. </summary>
-    /// <param name="selectedCategoryLiterals"> The selected agent categories. Empty selects every category present in the bundle. </param>
-    /// <param name="selectedAgentNames"> The exact agent names. Empty selects every agent in the selected categories. </param>
+    /// <summary> Gets agents selected by exact agent-name literals and their resolved SKILL dependencies. </summary>
+    /// <param name="selectedAgentNames"> The exact agent names. Empty selects every agent in the bundle. </param>
     /// <param name="cancellationToken"> The cancellation token propagated through bundle reading. </param>
     /// <returns> The selected agent catalog, or a bundle-selection failure. </returns>
     public async ValueTask<SkillOperationResult<AgentPackageCatalog>> GetPackageCatalogAsync (
-        IReadOnlyList<string> selectedCategoryLiterals,
         IReadOnlyList<string> selectedAgentNames,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(selectedCategoryLiterals);
         ArgumentNullException.ThrowIfNull(selectedAgentNames);
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -61,10 +58,7 @@ public sealed class AgentPackageProvider
                 bundleResult.Failure.Message);
         }
 
-        return CreatePackageCatalog(
-            bundleResult.Value!,
-            selectedCategoryLiterals,
-            agentNameSelectionResult.Value!);
+        return CreatePackageCatalog(bundleResult.Value!, agentNameSelectionResult.Value!);
     }
 
     private async ValueTask<SkillOperationResult<CanonicalAgentDistributionBundle>> ReadBundleAsync (CancellationToken cancellationToken)
@@ -88,56 +82,21 @@ public sealed class AgentPackageProvider
 
     private static SkillOperationResult<AgentPackageCatalog> CreatePackageCatalog (
         CanonicalAgentDistributionBundle bundle,
-        IReadOnlyList<string> selectedCategoryLiterals,
         IReadOnlyList<AgentName> selectedAgentNames)
     {
-        var availableCategories = bundle.Agents
-            .Select(static agent => agent.Manifest.Category)
-            .Distinct()
-            .OrderBy(static category => category.Value, StringComparer.Ordinal)
-            .ToArray();
-        IReadOnlyList<AgentCategory> selectedCategories;
-        if (selectedCategoryLiterals.Count == 0)
-        {
-            selectedCategories = availableCategories;
-        }
-        else
-        {
-            var categorySelectionResult = AgentCategoryLiteralParser.ParseSelectedCategories(
-                availableCategories,
-                selectedCategoryLiterals);
-            if (!categorySelectionResult.IsSuccess)
-            {
-                return SkillOperationResult<AgentPackageCatalog>.FailureResult(
-                    categorySelectionResult.Failure!.Code,
-                    categorySelectionResult.Failure.Message);
-            }
-
-            selectedCategories = categorySelectionResult.Value!;
-        }
-
         var agentByName = bundle.Agents.ToDictionary(static agent => agent.Manifest.AgentName);
-        var selectedCategorySet = selectedCategories.ToHashSet();
         foreach (var agentName in selectedAgentNames)
         {
-            if (!agentByName.TryGetValue(agentName, out var agent))
+            if (!agentByName.ContainsKey(agentName))
             {
                 return SkillOperationResult<AgentPackageCatalog>.FailureResult(
                     SkillFailureCodes.InputInvalid,
                     $"Selected agent name was not found: {agentName.Value}.");
             }
-
-            if (!selectedCategorySet.Contains(agent.Manifest.Category))
-            {
-                return SkillOperationResult<AgentPackageCatalog>.FailureResult(
-                    SkillFailureCodes.InputInvalid,
-                    $"Selected agent name '{agentName.Value}' does not match selected categories: {string.Join(", ", selectedCategories.Select(static category => category.Value))}. Its category is: {agent.Manifest.Category.Value}.");
-            }
         }
 
         var selectedAgentNameSet = selectedAgentNames.ToHashSet();
         var selectedAgents = bundle.Agents
-            .Where(agent => selectedCategorySet.Contains(agent.Manifest.Category))
             .Where(agent => selectedAgentNameSet.Count == 0 || selectedAgentNameSet.Contains(agent.Manifest.AgentName))
             .OrderBy(static agent => agent.Manifest.AgentName.Value, StringComparer.Ordinal)
             .ToArray();
@@ -150,7 +109,6 @@ public sealed class AgentPackageProvider
 
         return SkillOperationResult<AgentPackageCatalog>.Success(new AgentPackageCatalog(
             bundle.Descriptor,
-            selectedCategories,
             selectedAgentNames,
             selectedAgents,
             resolvedSkills));

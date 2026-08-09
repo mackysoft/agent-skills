@@ -85,7 +85,6 @@ internal sealed class AgentReconciliationPlanner
                 package.Manifest.BundleVersion,
                 package.Manifest.CatalogId,
                 target.HostId,
-                package.Manifest.Category,
                 package.Manifest.AgentName,
                 package.Manifest.ManifestDigest,
                 artifactsResult.Value!

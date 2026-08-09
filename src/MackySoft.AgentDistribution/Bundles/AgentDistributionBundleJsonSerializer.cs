@@ -7,19 +7,19 @@ using MackySoft.AgentDistribution.Shared;
 
 namespace MackySoft.AgentDistribution.Bundles;
 
-/// <summary> Serializes canonical v2 source and generated bundle descriptors. </summary>
+/// <summary> Serializes canonical v3 source and generated bundle descriptors. </summary>
 public sealed class AgentDistributionBundleJsonSerializer
 {
     private static readonly JsonWriterOptions WriterOptions = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping, Indented = true };
 
-    /// <summary> Serializes the authored v2 definition. </summary>
+    /// <summary> Serializes the authored v3 definition. </summary>
     public string SerializeDefinition (AgentDistributionBundleDefinition definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
         return Serialize(writer => WriteShared(writer, definition.SchemaVersion, definition.CatalogId, definition.BundleVersion));
     }
 
-    /// <summary> Serializes the generated v2 descriptor. </summary>
+    /// <summary> Serializes the generated v3 descriptor. </summary>
     public string SerializeDescriptor (AgentDistributionBundleDescriptor descriptor)
     {
         ArgumentNullException.ThrowIfNull(descriptor);
@@ -30,7 +30,7 @@ public sealed class AgentDistributionBundleJsonSerializer
         });
     }
 
-    /// <summary> Deserializes an authored v2 definition. </summary>
+    /// <summary> Deserializes an authored v3 definition. </summary>
     public AgentDistributionBundleDefinition DeserializeDefinition (string json)
     {
         using var document = JsonDocument.Parse(json);
@@ -38,7 +38,7 @@ public sealed class AgentDistributionBundleJsonSerializer
         return new AgentDistributionBundleDefinition(root.GetProperty("schemaVersion").GetInt32(), new SkillCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty), new AgentDistributionBundleVersion(root.GetProperty("bundleVersion").GetInt32()));
     }
 
-    /// <summary> Deserializes a generated v2 descriptor. </summary>
+    /// <summary> Deserializes a generated v3 descriptor. </summary>
     public AgentDistributionBundleDescriptor DeserializeDescriptor (string json)
     {
         using var document = JsonDocument.Parse(json);

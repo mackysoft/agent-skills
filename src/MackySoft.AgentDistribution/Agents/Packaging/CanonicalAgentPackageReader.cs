@@ -7,7 +7,7 @@ using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Agents.Packaging;
 
-/// <summary> Reads canonical generated agent packages below a v2 agents root. </summary>
+/// <summary> Reads canonical generated agent packages below a v3 agents root. </summary>
 internal sealed class CanonicalAgentPackageReader
 {
     private static readonly PackageRelativePath ManifestPath = PackageRelativePath.Parse("agent-manifest.json");
@@ -30,7 +30,7 @@ internal sealed class CanonicalAgentPackageReader
     }
 
     /// <summary> Reads every agent package. </summary>
-    /// <param name="agentsRoot"> The generated v2 agent package root. </param>
+    /// <param name="agentsRoot"> The generated v3 agent package root. </param>
     /// <param name="cancellationToken"> The cancellation token propagated through file access. </param>
     /// <returns>The canonical agent packages, or a manifest failure.</returns>
     internal async ValueTask<SkillOperationResult<IReadOnlyList<CanonicalAgentPackage>>> ReadAllAsync (

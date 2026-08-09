@@ -11,7 +11,7 @@ namespace MackySoft.AgentDistribution.Agents.Installation.State;
 /// <summary> Serializes canonical agent installation ownership state. </summary>
 public sealed class AgentInstallationStateJsonSerializer
 {
-    private static readonly string[] ExpectedProperties = ["schemaVersion", "bundleVersion", "catalogId", "hostId", "category", "agentName", "agentManifestDigest", "managedArtifacts"];
+    private static readonly string[] ExpectedProperties = ["schemaVersion", "bundleVersion", "catalogId", "hostId", "agentName", "agentManifestDigest", "managedArtifacts"];
     private static readonly string[] ExpectedArtifactProperties = ["path", "digest"];
     private static readonly JsonWriterOptions WriterOptions = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping, Indented = true };
 
@@ -27,7 +27,6 @@ public sealed class AgentInstallationStateJsonSerializer
             writer.WriteNumber("bundleVersion", state.BundleVersion.Value);
             writer.WriteString("catalogId", state.CatalogId.Value);
             writer.WriteString("hostId", Vocabulary.GetText(state.HostId));
-            writer.WriteString("category", state.Category.Value);
             writer.WriteString("agentName", state.AgentName.Value);
             writer.WriteString("agentManifestDigest", state.AgentManifestDigest.ToString());
             writer.WritePropertyName("managedArtifacts");
@@ -84,7 +83,6 @@ public sealed class AgentInstallationStateJsonSerializer
                 new AgentDistributionBundleVersion(root.GetProperty("bundleVersion").GetInt32()),
                 new SkillCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty),
                 ParseHost(root.GetProperty("hostId").GetString() ?? string.Empty),
-                new AgentCategory(root.GetProperty("category").GetString() ?? string.Empty),
                 new AgentName(root.GetProperty("agentName").GetString() ?? string.Empty),
                 Sha256Digest.Parse(root.GetProperty("agentManifestDigest").GetString() ?? string.Empty),
                 artifacts);

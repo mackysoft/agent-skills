@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace MackySoft.AgentDistribution.Bundles;
 
-/// <summary> Represents the positive release version shared by a v2 mixed bundle. </summary>
+/// <summary> Represents the positive release version shared by a v3 mixed bundle. </summary>
 public sealed record AgentDistributionBundleVersion : IComparable<AgentDistributionBundleVersion>
 {
     /// <summary> Initializes a bundle version. </summary>

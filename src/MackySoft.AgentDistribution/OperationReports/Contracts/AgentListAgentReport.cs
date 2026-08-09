@@ -11,7 +11,6 @@ public sealed class AgentListAgentReport
         string agentName,
         string displayName,
         string description,
-        string category,
         string catalogId,
         IReadOnlyList<string> skillDependencies,
         Sha256Digest contentDigest,
@@ -31,7 +30,6 @@ public sealed class AgentListAgentReport
         ArgumentException.ThrowIfNullOrWhiteSpace(agentName);
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
         ArgumentException.ThrowIfNullOrWhiteSpace(description);
-        ArgumentException.ThrowIfNullOrWhiteSpace(category);
         ArgumentException.ThrowIfNullOrWhiteSpace(catalogId);
 
         SchemaVersion = schemaVersion;
@@ -39,7 +37,6 @@ public sealed class AgentListAgentReport
         AgentName = agentName;
         DisplayName = displayName;
         Description = description;
-        Category = category;
         CatalogId = catalogId;
         SkillDependencies = OperationReportContractGuard.SnapshotRequiredStrings(skillDependencies, nameof(skillDependencies));
         ContentDigest = contentDigest ?? throw new ArgumentNullException(nameof(contentDigest));
@@ -61,9 +58,6 @@ public sealed class AgentListAgentReport
 
     /// <summary> Gets the host-independent description. </summary>
     public string Description { get; }
-
-    /// <summary> Gets the product-owned category literal. </summary>
-    public string Category { get; }
 
     /// <summary> Gets the catalog identifier. </summary>
     public string CatalogId { get; }

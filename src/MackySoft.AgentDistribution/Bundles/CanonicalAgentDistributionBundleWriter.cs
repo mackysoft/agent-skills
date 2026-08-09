@@ -6,7 +6,7 @@ using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Bundles;
 
-/// <summary> Writes a v2 mixed bundle into a replaceable generated directory. </summary>
+/// <summary> Writes a v3 mixed bundle into a replaceable generated directory. </summary>
 internal sealed class CanonicalAgentDistributionBundleWriter
 {
     private readonly CanonicalSkillPackageWriter skillWriter;
@@ -43,7 +43,7 @@ internal sealed class CanonicalAgentDistributionBundleWriter
         var full = outputRootResult.Value!;
         if (!full.TryGetParent(out var parent))
         {
-            throw new InvalidOperationException("Generated v2 bundle output root parent could not be resolved.");
+            throw new InvalidOperationException("Generated v3 bundle output root parent could not be resolved.");
         }
 
         Directory.CreateDirectory(parent.Value);
@@ -107,7 +107,7 @@ internal sealed class CanonicalAgentDistributionBundleWriter
         if (!string.Equals(outputName, "generated", StringComparison.Ordinal)
             && !string.Equals(outputName, "skills", StringComparison.Ordinal))
         {
-            return SkillOperationResult<AbsolutePath>.FailureResult(SkillFailureCodes.PathUnsafe, $"Generated v2 bundle output root must be named 'generated' or 'skills': {outputRoot}");
+            return SkillOperationResult<AbsolutePath>.FailureResult(SkillFailureCodes.PathUnsafe, $"Generated v3 bundle output root must be named 'generated' or 'skills': {outputRoot}");
         }
 
         if (!FileSystemEntryInspector.TryInspect(
@@ -116,7 +116,7 @@ internal sealed class CanonicalAgentDistributionBundleWriter
                 out _)
             || outputRootObservation.State is not FileSystemEntryState.Missing and not FileSystemEntryState.Directory)
         {
-            return SkillOperationResult<AbsolutePath>.FailureResult(SkillFailureCodes.PathUnsafe, $"Generated v2 bundle output root must be a regular directory: {outputRoot}");
+            return SkillOperationResult<AbsolutePath>.FailureResult(SkillFailureCodes.PathUnsafe, $"Generated v3 bundle output root must be a regular directory: {outputRoot}");
         }
 
         return SkillOperationResult<AbsolutePath>.Success(outputRoot);

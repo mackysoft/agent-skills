@@ -34,7 +34,6 @@ public static class AgentOperationReportBuilder
             .ToArray();
 
         return new AgentListReport(
-            catalog.SelectedCategories.Select(static category => category.Value).ToArray(),
             catalog.SelectedAgentNames.Select(static agentName => agentName.Value).ToArray(),
             agents,
             catalog.ResolvedSkills
@@ -61,7 +60,6 @@ public static class AgentOperationReportBuilder
 
         return new AgentExportReport(
             hostId,
-            catalog.SelectedCategories.Select(static category => category.Value).ToArray(),
             catalog.SelectedAgentNames.Select(static agentName => agentName.Value).ToArray(),
             format,
             outputPath,
@@ -198,7 +196,6 @@ public static class AgentOperationReportBuilder
 
         return new AgentDoctorReport(
             context.Host,
-            context.SelectedCategories.Select(static category => category.Value).ToArray(),
             context.SelectedAgentNames.Select(static agentName => agentName.Value).ToArray(),
             AgentOperationReportContext.ToOperationScope(context.Scope),
             context.RepositoryRoot,
@@ -236,7 +233,6 @@ public static class AgentOperationReportBuilder
 
         return new AgentOperationReport(
             context.Host,
-            context.SelectedCategories.Select(static category => category.Value).ToArray(),
             context.SelectedAgentNames.Select(static agentName => agentName.Value).ToArray(),
             AgentOperationReportContext.ToOperationScope(context.Scope),
             context.RepositoryRoot,
@@ -333,7 +329,6 @@ public static class AgentOperationReportBuilder
             manifest.AgentName.Value,
             manifest.DisplayName,
             manifest.Description,
-            manifest.Category.Value,
             manifest.CatalogId.Value,
             manifest.SkillDependencies.Select(static skillName => skillName.Value).ToArray(),
             manifest.ContentDigest,

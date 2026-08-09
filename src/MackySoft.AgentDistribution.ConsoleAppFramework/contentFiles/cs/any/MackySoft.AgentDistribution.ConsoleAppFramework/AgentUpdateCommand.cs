@@ -27,7 +27,6 @@ internal sealed class AgentUpdateCommand
     [Command("update")]
     public async Task<int> UpdateAsync (
         string? host = null,
-        string[]? category = null,
         string[]? agent = null,
         string? scope = null,
         string? repositoryRoot = null,
@@ -39,7 +38,7 @@ internal sealed class AgentUpdateCommand
         bool pretty = false,
         CancellationToken cancellationToken = default)
     {
-        var result = await runner.UpdateAsync(new AgentUpdateCommandRequest(host, category, agent, scope, repositoryRoot, agentTargetDir, skillTargetDir, dryRun, force, printDiff), cancellationToken).ConfigureAwait(false);
+        var result = await runner.UpdateAsync(new AgentUpdateCommandRequest(host, agent, scope, repositoryRoot, agentTargetDir, skillTargetDir, dryRun, force, printDiff), cancellationToken).ConfigureAwait(false);
         return await emitter.EmitAsync(result, new AgentDistributionCommandOutputOptions(pretty), cancellationToken).ConfigureAwait(false);
     }
 }

@@ -13,7 +13,6 @@ internal static class AgentDistributionTestData
     internal static AgentPackageCatalog CreateCatalog (
         IReadOnlyList<CanonicalSkillPackage> skills,
         IReadOnlyList<CanonicalAgentPackage> agents,
-        IReadOnlyList<AgentCategory>? selectedCategories = null,
         IReadOnlyList<AgentName>? selectedAgentNames = null)
     {
         var descriptor = new AgentDistributionBundleDescriptor(
@@ -24,7 +23,6 @@ internal static class AgentDistributionTestData
 
         return new AgentPackageCatalog(
             descriptor,
-            selectedCategories ?? agents.Select(static agent => agent.Manifest.Category).Distinct().ToArray(),
             selectedAgentNames ?? [],
             agents,
             skills);
@@ -32,7 +30,6 @@ internal static class AgentDistributionTestData
 
     internal static CanonicalAgentPackage CreateAgent (
         IReadOnlyList<CanonicalSkillPackage> skills,
-        string category,
         string agentName,
         HostKind hostId,
         string hostRelativeArtifactPath,
@@ -54,7 +51,6 @@ internal static class AgentDistributionTestData
             AgentManifest.CurrentSchemaVersion,
             bundleVersion,
             skills[0].Manifest.CatalogId,
-            new AgentCategory(category),
             canonicalAgentName,
             agentName,
             $"Fixture {agentName}.",
@@ -66,7 +62,6 @@ internal static class AgentDistributionTestData
             provisional.SchemaVersion,
             provisional.BundleVersion,
             provisional.CatalogId,
-            provisional.Category,
             provisional.AgentName,
             provisional.DisplayName,
             provisional.Description,

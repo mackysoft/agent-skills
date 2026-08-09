@@ -1,6 +1,6 @@
 namespace MackySoft.AgentDistribution.Bundles;
 
-/// <summary> Describes one successful v2 build operation. </summary>
+/// <summary> Describes one successful v3 build operation. </summary>
 public sealed class AgentDistributionBundleBuildResult
 {
     /// <summary> Initializes the result. </summary>

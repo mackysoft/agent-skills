@@ -8,22 +8,22 @@ namespace MackySoft.AgentDistribution.Cli.Hosting.Cli.Build;
 internal sealed class BuildCommand
 {
     private readonly SkillBundleBuildService buildService;
-    private readonly AgentDistributionBundleBuildService v2BuildService;
+    private readonly AgentDistributionBundleBuildService agentDistributionBuildService;
     private readonly BundleSchemaVersionReader schemaVersionReader;
 
     /// <summary> Initializes a new instance of the <see cref="BuildCommand" /> class. </summary>
     /// <param name="buildService"> The source and generated bundle reconciliation service. </param>
-    public BuildCommand (SkillBundleBuildService buildService, AgentDistributionBundleBuildService v2BuildService, BundleSchemaVersionReader schemaVersionReader)
+    public BuildCommand (SkillBundleBuildService buildService, AgentDistributionBundleBuildService agentDistributionBuildService, BundleSchemaVersionReader schemaVersionReader)
     {
         this.buildService = buildService ?? throw new ArgumentNullException(nameof(buildService));
-        this.v2BuildService = v2BuildService ?? throw new ArgumentNullException(nameof(v2BuildService));
+        this.agentDistributionBuildService = agentDistributionBuildService ?? throw new ArgumentNullException(nameof(agentDistributionBuildService));
         this.schemaVersionReader = schemaVersionReader ?? throw new ArgumentNullException(nameof(schemaVersionReader));
     }
 
     /// <summary> Reconciles a canonical runtime bundle from a fixed-layout source bundle root. </summary>
     /// <param name="root"> The root containing <c>bundle.json</c>, <c>definitions</c>, and generated output. </param>
     /// <param name="skillBundleVersion"> The exact target bundle version. Omit it to preserve the version authored in bundle.json. </param>
-    /// <param name="bundleVersion"> The exact target v2 mixed-bundle version. </param>
+    /// <param name="bundleVersion"> The exact target mixed-bundle version. </param>
     /// <param name="check"> Whether to fail without writing when generated output requires changes. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The process exit code. </returns>
@@ -58,7 +58,7 @@ internal sealed class BuildCommand
         {
             if (bundleVersion is not null)
             {
-                Console.Error.WriteLine("--bundle-version is valid only for schemaVersion 2 bundles.");
+                Console.Error.WriteLine($"--bundle-version is valid only for schemaVersion {AgentDistributionBundleDefinition.CurrentSchemaVersion} bundles.");
                 return 1;
             }
 
@@ -80,7 +80,7 @@ internal sealed class BuildCommand
                 return 1;
             }
 
-            var result = await v2BuildService.BuildAsync(root, bundleVersion, check, cancellationToken).ConfigureAwait(false);
+            var result = await agentDistributionBuildService.BuildAsync(root, bundleVersion, check, cancellationToken).ConfigureAwait(false);
             if (!result.IsSuccess)
             {
                 Console.Error.WriteLine(result.Failure!.Message);

@@ -18,17 +18,15 @@ public sealed class AgentOperationReportBuilderTests
     public async Task CreateListReport_ProjectsSelectedAgentsHostArtifactsAndResolvedSkillsDeterministically ()
     {
         var skills = await SkillTestData.GenerateFixturePackagesAsync();
-        var planner = AgentDistributionTestData.CreateAgent(skills, "planning", "planner", HostKind.Codex, "planner.toml");
-        var reviewer = AgentDistributionTestData.CreateAgent(skills, "quality", "reviewer", HostKind.Codex, "reviewer.toml");
+        var planner = AgentDistributionTestData.CreateAgent(skills, "planner", HostKind.Codex, "planner.toml");
+        var reviewer = AgentDistributionTestData.CreateAgent(skills, "reviewer", HostKind.Codex, "reviewer.toml");
         var catalog = AgentDistributionTestData.CreateCatalog(
             skills.Reverse().ToArray(),
             [reviewer, planner],
-            [new AgentCategory("quality"), new AgentCategory("planning")],
             [reviewer.Manifest.AgentName]);
 
         var report = AgentOperationReportBuilder.CreateListReport(catalog);
 
-        Assert.Equal(["quality", "planning"], report.Categories);
         Assert.Equal(["reviewer"], report.AgentNames);
         Assert.Equal(["planner", "reviewer"], report.Agents.Select(static agent => agent.AgentName));
         Assert.Equal(SkillTestData.ExpectedSkillNames, report.ResolvedSkills);
@@ -44,7 +42,6 @@ public sealed class AgentOperationReportBuilderTests
         Assert.Equal(planner.Manifest.SchemaVersion, plannerReport.SchemaVersion);
         Assert.Equal(planner.Manifest.DisplayName, plannerReport.DisplayName);
         Assert.Equal(planner.Manifest.Description, plannerReport.Description);
-        Assert.Equal(planner.Manifest.Category.Value, plannerReport.Category);
         Assert.Equal(planner.Manifest.SkillDependencies.Select(static skill => skill.Value), plannerReport.SkillDependencies);
         Assert.Equal(planner.Manifest.ContentDigest, plannerReport.ContentDigest);
         Assert.Equal(planner.Manifest.ManifestDigest, plannerReport.ManifestDigest);
@@ -58,11 +55,10 @@ public sealed class AgentOperationReportBuilderTests
     public async Task CreateExportReport_ProjectsSuccessfulExportSelectionAndCounts ()
     {
         var skills = await SkillTestData.GenerateFixturePackagesAsync();
-        var agent = AgentDistributionTestData.CreateAgent(skills, "planning", "planner", HostKind.Codex, "planner.toml");
+        var agent = AgentDistributionTestData.CreateAgent(skills, "planner", HostKind.Codex, "planner.toml");
         var catalog = AgentDistributionTestData.CreateCatalog(
             skills,
             [agent],
-            [agent.Manifest.Category],
             [agent.Manifest.AgentName]);
         var outputPath = Path.Combine("tmp", "agents.zip");
 
@@ -73,7 +69,6 @@ public sealed class AgentOperationReportBuilderTests
             SkillExportFormat.Zip);
 
         Assert.Equal(HostKind.Codex, report.HostId);
-        Assert.Equal(["planning"], report.Categories);
         Assert.Equal(["planner"], report.AgentNames);
         Assert.Equal(SkillExportFormat.Zip, report.Format);
         Assert.Equal(Path.GetFullPath(outputPath), report.OutputPath);
@@ -105,7 +100,6 @@ public sealed class AgentOperationReportBuilderTests
             HostKind.Codex,
             AgentInstallScopeKind.Project,
             scope.FullPath,
-            catalog.SelectedCategories,
             catalog.SelectedAgentNames,
             new SkillOperationReportContext(
                 HostKind.Codex,

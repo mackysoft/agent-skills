@@ -8,7 +8,7 @@ using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Agents.Generation;
 
-/// <summary> Reads and generates v2 mixed bundles while preserving v1 skill package contracts. </summary>
+/// <summary> Reads and generates v3 mixed bundles while preserving v1 skill package contracts. </summary>
 internal sealed class AgentDistributionBundleGenerationService
 {
     private readonly AgentDistributionBundleDefinitionReader bundleReader;
@@ -29,7 +29,7 @@ internal sealed class AgentDistributionBundleGenerationService
         this.bundleDigestCalculator = bundleDigestCalculator ?? throw new ArgumentNullException(nameof(bundleDigestCalculator));
     }
 
-    /// <summary> Reads a complete v2 source snapshot. </summary>
+    /// <summary> Reads a complete v3 source snapshot. </summary>
     public async ValueTask<SkillOperationResult<AgentDistributionGenerationSource>> ReadSourceAsync (AbsolutePath bundleRoot, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(bundleRoot);
@@ -42,7 +42,7 @@ internal sealed class AgentDistributionBundleGenerationService
         var definitionsRootResult = AuthoredSourcePathResolver.ResolveDirectory(
             bundleRoot,
             RootRelativePath.Parse("definitions"),
-            "v2 definitions root");
+            "v3 definitions root");
         if (!definitionsRootResult.IsSuccess)
         {
             return Failure(definitionsRootResult.Failure!);
@@ -61,7 +61,7 @@ internal sealed class AgentDistributionBundleGenerationService
         {
             return SkillOperationResult<AgentDistributionGenerationSource>.FailureResult(
                 SkillFailureCodes.SourceInvalid,
-                $"v2 definitions root contains an unsupported entry: {unsupportedNamespace}");
+                $"v3 definitions root contains an unsupported entry: {unsupportedNamespace}");
         }
 
         var hasSkillsNamespace = namespaceNames.Contains("skills", StringComparer.Ordinal);
@@ -112,19 +112,19 @@ internal sealed class AgentDistributionBundleGenerationService
         {
             return SkillOperationResult<AgentDistributionGenerationSource>.FailureResult(
                 SkillFailureCodes.SourceInvalid,
-                "The v2 skills namespace must not be empty when it is present.");
+                "The v3 skills namespace must not be empty when it is present.");
         }
 
         if (hasAgentsNamespace && agentsResult.Value!.Count == 0)
         {
             return SkillOperationResult<AgentDistributionGenerationSource>.FailureResult(
                 SkillFailureCodes.SourceInvalid,
-                "The v2 agents namespace must not be empty when it is present.");
+                "The v3 agents namespace must not be empty when it is present.");
         }
 
         if (skillsResult.Value!.Count == 0 && agentsResult.Value!.Count == 0)
         {
-            return SkillOperationResult<AgentDistributionGenerationSource>.FailureResult(SkillFailureCodes.SourceInvalid, "A v2 bundle must contain at least one skill or agent definition.");
+            return SkillOperationResult<AgentDistributionGenerationSource>.FailureResult(SkillFailureCodes.SourceInvalid, "A v3 bundle must contain at least one skill or agent definition.");
         }
 
         var skillReferences = SkillSourceDependencyReferenceValidator.Validate(skillsResult.Value!);
@@ -183,7 +183,7 @@ internal sealed class AgentDistributionBundleGenerationService
         return AuthoredSourcePathResolver.ResolveDirectory(
             definitionsRoot,
             RootRelativePath.Parse(namespaceName),
-            $"v2 {namespaceName} namespace");
+            $"v3 {namespaceName} namespace");
     }
 
     private static SkillOperationResult<IReadOnlyList<string>> ReadDefinitionNamespaceNames (
@@ -206,7 +206,7 @@ internal sealed class AgentDistributionBundleGenerationService
         {
             return SkillOperationResult<IReadOnlyList<string>>.FailureResult(
                 SkillFailureCodes.SourceInvalid,
-                $"The v2 definitions root could not be read: {exception.Message}");
+                $"The v3 definitions root could not be read: {exception.Message}");
         }
     }
 }

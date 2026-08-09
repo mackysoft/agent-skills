@@ -168,7 +168,6 @@ public sealed class AgentInstalledTargetInspectorTests
             manifest.BundleVersion,
             manifest.CatalogId,
             target.HostId,
-            manifest.Category,
             manifest.AgentName,
             manifest.ManifestDigest,
             [new AgentInstalledArtifact(
@@ -187,7 +186,6 @@ public sealed class AgentInstalledTargetInspectorTests
             AgentManifest.CurrentSchemaVersion,
             new AgentDistributionBundleVersion(1),
             new SkillCatalogId(catalogId),
-            new AgentCategory("orchestration"),
             new AgentName("architect"),
             "Architect",
             "Creates a design.",

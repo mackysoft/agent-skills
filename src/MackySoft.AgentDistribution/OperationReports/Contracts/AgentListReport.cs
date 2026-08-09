@@ -4,13 +4,11 @@ namespace MackySoft.AgentDistribution.OperationReports.Contracts;
 public sealed class AgentListReport
 {
     internal AgentListReport (
-        IReadOnlyList<string> categories,
         IReadOnlyList<string> agentNames,
         IReadOnlyList<AgentListAgentReport> agents,
         IReadOnlyList<string> resolvedSkills,
         IReadOnlyList<HostKind> supportedHostIds)
     {
-        Categories = OperationReportContractGuard.SnapshotRequiredStrings(categories, nameof(categories));
         AgentNames = OperationReportContractGuard.SnapshotRequiredStrings(agentNames, nameof(agentNames));
         Agents = OperationReportContractGuard.SnapshotRequiredItems(agents, nameof(agents));
         ResolvedSkills = OperationReportContractGuard.SnapshotRequiredStrings(resolvedSkills, nameof(resolvedSkills));
@@ -22,9 +20,6 @@ public sealed class AgentListReport
 
         SupportedHostIds = Array.AsReadOnly(supportedHostIds.Distinct().OrderBy(Vocabulary.GetText, StringComparer.Ordinal).ToArray());
     }
-
-    /// <summary> Gets selected agent category literals. </summary>
-    public IReadOnlyList<string> Categories { get; }
 
     /// <summary> Gets exact selected agent names. An empty collection means no name filter. </summary>
     public IReadOnlyList<string> AgentNames { get; }

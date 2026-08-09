@@ -71,7 +71,6 @@ public sealed class CodexAgentHostArtifactAdapterTests
     {
         return new AgentSourceMetadata(
             schemaVersion: 1,
-            new AgentCategory("orchestration"),
             new AgentName(agentName),
             "Architect",
             "Creates an implementation-ready design contract.",

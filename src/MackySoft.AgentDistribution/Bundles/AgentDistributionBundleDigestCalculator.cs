@@ -7,7 +7,7 @@ using MackySoft.AgentDistribution.Shared;
 
 namespace MackySoft.AgentDistribution.Bundles;
 
-/// <summary> Computes a version-independent digest for all v2 skill and agent package files. </summary>
+/// <summary> Computes a version-independent digest for all v3 skill and agent package files. </summary>
 public sealed class AgentDistributionBundleDigestCalculator
 {
     private static readonly PackageRelativePath SkillManifestPath = PackageRelativePath.Parse("agent-skill.json");

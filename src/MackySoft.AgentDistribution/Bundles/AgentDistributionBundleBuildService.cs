@@ -12,7 +12,7 @@ using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Bundles;
 
-/// <summary> Reconciles source schema v2 and its generated mixed bundle. </summary>
+/// <summary> Reconciles source schema v3 and its generated mixed bundle. </summary>
 public sealed class AgentDistributionBundleBuildService
 {
     private readonly AgentDistributionBundleGenerationService generationService;
@@ -34,7 +34,7 @@ public sealed class AgentDistributionBundleBuildService
         transaction = new SourceAndGeneratedBundleTransaction(CanonicalTextFilePublisher.PublishAsync);
     }
 
-    /// <summary> Creates the default v2 build service with all built-in host modules. </summary>
+    /// <summary> Creates the default v3 build service with all built-in host modules. </summary>
     public static AgentDistributionBundleBuildService CreateDefault ()
     {
         var skillManifestSerializer = new SkillManifestJsonSerializer();
@@ -80,7 +80,7 @@ public sealed class AgentDistributionBundleBuildService
             mixedSerializer);
     }
 
-    /// <summary> Builds v2 generated output at the authored or next explicit version. </summary>
+    /// <summary> Builds v3 generated output at the authored or next explicit version. </summary>
     public async ValueTask<SkillOperationResult<AgentDistributionBundleBuildResult>> BuildAsync (
         string bundleRoot,
         int? bundleVersion,
@@ -128,14 +128,14 @@ public sealed class AgentDistributionBundleBuildService
         {
             return SkillOperationResult<AgentDistributionBundleBuildResult>.FailureResult(
                 SkillFailureCodes.SourceInvalid,
-                $"The v2 source bundle could not be generated: {exception.Message}");
+                $"The v3 source bundle could not be generated: {exception.Message}");
         }
         var generatedRoot = ContainedPath.Create(fullBundleRoot, RootRelativePath.Parse("generated")).Target;
         if (!FileSystemEntryInspector.TryInspect(generatedRoot, out var generatedRootObservation, out _))
         {
             return SkillOperationResult<AgentDistributionBundleBuildResult>.FailureResult(
                 SkillFailureCodes.PathUnsafe,
-                $"Generated v2 bundle output could not be inspected: {generatedRoot}");
+                $"Generated v3 bundle output could not be inspected: {generatedRoot}");
         }
 
         CanonicalAgentDistributionBundle? current = null;
@@ -153,7 +153,7 @@ public sealed class AgentDistributionBundleBuildService
         {
             return SkillOperationResult<AgentDistributionBundleBuildResult>.FailureResult(
                 SkillFailureCodes.PathUnsafe,
-                $"Generated v2 bundle output must be a regular directory: {generatedRoot}");
+                $"Generated v3 bundle output must be a regular directory: {generatedRoot}");
         }
 
         var sourceChanged = target != source.BundleDefinition.BundleVersion;
@@ -164,7 +164,7 @@ public sealed class AgentDistributionBundleBuildService
 
         if (check)
         {
-            return SkillOperationResult<AgentDistributionBundleBuildResult>.FailureResult(SkillFailureCodes.BundleUpdateRequired, "Canonical v2 bundle requires generation.");
+            return SkillOperationResult<AgentDistributionBundleBuildResult>.FailureResult(SkillFailureCodes.BundleUpdateRequired, "Canonical v3 bundle requires generation.");
         }
 
         SkillOperationResult<AbsolutePath> write;
@@ -203,7 +203,7 @@ public sealed class AgentDistributionBundleBuildService
             || sourceDefinition.CatalogId != descriptor.CatalogId
             || sourceDefinition.BundleVersion != descriptor.BundleVersion)
         {
-            throw new ArgumentException("Source and generated v2 bundle identities must match before publication.", nameof(sourceDefinition));
+            throw new ArgumentException("Source and generated v3 bundle identities must match before publication.", nameof(sourceDefinition));
         }
     }
 }

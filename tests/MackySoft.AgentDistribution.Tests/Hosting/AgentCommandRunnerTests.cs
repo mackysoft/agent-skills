@@ -25,7 +25,6 @@ public sealed class AgentCommandRunnerTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
-        Assert.Contains("--category", result.Failure.Message, StringComparison.Ordinal);
         Assert.Contains("--agent", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -40,7 +39,7 @@ public sealed class AgentCommandRunnerTests
         var result = await runner.DoctorAsync(
             new AgentDoctorCommandRequest(
                 host: "codex",
-                category: ["planning"],
+                agent: ["architect"],
                 scope: "user",
                 agentTargetDir: "relative-target"),
             CancellationToken.None);
@@ -66,7 +65,6 @@ public sealed class AgentCommandRunnerTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
-        Assert.Contains("--category", result.Failure.Message, StringComparison.Ordinal);
         Assert.Contains("--agent", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -81,7 +79,7 @@ public sealed class AgentCommandRunnerTests
         var result = await runner.InstallAsync(
             new AgentInstallCommandRequest(
                 host: "claude",
-                category: ["planning"],
+                agent: ["architect"],
                 scope: "project",
                 repositoryRoot: scope.FullPath),
             CancellationToken.None);

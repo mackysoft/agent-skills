@@ -6,16 +6,13 @@ public sealed class AgentCommandRequestTests
 {
     [Fact]
     [Trait("Size", "Small")]
-    public void Requests_CaptureCategoryAndAgentSnapshots ()
+    public void Requests_CaptureAgentSnapshot ()
     {
-        var categories = new List<string> { "planning" };
         var agents = new List<string> { "architect" };
-        var request = new AgentInstallCommandRequest(category: categories, agent: agents);
+        var request = new AgentInstallCommandRequest(agent: agents);
 
-        categories.Clear();
         agents.Clear();
 
-        Assert.Equal(["planning"], request.Category);
         Assert.Equal(["architect"], request.Agent);
     }
 }

@@ -4,10 +4,9 @@ namespace MackySoft.AgentDistribution.Hosting.Commands;
 public sealed class AgentUpdateCommandRequest
 {
     /// <summary> Initializes one update request. </summary>
-    public AgentUpdateCommandRequest (string? host = null, IReadOnlyList<string>? category = null, IReadOnlyList<string>? agent = null, string? scope = null, string? repositoryRoot = null, string? agentTargetDir = null, string? skillTargetDir = null, bool dryRun = false, bool force = false, bool printDiff = false)
+    public AgentUpdateCommandRequest (string? host = null, IReadOnlyList<string>? agent = null, string? scope = null, string? repositoryRoot = null, string? agentTargetDir = null, string? skillTargetDir = null, bool dryRun = false, bool force = false, bool printDiff = false)
     {
         Host = host;
-        Category = CommandOptionValues.Snapshot(category, nameof(category));
         Agent = CommandOptionValues.Snapshot(agent, nameof(agent));
         Scope = scope;
         RepositoryRoot = repositoryRoot;
@@ -20,9 +19,6 @@ public sealed class AgentUpdateCommandRequest
 
     /// <summary> Gets the raw host literal. </summary>
     public string? Host { get; }
-
-    /// <summary> Gets raw selected custom-agent categories. </summary>
-    public IReadOnlyList<string>? Category { get; }
 
     /// <summary> Gets raw selected exact custom-agent names. </summary>
     public IReadOnlyList<string>? Agent { get; }

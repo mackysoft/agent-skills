@@ -224,8 +224,7 @@ public sealed class AgentPruneService
 
     private static bool MatchesSelection (AgentInstallationState state, AgentPruneInput input)
     {
-        return (input.SelectedCategories.Count == 0 || input.SelectedCategories.Contains(state.Category))
-            && (input.SelectedAgentNames.Count == 0 || input.SelectedAgentNames.Contains(state.AgentName));
+        return input.SelectedAgentNames.Count == 0 || input.SelectedAgentNames.Contains(state.AgentName);
     }
 
     private static SkillOperationResult<AgentPruneResult> Failure (SkillFailure failure)

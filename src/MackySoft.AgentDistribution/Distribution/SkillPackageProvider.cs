@@ -27,11 +27,11 @@ public sealed class SkillPackageProvider
         schemaVersionReader = new BundleSchemaVersionReader();
     }
 
-    /// <summary> Initializes a provider that reads both v1 SKILL bundles and the SKILL namespace of v2 mixed bundles. </summary>
+    /// <summary> Initializes a provider that reads both v1 SKILL bundles and the SKILL namespace of v3 mixed bundles. </summary>
     /// <param name="packageRootResolver"> The bundled generated package root resolver. </param>
     /// <param name="bundleReader"> The canonical v1 SKILL bundle reader. </param>
-    /// <param name="agentDistributionBundleReader"> The canonical v2 mixed bundle reader. </param>
-    /// <param name="skillBundleDigestCalculator"> The digest calculator used to project the v2 SKILL package set. </param>
+    /// <param name="agentDistributionBundleReader"> The canonical v3 mixed bundle reader. </param>
+    /// <param name="skillBundleDigestCalculator"> The digest calculator used to project the v3 SKILL package set. </param>
     public SkillPackageProvider (
         BundledSkillPackageRootResolver packageRootResolver,
         CanonicalSkillBundleReader bundleReader,
@@ -218,7 +218,7 @@ public sealed class SkillPackageProvider
         {
             return SkillOperationResult<SkillPackageBundle>.FailureResult(
                 SkillFailureCodes.InputInvalid,
-                "The v2 generated bundle does not contain any SKILL packages.");
+                "The v3 generated bundle does not contain any SKILL packages.");
         }
 
         var descriptor = new SkillBundleDescriptor(

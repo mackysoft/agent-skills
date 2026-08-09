@@ -7,8 +7,8 @@
   "displayName": "Agent Distribution Packaging",
   "description": "完成したエージェントスキルの責務、発火条件、判断、成果、完了状態を保持して、Agent Distribution 採用製品へソース定義を初回追加または更新し、正規の生成、製品への収録、製品から利用できることまで検証する。既存のソース定義、生成物、依存関係、製品設定を編集せずレビューし、問題、根拠、必要な差分、未検証範囲を整理するときにも使う。",
   "dependencies": [],
-  "contentDigest": "23c9b6f6d59ca78b72110f2d8280da51874ea1073fac1e0ba7fd8e64f19f6269",
-  "manifestDigest": "af69ce1770e2adbb49e02ac80c49a2879085276466cef589a3a65ba569b444bc",
+  "contentDigest": "2ce0b89ec50ef6ebcc6bf28014ac52a5b8820f706da79d08c21a58c98421550e",
+  "manifestDigest": "8708d9e817d6807c6c448c846f19a993e1466e66e79eb0d2f7727d484c20f44f",
   "hostArtifacts": [
     {
       "host": "codex",

@@ -5,7 +5,7 @@ using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Bundles;
 
-/// <summary> Reads and validates canonical authored v2 <c>bundle.json</c> files. </summary>
+/// <summary> Reads and validates canonical authored v3 <c>bundle.json</c> files. </summary>
 public sealed class AgentDistributionBundleDefinitionReader
 {
     private readonly AgentDistributionBundleJsonSerializer serializer;
@@ -16,7 +16,7 @@ public sealed class AgentDistributionBundleDefinitionReader
         this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
     }
 
-    /// <summary> Reads one authored v2 definition. </summary>
+    /// <summary> Reads one authored v3 definition. </summary>
     public async ValueTask<SkillOperationResult<AgentDistributionBundleDefinition>> ReadAsync (AbsolutePath bundleRoot, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(bundleRoot);

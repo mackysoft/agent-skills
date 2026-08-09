@@ -27,7 +27,6 @@ internal sealed class AgentDoctorCommand
     [Command("doctor")]
     public async Task<int> DoctorAsync (
         string? host = null,
-        string[]? category = null,
         string[]? agent = null,
         string? scope = null,
         string? repositoryRoot = null,
@@ -36,7 +35,7 @@ internal sealed class AgentDoctorCommand
         bool pretty = false,
         CancellationToken cancellationToken = default)
     {
-        var result = await runner.DoctorAsync(new AgentDoctorCommandRequest(host, category, agent, scope, repositoryRoot, agentTargetDir, skillTargetDir), cancellationToken).ConfigureAwait(false);
+        var result = await runner.DoctorAsync(new AgentDoctorCommandRequest(host, agent, scope, repositoryRoot, agentTargetDir, skillTargetDir), cancellationToken).ConfigureAwait(false);
         return await emitter.EmitAsync(result, new AgentDistributionCommandOutputOptions(pretty), cancellationToken).ConfigureAwait(false);
     }
 }

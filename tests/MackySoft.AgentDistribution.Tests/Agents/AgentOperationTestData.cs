@@ -33,7 +33,6 @@ internal static class AgentOperationTestData
             AgentManifest.CurrentSchemaVersion,
             new AgentDistributionBundleVersion(skills[0].Manifest.SkillBundleVersion.Value),
             skills[0].Manifest.CatalogId,
-            new AgentCategory("engineering"),
             new AgentName(agentName),
             agentName,
             $"Fixture {agentName}.",
@@ -45,7 +44,6 @@ internal static class AgentOperationTestData
             provisional.SchemaVersion,
             provisional.BundleVersion,
             provisional.CatalogId,
-            provisional.Category,
             provisional.AgentName,
             provisional.DisplayName,
             provisional.Description,
@@ -77,7 +75,6 @@ internal static class AgentOperationTestData
             Sha256Digest.Parse(new string('1', 64)));
         return new AgentPackageCatalog(
             descriptor,
-            agents.Select(static agent => agent.Manifest.Category).Distinct().ToArray(),
             selectedAgentNames ?? [],
             agents,
             resolvedSkills ?? []);

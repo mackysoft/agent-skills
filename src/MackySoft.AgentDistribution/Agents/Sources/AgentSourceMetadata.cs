@@ -7,14 +7,13 @@ internal sealed class AgentSourceMetadata
     internal const int CurrentSchemaVersion = 1;
 
     /// <summary> Initializes agent metadata. </summary>
-    public AgentSourceMetadata (int schemaVersion, AgentCategory category, AgentName agentName, string displayName, string description, IReadOnlyList<SkillName> skillDependencies)
+    public AgentSourceMetadata (int schemaVersion, AgentName agentName, string displayName, string description, IReadOnlyList<SkillName> skillDependencies)
     {
         if (schemaVersion != CurrentSchemaVersion)
         {
             throw new ArgumentOutOfRangeException(nameof(schemaVersion), schemaVersion, $"Agent source schema version must be {CurrentSchemaVersion}.");
         }
 
-        ArgumentNullException.ThrowIfNull(category);
         ArgumentNullException.ThrowIfNull(agentName);
         if (string.IsNullOrWhiteSpace(displayName)
             || string.IsNullOrWhiteSpace(description)
@@ -33,7 +32,6 @@ internal sealed class AgentSourceMetadata
         }
 
         SchemaVersion = schemaVersion;
-        Category = category;
         AgentName = agentName;
         DisplayName = displayName;
         Description = description;
@@ -42,9 +40,6 @@ internal sealed class AgentSourceMetadata
 
     /// <summary> Gets the source schema version. </summary>
     public int SchemaVersion { get; }
-
-    /// <summary> Gets the directory-derived category. </summary>
-    public AgentCategory Category { get; }
 
     /// <summary> Gets the directory-derived agent name. </summary>
     public AgentName AgentName { get; }

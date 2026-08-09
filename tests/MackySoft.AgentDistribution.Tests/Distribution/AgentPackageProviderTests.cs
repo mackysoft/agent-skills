@@ -20,12 +20,10 @@ public sealed class AgentPackageProviderTests
         var skills = await SkillTestData.GenerateFixturePackagesAsync();
         var sameNameAgent = CreateAgent(
             skills,
-            new AgentCategory("planning"),
             new AgentName(skills[0].Manifest.SkillName.Value),
             [skills[0].Manifest.SkillName]);
         var reviewer = CreateAgent(
             skills,
-            new AgentCategory("quality"),
             new AgentName("reviewer"),
             [skills[0].Manifest.SkillName]);
         await WriteBundleAsync(scope.FullPath, skills, [reviewer, sameNameAgent]);
@@ -34,8 +32,7 @@ public sealed class AgentPackageProviderTests
         var result = await provider.GetPackageCatalogAsync(CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(["planning", "quality"], result.Value!.SelectedCategories.Select(static category => category.Value).ToArray());
-        Assert.Empty(result.Value.SelectedAgentNames);
+        Assert.Empty(result.Value!.SelectedAgentNames);
         Assert.Equal(
             new[] { sameNameAgent.Manifest.AgentName.Value, reviewer.Manifest.AgentName.Value }.Order(StringComparer.Ordinal),
             result.Value.SelectedAgents.Select(static agent => agent.Manifest.AgentName.Value));
@@ -46,16 +43,16 @@ public sealed class AgentPackageProviderTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task GetPackageCatalogAsync_WhenNameMatchesSelectedCategory_ReturnsOnlyThatAgent ()
+    public async Task GetPackageCatalogAsync_WhenAgentNameIsSelected_ReturnsOnlyThatAgent ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-agent-package-provider", "exact-selection");
         var skills = await SkillTestData.GenerateFixturePackagesAsync();
-        var planner = CreateAgent(skills, new AgentCategory("planning"), new AgentName("planner"), [skills[0].Manifest.SkillName]);
-        var reviewer = CreateAgent(skills, new AgentCategory("quality"), new AgentName("reviewer"), [skills[1].Manifest.SkillName]);
+        var planner = CreateAgent(skills, new AgentName("planner"), [skills[0].Manifest.SkillName]);
+        var reviewer = CreateAgent(skills, new AgentName("reviewer"), [skills[1].Manifest.SkillName]);
         await WriteBundleAsync(scope.FullPath, skills, [planner, reviewer]);
         var provider = CreateProvider(scope.FullPath);
 
-        var result = await provider.GetPackageCatalogAsync(["planning"], ["planner"], CancellationToken.None);
+        var result = await provider.GetPackageCatalogAsync(["planner"], CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal(["planner"], result.Value!.SelectedAgents.Select(static agent => agent.Manifest.AgentName.Value));
@@ -64,46 +61,14 @@ public sealed class AgentPackageProviderTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task GetPackageCatalogAsync_RejectsUnknownCategory ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-agent-package-provider", "unknown-category");
-        var skills = await SkillTestData.GenerateFixturePackagesAsync();
-        await WriteBundleAsync(scope.FullPath, skills, [CreateAgent(skills, new AgentCategory("planning"), new AgentName("planner"), [])]);
-        var provider = CreateProvider(scope.FullPath);
-
-        var result = await provider.GetPackageCatalogAsync(["unknown"], [], CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task GetPackageCatalogAsync_RejectsNameOutsideSelectedCategory ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-agent-package-provider", "category-name-mismatch");
-        var skills = await SkillTestData.GenerateFixturePackagesAsync();
-        var planner = CreateAgent(skills, new AgentCategory("planning"), new AgentName("planner"), []);
-        var reviewer = CreateAgent(skills, new AgentCategory("quality"), new AgentName("reviewer"), []);
-        await WriteBundleAsync(scope.FullPath, skills, [planner, reviewer]);
-        var provider = CreateProvider(scope.FullPath);
-
-        var result = await provider.GetPackageCatalogAsync(["planning"], ["reviewer"], CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
     public async Task GetPackageCatalogAsync_RejectsUnknownAgentName ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-agent-package-provider", "unknown-name");
         var skills = await SkillTestData.GenerateFixturePackagesAsync();
-        await WriteBundleAsync(scope.FullPath, skills, [CreateAgent(skills, new AgentCategory("planning"), new AgentName("planner"), [])]);
+        await WriteBundleAsync(scope.FullPath, skills, [CreateAgent(skills, new AgentName("planner"), [])]);
         var provider = CreateProvider(scope.FullPath);
 
-        var result = await provider.GetPackageCatalogAsync([], ["unknown-agent"], CancellationToken.None);
+        var result = await provider.GetPackageCatalogAsync(["unknown-agent"], CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
@@ -117,7 +82,6 @@ public sealed class AgentPackageProviderTests
         var skills = await SkillTestData.GenerateFixturePackagesAsync();
         var agent = CreateAgent(
             skills,
-            new AgentCategory("planning"),
             new AgentName("planner"),
             [new SkillName("missing-skill")]);
 
@@ -190,7 +154,6 @@ public sealed class AgentPackageProviderTests
 
     private static CanonicalAgentPackage CreateAgent (
         IReadOnlyList<CanonicalSkillPackage> skills,
-        AgentCategory category,
         AgentName agentName,
         IReadOnlyList<SkillName> skillDependencies)
     {
@@ -209,7 +172,6 @@ public sealed class AgentPackageProviderTests
             AgentManifest.CurrentSchemaVersion,
             bundleVersion,
             skills[0].Manifest.CatalogId,
-            category,
             agentName,
             agentName.Value,
             $"Fixture {agentName.Value}.",
@@ -221,7 +183,6 @@ public sealed class AgentPackageProviderTests
             provisional.SchemaVersion,
             provisional.BundleVersion,
             provisional.CatalogId,
-            provisional.Category,
             provisional.AgentName,
             provisional.DisplayName,
             provisional.Description,

@@ -27,7 +27,6 @@ internal sealed class AgentInstallCommand
     [Command("install")]
     public async Task<int> InstallAsync (
         string? host = null,
-        string[]? category = null,
         string[]? agent = null,
         string? scope = null,
         string? repositoryRoot = null,
@@ -39,7 +38,7 @@ internal sealed class AgentInstallCommand
         bool pretty = false,
         CancellationToken cancellationToken = default)
     {
-        var result = await runner.InstallAsync(new AgentInstallCommandRequest(host, category, agent, scope, repositoryRoot, agentTargetDir, skillTargetDir, dryRun, force, printDiff), cancellationToken).ConfigureAwait(false);
+        var result = await runner.InstallAsync(new AgentInstallCommandRequest(host, agent, scope, repositoryRoot, agentTargetDir, skillTargetDir, dryRun, force, printDiff), cancellationToken).ConfigureAwait(false);
         return await emitter.EmitAsync(result, new AgentDistributionCommandOutputOptions(pretty), cancellationToken).ConfigureAwait(false);
     }
 }

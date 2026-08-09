@@ -45,8 +45,8 @@ internal sealed class AgentPackageGenerationService
 
         var contentDigest = digestCalculator.ComputeSingleFileDigest(instructionsPath, instructions);
         var placeholder = Sha256Digest.Parse(new string('0', 64));
-        var provisional = new AgentManifest(AgentManifest.CurrentSchemaVersion, bundle.BundleVersion, bundle.CatalogId, definition.Metadata.Category, definition.Metadata.AgentName, definition.Metadata.DisplayName, definition.Metadata.Description, definition.Metadata.SkillDependencies, contentDigest, placeholder, artifacts);
-        var manifest = new AgentManifest(provisional.SchemaVersion, provisional.BundleVersion, provisional.CatalogId, provisional.Category, provisional.AgentName, provisional.DisplayName, provisional.Description, provisional.SkillDependencies, provisional.ContentDigest, manifestDigestCalculator.ComputeManifestDigest(provisional), provisional.HostArtifacts);
+        var provisional = new AgentManifest(AgentManifest.CurrentSchemaVersion, bundle.BundleVersion, bundle.CatalogId, definition.Metadata.AgentName, definition.Metadata.DisplayName, definition.Metadata.Description, definition.Metadata.SkillDependencies, contentDigest, placeholder, artifacts);
+        var manifest = new AgentManifest(provisional.SchemaVersion, provisional.BundleVersion, provisional.CatalogId, provisional.AgentName, provisional.DisplayName, provisional.Description, provisional.SkillDependencies, provisional.ContentDigest, manifestDigestCalculator.ComputeManifestDigest(provisional), provisional.HostArtifacts);
         files.Add(new PackageTextFile(PackageRelativePath.Parse("agent-manifest.json"), manifestSerializer.Serialize(manifest)));
         return new CanonicalAgentPackage(manifest, files, manifestSerializer, digestCalculator);
     }

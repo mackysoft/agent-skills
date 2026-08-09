@@ -4,10 +4,9 @@ namespace MackySoft.AgentDistribution.Hosting.Commands;
 public sealed class AgentExportCommandRequest
 {
     /// <summary> Initializes one export request. </summary>
-    public AgentExportCommandRequest (string? host = null, IReadOnlyList<string>? category = null, IReadOnlyList<string>? agent = null, string? output = null, string? format = null)
+    public AgentExportCommandRequest (string? host = null, IReadOnlyList<string>? agent = null, string? output = null, string? format = null)
     {
         Host = host;
-        Category = CommandOptionValues.Snapshot(category, nameof(category));
         Agent = CommandOptionValues.Snapshot(agent, nameof(agent));
         Output = output;
         Format = format;
@@ -15,9 +14,6 @@ public sealed class AgentExportCommandRequest
 
     /// <summary> Gets the raw host literal. </summary>
     public string? Host { get; }
-
-    /// <summary> Gets raw selected custom-agent categories. </summary>
-    public IReadOnlyList<string>? Category { get; }
 
     /// <summary> Gets raw selected exact custom-agent names. </summary>
     public IReadOnlyList<string>? Agent { get; }
