@@ -5,7 +5,6 @@ using MackySoft.AgentDistribution.Distribution;
 using MackySoft.AgentDistribution.Hosts.Registration;
 using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Shared;
-using MackySoft.Tests;
 
 namespace MackySoft.AgentDistribution.Tests.Distribution;
 

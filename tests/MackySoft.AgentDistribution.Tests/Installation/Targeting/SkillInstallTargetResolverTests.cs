@@ -3,7 +3,6 @@ using MackySoft.AgentDistribution.Installation.Inventory;
 using MackySoft.AgentDistribution.Installation.Targeting;
 using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Shared;
-using MackySoft.Tests;
 
 namespace MackySoft.AgentDistribution.Tests.Installation.Targeting;
 

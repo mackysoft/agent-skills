@@ -6,7 +6,6 @@ using MackySoft.AgentDistribution.Manifests;
 using MackySoft.AgentDistribution.OperationReports.Contracts;
 using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Shared;
-using MackySoft.Tests;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MackySoft.AgentDistribution.Tests.Hosting;

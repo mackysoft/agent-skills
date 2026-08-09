@@ -12,6 +12,8 @@
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="MackySoft.Testing.IO" Version="0.1.0" />
+    <PackageReference Include="MackySoft.Testing.Xunit" Version="0.1.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
@@ -21,10 +23,11 @@
   <ItemGroup>
     <ProjectReference Include="../../src/MackySoft.AgentDistribution/MackySoft.AgentDistribution.csproj" />
     <ProjectReference Include="../../src/MackySoft.AgentDistribution.Hosting/MackySoft.AgentDistribution.Hosting.csproj" />
-    <ProjectReference Include="../Tests.Helper/Tests.Helper.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <Using Include="MackySoft.Testing.IO" />
+    <Using Include="MackySoft.Testing.Xunit.IO" />
     <Using Include="Xunit" />
   </ItemGroup>
 

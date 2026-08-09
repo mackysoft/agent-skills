@@ -1,5 +1,4 @@
 using MackySoft.AgentDistribution.Installation.Targeting;
-using MackySoft.Tests;
 
 namespace MackySoft.AgentDistribution.Tests.Installation.Targeting;
 

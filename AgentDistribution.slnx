@@ -7,6 +7,5 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/MackySoft.AgentDistribution.Tests/MackySoft.AgentDistribution.Tests.csproj" />
-    <Project Path="tests/Tests.Helper/Tests.Helper.csproj" />
   </Folder>
 </Solution>

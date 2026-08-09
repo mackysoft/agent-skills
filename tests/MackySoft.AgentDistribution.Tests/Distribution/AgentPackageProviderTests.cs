@@ -6,7 +6,6 @@ using MackySoft.AgentDistribution.Distribution;
 using MackySoft.AgentDistribution.Manifests;
 using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Shared;
-using MackySoft.Tests;
 
 namespace MackySoft.AgentDistribution.Tests.Distribution;
 

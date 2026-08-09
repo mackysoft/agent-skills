@@ -1,6 +1,5 @@
 using MackySoft.AgentDistribution.Bundles;
 using MackySoft.AgentDistribution.Shared;
-using MackySoft.Tests;
 
 namespace MackySoft.AgentDistribution.Tests.Bundles;
 
@@ -18,10 +17,7 @@ public sealed class AgentDistributionBundleSourcePathTests
         using var scope = TestDirectories.CreateTempScope("agent-distribution-v3", "linked-descriptor");
         using var outsideScope = TestDirectories.CreateTempScope("agent-distribution-v3", "linked-descriptor-outside");
         var target = outsideScope.WriteFile("bundle.json", CreateBundleJson());
-        if (!TryCreateFileSymbolicLink(scope.GetPath("bundle.json"), target))
-        {
-            return;
-        }
+        File.CreateSymbolicLink(scope.GetPath("bundle.json"), target);
 
         var schemaResult = await new BundleSchemaVersionReader().ReadAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
         var definitionResult = await new AgentDistributionBundleDefinitionReader(new AgentDistributionBundleJsonSerializer())
@@ -46,10 +42,7 @@ public sealed class AgentDistributionBundleSourcePathTests
         using var outsideScope = TestDirectories.CreateTempScope("agent-distribution-v3", "linked-root-outside");
         outsideScope.WriteFile("bundle.json", CreateBundleJson());
         var rootLink = scope.GetPath("bundle-root");
-        if (!TryCreateDirectorySymbolicLink(rootLink, outsideScope.FullPath))
-        {
-            return;
-        }
+        Directory.CreateSymbolicLink(rootLink, outsideScope.FullPath);
 
         var schemaResult = await new BundleSchemaVersionReader().ReadAsync(AbsolutePath.Parse(rootLink), CancellationToken.None);
         var definitionResult = await new AgentDistributionBundleDefinitionReader(new AgentDistributionBundleJsonSerializer())
@@ -72,41 +65,4 @@ public sealed class AgentDistributionBundleSourcePathTests
             """ + "\n";
     }
 
-    private static bool TryCreateFileSymbolicLink (
-        string linkPath,
-        string targetPath)
-    {
-        try
-        {
-            File.CreateSymbolicLink(linkPath, targetPath);
-            return true;
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
-        }
-    }
-
-    private static bool TryCreateDirectorySymbolicLink (
-        string linkPath,
-        string targetPath)
-    {
-        try
-        {
-            Directory.CreateSymbolicLink(linkPath, targetPath);
-            return true;
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
-        }
-    }
 }

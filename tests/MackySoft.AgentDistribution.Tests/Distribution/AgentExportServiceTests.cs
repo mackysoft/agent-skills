@@ -1,7 +1,6 @@
 using System.IO.Compression;
 using MackySoft.AgentDistribution.Distribution;
 using MackySoft.AgentDistribution.Shared;
-using MackySoft.Tests;
 
 namespace MackySoft.AgentDistribution.Tests.Distribution;
 

@@ -1,5 +1,5 @@
+using System.Reflection;
 using MackySoft.AgentDistribution.Shared;
-using MackySoft.Tests;
 
 namespace MackySoft.AgentDistribution.Tests.Shared;
 
@@ -10,9 +10,11 @@ public sealed class SkillFailureClassifierTests
     public void Classify_CoversEveryKnownFailureCode ()
     {
         var expectedCategories = CreateExpectedCategories();
-        var knownCodes = StaticFieldValueReader.ReadFromStaticClasses<SkillFailureCode>(
-            typeof(SkillFailureCodes).Assembly,
-            "Codes");
+        var knownCodes = typeof(SkillFailureCodes)
+            .GetFields(BindingFlags.Public | BindingFlags.Static)
+            .Where(static field => field.FieldType == typeof(SkillFailureCode))
+            .Select(static field => (SkillFailureCode)field.GetValue(null)!)
+            .ToHashSet();
 
         Assert.Equal(
             knownCodes.OrderBy(static code => code.Value).ToArray(),

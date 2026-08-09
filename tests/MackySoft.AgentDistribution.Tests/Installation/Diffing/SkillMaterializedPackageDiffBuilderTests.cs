@@ -2,7 +2,6 @@ using MackySoft.AgentDistribution.Installation.Diffing;
 using MackySoft.AgentDistribution.Installation.Results;
 using MackySoft.AgentDistribution.Materialization;
 using MackySoft.AgentDistribution.Shared;
-using MackySoft.Tests;
 
 namespace MackySoft.AgentDistribution.Tests.Installation.Diffing;
 
@@ -123,7 +122,7 @@ public sealed class SkillMaterializedPackageDiffBuilderTests
 
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "diff-builder-backslash-path");
         var skillDirectory = scope.CreateDirectory("sample-skill");
-        scope.WriteFile(Path.Combine("sample-skill", "unsafe\\name.md"), "# Unsafe\n");
+        File.WriteAllText(Path.Combine(skillDirectory, "unsafe\\name.md"), "# Unsafe\n");
         var package = new SkillMaterializedPackage(
             new SkillName("sample-skill"),
             HostKind.Codex,

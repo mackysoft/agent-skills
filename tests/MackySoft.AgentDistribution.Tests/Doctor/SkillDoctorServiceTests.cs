@@ -1,7 +1,6 @@
 using MackySoft.AgentDistribution.Installation.Targeting;
 using MackySoft.AgentDistribution.Manifests;
 using MackySoft.AgentDistribution.Shared;
-using MackySoft.Tests;
 
 namespace MackySoft.AgentDistribution.Tests.Doctor;
 

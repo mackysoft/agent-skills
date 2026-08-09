@@ -1,6 +1,5 @@
 using MackySoft.AgentDistribution.Agents.Sources;
 using MackySoft.AgentDistribution.Shared;
-using MackySoft.Tests;
 
 namespace MackySoft.AgentDistribution.Tests.Agents.Sources;
 
@@ -56,10 +55,7 @@ public sealed class AgentSourceDefinitionReaderTests
 
         using var scope = TestDirectories.CreateTempScope("agent-distribution-agents", "dangling-namespace");
         var agentsRoot = scope.GetPath("agents");
-        if (!TryCreateDirectorySymbolicLink(agentsRoot, scope.GetPath("missing-target")))
-        {
-            return;
-        }
+        Directory.CreateSymbolicLink(agentsRoot, scope.GetPath("missing-target"));
 
         var result = await CreateReader().ReadAllAsync(AbsolutePath.Parse(agentsRoot), CancellationToken.None);
 
@@ -98,10 +94,7 @@ public sealed class AgentSourceDefinitionReaderTests
         var linkPath = scope.GetPath(Path.Combine("architect", relativeFile));
         File.Delete(linkPath);
         var targetPath = outsideScope.WriteFile("outside.txt", GetReplacementContent(relativeFile));
-        if (!TryCreateFileSymbolicLink(linkPath, targetPath))
-        {
-            return;
-        }
+        File.CreateSymbolicLink(linkPath, targetPath);
 
         var result = await CreateReader().ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
@@ -121,10 +114,7 @@ public sealed class AgentSourceDefinitionReaderTests
         using var scope = TestDirectories.CreateTempScope("agent-distribution-agents", "linked-agent");
         using var outsideScope = TestDirectories.CreateTempScope("agent-distribution-agents", "linked-agent-outside");
         outsideScope.CreateDirectory("architect");
-        if (!TryCreateDirectorySymbolicLink(scope.GetPath("architect"), outsideScope.GetPath("architect")))
-        {
-            return;
-        }
+        Directory.CreateSymbolicLink(scope.GetPath("architect"), outsideScope.GetPath("architect"));
 
         var result = await CreateReader().ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
@@ -217,41 +207,4 @@ public sealed class AgentSourceDefinitionReaderTests
             """;
     }
 
-    private static bool TryCreateFileSymbolicLink (
-        string linkPath,
-        string targetPath)
-    {
-        try
-        {
-            File.CreateSymbolicLink(linkPath, targetPath);
-            return true;
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
-        }
-    }
-
-    private static bool TryCreateDirectorySymbolicLink (
-        string linkPath,
-        string targetPath)
-    {
-        try
-        {
-            Directory.CreateSymbolicLink(linkPath, targetPath);
-            return true;
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
-        }
-    }
 }

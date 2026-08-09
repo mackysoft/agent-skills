@@ -1,6 +1,5 @@
 using MackySoft.AgentDistribution.Agents.Installation.Targeting;
 using MackySoft.AgentDistribution.Shared;
-using MackySoft.Tests;
 
 namespace MackySoft.AgentDistribution.Tests.Agents.Installation.Targeting;
 
@@ -41,10 +40,7 @@ public sealed class AgentInstallTargetResolverTests
     {
         using var home = TestDirectories.CreateTempScope("agent-distribution-agents", "user-link-home");
         using var outside = TestDirectories.CreateTempScope("agent-distribution-agents", "user-link-outside");
-        if (!TryCreateDirectorySymbolicLink(Path.Combine(home.FullPath, ".claude"), outside.FullPath))
-        {
-            return;
-        }
+        Directory.CreateSymbolicLink(Path.Combine(home.FullPath, ".claude"), outside.FullPath);
 
         var result = CreateResolver(home.FullPath).ResolveTarget(
             SkillTestData.CreateAgentTargetRequest(HostKind.ClaudeCode, AgentInstallScopeKind.User, null));
@@ -74,10 +70,7 @@ public sealed class AgentInstallTargetResolverTests
         using var repository = TestDirectories.CreateTempScope("agent-distribution-agents", "project-link-root");
         using var outside = TestDirectories.CreateTempScope("agent-distribution-agents", "project-link-outside");
         var link = Path.Combine(repository.FullPath, "linked");
-        if (!TryCreateDirectorySymbolicLink(link, outside.FullPath))
-        {
-            return;
-        }
+        Directory.CreateSymbolicLink(link, outside.FullPath);
 
         var resolver = CreateResolver(repository.FullPath);
 
@@ -89,25 +82,6 @@ public sealed class AgentInstallTargetResolverTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
-    }
-
-    private static bool TryCreateDirectorySymbolicLink (
-        string linkPath,
-        string targetPath)
-    {
-        try
-        {
-            Directory.CreateSymbolicLink(linkPath, targetPath);
-            return true;
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
-        }
     }
 
     private static AgentInstallTargetResolver CreateResolver (string homeDirectory, Func<string, string?>? environment = null)

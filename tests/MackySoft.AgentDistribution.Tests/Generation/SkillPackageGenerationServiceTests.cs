@@ -6,7 +6,6 @@ using MackySoft.AgentDistribution.Manifests;
 using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Shared;
 using MackySoft.AgentDistribution.Sources;
-using MackySoft.Tests;
 
 namespace MackySoft.AgentDistribution.Tests.Generation;
 
@@ -248,10 +247,7 @@ public sealed class SkillPackageGenerationServiceTests
         using var outsideScope = TestDirectories.CreateTempScope("agent-distribution-skills", "definitions-symlink-outside");
         WriteBundle(scope);
         WriteDefinition(outsideScope, "outside-skill");
-        if (!TryCreateDirectorySymbolicLink(scope.GetPath("definitions"), outsideScope.GetPath("definitions")))
-        {
-            return;
-        }
+        Directory.CreateSymbolicLink(scope.GetPath("definitions"), outsideScope.GetPath("definitions"));
 
         var service = SkillTestData.CreatePackageGenerationService();
 
@@ -450,22 +446,4 @@ public sealed class SkillPackageGenerationServiceTests
         scope.WriteFile("bundle.json", serializer.SerializeDefinition(CreateBundleDefinition(skillBundleVersion)));
     }
 
-    private static bool TryCreateDirectorySymbolicLink (
-        string linkPath,
-        string targetPath)
-    {
-        try
-        {
-            Directory.CreateSymbolicLink(linkPath, targetPath);
-            return true;
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
-        }
-    }
 }

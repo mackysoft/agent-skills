@@ -5,7 +5,6 @@ using MackySoft.AgentDistribution.Agents.Installation.State;
 using MackySoft.AgentDistribution.Agents.Installation.Targeting;
 using MackySoft.AgentDistribution.Installation.Targeting;
 using MackySoft.AgentDistribution.Shared;
-using MackySoft.Tests;
 
 namespace MackySoft.AgentDistribution.Tests.Agents.Installation.Services;
 

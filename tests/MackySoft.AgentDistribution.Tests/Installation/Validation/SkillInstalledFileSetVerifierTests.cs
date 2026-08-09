@@ -1,6 +1,5 @@
 using MackySoft.AgentDistribution.Installation.Validation;
 using MackySoft.AgentDistribution.Shared;
-using MackySoft.Tests;
 
 namespace MackySoft.AgentDistribution.Tests.Installation.Validation;
 
@@ -198,10 +197,7 @@ public sealed class SkillInstalledFileSetVerifierTests
         using var outsideScope = TestDirectories.CreateTempScope("agent-distribution-skills", "file-set-symlink-outside");
         var skillDirectory = AbsolutePath.Parse(scope.CreateDirectory("sample-skill"));
         var targetPath = outsideScope.WriteFile("SKILL.md", "# Outside\n");
-        if (!TestSymbolicLinks.TryCreateFile(Path.Combine(skillDirectory.Value, "SKILL.md"), targetPath))
-        {
-            return;
-        }
+        File.CreateSymbolicLink(Path.Combine(skillDirectory.Value, "SKILL.md"), targetPath);
 
         var verifier = new SkillInstalledFileSetVerifier();
 
@@ -228,10 +224,7 @@ public sealed class SkillInstalledFileSetVerifierTests
         var skillDirectory = AbsolutePath.Parse(scope.CreateDirectory("sample-skill"));
         scope.WriteFile(Path.Combine("sample-skill", "SKILL.md"), "# Skill\n");
         outsideScope.WriteFile("secret.md", "# Outside\n");
-        if (!TestSymbolicLinks.TryCreateDirectory(Path.Combine(skillDirectory.Value, "outside"), outsideScope.FullPath))
-        {
-            return;
-        }
+        Directory.CreateSymbolicLink(Path.Combine(skillDirectory.Value, "outside"), outsideScope.FullPath);
 
         var verifier = new SkillInstalledFileSetVerifier();
 

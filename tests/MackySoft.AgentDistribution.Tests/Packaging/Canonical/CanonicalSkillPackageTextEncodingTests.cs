@@ -1,5 +1,4 @@
 using MackySoft.AgentDistribution.Shared;
-using MackySoft.Tests;
 
 namespace MackySoft.AgentDistribution.Tests.Packaging.Canonical;
 
