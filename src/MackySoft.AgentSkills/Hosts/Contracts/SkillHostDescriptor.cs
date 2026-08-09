@@ -1,5 +1,5 @@
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.Text;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Hosts.Contracts;
 
@@ -8,35 +8,23 @@ public sealed class SkillHostDescriptor
 {
     /// <summary> Initializes one immutable host descriptor. </summary>
     internal SkillHostDescriptor (
-        SkillHostKind host,
-        string projectDefaultTargetPath,
-        string userDefaultTargetPath,
+        RootRelativePath projectDefaultTargetPath,
         SkillUserTargetRootPolicy userTargetRootPolicy,
         SkillBundleTargetRootLayout bundleTargetRootLayout,
         IReadOnlyList<SkillBundleTargetRootLayout> compatiblePreviousBundleTargetRootLayouts,
-        string? metadataArtifactPath,
+        PackageRelativePath? metadataArtifactPath,
         string reloadGuidance)
     {
-        if (!ContractLiteralCodec.IsDefined(host))
-        {
-            throw new ArgumentOutOfRangeException(nameof(host), host, "Unsupported SKILL host value.");
-        }
-
-        if (!SkillRelativePath.IsSafeFilePath(projectDefaultTargetPath))
-        {
-            throw new ArgumentException("Project default target path must be a safe relative path.", nameof(projectDefaultTargetPath));
-        }
-
-        ArgumentException.ThrowIfNullOrWhiteSpace(userDefaultTargetPath);
+        ArgumentNullException.ThrowIfNull(projectDefaultTargetPath);
         ArgumentNullException.ThrowIfNull(userTargetRootPolicy);
-        if (!ContractLiteralCodec.IsDefined(bundleTargetRootLayout))
+        if (!Vocabulary.IsDefined(bundleTargetRootLayout))
         {
             throw new ArgumentOutOfRangeException(nameof(bundleTargetRootLayout), bundleTargetRootLayout, "Unsupported bundle target-root layout.");
         }
 
         ArgumentNullException.ThrowIfNull(compatiblePreviousBundleTargetRootLayouts);
         var previousLayouts = compatiblePreviousBundleTargetRootLayouts.ToArray();
-        if (previousLayouts.Any(layout => !ContractLiteralCodec.IsDefined(layout)))
+        if (previousLayouts.Any(layout => !Vocabulary.IsDefined(layout)))
         {
             throw new ArgumentOutOfRangeException(
                 nameof(compatiblePreviousBundleTargetRootLayouts),
@@ -51,16 +39,9 @@ public sealed class SkillHostDescriptor
                 nameof(compatiblePreviousBundleTargetRootLayouts));
         }
 
-        if (metadataArtifactPath is not null && !SkillRelativePath.IsSafeFilePath(metadataArtifactPath))
-        {
-            throw new ArgumentException("Metadata artifact path must be a safe relative path.", nameof(metadataArtifactPath));
-        }
-
         ArgumentException.ThrowIfNullOrWhiteSpace(reloadGuidance);
 
-        Host = host;
         ProjectDefaultTargetPath = projectDefaultTargetPath;
-        UserDefaultTargetPath = userDefaultTargetPath;
         UserTargetRootPolicy = userTargetRootPolicy;
         BundleTargetRootLayout = bundleTargetRootLayout;
         CompatiblePreviousBundleTargetRootLayouts = Array.AsReadOnly(previousLayouts);
@@ -68,14 +49,8 @@ public sealed class SkillHostDescriptor
         ReloadGuidance = reloadGuidance;
     }
 
-    /// <summary> Gets the supported host. </summary>
-    public SkillHostKind Host { get; }
-
     /// <summary> Gets the project-scope default host SKILL root path relative to the repository root. </summary>
-    public string ProjectDefaultTargetPath { get; }
-
-    /// <summary> Gets the user-scope default host SKILL root path shown to users. </summary>
-    public string UserDefaultTargetPath { get; }
+    public RootRelativePath ProjectDefaultTargetPath { get; }
 
     /// <summary> Gets the user-scope host SKILL root resolution policy. </summary>
     public SkillUserTargetRootPolicy UserTargetRootPolicy { get; }
@@ -87,7 +62,7 @@ public sealed class SkillHostDescriptor
     public IReadOnlyList<SkillBundleTargetRootLayout> CompatiblePreviousBundleTargetRootLayouts { get; }
 
     /// <summary> Gets the metadata artifact path, or <see langword="null" /> when the host uses frontmatter only. </summary>
-    public string? MetadataArtifactPath { get; }
+    public PackageRelativePath? MetadataArtifactPath { get; }
 
     /// <summary> Gets host-specific guidance for reloading installed SKILLs. </summary>
     public string ReloadGuidance { get; }

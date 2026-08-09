@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "bundleVersion": 1,
+  "catalogId": "com.mackysoft.agent-skills.consumer-tests",
+  "category": "orchestration",
+  "agentName": "architect",
+  "displayName": "Architect",
+  "description": "Creates an implementation-ready design from reviewed context.",
+  "skillDependencies": [
+    "review-context"
+  ],
+  "contentDigest": "21c6e670fb559939645c18a77a06215c1ff227667799cf830fbb6a5be1a14dd2",
+  "manifestDigest": "9d9e02c4820c56508a4bab50054e8c38f6a94a4f92ee91733aa3660bb4ce4c9c",
+  "hostArtifacts": [
+    {
+      "host": "claude-code",
+      "path": "hosts/claude-code/architect.md",
+      "digest": "65f3ce0c5398891ef02c9e37f9044d557ffdf875f86ed22a5ea4ff63055c0c22"
+    },
+    {
+      "host": "codex",
+      "path": "hosts/codex/architect.toml",
+      "digest": "b8188fa355fe75ff38ec9491c401f35b12006bb6dbe4eaa3a0dc7d8ad92e8f78"
+    },
+    {
+      "host": "github-copilot",
+      "path": "hosts/github-copilot/architect.agent.md",
+      "digest": "a35f74bee721838bbdf528d5d7c580d1f7584884f4e2f7fe44b3b152be17c935"
+    }
+  ]
+}

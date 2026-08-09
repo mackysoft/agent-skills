@@ -20,9 +20,9 @@ public sealed class SkillTargetStateReport
         FileSet = state.FileSet is null
             ? null
             : new SkillTargetFileSetReport(
-                state.FileSet.MissingFiles,
-                state.FileSet.ExtraFiles,
-                state.FileSet.ExtraDirectories);
+                state.FileSet.MissingFiles.Select(static path => path.Value).ToArray(),
+                state.FileSet.ExtraFiles.Select(static path => path.Value).ToArray(),
+                state.FileSet.ExtraDirectories.Select(static path => path.Value).ToArray());
     }
 
     /// <summary> Gets the target state kind. </summary>

@@ -1,7 +1,4 @@
-using MackySoft.AgentSkills.Categories;
-using MackySoft.AgentSkills.Hosts.OpenAi;
 using MackySoft.AgentSkills.Installation.Targeting;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.OperationReports.Projection;
 
 namespace MackySoft.AgentSkills.Tests.OperationReports;
@@ -17,7 +14,7 @@ public sealed class SkillOperationReportContextTests
         var categories = new List<SkillCategory> { new("core") };
         var skillNames = new List<SkillName> { new("sample-skill") };
         var context = new SkillOperationReportContext(
-            new OpenAiSkillHostAdapter().Descriptor,
+            HostKind.Codex,
             SkillScopeKind.Project,
             RepositoryRoot,
             categories,
@@ -38,7 +35,7 @@ public sealed class SkillOperationReportContextTests
         Assert.Throws<ArgumentNullException>(() =>
         {
             _ = new SkillOperationReportContext(
-                new OpenAiSkillHostAdapter().Descriptor,
+                HostKind.Codex,
                 SkillScopeKind.Project,
                 RepositoryRoot,
                 null!,
@@ -51,7 +48,7 @@ public sealed class SkillOperationReportContextTests
     public void Constructor_RejectsNullCategoryItem ()
     {
         Assert.Throws<ArgumentException>(() => new SkillOperationReportContext(
-            new OpenAiSkillHostAdapter().Descriptor,
+            HostKind.Codex,
             SkillScopeKind.Project,
             RepositoryRoot,
             [null!],
@@ -63,7 +60,7 @@ public sealed class SkillOperationReportContextTests
     public void Constructor_RejectsNullSkillName ()
     {
         Assert.Throws<ArgumentException>(() => new SkillOperationReportContext(
-            new OpenAiSkillHostAdapter().Descriptor,
+            HostKind.Codex,
             SkillScopeKind.Project,
             RepositoryRoot,
             [new SkillCategory("core")],
@@ -75,7 +72,7 @@ public sealed class SkillOperationReportContextTests
     public void Constructor_RejectsUndefinedScope ()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => new SkillOperationReportContext(
-            new OpenAiSkillHostAdapter().Descriptor,
+            HostKind.Codex,
             (SkillScopeKind)42,
             RepositoryRoot,
             [new SkillCategory("core")],
@@ -87,20 +84,20 @@ public sealed class SkillOperationReportContextTests
     public void Constructor_RequiresRepositoryRootOnlyForProjectScope ()
     {
         Assert.Throws<ArgumentNullException>(() => new SkillOperationReportContext(
-            new OpenAiSkillHostAdapter().Descriptor,
+            HostKind.Codex,
             SkillScopeKind.Project,
             repositoryRoot: null,
             [],
             []));
         Assert.Throws<ArgumentException>(() => new SkillOperationReportContext(
-            new OpenAiSkillHostAdapter().Descriptor,
+            HostKind.Codex,
             SkillScopeKind.User,
             RepositoryRoot,
             [],
             []));
 
         var userContext = new SkillOperationReportContext(
-            new OpenAiSkillHostAdapter().Descriptor,
+            HostKind.Codex,
             SkillScopeKind.User,
             repositoryRoot: null,
             [],
@@ -108,4 +105,5 @@ public sealed class SkillOperationReportContextTests
 
         Assert.Null(userContext.RepositoryRoot);
     }
+
 }

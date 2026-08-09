@@ -1,9 +1,6 @@
 using MackySoft.AgentSkills.Catalogs;
-using MackySoft.AgentSkills.Hosts.Contracts;
-using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Inventory;
 using MackySoft.AgentSkills.Installation.Targeting;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
@@ -16,24 +13,24 @@ public sealed class SkillCatalogTargetRootSelectorTests
 
     [Theory]
     [Trait("Size", "Small")]
-    [InlineData(SkillHostKind.OpenAi, ".agents/skills/com.mackysoft.agent-skills.tests")]
-    [InlineData(SkillHostKind.Claude, ".claude/skills")]
-    [InlineData(SkillHostKind.Copilot, ".github/skills/com.mackysoft.agent-skills.tests")]
+    [InlineData(HostKind.Codex, ".agents/skills/com.mackysoft.agent-skills.tests")]
+    [InlineData(HostKind.ClaudeCode, ".claude/skills")]
+    [InlineData(HostKind.GitHubCopilot, ".github/skills/com.mackysoft.agent-skills.tests")]
     public async Task SelectTargetAsync_ProjectScope_AppliesHostCatalogLayout (
-        SkillHostKind host,
+        HostKind host,
         string expectedRelativePath)
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "target-project-default");
         var selector = CreateSelector(scope.GetPath("home"));
 
         var result = await selector.SelectTargetAsync(
-            new SkillInstallRequest(host, SkillScopeKind.Project, scope.FullPath),
+            SkillTestData.CreateInstallRequest(host, SkillScopeKind.Project, scope.FullPath),
             CatalogId,
             [],
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(ResolveExpectedPath(Path.Combine(scope.FullPath, expectedRelativePath)), result.Value!.TargetRoot);
+        Assert.Equal(ResolveExpectedPath(Path.Combine(scope.FullPath, expectedRelativePath)), result.Value!.TargetRoot.Value);
     }
 
     [Fact]
@@ -45,13 +42,13 @@ public sealed class SkillCatalogTargetRootSelectorTests
         var selector = CreateSelector(scope.GetPath("home"), codexHome);
 
         var result = await selector.SelectTargetAsync(
-            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.User, null),
+            SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.User, null),
             CatalogId,
             [],
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(ResolveExpectedPath(Path.Combine(codexHome, "skills", CatalogId.Value)), result.Value!.TargetRoot);
+        Assert.Equal(ResolveExpectedPath(Path.Combine(codexHome, "skills", CatalogId.Value)), result.Value!.TargetRoot.Value);
     }
 
     [Fact]
@@ -63,13 +60,13 @@ public sealed class SkillCatalogTargetRootSelectorTests
         var selector = CreateSelector(home);
 
         var result = await selector.SelectTargetAsync(
-            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.User, null),
+            SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.User, null),
             CatalogId,
             [],
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(ResolveExpectedPath(Path.Combine(home, ".codex", "skills", CatalogId.Value)), result.Value!.TargetRoot);
+        Assert.Equal(ResolveExpectedPath(Path.Combine(home, ".codex", "skills", CatalogId.Value)), result.Value!.TargetRoot.Value);
     }
 
     [Fact]
@@ -81,13 +78,13 @@ public sealed class SkillCatalogTargetRootSelectorTests
         var selector = CreateSelector(home);
 
         var result = await selector.SelectTargetAsync(
-            new SkillInstallRequest(SkillHostKind.Claude, SkillScopeKind.User, null),
+            SkillTestData.CreateInstallRequest(HostKind.ClaudeCode, SkillScopeKind.User, null),
             CatalogId,
             [],
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(ResolveExpectedPath(Path.Combine(home, ".claude", "skills")), result.Value!.TargetRoot);
+        Assert.Equal(ResolveExpectedPath(Path.Combine(home, ".claude", "skills")), result.Value!.TargetRoot.Value);
     }
 
     [Fact]
@@ -99,13 +96,13 @@ public sealed class SkillCatalogTargetRootSelectorTests
         var selector = CreateSelector(home);
 
         var result = await selector.SelectTargetAsync(
-            new SkillInstallRequest(SkillHostKind.Copilot, SkillScopeKind.User, null),
+            SkillTestData.CreateInstallRequest(HostKind.GitHubCopilot, SkillScopeKind.User, null),
             CatalogId,
             [],
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(ResolveExpectedPath(Path.Combine(home, ".copilot", "skills", CatalogId.Value)), result.Value!.TargetRoot);
+        Assert.Equal(ResolveExpectedPath(Path.Combine(home, ".copilot", "skills", CatalogId.Value)), result.Value!.TargetRoot.Value);
     }
 
     [Fact]
@@ -116,7 +113,7 @@ public sealed class SkillCatalogTargetRootSelectorTests
         var selector = CreateSelector(scope.GetPath("home"), "relative-codex-home");
 
         var result = await selector.SelectTargetAsync(
-            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.User, null),
+            SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.User, null),
             CatalogId,
             [],
             CancellationToken.None);
@@ -133,13 +130,13 @@ public sealed class SkillCatalogTargetRootSelectorTests
         var selector = CreateSelector(scope.GetPath("home"));
 
         var result = await selector.SelectTargetAsync(
-            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath, "custom-skills"),
+            SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath, "custom-skills"),
             CatalogId,
             [],
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(ResolveExpectedPath(scope.GetPath("custom-skills")), result.Value!.TargetRoot);
+        Assert.Equal(ResolveExpectedPath(scope.GetPath("custom-skills")), result.Value!.TargetRoot.Value);
     }
 
     [Fact]
@@ -151,23 +148,23 @@ public sealed class SkillCatalogTargetRootSelectorTests
         var explicitTargetRoot = scope.GetPath("custom-skills");
 
         var result = await selector.SelectTargetAsync(
-            new SkillInstallRequest(SkillHostKind.Copilot, SkillScopeKind.User, null, explicitTargetRoot),
+            SkillTestData.CreateInstallRequest(HostKind.GitHubCopilot, SkillScopeKind.User, null, explicitTargetRoot),
             CatalogId,
             [],
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(ResolveExpectedPath(explicitTargetRoot), result.Value!.TargetRoot);
+        Assert.Equal(ResolveExpectedPath(explicitTargetRoot), result.Value!.TargetRoot.Value);
     }
 
     [Theory]
     [Trait("Size", "Small")]
-    [InlineData(SkillHostKind.OpenAi, SkillScopeKind.Project)]
-    [InlineData(SkillHostKind.OpenAi, SkillScopeKind.User)]
-    [InlineData(SkillHostKind.Copilot, SkillScopeKind.Project)]
-    [InlineData(SkillHostKind.Copilot, SkillScopeKind.User)]
+    [InlineData(HostKind.Codex, SkillScopeKind.Project)]
+    [InlineData(HostKind.Codex, SkillScopeKind.User)]
+    [InlineData(HostKind.GitHubCopilot, SkillScopeKind.Project)]
+    [InlineData(HostKind.GitHubCopilot, SkillScopeKind.User)]
     public async Task SelectTargetAsync_DefaultTarget_UsesCompatibleFlatCatalogRoot (
-        SkillHostKind host,
+        HostKind host,
         SkillScopeKind scopeKind)
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "target-compatible-flat");
@@ -179,7 +176,7 @@ public sealed class SkillCatalogTargetRootSelectorTests
         var selector = CreateSelector(home, codexHome);
 
         var result = await selector.SelectTargetAsync(
-            new SkillInstallRequest(
+            SkillTestData.CreateInstallRequest(
                 host,
                 scopeKind,
                 scopeKind == SkillScopeKind.Project ? scope.FullPath : null),
@@ -188,7 +185,7 @@ public sealed class SkillCatalogTargetRootSelectorTests
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(ResolveExpectedPath(compatibleRoot), result.Value!.TargetRoot);
+        Assert.Equal(ResolveExpectedPath(compatibleRoot), result.Value!.TargetRoot.Value);
     }
 
     [Fact]
@@ -199,12 +196,12 @@ public sealed class SkillCatalogTargetRootSelectorTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var compatibleRoot = scope.GetPath(Path.Combine(".agents", "skills"));
         var preferredRoot = Path.Combine(compatibleRoot, packages[0].Manifest.CatalogId.Value);
-        await InstallAtExplicitTargetAsync(scope, SkillHostKind.OpenAi, SkillScopeKind.Project, compatibleRoot, [packages[0]]);
-        await InstallAtExplicitTargetAsync(scope, SkillHostKind.OpenAi, SkillScopeKind.Project, preferredRoot, [packages[1]]);
+        await InstallAtExplicitTargetAsync(scope, HostKind.Codex, SkillScopeKind.Project, compatibleRoot, [packages[0]]);
+        await InstallAtExplicitTargetAsync(scope, HostKind.Codex, SkillScopeKind.Project, preferredRoot, [packages[1]]);
         var selector = CreateSelector(scope.GetPath("home"));
 
         var result = await selector.SelectTargetAsync(
-            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
+            SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath),
             packages[0].Manifest.CatalogId,
             [packages[0].Manifest.SkillName],
             CancellationToken.None);
@@ -215,12 +212,12 @@ public sealed class SkillCatalogTargetRootSelectorTests
 
     [Theory]
     [Trait("Size", "Small")]
-    [InlineData(SkillHostKind.OpenAi, SkillScopeKind.Project)]
-    [InlineData(SkillHostKind.OpenAi, SkillScopeKind.User)]
-    [InlineData(SkillHostKind.Copilot, SkillScopeKind.Project)]
-    [InlineData(SkillHostKind.Copilot, SkillScopeKind.User)]
+    [InlineData(HostKind.Codex, SkillScopeKind.Project)]
+    [InlineData(HostKind.Codex, SkillScopeKind.User)]
+    [InlineData(HostKind.GitHubCopilot, SkillScopeKind.Project)]
+    [InlineData(HostKind.GitHubCopilot, SkillScopeKind.User)]
     public async Task SelectTargetAsync_DefaultTarget_RejectsSkillNameOwnedBySiblingCatalog (
-        SkillHostKind host,
+        HostKind host,
         SkillScopeKind scopeKind)
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "target-sibling-catalog-collision");
@@ -233,7 +230,7 @@ public sealed class SkillCatalogTargetRootSelectorTests
         var selector = CreateSelector(home, codexHome);
 
         var result = await selector.SelectTargetAsync(
-            new SkillInstallRequest(
+            SkillTestData.CreateInstallRequest(
                 host,
                 scopeKind,
                 scopeKind == SkillScopeKind.Project ? scope.FullPath : null),
@@ -257,7 +254,7 @@ public sealed class SkillCatalogTargetRootSelectorTests
         var selector = CreateSelector(scope.GetPath("home"));
 
         var result = await selector.SelectTargetAsync(
-            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
+            SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath),
             catalogId,
             [new SkillName("new-skill")],
             CancellationToken.None);
@@ -278,7 +275,7 @@ public sealed class SkillCatalogTargetRootSelectorTests
         var selector = CreateSelector(scope.GetPath("home"));
 
         var result = await selector.SelectTargetAsync(
-            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
+            SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath),
             CatalogId,
             [new SkillName("new-skill")],
             CancellationToken.None);
@@ -286,7 +283,7 @@ public sealed class SkillCatalogTargetRootSelectorTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal(
             ResolveExpectedPath(Path.Combine(hostRoot, CatalogId.Value)),
-            result.Value!.TargetRoot);
+            result.Value!.TargetRoot.Value);
     }
 
     [Fact]
@@ -302,7 +299,7 @@ public sealed class SkillCatalogTargetRootSelectorTests
         var selector = CreateSelector(scope.GetPath("home"));
 
         var result = await selector.SelectTargetAsync(
-            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
+            SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath),
             CatalogId,
             [skillName],
             CancellationToken.None);
@@ -328,13 +325,15 @@ public sealed class SkillCatalogTargetRootSelectorTests
         var selector = CreateSelector(scope.GetPath("home"));
 
         var result = await selector.SelectTargetAsync(
-            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
+            SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath),
             catalogId,
             [skillName],
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(ResolveExpectedPath(realCatalogRoot), result.Value!.TargetRoot);
+        Assert.Equal(
+            ResolveExpectedPath(Path.Combine(hostRoot, catalogId.Value)),
+            result.Value!.TargetRoot.Value);
     }
 
     [Fact]
@@ -349,7 +348,7 @@ public sealed class SkillCatalogTargetRootSelectorTests
         var selector = CreateSelector(scope.GetPath("home"));
 
         var result = await selector.SelectTargetAsync(
-            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
+            SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath),
             CatalogId,
             [new SkillName("references")],
             CancellationToken.None);
@@ -357,7 +356,7 @@ public sealed class SkillCatalogTargetRootSelectorTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal(
             ResolveExpectedPath(Path.Combine(hostRoot, CatalogId.Value)),
-            result.Value!.TargetRoot);
+            result.Value!.TargetRoot.Value);
     }
 
     [Fact]
@@ -367,95 +366,58 @@ public sealed class SkillCatalogTargetRootSelectorTests
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "target-explicit-skips-compatible");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var compatibleRoot = scope.GetPath(Path.Combine(".agents", "skills"));
-        await InstallAtExplicitTargetAsync(scope, SkillHostKind.OpenAi, SkillScopeKind.Project, compatibleRoot, packages);
+        await InstallAtExplicitTargetAsync(scope, HostKind.Codex, SkillScopeKind.Project, compatibleRoot, packages);
         var explicitRoot = scope.GetPath("custom-skills");
         var selector = CreateSelector(scope.GetPath("home"));
 
         var result = await selector.SelectTargetAsync(
-            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath, explicitRoot),
+            SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath, explicitRoot),
             packages[0].Manifest.CatalogId,
             packages.Select(static package => package.Manifest.SkillName).ToArray(),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(ResolveExpectedPath(explicitRoot), result.Value!.TargetRoot);
+        Assert.Equal(ResolveExpectedPath(explicitRoot), result.Value!.TargetRoot.Value);
     }
 
     private static SkillCatalogTargetRootSelector CreateSelector (
         string homeDirectory,
         string? codexHome = null)
     {
-        return CreateSelectorWithHostAdapters(homeDirectory, SkillTestData.CreateDefaultHostAdapterSet(), codexHome);
-    }
-
-    private static SkillCatalogTargetRootSelector CreateSelectorWithHostAdapters (
-        string homeDirectory,
-        SkillHostAdapterSet hostAdapters,
-        string? codexHome = null)
-    {
         var targetResolver = new SkillInstallTargetResolver(
-            hostAdapters,
             new SkillUserTargetRootResolver(
                 () => homeDirectory,
                 name => string.Equals(name, "CODEX_HOME", StringComparison.Ordinal) ? codexHome : null));
         return new SkillCatalogTargetRootSelector(
             targetResolver,
-            SkillTestData.CreateInstalledManifestReader(hostAdapters));
+            SkillTestData.CreateInstalledManifestReader());
     }
 
     private static string ResolveExpectedPath (string path)
     {
-        var root = Path.GetPathRoot(path);
-        if (string.IsNullOrWhiteSpace(root))
-        {
-            return Path.GetFullPath(path);
-        }
-
-        var currentPath = root;
-        var relativePath = path[root.Length..];
-        var segments = relativePath.Split(
-            [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-            StringSplitOptions.RemoveEmptyEntries);
-
-        for (var i = 0; i < segments.Length; i++)
-        {
-            currentPath = Path.Combine(currentPath, segments[i]);
-            if (!Directory.Exists(currentPath))
-            {
-                continue;
-            }
-
-            var directory = new DirectoryInfo(currentPath);
-            var resolved = directory.ResolveLinkTarget(returnFinalTarget: true);
-            if (resolved is not null)
-            {
-                currentPath = resolved.FullName;
-            }
-        }
-
-        return Path.GetFullPath(currentPath);
+        return AbsolutePath.Parse(Path.GetFullPath(path)).Value;
     }
 
     private static string GetFlatTargetRoot (
         TestDirectoryScope scope,
-        SkillHostKind host,
+        HostKind host,
         SkillScopeKind scopeKind,
         string home,
         string codexHome)
     {
         return (host, scopeKind) switch
         {
-            (SkillHostKind.OpenAi, SkillScopeKind.Project) => scope.GetPath(Path.Combine(".agents", "skills")),
-            (SkillHostKind.OpenAi, SkillScopeKind.User) => Path.Combine(codexHome, "skills"),
-            (SkillHostKind.Copilot, SkillScopeKind.Project) => scope.GetPath(Path.Combine(".github", "skills")),
-            (SkillHostKind.Copilot, SkillScopeKind.User) => Path.Combine(home, ".copilot", "skills"),
+            (HostKind.Codex, SkillScopeKind.Project) => scope.GetPath(Path.Combine(".agents", "skills")),
+            (HostKind.Codex, SkillScopeKind.User) => Path.Combine(codexHome, "skills"),
+            (HostKind.GitHubCopilot, SkillScopeKind.Project) => scope.GetPath(Path.Combine(".github", "skills")),
+            (HostKind.GitHubCopilot, SkillScopeKind.User) => Path.Combine(home, ".copilot", "skills"),
             _ => throw new ArgumentOutOfRangeException(nameof(host), host, "Unsupported compatibility test host."),
         };
     }
 
     private static async Task InstallAtExplicitTargetAsync (
         TestDirectoryScope scope,
-        SkillHostKind host,
+        HostKind host,
         SkillScopeKind scopeKind,
         string targetRoot,
         IReadOnlyList<CanonicalSkillPackage> packages)
@@ -463,7 +425,7 @@ public sealed class SkillCatalogTargetRootSelectorTests
         var installResult = await SkillTestData.CreateInstallService().InstallAsync(
             packages[0].Manifest.CatalogId,
             packages,
-            new SkillInstallRequest(
+            SkillTestData.CreateInstallRequest(
                 host,
                 scopeKind,
                 scopeKind == SkillScopeKind.Project ? scope.FullPath : null,

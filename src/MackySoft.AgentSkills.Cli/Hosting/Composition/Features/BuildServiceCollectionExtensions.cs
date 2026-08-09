@@ -23,6 +23,8 @@ internal static class BuildServiceCollectionExtensions
         services.AddSingleton<CanonicalSkillPackageWriter>();
         services.AddSingleton<CanonicalSkillBundleWriter>();
         services.AddSingleton<SkillBundleBuildService>();
+        services.AddSingleton<BundleSchemaVersionReader>();
+        services.AddSingleton(_ => AgentSkillsBundleBuildService.CreateDefault());
 
         return services;
     }

@@ -1,13 +1,10 @@
-using MackySoft.AgentSkills.Hosts.Contracts;
-using MackySoft.AgentSkills.Shared.Text;
-
 namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
 /// <summary> Represents product-neutral capability data for one supported SKILL host. </summary>
 public sealed class SkillHostReport
 {
     internal SkillHostReport (
-        SkillHostKind host,
+        HostKind host,
         string projectDefaultTargetPath,
         string userDefaultTargetPath,
         SkillUserTargetRootPolicyReport userTargetRootPolicy,
@@ -16,7 +13,7 @@ public sealed class SkillHostReport
         string? metadataArtifactPath,
         string reloadGuidance)
     {
-        if (!ContractLiteralCodec.IsDefined(host))
+        if (!Vocabulary.IsDefined(host))
         {
             throw new ArgumentOutOfRangeException(nameof(host), host, "Unsupported SKILL host.");
         }
@@ -24,14 +21,14 @@ public sealed class SkillHostReport
         OperationReportContractGuard.ValidateSafeRelativePath(projectDefaultTargetPath, nameof(projectDefaultTargetPath));
         ArgumentException.ThrowIfNullOrWhiteSpace(userDefaultTargetPath);
         ArgumentNullException.ThrowIfNull(userTargetRootPolicy);
-        if (!ContractLiteralCodec.IsDefined<SkillBundleTargetRootLayout>(bundleTargetRootLayout))
+        if (!Vocabulary.IsDefined<SkillBundleTargetRootLayout>(bundleTargetRootLayout))
         {
             throw new ArgumentException("Unsupported bundle target-root layout.", nameof(bundleTargetRootLayout));
         }
 
         ArgumentNullException.ThrowIfNull(compatiblePreviousBundleTargetRootLayouts);
         var previousLayouts = compatiblePreviousBundleTargetRootLayouts.ToArray();
-        if (previousLayouts.Any(layout => !ContractLiteralCodec.IsDefined<SkillBundleTargetRootLayout>(layout)))
+        if (previousLayouts.Any(layout => !Vocabulary.IsDefined<SkillBundleTargetRootLayout>(layout)))
         {
             throw new ArgumentException(
                 "Compatible previous bundle target-root layouts must be supported.",
@@ -64,7 +61,7 @@ public sealed class SkillHostReport
     }
 
     /// <summary> Gets the supported host. </summary>
-    public SkillHostKind Host { get; }
+    public HostKind Host { get; }
 
     /// <summary> Gets the project-scope default host SKILL root path relative to repository root. </summary>
     public string ProjectDefaultTargetPath { get; }

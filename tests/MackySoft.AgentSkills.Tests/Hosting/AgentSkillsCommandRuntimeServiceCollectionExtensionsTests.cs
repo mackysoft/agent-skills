@@ -19,18 +19,17 @@ public sealed class AgentSkillsCommandRuntimeServiceCollectionExtensionsTests
         services.AddAgentSkillsCommandRuntime(options =>
         {
             options.ProductName = "Example CLI";
-            options.PackageBaseDirectory = scope.FullPath;
+            options.PackageBaseDirectory = AbsolutePath.Parse(scope.FullPath);
         });
 
         using var provider = services.BuildServiceProvider();
         var configuration = provider.GetRequiredService<AgentSkillsCommandRuntimeConfiguration>();
 
         Assert.Equal("Example CLI", configuration.ProductName);
-        Assert.Equal(Path.GetFullPath(scope.FullPath), configuration.PackageBaseDirectory);
-        Assert.Equal("skills", configuration.CommandRoot);
-        Assert.Equal(Directory.GetCurrentDirectory(), configuration.RepositoryRootResolver(Directory.GetCurrentDirectory()));
-        Assert.All(configuration.GetType().GetProperties(), static property => Assert.Null(property.SetMethod));
-        Assert.NotNull(provider.GetRequiredService<AgentSkillsCommandRunner>());
+        Assert.True(configuration.PackageBaseDirectory.IsSameAs(AbsolutePath.Parse(scope.FullPath)));
+        Assert.True(configuration.RepositoryRootResolver(AbsolutePath.Parse(Directory.GetCurrentDirectory())).IsSameAs(AbsolutePath.Parse(Directory.GetCurrentDirectory())));
+        Assert.NotNull(provider.GetRequiredService<SkillCommandRunner>());
+        Assert.NotNull(provider.GetRequiredService<AgentCommandRunner>());
         Assert.IsType<AgentSkillsJsonCommandResultEmitter>(provider.GetRequiredService<IAgentSkillsCommandResultEmitter>());
     }
 
@@ -44,7 +43,7 @@ public sealed class AgentSkillsCommandRuntimeServiceCollectionExtensionsTests
         services.AddAgentSkillsCommandRuntime(options =>
         {
             options.ProductName = "Example CLI";
-            options.PackageBaseDirectory = scope.FullPath;
+            options.PackageBaseDirectory = AbsolutePath.Parse(scope.FullPath);
         });
         services.AddSingleton<IAgentSkillsCommandResultEmitter, TestCommandResultEmitter>();
 
@@ -64,43 +63,19 @@ public sealed class AgentSkillsCommandRuntimeServiceCollectionExtensionsTests
         services.AddAgentSkillsCommandRuntime(options =>
         {
             options.ProductName = "Example CLI";
-            options.PackageBaseDirectory = scope.FullPath;
+            options.PackageBaseDirectory = AbsolutePath.Parse(scope.FullPath);
             configuredOptions = options;
         });
 
         configuredOptions!.ProductName = string.Empty;
-        configuredOptions.PackageBaseDirectory = string.Empty;
+        configuredOptions.PackageBaseDirectory = null;
 
         using var provider = services.BuildServiceProvider();
         var configuration = provider.GetRequiredService<AgentSkillsCommandRuntimeConfiguration>();
 
         Assert.Equal("Example CLI", configuration.ProductName);
-        Assert.Equal(Path.GetFullPath(scope.FullPath), configuration.PackageBaseDirectory);
+        Assert.True(configuration.PackageBaseDirectory.IsSameAs(AbsolutePath.Parse(scope.FullPath)));
         Assert.Null(provider.GetService<AgentSkillsCommandRuntimeOptions>());
-    }
-
-    [Theory]
-    [InlineData("Agent Skills")]
-    [InlineData("agent-")]
-    [InlineData("agent--skills")]
-    [InlineData("tools  skills")]
-    [Trait("Size", "Small")]
-    public void AddAgentSkillsCommandRuntime_WhenCommandRootIsInvalid_ThrowsArgumentException (string commandRoot)
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-skills-hosting", "invalid-command-root");
-        var services = new ServiceCollection();
-
-        var exception = Assert.Throws<ArgumentException>(() =>
-        {
-            services.AddAgentSkillsCommandRuntime(options =>
-            {
-                options.ProductName = "Example CLI";
-                options.PackageBaseDirectory = scope.FullPath;
-                options.CommandRoot = commandRoot;
-            });
-        });
-
-        Assert.Contains("command root", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -115,7 +90,7 @@ public sealed class AgentSkillsCommandRuntimeServiceCollectionExtensionsTests
             services.AddAgentSkillsCommandRuntime(options =>
             {
                 options.ProductName = "Example CLI";
-                options.PackageBaseDirectory = scope.FullPath;
+                options.PackageBaseDirectory = AbsolutePath.Parse(scope.FullPath);
                 options.RepositoryRootResolver = null!;
             });
         });

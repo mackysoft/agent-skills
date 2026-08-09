@@ -1,3 +1,7 @@
+using MackySoft.AgentSkills.Agents.Doctor;
+using MackySoft.AgentSkills.Agents.Installation.Services;
+using MackySoft.AgentSkills.Agents.Installation.State;
+using MackySoft.AgentSkills.Agents.Installation.Targeting;
 using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Distribution;
@@ -5,7 +9,6 @@ using MackySoft.AgentSkills.Doctor;
 using MackySoft.AgentSkills.Hosting.Commands;
 using MackySoft.AgentSkills.Hosting.Configuration;
 using MackySoft.AgentSkills.Hosting.Reporting;
-using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Contracts;
 using MackySoft.AgentSkills.Installation.Diffing;
 using MackySoft.AgentSkills.Installation.Inventory;
@@ -42,18 +45,11 @@ public static class AgentSkillsCommandRuntimeServiceCollectionExtensions
         var configuration = options.CreateValidatedConfiguration();
 
         services.AddSingleton(configuration);
-        services.AddAgentSkillsHostServices();
         services.AddAgentSkillsPackageServices(configuration);
         services.AddAgentSkillsInstallationServices();
-        services.AddSingleton<AgentSkillsCommandRunner>();
+        services.AddSingleton<SkillCommandRunner>();
+        services.AddSingleton<AgentCommandRunner>();
         services.AddSingleton<IAgentSkillsCommandResultEmitter, AgentSkillsJsonCommandResultEmitter>();
-
-        return services;
-    }
-
-    private static IServiceCollection AddAgentSkillsHostServices (this IServiceCollection services)
-    {
-        services.AddSingleton<SkillHostAdapterSet>();
 
         return services;
     }
@@ -63,6 +59,7 @@ public static class AgentSkillsCommandRuntimeServiceCollectionExtensions
         AgentSkillsCommandRuntimeConfiguration configuration)
     {
         services.AddSingleton(_ => new BundledSkillPackageRootResolver(configuration.PackageBaseDirectory));
+        services.AddSingleton(_ => new BundledAgentSkillsPackageRootResolver(configuration.PackageBaseDirectory));
         services.AddSingleton<SkillDigestCalculator>();
         services.AddSingleton<SkillManifestJsonSerializer>();
         services.AddSingleton<SkillManifestDigestCalculator>();
@@ -73,9 +70,12 @@ public static class AgentSkillsCommandRuntimeServiceCollectionExtensions
         services.AddSingleton<SkillBundleDigestCalculator>();
         services.AddSingleton<CanonicalSkillBundle.Factory>();
         services.AddSingleton<CanonicalSkillBundleReader>();
+        services.AddSingleton(_ => CanonicalAgentSkillsBundleReader.CreateDefault());
         services.AddSingleton<SkillPackageProvider>();
+        services.AddSingleton<AgentPackageProvider>();
         services.AddSingleton<SkillMaterializationService>();
         services.AddSingleton<SkillExportService>();
+        services.AddSingleton<AgentExportService>();
 
         return services;
     }
@@ -104,6 +104,26 @@ public static class AgentSkillsCommandRuntimeServiceCollectionExtensions
         services.AddSingleton<SkillPruneService>();
         services.AddSingleton<SkillInstallationScanner>();
         services.AddSingleton<SkillDoctorService>();
+        services.AddAgentSkillsAgentInstallationServices();
+
+        return services;
+    }
+
+    private static IServiceCollection AddAgentSkillsAgentInstallationServices (this IServiceCollection services)
+    {
+        services.AddSingleton(_ => new AgentUserTargetRootResolver(
+            static () => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            Environment.GetEnvironmentVariable));
+        services.AddSingleton<AgentInstallTargetResolver>();
+        services.AddSingleton<AgentInstallationStateJsonSerializer>();
+        services.AddSingleton<AgentInstallationStateStore>();
+        services.AddSingleton<AgentInstallationStatePathResolver>();
+        services.AddSingleton<AgentInstalledTargetInspector>();
+        services.AddSingleton<AgentInstallService>();
+        services.AddSingleton<AgentUpdateService>();
+        services.AddSingleton<AgentUninstallService>();
+        services.AddSingleton<AgentPruneService>();
+        services.AddSingleton<AgentDoctorService>();
 
         return services;
     }

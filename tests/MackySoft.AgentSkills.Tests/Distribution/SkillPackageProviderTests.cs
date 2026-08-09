@@ -1,8 +1,9 @@
+using MackySoft.AgentSkills.Agents.Manifests;
+using MackySoft.AgentSkills.Agents.Packaging;
 using MackySoft.AgentSkills.Bundles;
-using MackySoft.AgentSkills.Categories;
+using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Manifests;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
@@ -11,6 +12,27 @@ namespace MackySoft.AgentSkills.Tests.Distribution;
 
 public sealed class SkillPackageProviderTests
 {
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task GetPackageCatalogAsync_ReadsSkillNamespaceFromV2Bundle ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-skills-package-provider", "v2-skill-view");
+        var packages = await SkillTestData.GenerateFixturePackagesAsync();
+        await WriteV2BundleAsync(scope.FullPath, packages);
+        var provider = CreateV2Provider(scope.FullPath);
+
+        var result = await provider.GetPackageCatalogBySkillNamesAsync(
+            [packages[0].Manifest.SkillName.Value],
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.Equal(packages[0].Manifest.CatalogId, result.Value!.BundleDescriptor.CatalogId);
+        Assert.Equal(packages[0].Manifest.SkillBundleVersion, result.Value.BundleDescriptor.SkillBundleVersion);
+        Assert.Equal(
+            [packages[0].Manifest.SkillName.Value],
+            result.Value.Packages.Select(static package => package.Manifest.SkillName.Value).ToArray());
+    }
+
     [Fact]
     [Trait("Size", "Small")]
     public async Task GetPackageCatalogAsync_DerivesAvailableCategoriesAndDescriptorFromBundle ()
@@ -203,11 +225,26 @@ public sealed class SkillPackageProviderTests
         var bundleSerializer = new SkillBundleJsonSerializer();
         var bundleFactory = new CanonicalSkillBundle.Factory(new SkillBundleDigestCalculator(manifestSerializer));
         return new SkillPackageProvider(
-            new BundledSkillPackageRootResolver(baseDirectory),
+            new BundledSkillPackageRootResolver(AbsolutePath.Parse(baseDirectory)),
             new CanonicalSkillBundleReader(
                 SkillTestData.CreatePackageReader(),
                 bundleSerializer,
                 bundleFactory));
+    }
+
+    private static SkillPackageProvider CreateV2Provider (string baseDirectory)
+    {
+        var manifestSerializer = new SkillManifestJsonSerializer();
+        var bundleSerializer = new SkillBundleJsonSerializer();
+        var bundleDigestCalculator = new SkillBundleDigestCalculator(manifestSerializer);
+        return new SkillPackageProvider(
+            new BundledSkillPackageRootResolver(AbsolutePath.Parse(baseDirectory)),
+            new CanonicalSkillBundleReader(
+                SkillTestData.CreatePackageReader(),
+                bundleSerializer,
+                new CanonicalSkillBundle.Factory(bundleDigestCalculator)),
+            CanonicalAgentSkillsBundleReader.CreateDefault(),
+            bundleDigestCalculator);
     }
 
     private static async Task WriteBundleAsync (
@@ -224,7 +261,37 @@ public sealed class SkillPackageProviderTests
                 SkillTestData.CreatePackageReader(),
                 bundleSerializer,
                 bundleFactory));
-        var result = await writer.WriteAsync(bundle, Path.Combine(baseDirectory, "skills"), CancellationToken.None);
+        var result = await writer.WriteAsync(bundle, AbsolutePath.Parse(Path.Combine(baseDirectory, "skills")), CancellationToken.None);
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+    }
+
+    private static async Task WriteV2BundleAsync (
+        string baseDirectory,
+        IReadOnlyList<CanonicalSkillPackage> packages)
+    {
+        var skillManifestSerializer = new SkillManifestJsonSerializer();
+        var agentManifestSerializer = new AgentManifestJsonSerializer();
+        var digestCalculator = new SkillDigestCalculator();
+        var descriptor = new AgentSkillsBundleDescriptor(
+            AgentSkillsBundleDefinition.CurrentSchemaVersion,
+            packages[0].Manifest.CatalogId,
+            new AgentSkillsBundleVersion(packages[0].Manifest.SkillBundleVersion.Value),
+            new AgentSkillsBundleDigestCalculator(
+                skillManifestSerializer,
+                agentManifestSerializer,
+                digestCalculator).ComputeDigest(packages, []));
+        var bundle = new CanonicalAgentSkillsBundle(descriptor, packages, []);
+        var bundleReader = CanonicalAgentSkillsBundleReader.CreateDefault();
+        var writer = new CanonicalAgentSkillsBundleWriter(
+            new CanonicalSkillPackageWriter(),
+            new CanonicalAgentPackageWriter(),
+            new AgentSkillsBundleJsonSerializer(),
+            bundleReader);
+
+        var result = await writer.WriteAsync(
+            bundle,
+            AbsolutePath.Parse(Path.Combine(baseDirectory, "skills")),
+            CancellationToken.None);
         Assert.True(result.IsSuccess, result.Failure?.Message);
     }
 
@@ -266,8 +333,8 @@ public sealed class SkillPackageProviderTests
         var normalizedManifest = SkillTestData.WithComputedManifestDigest(manifest);
         var manifestText = serializer.Serialize(normalizedManifest);
         var files = package.Files
-            .Select(file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal)
-                ? new SkillPackageFile("agent-skill.json", manifestText)
+            .Select(file => string.Equals(file.RelativePath.Value, "agent-skill.json", StringComparison.Ordinal)
+                ? new PackageTextFile(PackageRelativePath.Parse("agent-skill.json"), manifestText)
                 : file)
             .ToArray();
 

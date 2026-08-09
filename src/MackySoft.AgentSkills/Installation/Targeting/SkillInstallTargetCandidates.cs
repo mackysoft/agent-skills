@@ -1,3 +1,5 @@
+using MackySoft.FileSystem;
+
 namespace MackySoft.AgentSkills.Installation.Targeting;
 
 /// <summary> Represents preferred and compatible bundle target roots for one default host target. </summary>
@@ -5,7 +7,7 @@ internal sealed class SkillInstallTargetCandidates
 {
     internal SkillInstallTargetCandidates (
         IReadOnlyList<SkillResolvedInstallTarget> targets,
-        string? defaultHostRoot,
+        AbsolutePath? defaultHostRoot,
         bool includesCatalogDirectoryLayout)
     {
         ArgumentNullException.ThrowIfNull(targets);
@@ -26,8 +28,7 @@ internal sealed class SkillInstallTargetCandidates
             throw new ArgumentException("Install target candidates must use one host.", nameof(targets));
         }
 
-        var pathComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-        if (snapshot.Select(static target => target.TargetRoot).Distinct(pathComparer).Count() != snapshot.Length)
+        if (snapshot.Select(static target => target.TargetRoot).Distinct().Count() != snapshot.Length)
         {
             throw new ArgumentException("Install target candidate roots must be unique.", nameof(targets));
         }
@@ -48,7 +49,7 @@ internal sealed class SkillInstallTargetCandidates
         }
         else
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(defaultHostRoot);
+            ArgumentNullException.ThrowIfNull(defaultHostRoot);
         }
 
         Targets = Array.AsReadOnly(snapshot);
@@ -60,7 +61,7 @@ internal sealed class SkillInstallTargetCandidates
 
     internal IReadOnlyList<SkillResolvedInstallTarget> Targets { get; }
 
-    internal string? DefaultHostRoot { get; }
+    internal AbsolutePath? DefaultHostRoot { get; }
 
     internal bool IncludesCatalogDirectoryLayout { get; }
 }

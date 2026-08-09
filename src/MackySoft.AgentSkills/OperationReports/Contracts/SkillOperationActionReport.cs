@@ -1,6 +1,5 @@
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.OperationReports.Literals;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
@@ -10,20 +9,20 @@ public sealed class SkillOperationActionReport
     internal SkillOperationActionReport (
         string skillName,
         string action,
-        SkillOperationActionStatus status,
+        OperationActionStatus status,
         SkillBlockedReason? blockedReason,
         SkillTargetStateReport? targetState,
         SkillOperationFileChangesReport? fileChanges,
-        IReadOnlyList<SkillOperationFileDiffReport> fileDiffs)
+        IReadOnlyList<OperationFileDiffReport> fileDiffs)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(skillName);
         ArgumentException.ThrowIfNullOrWhiteSpace(action);
-        if (!ContractLiteralCodec.IsDefined(status))
+        if (!Vocabulary.IsDefined(status))
         {
             throw new ArgumentOutOfRangeException(nameof(status), status, "Unsupported operation action status.");
         }
 
-        if (blockedReason.HasValue && !ContractLiteralCodec.IsDefined(blockedReason.Value))
+        if (blockedReason.HasValue && !Vocabulary.IsDefined(blockedReason.Value))
         {
             throw new ArgumentOutOfRangeException(nameof(blockedReason), blockedReason, "Unsupported blocked reason.");
         }
@@ -44,7 +43,7 @@ public sealed class SkillOperationActionReport
     public string Action { get; }
 
     /// <summary> Gets the coarse action status. </summary>
-    public SkillOperationActionStatus Status { get; }
+    public OperationActionStatus Status { get; }
 
     /// <summary> Gets the blocked reason, or <see langword="null" /> when the source action does not expose one. </summary>
     public SkillBlockedReason? BlockedReason { get; }
@@ -56,5 +55,5 @@ public sealed class SkillOperationActionReport
     public SkillOperationFileChangesReport? FileChanges { get; }
 
     /// <summary> Gets file content diffs requested by the caller, in deterministic order. </summary>
-    public IReadOnlyList<SkillOperationFileDiffReport> FileDiffs { get; }
+    public IReadOnlyList<OperationFileDiffReport> FileDiffs { get; }
 }

@@ -1,3 +1,5 @@
+using MackySoft.FileSystem;
+
 namespace MackySoft.AgentSkills.Installation.Results;
 
 /// <summary> Represents a planned or completed SKILL update operation. </summary>
@@ -5,13 +7,13 @@ public sealed class SkillUpdateResult
 {
     /// <summary> Initializes one planned or completed update operation. </summary>
     internal SkillUpdateResult (
-        string targetRoot,
+        AbsolutePath targetRoot,
         IReadOnlyList<SkillUpdateAction> actions,
         bool dryRun,
         bool force,
         bool printDiff)
     {
-        TargetRoot = SkillActionContractGuard.ValidateTargetRoot(targetRoot, nameof(targetRoot));
+        TargetRoot = targetRoot ?? throw new ArgumentNullException(nameof(targetRoot));
         Actions = SkillActionContractGuard.Snapshot(actions, nameof(actions));
         foreach (var action in Actions)
         {
@@ -24,7 +26,7 @@ public sealed class SkillUpdateResult
     }
 
     /// <summary> Gets the canonical absolute bundle target root. </summary>
-    public string TargetRoot { get; }
+    public AbsolutePath TargetRoot { get; }
 
     /// <summary> Gets an immutable snapshot of per-SKILL update actions. </summary>
     public IReadOnlyList<SkillUpdateAction> Actions { get; }

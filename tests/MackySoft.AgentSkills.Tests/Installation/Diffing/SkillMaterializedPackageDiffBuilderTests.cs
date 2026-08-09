@@ -1,8 +1,6 @@
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Diffing;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Materialization;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
 
@@ -20,36 +18,36 @@ public sealed class SkillMaterializedPackageDiffBuilderTests
         scope.WriteFile(Path.Combine("sample-skill", "obsolete.md"), "# Obsolete\n");
         var package = new SkillMaterializedPackage(
             new SkillName("sample-skill"),
-            SkillHostKind.OpenAi,
+            HostKind.Codex,
             [
-                new SkillPackageFile("SKILL.md", "# After\n"),
-                new SkillPackageFile("new.md", "# New\n"),
+                new PackageTextFile(PackageRelativePath.Parse("SKILL.md"), "# After\n"),
+                new PackageTextFile(PackageRelativePath.Parse("new.md"), "# New\n"),
             ]);
         var builder = new SkillMaterializedPackageDiffBuilder();
 
-        var result = await builder.BuildAsync(skillDirectory, package, CancellationToken.None);
+        var result = await builder.BuildAsync(AbsolutePath.Parse(skillDirectory), package, CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        var files = result.Value!.Single().Files.OrderBy(static file => file.RelativePath, StringComparer.Ordinal).ToArray();
+        var files = result.Value!.Single().Files.OrderBy(static file => file.RelativePath.Value, StringComparer.Ordinal).ToArray();
         Assert.Collection(
             files,
             static file =>
             {
-                Assert.Equal("SKILL.md", file.RelativePath);
+                Assert.Equal(PackageRelativePath.Parse("SKILL.md"), file.RelativePath);
                 Assert.Equal(SkillDiffChangeKind.Modified, file.ChangeKind);
                 Assert.Equal("# Before\n", file.BeforeContent);
                 Assert.Equal("# After\n", file.AfterContent);
             },
             static file =>
             {
-                Assert.Equal("new.md", file.RelativePath);
+                Assert.Equal(PackageRelativePath.Parse("new.md"), file.RelativePath);
                 Assert.Equal(SkillDiffChangeKind.Added, file.ChangeKind);
                 Assert.Null(file.BeforeContent);
                 Assert.Equal("# New\n", file.AfterContent);
             },
             static file =>
             {
-                Assert.Equal("obsolete.md", file.RelativePath);
+                Assert.Equal(PackageRelativePath.Parse("obsolete.md"), file.RelativePath);
                 Assert.Equal(SkillDiffChangeKind.Deleted, file.ChangeKind);
                 Assert.Equal("# Obsolete\n", file.BeforeContent);
                 Assert.Null(file.AfterContent);
@@ -84,11 +82,11 @@ public sealed class SkillMaterializedPackageDiffBuilderTests
 
         var package = new SkillMaterializedPackage(
             new SkillName("sample-skill"),
-            SkillHostKind.OpenAi,
-            [new SkillPackageFile("SKILL.md", "# After\n")]);
+            HostKind.Codex,
+            [new PackageTextFile(PackageRelativePath.Parse("SKILL.md"), "# After\n")]);
         var builder = new SkillMaterializedPackageDiffBuilder();
 
-        var result = await builder.BuildAsync(skillDirectory, package, CancellationToken.None);
+        var result = await builder.BuildAsync(AbsolutePath.Parse(skillDirectory), package, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
@@ -106,8 +104,8 @@ public sealed class SkillMaterializedPackageDiffBuilderTests
         File.WriteAllText(Path.Combine(secondDirectory, "b"), "x");
         var builder = new SkillMaterializedPackageDiffBuilder();
 
-        var first = await builder.BuildTargetSnapshotAsync(firstDirectory, CancellationToken.None);
-        var second = await builder.BuildTargetSnapshotAsync(secondDirectory, CancellationToken.None);
+        var first = await builder.BuildTargetSnapshotAsync(AbsolutePath.Parse(firstDirectory), CancellationToken.None);
+        var second = await builder.BuildTargetSnapshotAsync(AbsolutePath.Parse(secondDirectory), CancellationToken.None);
 
         Assert.True(first.IsSuccess, first.Failure?.Message);
         Assert.True(second.IsSuccess, second.Failure?.Message);
@@ -128,11 +126,11 @@ public sealed class SkillMaterializedPackageDiffBuilderTests
         scope.WriteFile(Path.Combine("sample-skill", "unsafe\\name.md"), "# Unsafe\n");
         var package = new SkillMaterializedPackage(
             new SkillName("sample-skill"),
-            SkillHostKind.OpenAi,
-            [new SkillPackageFile("SKILL.md", "# After\n")]);
+            HostKind.Codex,
+            [new PackageTextFile(PackageRelativePath.Parse("SKILL.md"), "# After\n")]);
         var builder = new SkillMaterializedPackageDiffBuilder();
 
-        var result = await builder.BuildAsync(skillDirectory, package, CancellationToken.None);
+        var result = await builder.BuildAsync(AbsolutePath.Parse(skillDirectory), package, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);

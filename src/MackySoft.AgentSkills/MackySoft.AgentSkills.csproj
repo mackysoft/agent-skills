@@ -9,8 +9,14 @@
     <Nullable>enable</Nullable>
     <IsPackable>true</IsPackable>
     <PackageId>MackySoft.AgentSkills</PackageId>
-    <Description>Reusable .NET services for building, materializing, installing, exporting, and diagnosing agent skill packages.</Description>
+    <Description>Reusable .NET services for building, distributing, installing, exporting, and diagnosing agent skills and custom agents.</Description>
     <PackageTags>agent;skills;cli;automation</PackageTags>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MackySoft.FileSystem" Version="[0.2.1]" />
+    <PackageReference Include="MackySoft.FileSystem.Physical" Version="[0.2.1]" />
+    <PackageReference Include="MackySoft.Text.Vocabularies" Version="0.1.0" />
+  </ItemGroup>
 
 </Project>

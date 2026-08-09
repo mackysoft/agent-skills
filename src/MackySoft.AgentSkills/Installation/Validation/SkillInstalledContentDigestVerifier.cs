@@ -1,7 +1,8 @@
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Packaging.Canonical;
-using MackySoft.AgentSkills.Packaging.FileSystem;
+using MackySoft.AgentSkills.Packaging.Paths;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Installation.Validation;
 
@@ -23,11 +24,11 @@ public sealed class SkillInstalledContentDigestVerifier
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> <see langword="true" /> when installed content matches; otherwise <see langword="false" />. </returns>
     public async ValueTask<SkillOperationResult<bool>> MatchesContentDigestAsync (
-        string skillDirectory,
+        AbsolutePath skillDirectory,
         CanonicalSkillPackage package,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+        ArgumentNullException.ThrowIfNull(skillDirectory);
         ArgumentNullException.ThrowIfNull(package);
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -44,23 +45,23 @@ public sealed class SkillInstalledContentDigestVerifier
             return SkillOperationResult<bool>.Success(false);
         }
 
-        digestInputs.Add(new SkillDigestInputFile("SKILL.md", skillBody.Body));
+        digestInputs.Add(new SkillDigestInputFile(PackageRelativePath.Parse("SKILL.md"), skillBody.Body));
         foreach (var reference in package.Files
-            .Where(static file => file.RelativePath.StartsWith("references/", StringComparison.Ordinal))
-            .OrderBy(static file => file.RelativePath, StringComparer.Ordinal))
+            .Where(static file => file.RelativePath.IsDescendantOf(SkillManagedFileSetPaths.ReferencesDirectoryPath))
+            .OrderBy(static file => file.RelativePath.Value, StringComparer.Ordinal))
         {
-            var referencePathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, reference.RelativePath);
+            var referencePathResult = PackagePathResolver.ResolveRegularFile(skillDirectory, reference.RelativePath);
             if (!referencePathResult.IsSuccess)
             {
                 return SkillOperationResult<bool>.FailureResult(referencePathResult.Failure!.Code, referencePathResult.Failure.Message);
             }
 
-            if (!File.Exists(referencePathResult.Value!))
+            if (!File.Exists(referencePathResult.Value!.Value))
             {
                 return SkillOperationResult<bool>.Success(false);
             }
 
-            var content = SkillTextNormalizer.NormalizeToLf(await File.ReadAllTextAsync(referencePathResult.Value!, cancellationToken).ConfigureAwait(false));
+            var content = SkillTextNormalizer.NormalizeToLf(await File.ReadAllTextAsync(referencePathResult.Value!.Value, cancellationToken).ConfigureAwait(false));
             digestInputs.Add(new SkillDigestInputFile(reference.RelativePath, content));
         }
 
@@ -69,21 +70,21 @@ public sealed class SkillInstalledContentDigestVerifier
     }
 
     private static async ValueTask<SkillOperationResult<InstalledSkillBody>> ReadInstalledSkillBodyAsync (
-        string skillDirectory,
+        AbsolutePath skillDirectory,
         CancellationToken cancellationToken)
     {
-        var skillPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, "SKILL.md");
+        var skillPathResult = PackagePathResolver.ResolveRegularFile(skillDirectory, PackageRelativePath.Parse("SKILL.md"));
         if (!skillPathResult.IsSuccess)
         {
             return SkillOperationResult<InstalledSkillBody>.FailureResult(skillPathResult.Failure!.Code, skillPathResult.Failure.Message);
         }
 
-        if (!File.Exists(skillPathResult.Value!))
+        if (!File.Exists(skillPathResult.Value!.Value))
         {
             return SkillOperationResult<InstalledSkillBody>.Success(InstalledSkillBody.Missing);
         }
 
-        var skillText = SkillTextNormalizer.NormalizeToLf(await File.ReadAllTextAsync(skillPathResult.Value!, cancellationToken).ConfigureAwait(false));
+        var skillText = SkillTextNormalizer.NormalizeToLf(await File.ReadAllTextAsync(skillPathResult.Value!.Value, cancellationToken).ConfigureAwait(false));
         if (!SkillHostMaterializationInspector.TryExtractFrontmatter(skillText, out var frontmatter))
         {
             return SkillOperationResult<InstalledSkillBody>.Success(InstalledSkillBody.Missing);

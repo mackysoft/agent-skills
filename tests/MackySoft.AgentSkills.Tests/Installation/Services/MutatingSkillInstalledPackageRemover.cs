@@ -21,15 +21,15 @@ internal sealed class MutatingSkillInstalledPackageRemover : ISkillInstalledPack
 
     /// <inheritdoc />
     public ValueTask<SkillOperationResult<bool>> DeleteAsync (
-        string targetRoot,
-        string skillDirectory,
-        Func<string, CancellationToken, ValueTask<SkillOperationResult<bool>>>? precondition,
+        AbsolutePath targetRoot,
+        AbsolutePath skillDirectory,
+        Func<AbsolutePath, CancellationToken, ValueTask<SkillOperationResult<bool>>>? precondition,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (Interlocked.Exchange(ref mutationInvoked, 1) == 0)
         {
-            mutate(skillDirectory);
+            mutate(skillDirectory.Value);
         }
 
         return inner.DeleteAsync(

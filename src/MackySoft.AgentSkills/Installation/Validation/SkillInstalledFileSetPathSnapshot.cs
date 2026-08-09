@@ -4,24 +4,17 @@ namespace MackySoft.AgentSkills.Installation.Validation;
 
 internal static class SkillInstalledFileSetPathSnapshot
 {
-    public static IReadOnlyList<string> Create (
-        IReadOnlyList<string> paths,
+    public static IReadOnlyList<PackageRelativePath> Create (
+        IReadOnlyList<PackageRelativePath> paths,
         string parameterName)
     {
         ArgumentNullException.ThrowIfNull(paths, parameterName);
 
         var snapshot = paths.ToArray();
-        var uniquePaths = new HashSet<string>(StringComparer.Ordinal);
+        var uniquePaths = new HashSet<PackageRelativePath>(PackageRelativePath.PortableFileSystemComparer);
         foreach (var path in snapshot)
         {
-            if (!SkillRelativePath.IsSafeFilePath(path)
-                || path.Contains(':', StringComparison.Ordinal)
-                || path.Any(char.IsControl))
-            {
-                throw new ArgumentException(
-                    "Installed file-set paths must be safe slash-separated paths relative to the SKILL directory.",
-                    parameterName);
-            }
+            ArgumentNullException.ThrowIfNull(path, parameterName);
 
             if (!uniquePaths.Add(path))
             {
@@ -29,7 +22,7 @@ internal static class SkillInstalledFileSetPathSnapshot
             }
         }
 
-        Array.Sort(snapshot, StringComparer.Ordinal);
+        Array.Sort(snapshot, static (left, right) => StringComparer.Ordinal.Compare(left.Value, right.Value));
         return Array.AsReadOnly(snapshot);
     }
 }

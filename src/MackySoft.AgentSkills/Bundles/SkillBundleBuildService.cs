@@ -1,6 +1,7 @@
 using MackySoft.AgentSkills.Generation;
-using MackySoft.AgentSkills.Packaging.FileSystem;
+using MackySoft.AgentSkills.Serialization;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Bundles;
 
@@ -9,7 +10,9 @@ public sealed class SkillBundleBuildService
 {
     private readonly SkillPackageGenerationService generationService;
     private readonly CanonicalSkillBundleReader bundleReader;
-    private readonly SkillBundleBuildPublisher publisher;
+    private readonly CanonicalSkillBundleWriter bundleWriter;
+    private readonly SkillBundleJsonSerializer bundleSerializer;
+    private readonly SourceAndGeneratedBundleTransaction transaction;
 
     /// <summary> Initializes one bundle build service. </summary>
     /// <param name="generationService"> The canonical bundle generation service. </param>
@@ -21,25 +24,12 @@ public sealed class SkillBundleBuildService
         CanonicalSkillBundleReader bundleReader,
         CanonicalSkillBundleWriter bundleWriter,
         SkillBundleJsonSerializer bundleSerializer)
-        : this(
-            generationService,
-            bundleReader,
-            new SkillBundleBuildPublisher(
-                bundleWriter ?? throw new ArgumentNullException(nameof(bundleWriter)),
-                bundleSerializer ?? throw new ArgumentNullException(nameof(bundleSerializer)),
-                new SkillBundleBuildFileSystem()))
-    {
-    }
-
-    /// <summary> Initializes one bundle build service with its publication boundary. </summary>
-    internal SkillBundleBuildService (
-        SkillPackageGenerationService generationService,
-        CanonicalSkillBundleReader bundleReader,
-        SkillBundleBuildPublisher publisher)
     {
         this.generationService = generationService ?? throw new ArgumentNullException(nameof(generationService));
         this.bundleReader = bundleReader ?? throw new ArgumentNullException(nameof(bundleReader));
-        this.publisher = publisher ?? throw new ArgumentNullException(nameof(publisher));
+        this.bundleWriter = bundleWriter ?? throw new ArgumentNullException(nameof(bundleWriter));
+        this.bundleSerializer = bundleSerializer ?? throw new ArgumentNullException(nameof(bundleSerializer));
+        transaction = new SourceAndGeneratedBundleTransaction(CanonicalTextFilePublisher.PublishAsync);
     }
 
     /// <summary> Reconciles generated output at the authored or explicitly selected bundle version. </summary>
@@ -57,7 +47,7 @@ public sealed class SkillBundleBuildService
         ArgumentException.ThrowIfNullOrWhiteSpace(bundleRoot);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var fullBundleRoot = Path.GetFullPath(bundleRoot);
+        var fullBundleRoot = AbsolutePath.Parse(Path.GetFullPath(bundleRoot));
         var sourceResult = await generationService.ReadSourceAsync(fullBundleRoot, cancellationToken).ConfigureAwait(false);
         if (!sourceResult.IsSuccess)
         {
@@ -89,25 +79,21 @@ public sealed class SkillBundleBuildService
         }
 
         var candidate = generationService.GenerateAll(source, targetVersion);
-        var generatedRoot = Path.Combine(fullBundleRoot, "generated");
+        var generatedRoot = ContainedPath.Create(fullBundleRoot, RootRelativePath.Parse("generated")).Target;
         CanonicalSkillBundle? generatedBundle = null;
 
-        if (File.Exists(generatedRoot))
+        if (!FileSystemEntryInspector.TryInspect(
+                generatedRoot,
+                out var generatedRootObservation,
+                out _))
         {
             return SkillOperationResult<SkillBundleBuildResult>.FailureResult(
                 SkillFailureCodes.PathUnsafe,
-                $"Generated SKILL bundle output must be a directory: {generatedRoot}");
+                $"Generated SKILL bundle output could not be inspected: {generatedRoot}");
         }
 
-        if (Directory.Exists(generatedRoot))
+        if (generatedRootObservation.State == FileSystemEntryState.Directory)
         {
-            if (!SkillPackageFileSystemEntryGuard.IsDirectory(generatedRoot))
-            {
-                return SkillOperationResult<SkillBundleBuildResult>.FailureResult(
-                    SkillFailureCodes.PathUnsafe,
-                    $"Generated SKILL bundle output must be a regular directory: {generatedRoot}");
-            }
-
             var generatedResult = await bundleReader.ReadAsync(generatedRoot, cancellationToken).ConfigureAwait(false);
             if (!generatedResult.IsSuccess)
             {
@@ -115,6 +101,12 @@ public sealed class SkillBundleBuildService
             }
 
             generatedBundle = generatedResult.Value!;
+        }
+        else if (generatedRootObservation.State != FileSystemEntryState.Missing)
+        {
+            return SkillOperationResult<SkillBundleBuildResult>.FailureResult(
+                SkillFailureCodes.PathUnsafe,
+                $"Generated SKILL bundle output must be a regular directory: {generatedRoot}");
         }
 
         var updatesSourceDefinition = targetVersion != authoredVersion;
@@ -134,7 +126,7 @@ public sealed class SkillBundleBuildService
                 $"Canonical SKILL bundle requires generation at version {targetVersion}: {fullBundleRoot}");
         }
 
-        SkillOperationResult<string> publicationResult;
+        SkillOperationResult<AbsolutePath> publicationResult;
         if (updatesSourceDefinition)
         {
             var authoredBundle = source.BundleDefinition;
@@ -142,16 +134,17 @@ public sealed class SkillBundleBuildService
                 authoredBundle.SchemaVersion,
                 authoredBundle.CatalogId,
                 targetVersion);
-            publicationResult = await publisher.PublishSourceAndGeneratedAsync(
+            ValidatePublicationIdentity(finalSourceDefinition, candidate.Descriptor);
+            publicationResult = await transaction.PublishAsync(
                     fullBundleRoot,
-                    finalSourceDefinition,
-                    candidate,
+                    bundleSerializer.SerializeDefinition(finalSourceDefinition),
+                    (outputRoot, token) => bundleWriter.WriteAsync(candidate, outputRoot, token),
                     cancellationToken)
                 .ConfigureAwait(false);
         }
         else
         {
-            publicationResult = await publisher.PublishGeneratedAsync(
+            publicationResult = await bundleWriter.WriteAsync(
                     candidate,
                     generatedRoot,
                     cancellationToken)
@@ -192,5 +185,17 @@ public sealed class SkillBundleBuildService
     private static SkillOperationResult<SkillBundleBuildResult> BuildFailure (SkillFailure failure)
     {
         return SkillOperationResult<SkillBundleBuildResult>.FailureResult(failure.Code, failure.Message);
+    }
+
+    private static void ValidatePublicationIdentity (
+        SkillBundleDefinition sourceDefinition,
+        SkillBundleDescriptor descriptor)
+    {
+        if (sourceDefinition.SchemaVersion != descriptor.SchemaVersion
+            || sourceDefinition.CatalogId != descriptor.CatalogId
+            || sourceDefinition.SkillBundleVersion != descriptor.SkillBundleVersion)
+        {
+            throw new ArgumentException("Source and generated bundle identities must match before publication.", nameof(sourceDefinition));
+        }
     }
 }

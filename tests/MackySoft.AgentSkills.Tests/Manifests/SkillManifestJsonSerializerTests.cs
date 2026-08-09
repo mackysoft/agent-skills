@@ -1,11 +1,8 @@
 using System.Text.Json;
 using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Catalogs;
-using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Digests;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Manifests;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Tests.Manifests;
@@ -43,11 +40,11 @@ public sealed class SkillManifestJsonSerializerTests
             new[] { "a-helper", "z-helper" },
             document.RootElement.GetProperty("dependencies").EnumerateArray().Select(static dependency => dependency.GetString()).ToArray());
         Assert.Equal(
-            new[] { "claude", "copilot", "openai" },
+            new[] { "codex", "claude-code", "github-copilot" },
             document.RootElement.GetProperty("hostArtifacts").EnumerateArray().Select(static artifact => artifact.GetProperty("host").GetString()).ToArray());
         Assert.Equal(
             new[] { "host", "path", "digest", "materializedFrontmatterDigest" },
-            document.RootElement.GetProperty("hostArtifacts").EnumerateArray().Last().EnumerateObject().Select(static property => property.Name).ToArray());
+            document.RootElement.GetProperty("hostArtifacts").EnumerateArray().First().EnumerateObject().Select(static property => property.Name).ToArray());
     }
 
     [Theory]
@@ -95,7 +92,7 @@ public sealed class SkillManifestJsonSerializerTests
               "description": "Use this sample skill for tests.",
               "hostArtifacts": [
                 {
-                  "host": "claude",
+                  "host": "claude-code",
                   "materializedFrontmatterDigest": "2222222222222222222222222222222222222222222222222222222222222222"
                 }
               ]
@@ -121,9 +118,9 @@ public sealed class SkillManifestJsonSerializerTests
             Digest('0'),
             Digest('f'),
             [
-                new SkillHostArtifactManifest(SkillHostKind.OpenAi, "agents/openai.yaml", Digest('1'), Digest('2')),
-                new SkillHostArtifactManifest(SkillHostKind.Claude, null, null, Digest('3')),
-                new SkillHostArtifactManifest(SkillHostKind.Copilot, null, null, Digest('4')),
+                new SkillHostArtifactManifest(HostKind.Codex, PackageRelativePath.Parse("agents/openai.yaml"), Digest('1'), Digest('2')),
+                new SkillHostArtifactManifest(HostKind.ClaudeCode, null, null, Digest('3')),
+                new SkillHostArtifactManifest(HostKind.GitHubCopilot, null, null, Digest('4')),
             ]);
 
         return SkillTestData.WithComputedManifestDigest(manifest);

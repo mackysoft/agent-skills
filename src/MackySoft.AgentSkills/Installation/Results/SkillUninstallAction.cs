@@ -14,7 +14,7 @@ public sealed class SkillUninstallAction
         SkillBlockedReason? blockedReason,
         SkillActionFileChanges? fileChanges)
     {
-        Identity = SkillActionContractGuard.ValidateIdentity(identity, nameof(identity));
+        Identity = identity ?? throw new ArgumentNullException(nameof(identity));
         ActionKind = SkillActionContractGuard.ValidateEnum(actionKind, nameof(actionKind));
         TargetState = targetState ?? throw new ArgumentNullException(nameof(targetState));
         BlockedReason = blockedReason is null ? null : SkillActionContractGuard.ValidateEnum(blockedReason.Value, nameof(blockedReason));

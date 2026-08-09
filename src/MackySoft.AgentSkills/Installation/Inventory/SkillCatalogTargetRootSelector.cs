@@ -1,9 +1,9 @@
 using MackySoft.AgentSkills.Catalogs;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Installation.Validation;
-using MackySoft.AgentSkills.Names;
-using MackySoft.AgentSkills.Packaging.FileSystem;
+using MackySoft.AgentSkills.Packaging.Paths;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Installation.Inventory;
 
@@ -101,7 +101,7 @@ public sealed class SkillCatalogTargetRootSelector
         {
             return SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(
                 SkillFailureCodes.InstallTargetRootConflict,
-                $"SKILL catalog '{catalogId.Value}' is installed under multiple compatible target roots: {string.Join(", ", matchingTargets.Select(static target => target.TargetRoot))}");
+                $"SKILL catalog '{catalogId.Value}' is installed under multiple compatible target roots: {string.Join(", ", matchingTargets.Select(static target => target.TargetRoot.Value))}");
         }
 
         var activeTarget = matchingTargets.Count == 1
@@ -141,8 +141,8 @@ public sealed class SkillCatalogTargetRootSelector
         var hostRoot = candidates.DefaultHostRoot;
         if (!candidates.IncludesCatalogDirectoryLayout
             || hostRoot is null
-            || IsSamePath(hostRoot, activeTarget.TargetRoot)
-            || !Directory.Exists(activeTarget.TargetRoot))
+            || hostRoot.IsSameAs(activeTarget.TargetRoot)
+            || !Directory.Exists(activeTarget.TargetRoot.Value))
         {
             return SkillOperationResult<bool>.Success(false);
         }
@@ -165,15 +165,17 @@ public sealed class SkillCatalogTargetRootSelector
         if (!candidates.IncludesCatalogDirectoryLayout
             || hostRoot is null
             || selectedSkillNames.Count == 0
-            || !Directory.Exists(hostRoot))
+            || !Directory.Exists(hostRoot.Value))
         {
             return SkillOperationResult<bool>.Success(false);
         }
 
-        string[] siblingRoots;
+        AbsolutePath[] siblingRoots;
         try
         {
-            siblingRoots = Directory.GetDirectories(hostRoot);
+            siblingRoots = Directory.GetDirectories(hostRoot.Value)
+                .Select(AbsolutePath.Parse)
+                .ToArray();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -185,21 +187,49 @@ public sealed class SkillCatalogTargetRootSelector
         var candidateRoots = candidates.Targets
             .Select(static target => target.TargetRoot)
             .ToArray();
-        foreach (var siblingRoot in siblingRoots.Order(StringComparer.Ordinal))
+        var physicalCandidateRoots = new List<AbsolutePath>(candidateRoots.Length);
+        foreach (var candidateRoot in candidateRoots)
+        {
+            if (!ContainedPath.TryCreate(hostRoot, candidateRoot, out var containedCandidateRoot, out var containmentFailure))
+            {
+                return SkillOperationResult<bool>.FailureResult(
+                    SkillFailureCodes.PathUnsafe,
+                    $"SKILL target candidate is outside its host root: {containmentFailure.Message}");
+            }
+
+            if (!PhysicalPathResolver.TryResolve(
+                    containedCandidateRoot,
+                    SymbolicLinkHandling.Follow,
+                    MissingPathHandling.AllowMissingTail,
+                    out var candidateResolution,
+                    out var candidateFailure))
+            {
+                return SkillOperationResult<bool>.FailureResult(
+                    SkillFailureCodes.PathUnsafe,
+                    $"SKILL target candidate could not be resolved: {candidateFailure.Message}");
+            }
+
+            physicalCandidateRoots.Add(candidateResolution.ResolvedPath.Target);
+        }
+
+        foreach (var siblingRoot in siblingRoots.OrderBy(static path => path.Value, StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (candidateRoots.Any(candidateRoot => IsSamePath(candidateRoot, siblingRoot)))
+            if (candidateRoots.Any(candidateRoot => candidateRoot.IsSameAs(siblingRoot)))
             {
                 continue;
             }
 
-            var siblingRootResult = SkillPackagePathBoundary.ResolveUnderRoot(hostRoot, siblingRoot);
+            var siblingRootResult = PackagePathResolver.ResolveUnderRoot(hostRoot, siblingRoot);
             if (!siblingRootResult.IsSuccess)
             {
                 foreach (var selectedSkillName in selectedSkillNames)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    if (Directory.Exists(Path.Combine(siblingRoot, selectedSkillName.Value)))
+                    var selectedSkillPath = ContainedPath.Create(
+                        siblingRoot,
+                        RootRelativePath.Parse(selectedSkillName.Value)).Target;
+                    if (Directory.Exists(selectedSkillPath.Value))
                     {
                         return SkillOperationResult<bool>.FailureResult(
                             siblingRootResult.Failure!.Code,
@@ -211,7 +241,30 @@ public sealed class SkillCatalogTargetRootSelector
             }
 
             var resolvedSiblingRoot = siblingRootResult.Value!;
-            if (candidateRoots.Any(candidateRoot => IsSamePath(candidateRoot, resolvedSiblingRoot)))
+            if (!ContainedPath.TryCreate(
+                    hostRoot,
+                    resolvedSiblingRoot,
+                    out var containedSiblingRoot,
+                    out var siblingContainmentFailure))
+            {
+                return SkillOperationResult<bool>.FailureResult(
+                    SkillFailureCodes.PathUnsafe,
+                    $"Sibling SKILL catalog root escaped its host root: {siblingContainmentFailure.Message}");
+            }
+
+            if (!PhysicalPathResolver.TryResolve(
+                    containedSiblingRoot,
+                    SymbolicLinkHandling.Follow,
+                    MissingPathHandling.Reject,
+                    out var siblingResolution,
+                    out var siblingFailure))
+            {
+                return SkillOperationResult<bool>.FailureResult(
+                    SkillFailureCodes.PathUnsafe,
+                    $"Sibling SKILL catalog root could not be resolved: {siblingFailure.Message}");
+            }
+
+            if (physicalCandidateRoots.Any(candidateRoot => candidateRoot.IsSameAs(siblingResolution.ResolvedPath.Target)))
             {
                 continue;
             }
@@ -224,9 +277,12 @@ public sealed class SkillCatalogTargetRootSelector
             foreach (var selectedSkillName in selectedSkillNames.OrderBy(static name => name.Value, StringComparer.Ordinal))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var skillDirectoryResult = SkillPackagePathBoundary.ResolvePackageDirectory(
+                var skillDirectoryPath = ContainedPath.Create(
                     resolvedSiblingRoot,
-                    selectedSkillName.Value);
+                    RootRelativePath.Parse(selectedSkillName.Value)).Target;
+                var skillDirectoryResult = PackagePathResolver.ResolveUnderRoot(
+                    resolvedSiblingRoot,
+                    skillDirectoryPath);
                 if (!skillDirectoryResult.IsSuccess)
                 {
                     return SkillOperationResult<bool>.FailureResult(
@@ -234,7 +290,7 @@ public sealed class SkillCatalogTargetRootSelector
                         skillDirectoryResult.Failure.Message);
                 }
 
-                if (!Directory.Exists(skillDirectoryResult.Value!))
+                if (!Directory.Exists(skillDirectoryResult.Value!.Value))
                 {
                     continue;
                 }
@@ -248,28 +304,32 @@ public sealed class SkillCatalogTargetRootSelector
         return SkillOperationResult<bool>.Success(false);
     }
 
-    private static bool ContainsSkillRootMarker (string candidateRoot)
+    private static bool ContainsSkillRootMarker (AbsolutePath candidateRoot)
     {
-        return File.Exists(Path.Combine(candidateRoot, "agent-skill.json"))
-            || File.Exists(Path.Combine(candidateRoot, "SKILL.md"));
+        var manifestPath = ContainedPath.Create(candidateRoot, RootRelativePath.Parse("agent-skill.json")).Target;
+        var skillBodyPath = ContainedPath.Create(candidateRoot, RootRelativePath.Parse("SKILL.md")).Target;
+        return File.Exists(manifestPath.Value)
+            || File.Exists(skillBodyPath.Value);
     }
 
     private async ValueTask<SkillOperationResult<bool>> ContainsCatalogOrSelectedTargetAsync (
-        string targetRoot,
+        AbsolutePath targetRoot,
         SkillCatalogId catalogId,
         IReadOnlySet<SkillName> selectedSkillNames,
-        IReadOnlyList<string> candidateRoots,
+        IReadOnlyList<AbsolutePath> candidateRoots,
         CancellationToken cancellationToken)
     {
-        if (!Directory.Exists(targetRoot))
+        if (!Directory.Exists(targetRoot.Value))
         {
             return SkillOperationResult<bool>.Success(false);
         }
 
-        string[] skillDirectories;
+        AbsolutePath[] skillDirectories;
         try
         {
-            skillDirectories = Directory.GetDirectories(targetRoot);
+            skillDirectories = Directory.GetDirectories(targetRoot.Value)
+                .Select(AbsolutePath.Parse)
+                .ToArray();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -278,17 +338,17 @@ public sealed class SkillCatalogTargetRootSelector
                 $"Could not inspect compatible SKILL target root: {targetRoot}. {ex.Message}");
         }
 
-        foreach (var skillDirectory in skillDirectories.Order(StringComparer.Ordinal))
+        foreach (var skillDirectory in skillDirectories.OrderBy(static path => path.Value, StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var directoryName = Path.GetFileName(Path.TrimEndingDirectorySeparator(skillDirectory));
+            var directoryName = Path.GetFileName(Path.TrimEndingDirectorySeparator(skillDirectory.Value));
             var isSelectedName = SkillName.TryCreate(directoryName, out var skillName)
                 && selectedSkillNames.Contains(skillName);
             var isAnotherCandidateRoot = candidateRoots.Any(candidateRoot =>
-                !IsSamePath(candidateRoot, targetRoot) && IsSamePath(candidateRoot, skillDirectory));
+                !candidateRoot.IsSameAs(targetRoot) && candidateRoot.IsSameAs(skillDirectory));
 
-            var skillDirectoryResult = SkillPackagePathBoundary.ResolveUnderRoot(targetRoot, skillDirectory);
+            var skillDirectoryResult = PackagePathResolver.ResolveUnderRoot(targetRoot, skillDirectory);
             if (!skillDirectoryResult.IsSuccess)
             {
                 if (isSelectedName && !isAnotherCandidateRoot)
@@ -301,12 +361,11 @@ public sealed class SkillCatalogTargetRootSelector
 
             var resolvedSkillDirectory = skillDirectoryResult.Value!;
             isAnotherCandidateRoot = isAnotherCandidateRoot || candidateRoots.Any(candidateRoot =>
-                !IsSamePath(candidateRoot, targetRoot) && IsSamePath(candidateRoot, resolvedSkillDirectory));
-            var manifestPathResult = SkillPackagePathBoundary.ResolvePackageFilePathUnderRoot(
-                targetRoot,
+                !candidateRoot.IsSameAs(targetRoot) && candidateRoot.IsSameAs(resolvedSkillDirectory));
+            var manifestPathResult = PackagePathResolver.ResolveRegularFile(
                 resolvedSkillDirectory,
-                "agent-skill.json");
-            var hasManifest = manifestPathResult.IsSuccess && File.Exists(manifestPathResult.Value!);
+                PackageRelativePath.Parse("agent-skill.json"));
+            var hasManifest = manifestPathResult.IsSuccess && File.Exists(manifestPathResult.Value!.Value);
             if (hasManifest)
             {
                 var manifestResult = await installedManifestReader
@@ -332,14 +391,4 @@ public sealed class SkillCatalogTargetRootSelector
         return SkillOperationResult<bool>.Success(false);
     }
 
-    private static bool IsSamePath (
-        string left,
-        string right)
-    {
-        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        return string.Equals(
-            Path.TrimEndingDirectorySeparator(left),
-            Path.TrimEndingDirectorySeparator(right),
-            comparison);
-    }
 }

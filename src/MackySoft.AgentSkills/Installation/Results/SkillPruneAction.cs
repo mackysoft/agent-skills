@@ -14,7 +14,7 @@ public sealed class SkillPruneAction
         SkillBlockedReason? blockedReason,
         SkillActionFileChanges? fileChanges)
     {
-        Identity = SkillActionContractGuard.ValidateIdentity(identity, nameof(identity));
+        Identity = identity ?? throw new ArgumentNullException(nameof(identity));
         ActionKind = SkillActionContractGuard.ValidateEnum(actionKind, nameof(actionKind));
         BlockedReason = blockedReason is null ? null : SkillActionContractGuard.ValidateEnum(blockedReason.Value, nameof(blockedReason));
         TargetState = targetState;

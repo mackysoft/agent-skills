@@ -30,6 +30,6 @@ internal sealed class SkillSourceReference
     internal static bool IsValidFileName (string? fileName)
     {
         return fileName?.EndsWith(".md", StringComparison.Ordinal) == true
-            && SkillRelativePath.IsSafePathSegment(fileName);
+            && PackageRelativePath.TryParseSegment(fileName, out _);
     }
 }

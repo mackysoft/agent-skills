@@ -1,9 +1,8 @@
 using MackySoft.AgentSkills.Bundles;
-using MackySoft.AgentSkills.Categories;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Selection;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Distribution;
 
@@ -12,6 +11,9 @@ public sealed class SkillPackageProvider
 {
     private readonly BundledSkillPackageRootResolver packageRootResolver;
     private readonly CanonicalSkillBundleReader bundleReader;
+    private readonly CanonicalAgentSkillsBundleReader? agentSkillsBundleReader;
+    private readonly SkillBundleDigestCalculator? skillBundleDigestCalculator;
+    private readonly BundleSchemaVersionReader schemaVersionReader;
 
     /// <summary> Initializes a new instance of the <see cref="SkillPackageProvider" /> class. </summary>
     /// <param name="packageRootResolver"> The bundled generated SKILL package root resolver. </param>
@@ -22,6 +24,25 @@ public sealed class SkillPackageProvider
     {
         this.packageRootResolver = packageRootResolver ?? throw new ArgumentNullException(nameof(packageRootResolver));
         this.bundleReader = bundleReader ?? throw new ArgumentNullException(nameof(bundleReader));
+        schemaVersionReader = new BundleSchemaVersionReader();
+    }
+
+    /// <summary> Initializes a provider that reads both v1 SKILL bundles and the SKILL namespace of v2 mixed bundles. </summary>
+    /// <param name="packageRootResolver"> The bundled generated package root resolver. </param>
+    /// <param name="bundleReader"> The canonical v1 SKILL bundle reader. </param>
+    /// <param name="agentSkillsBundleReader"> The canonical v2 mixed bundle reader. </param>
+    /// <param name="skillBundleDigestCalculator"> The digest calculator used to project the v2 SKILL package set. </param>
+    public SkillPackageProvider (
+        BundledSkillPackageRootResolver packageRootResolver,
+        CanonicalSkillBundleReader bundleReader,
+        CanonicalAgentSkillsBundleReader agentSkillsBundleReader,
+        SkillBundleDigestCalculator skillBundleDigestCalculator)
+    {
+        this.packageRootResolver = packageRootResolver ?? throw new ArgumentNullException(nameof(packageRootResolver));
+        this.bundleReader = bundleReader ?? throw new ArgumentNullException(nameof(bundleReader));
+        this.agentSkillsBundleReader = agentSkillsBundleReader ?? throw new ArgumentNullException(nameof(agentSkillsBundleReader));
+        this.skillBundleDigestCalculator = skillBundleDigestCalculator ?? throw new ArgumentNullException(nameof(skillBundleDigestCalculator));
+        schemaVersionReader = new BundleSchemaVersionReader();
     }
 
     /// <summary> Gets every package from the validated bundled SKILL package set. </summary>
@@ -140,27 +161,77 @@ public sealed class SkillPackageProvider
         return GetPackageCatalogAsync([], selectedSkillNames, cancellationToken);
     }
 
-    private async ValueTask<SkillOperationResult<CanonicalSkillBundle>> ReadBundleAsync (CancellationToken cancellationToken)
+    private async ValueTask<SkillOperationResult<SkillPackageBundle>> ReadBundleAsync (CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        string packageRoot;
+        AbsolutePath packageRoot;
         try
         {
             packageRoot = packageRootResolver.Resolve();
         }
         catch (DirectoryNotFoundException ex)
         {
-            return SkillOperationResult<CanonicalSkillBundle>.FailureResult(
+            return SkillOperationResult<SkillPackageBundle>.FailureResult(
                 SkillFailureCodes.SourceInvalid,
                 ex.Message);
         }
 
-        return await bundleReader.ReadAsync(packageRoot, cancellationToken).ConfigureAwait(false);
+        var schemaVersionResult = await schemaVersionReader.ReadAsync(packageRoot, cancellationToken).ConfigureAwait(false);
+        if (!schemaVersionResult.IsSuccess)
+        {
+            return SkillOperationResult<SkillPackageBundle>.FailureResult(
+                SkillFailureCodes.ManifestInvalid,
+                schemaVersionResult.Failure!.Message);
+        }
+
+        if (schemaVersionResult.Value == SkillBundleDefinition.CurrentSchemaVersion)
+        {
+            var bundleResult = await bundleReader.ReadAsync(packageRoot, cancellationToken).ConfigureAwait(false);
+            return bundleResult.IsSuccess
+                ? SkillOperationResult<SkillPackageBundle>.Success(
+                    new SkillPackageBundle(bundleResult.Value!.Descriptor, bundleResult.Value.Packages))
+                : SkillOperationResult<SkillPackageBundle>.FailureResult(
+                    bundleResult.Failure!.Code,
+                    bundleResult.Failure.Message);
+        }
+
+        if (schemaVersionResult.Value != AgentSkillsBundleDefinition.CurrentSchemaVersion
+            || agentSkillsBundleReader is null
+            || skillBundleDigestCalculator is null)
+        {
+            return SkillOperationResult<SkillPackageBundle>.FailureResult(
+                SkillFailureCodes.ManifestInvalid,
+                $"Generated bundle schema is not supported by this SKILL package provider: {schemaVersionResult.Value}");
+        }
+
+        var mixedBundleResult = await agentSkillsBundleReader.ReadAsync(packageRoot, cancellationToken).ConfigureAwait(false);
+        if (!mixedBundleResult.IsSuccess)
+        {
+            return SkillOperationResult<SkillPackageBundle>.FailureResult(
+                mixedBundleResult.Failure!.Code,
+                mixedBundleResult.Failure.Message);
+        }
+
+        var mixedBundle = mixedBundleResult.Value!;
+        if (mixedBundle.Skills.Count == 0)
+        {
+            return SkillOperationResult<SkillPackageBundle>.FailureResult(
+                SkillFailureCodes.InputInvalid,
+                "The v2 generated bundle does not contain any SKILL packages.");
+        }
+
+        var descriptor = new SkillBundleDescriptor(
+            SkillBundleDefinition.CurrentSchemaVersion,
+            mixedBundle.Descriptor.CatalogId,
+            new SkillBundleVersion(mixedBundle.Descriptor.BundleVersion.Value),
+            skillBundleDigestCalculator.ComputeDigest(mixedBundle.Skills));
+        return SkillOperationResult<SkillPackageBundle>.Success(
+            new SkillPackageBundle(descriptor, mixedBundle.Skills));
     }
 
     private static SkillOperationResult<SkillPackageCatalog> CreatePackageCatalog (
-        CanonicalSkillBundle bundle,
+        SkillPackageBundle bundle,
         IReadOnlyList<string> selectedCategoryLiterals,
         IReadOnlyList<SkillName> selectedSkillNames)
     {
@@ -218,7 +289,9 @@ public sealed class SkillPackageProvider
             .Where(package => selectedSkillNameSet.Count == 0 || selectedSkillNameSet.Contains(package.Manifest.SkillName))
             .OrderBy(static package => package.Manifest.SkillName.Value, StringComparer.Ordinal)
             .ToArray();
-        var resolvedPackages = ResolveDependencyClosure(rootPackages, packageIndex);
+        var resolvedPackages = SkillPackageDependencyResolver.Resolve(
+            bundle.Packages,
+            rootPackages.Select(static package => package.Manifest.SkillName).ToArray());
 
         return SkillOperationResult<SkillPackageCatalog>.Success(new SkillPackageCatalog(
             bundle.Descriptor,
@@ -228,35 +301,4 @@ public sealed class SkillPackageProvider
             resolvedPackages));
     }
 
-    private static IReadOnlyList<CanonicalSkillPackage> ResolveDependencyClosure (
-        IReadOnlyList<CanonicalSkillPackage> rootPackages,
-        IReadOnlyDictionary<SkillName, CanonicalSkillPackage> packagesBySkillName)
-    {
-        var resolvedSkillNames = new HashSet<SkillName>();
-        foreach (var package in rootPackages)
-        {
-            AddPackageAndDependencies(package.Manifest.SkillName, packagesBySkillName, resolvedSkillNames);
-        }
-
-        return resolvedSkillNames
-            .OrderBy(static skillName => skillName.Value, StringComparer.Ordinal)
-            .Select(skillName => packagesBySkillName[skillName])
-            .ToArray();
-    }
-
-    private static void AddPackageAndDependencies (
-        SkillName skillName,
-        IReadOnlyDictionary<SkillName, CanonicalSkillPackage> packagesBySkillName,
-        HashSet<SkillName> resolvedSkillNames)
-    {
-        if (!resolvedSkillNames.Add(skillName))
-        {
-            return;
-        }
-
-        foreach (var dependency in packagesBySkillName[skillName].Manifest.Dependencies.OrderBy(static item => item.Value, StringComparer.Ordinal))
-        {
-            AddPackageAndDependencies(dependency, packagesBySkillName, resolvedSkillNames);
-        }
-    }
 }

@@ -21,7 +21,7 @@ public sealed class SkillBundleDefinitionReaderTests
         scope.WriteFile("bundle.json", serializer.SerializeDefinition(definition));
         var reader = CreateReader(serializer);
 
-        var result = await reader.ReadAsync(scope.FullPath, CancellationToken.None);
+        var result = await reader.ReadAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.NotNull(result.Value);
@@ -49,7 +49,7 @@ public sealed class SkillBundleDefinitionReaderTests
                 Sha256Digest.Parse(new string('a', 64)))));
         var reader = CreateReader(serializer);
 
-        var result = await reader.ReadAsync(scope.FullPath, CancellationToken.None);
+        var result = await reader.ReadAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -80,7 +80,7 @@ public sealed class SkillBundleDefinitionReaderTests
 
         var reader = CreateReader(serializer);
 
-        var result = await reader.ReadAsync(scope.FullPath, CancellationToken.None);
+        var result = await reader.ReadAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);

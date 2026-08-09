@@ -15,7 +15,7 @@ public sealed class PackageMetadataTests
             {
                 ["IsPackable"] = "true",
                 ["PackageId"] = "MackySoft.AgentSkills",
-                ["Description"] = "Reusable .NET services for building, materializing, installing, exporting, and diagnosing agent skill packages.",
+                ["Description"] = "Reusable .NET services for building, distributing, installing, exporting, and diagnosing agent skills and custom agents.",
                 ["PackageTags"] = "agent;skills;cli;automation",
             },
             ["src/MackySoft.AgentSkills.Cli/MackySoft.AgentSkills.Cli.csproj"] = new(StringComparer.Ordinal)
@@ -24,21 +24,21 @@ public sealed class PackageMetadataTests
                 ["PackAsTool"] = "true",
                 ["ToolCommandName"] = "agent-skills",
                 ["PackageId"] = "MackySoft.AgentSkills.Cli",
-                ["Description"] = ".NET CLI tool for building, listing, exporting, installing, updating, uninstalling, pruning, and diagnosing agent skill packages.",
+                ["Description"] = ".NET CLI tool for building and operating agent skill and custom-agent packages.",
                 ["PackageTags"] = "agent;skills;cli;tool;generator;installer",
             },
             ["src/MackySoft.AgentSkills.Hosting/MackySoft.AgentSkills.Hosting.csproj"] = new(StringComparer.Ordinal)
             {
                 ["IsPackable"] = "true",
                 ["PackageId"] = "MackySoft.AgentSkills.Hosting",
-                ["Description"] = "Reusable command runtime services for product CLIs that expose Agent Skills workflows.",
+                ["Description"] = "Reusable command runtime services for product CLIs that expose agent skill and custom-agent workflows.",
                 ["PackageTags"] = "agent;skills;cli;hosting;automation",
             },
             ["src/MackySoft.AgentSkills.ConsoleAppFramework/MackySoft.AgentSkills.ConsoleAppFramework.csproj"] = new(StringComparer.Ordinal)
             {
                 ["IsPackable"] = "true",
                 ["PackageId"] = "MackySoft.AgentSkills.ConsoleAppFramework",
-                ["Description"] = "ConsoleAppFramework source integration for product CLIs that expose Agent Skills commands.",
+                ["Description"] = "ConsoleAppFramework source integration for product CLIs that expose agent skill and custom-agent commands.",
                 ["PackageTags"] = "agent;skills;cli;consoleappframework;source",
             },
         };
@@ -157,35 +157,9 @@ public sealed class PackageMetadataTests
             propsDocument.ToString(SaveOptions.DisableFormatting),
             StringComparison.Ordinal);
         Assert.Contains(
-            "AgentSkillsConsoleAppFrameworkCommandRoot",
-            propsDocument.ToString(SaveOptions.DisableFormatting),
-            StringComparison.Ordinal);
-        Assert.Contains(
-            "AgentSkillsConsoleAppFrameworkGenerateRegistrar",
-            propsDocument.ToString(SaveOptions.DisableFormatting),
-            StringComparison.Ordinal);
-        Assert.Contains(
             "GenerateAgentSkillsConsoleAppFrameworkRegistrar",
             propsDocument.ToString(SaveOptions.DisableFormatting),
             StringComparison.Ordinal);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public void Cli_self_hosts_the_ConsoleAppFramework_source_integration ()
-    {
-        var projectDocument = XDocument.Load(ToRepositoryPath("src/MackySoft.AgentSkills.Cli/MackySoft.AgentSkills.Cli.csproj"));
-        var adapterReference = projectDocument.Descendants("ProjectReference").SingleOrDefault(static element =>
-            element.Attribute("Include")?.Value == "../MackySoft.AgentSkills.ConsoleAppFramework/MackySoft.AgentSkills.ConsoleAppFramework.csproj");
-        var imports = projectDocument.Descendants("Import")
-            .Select(static element => element.Attribute("Project")?.Value)
-            .ToArray();
-        var generateRegistrar = projectDocument.Descendants("AgentSkillsConsoleAppFrameworkGenerateRegistrar").SingleOrDefault();
-
-        Assert.NotNull(adapterReference);
-        Assert.Equal("false", adapterReference!.Attribute("ReferenceOutputAssembly")?.Value);
-        Assert.Contains("../MackySoft.AgentSkills.ConsoleAppFramework/buildTransitive/MackySoft.AgentSkills.ConsoleAppFramework.props", imports);
-        Assert.Equal("false", generateRegistrar?.Value);
     }
 
     private static string ToRepositoryPath (string relativePath)

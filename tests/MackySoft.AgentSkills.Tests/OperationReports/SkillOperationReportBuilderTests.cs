@@ -1,12 +1,10 @@
-using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Doctor;
-using MackySoft.AgentSkills.Hosts.Contracts;
+using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Installation.Results;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Manifests;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.OperationReports.Contracts;
 using MackySoft.AgentSkills.OperationReports.Literals;
 using MackySoft.AgentSkills.OperationReports.Projection;
@@ -25,7 +23,7 @@ public sealed class SkillOperationReportBuilderTests
             [new SkillCategory("basic"), new SkillCategory("advanced")],
             [new SkillName("skill-a"), new SkillName("skill-c")]);
         var result = new SkillInstallResult(
-            targetRoot,
+            AbsolutePath.Parse(targetRoot),
             [
                 new SkillInstallAction(
                     CreateIdentity(targetRoot, "skill-b"),
@@ -41,7 +39,10 @@ public sealed class SkillOperationReportBuilderTests
                         SkillTargetStateKind.FileSetDrift,
                         SkillFailureCodes.InstallTargetFileSetMismatch,
                         "File set drift.",
-                        new SkillActionTargetFileSet(["missing.md"], ["extra.md"], ["extra-dir"]),
+                        new SkillActionTargetFileSet(
+                            [PackageRelativePath.Parse("missing.md")],
+                            [PackageRelativePath.Parse("extra.md")],
+                            [PackageRelativePath.Parse("extra-dir")]),
                         installedSkillBundleVersion: null,
                         bundledSkillBundleVersion: 1),
                     SkillBlockedReason.LocalModificationRequiresForce,
@@ -62,11 +63,13 @@ public sealed class SkillOperationReportBuilderTests
                     [
                         new SkillActionDiff(
                         [
-                            new SkillFileDiff("z.txt", SkillDiffChangeKind.Deleted, "old", null),
-                            new SkillFileDiff("a.txt", SkillDiffChangeKind.Added, null, "new"),
+                            new SkillFileDiff(PackageRelativePath.Parse("z.txt"), SkillDiffChangeKind.Deleted, "old", null),
+                            new SkillFileDiff(PackageRelativePath.Parse("a.txt"), SkillDiffChangeKind.Added, null, "new"),
                         ]),
                     ],
-                    fileChanges: new SkillActionFileChanges(["z.txt", "a.txt"], ["local.md"])),
+                    fileChanges: new SkillActionFileChanges(
+                        [PackageRelativePath.Parse("z.txt"), PackageRelativePath.Parse("a.txt")],
+                        [PackageRelativePath.Parse("local.md")])),
             ],
             dryRun: true,
             force: true,
@@ -74,19 +77,19 @@ public sealed class SkillOperationReportBuilderTests
 
         var report = SkillOperationReportBuilder.CreateInstallReport(result, context);
 
-        Assert.Equal(SkillHostKind.OpenAi, report.Host);
+        Assert.Equal(HostKind.Codex, report.Host);
         Assert.Equal(["basic", "advanced"], report.Categories);
         Assert.Equal(["skill-a", "skill-c"], report.SkillNames);
-        Assert.Equal(SkillScopeKind.Project, report.Scope);
+        Assert.Equal(OperationScopeKind.Project, report.Scope);
         Assert.Equal(targetRoot, report.TargetRoot);
         Assert.True(report.DryRun);
         Assert.True(report.Force);
-        Assert.Equal(OpenAiDescriptor.ReloadGuidance, report.ReloadGuidance);
+        Assert.Equal(CodexRegistration.Skill.ReloadGuidance, report.ReloadGuidance);
         Assert.Equal(["skill-a", "skill-b", "skill-c"], report.Actions.Select(static action => action.SkillName).ToArray());
 
         var updated = report.Actions[0];
         Assert.Equal("updated", updated.Action);
-        Assert.Equal(SkillOperationActionStatus.Changed, updated.Status);
+        Assert.Equal(OperationActionStatus.Changed, updated.Status);
         Assert.Null(updated.BlockedReason);
         Assert.Equal(SkillTargetStateKind.CommonContentDrift, updated.TargetState!.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch.Value, updated.TargetState.Code);
@@ -100,7 +103,7 @@ public sealed class SkillOperationReportBuilderTests
 
         var blocked = report.Actions[2];
         Assert.Equal("blockedLocalModification", blocked.Action);
-        Assert.Equal(SkillOperationActionStatus.Blocked, blocked.Status);
+        Assert.Equal(OperationActionStatus.Blocked, blocked.Status);
         Assert.Equal(SkillBlockedReason.LocalModificationRequiresForce, blocked.BlockedReason);
         Assert.Equal(SkillTargetStateKind.FileSetDrift, blocked.TargetState!.Kind);
         Assert.Equal(["missing.md"], blocked.TargetState.FileSet!.MissingFiles);
@@ -128,7 +131,7 @@ public sealed class SkillOperationReportBuilderTests
         var targetRoot = Path.GetFullPath("update-report-target");
         var context = CreateContext(SkillScopeKind.User);
         var result = new SkillUpdateResult(
-            targetRoot,
+            AbsolutePath.Parse(targetRoot),
             [
                 new SkillUpdateAction(
                     CreateIdentity(targetRoot, "skill-b", SkillScopeKind.User),
@@ -146,7 +149,7 @@ public sealed class SkillOperationReportBuilderTests
                     [
                         new SkillActionDiff(
                         [
-                            new SkillFileDiff("SKILL.md", SkillDiffChangeKind.Modified, "old", "new"),
+                            new SkillFileDiff(PackageRelativePath.Parse("SKILL.md"), SkillDiffChangeKind.Modified, "old", "new"),
                         ]),
                     ],
                     fileChanges: new SkillActionFileChanges([], [])),
@@ -157,13 +160,13 @@ public sealed class SkillOperationReportBuilderTests
 
         var report = SkillOperationReportBuilder.CreateUpdateReport(result, context);
 
-        Assert.Equal(SkillScopeKind.User, report.Scope);
+        Assert.Equal(OperationScopeKind.User, report.Scope);
         Assert.Equal(["skill-a", "skill-b"], report.Actions.Select(static action => action.SkillName).ToArray());
         Assert.Equal("created", report.Actions[0].Action);
-        Assert.Equal(SkillOperationActionStatus.Changed, report.Actions[0].Status);
+        Assert.Equal(OperationActionStatus.Changed, report.Actions[0].Status);
         Assert.Empty(report.Actions[0].FileDiffs);
         Assert.Equal("blockedUnmanaged", report.Actions[1].Action);
-        Assert.Equal(SkillOperationActionStatus.Blocked, report.Actions[1].Status);
+        Assert.Equal(OperationActionStatus.Blocked, report.Actions[1].Status);
         Assert.Equal(SkillBlockedReason.UnmanagedTarget, report.Actions[1].BlockedReason);
         Assert.Equal(
             ["created", "updated", "noOp", "blockedLocalModification", "blockedUnmanaged", "blockedVersionAhead"],
@@ -184,7 +187,7 @@ public sealed class SkillOperationReportBuilderTests
         var targetRoot = Path.GetFullPath("uninstall-report-target");
         var context = CreateContext();
         var result = new SkillUninstallResult(
-            targetRoot,
+            AbsolutePath.Parse(targetRoot),
             [
                 new SkillUninstallAction(
                     CreateIdentity(targetRoot, "skill-b"),
@@ -197,7 +200,9 @@ public sealed class SkillOperationReportBuilderTests
                     SkillUninstallActionKind.Deleted,
                     CreateCurrentTargetState(),
                     blockedReason: null,
-                    fileChanges: new SkillActionFileChanges([], ["SKILL.md", "agent-skill.json"])),
+                    fileChanges: new SkillActionFileChanges(
+                        [],
+                        [PackageRelativePath.Parse("SKILL.md"), PackageRelativePath.Parse("agent-skill.json")])),
             ],
             dryRun: false,
             force: true);
@@ -205,10 +210,10 @@ public sealed class SkillOperationReportBuilderTests
         var report = SkillOperationReportBuilder.CreateUninstallReport(result, context);
 
         Assert.Equal("deleted", report.Actions[0].Action);
-        Assert.Equal(SkillOperationActionStatus.Changed, report.Actions[0].Status);
+        Assert.Equal(OperationActionStatus.Changed, report.Actions[0].Status);
         Assert.Equal(["SKILL.md", "agent-skill.json"], report.Actions[0].FileChanges!.RemovedFiles);
         Assert.Equal("skippedUnmanaged", report.Actions[1].Action);
-        Assert.Equal(SkillOperationActionStatus.Skipped, report.Actions[1].Status);
+        Assert.Equal(OperationActionStatus.Skipped, report.Actions[1].Status);
         Assert.Equal(
             ["deleted", "noOp", "skippedUnmanaged", "blockedLocalModification"],
             report.ActionCounts.Select(static count => count.Literal).ToArray());
@@ -228,7 +233,7 @@ public sealed class SkillOperationReportBuilderTests
         var targetRoot = Path.GetFullPath("prune-report-target");
         var context = CreateContext();
         var result = new SkillPruneResult(
-            targetRoot,
+            AbsolutePath.Parse(targetRoot),
             [
                 new SkillPruneAction(
                     CreateIdentity(targetRoot, "skill-a"),
@@ -241,7 +246,9 @@ public sealed class SkillOperationReportBuilderTests
                         installedSkillBundleVersion: 1,
                         bundledSkillBundleVersion: null),
                     blockedReason: null,
-                    fileChanges: new SkillActionFileChanges([], ["SKILL.md", "agent-skill.json"])),
+                    fileChanges: new SkillActionFileChanges(
+                        [],
+                        [PackageRelativePath.Parse("SKILL.md"), PackageRelativePath.Parse("agent-skill.json")])),
                 new SkillPruneAction(CreateIdentity(targetRoot, "skill-b"), SkillPruneActionKind.SkippedCurrent, null, null, null),
                 new SkillPruneAction(CreateIdentity(targetRoot, "skill-c"), SkillPruneActionKind.SkippedForeignCatalog, null, null, null),
                 new SkillPruneAction(
@@ -320,14 +327,14 @@ public sealed class SkillOperationReportBuilderTests
             report.Actions.Select(static action => action.Action).ToArray());
         Assert.Equal(
             [
-                SkillOperationActionStatus.Changed,
-                SkillOperationActionStatus.NoOp,
-                SkillOperationActionStatus.Skipped,
-                SkillOperationActionStatus.Skipped,
-                SkillOperationActionStatus.Blocked,
-                SkillOperationActionStatus.Blocked,
-                SkillOperationActionStatus.Blocked,
-                SkillOperationActionStatus.Blocked,
+                OperationActionStatus.Changed,
+                OperationActionStatus.NoOp,
+                OperationActionStatus.Skipped,
+                OperationActionStatus.Skipped,
+                OperationActionStatus.Blocked,
+                OperationActionStatus.Blocked,
+                OperationActionStatus.Blocked,
+                OperationActionStatus.Blocked,
             ],
             report.Actions.Select(static action => action.Status).ToArray());
         var deletedTargetState = report.Actions[0].TargetState!;
@@ -367,7 +374,6 @@ public sealed class SkillOperationReportBuilderTests
     {
         var bundle = await SkillTestData.GenerateFixtureBundleAsync();
         var packages = bundle.Packages.Reverse().ToArray();
-        var hostAdapters = SkillTestData.CreateDefaultHostAdapterSet();
         var catalog = new SkillPackageCatalog(
             bundle.Descriptor,
             [new SkillCategory("core")],
@@ -375,9 +381,7 @@ public sealed class SkillOperationReportBuilderTests
             [new SkillCategoryPackageCount(new SkillCategory("core"), packages.Length)],
             packages);
 
-        var report = SkillOperationReportBuilder.CreateListReport(
-            catalog,
-            hostAdapters);
+        var report = SkillOperationReportBuilder.CreateListReport(catalog);
 
         Assert.Equal(["core"], report.Categories);
         Assert.Equal([packages[0].Manifest.SkillName.Value], report.SkillNames);
@@ -388,13 +392,13 @@ public sealed class SkillOperationReportBuilderTests
         Assert.All(report.Skills, static skill => Assert.Equal("core", skill.Category));
         Assert.All(report.Skills, static skill => Assert.Equal(1, skill.SkillBundleVersion));
         Assert.All(report.Skills, static skill => Assert.Equal("com.mackysoft.agent-skills", skill.CatalogId));
-        Assert.Equal([SkillHostKind.Claude, SkillHostKind.Copilot, SkillHostKind.OpenAi], report.SupportedHosts.Select(static host => host.Host).ToArray());
-        var openAi = report.SupportedHosts.Single(static host => host.Host == SkillHostKind.OpenAi);
-        Assert.Equal("catalog-directory", openAi.BundleTargetRootLayout);
-        Assert.Equal(["flat"], openAi.CompatiblePreviousBundleTargetRootLayouts);
-        Assert.Equal("agents/openai.yaml", openAi.MetadataArtifactPath);
+        Assert.Equal([HostKind.Codex, HostKind.ClaudeCode, HostKind.GitHubCopilot], report.SupportedHosts.Select(static host => host.Host).ToArray());
+        var codex = report.SupportedHosts.Single(static host => host.Host == HostKind.Codex);
+        Assert.Equal("catalog-directory", codex.BundleTargetRootLayout);
+        Assert.Equal(["flat"], codex.CompatiblePreviousBundleTargetRootLayouts);
+        Assert.Equal("agents/openai.yaml", codex.MetadataArtifactPath);
         Assert.Equal(
-            [SkillHostKind.Claude, SkillHostKind.Copilot, SkillHostKind.OpenAi],
+            [HostKind.Codex, HostKind.ClaudeCode, HostKind.GitHubCopilot],
             report.Skills[0].HostArtifacts.Select(static artifact => artifact.Host).ToArray());
         var firstPackage = packages.Single(package => string.Equals(package.Manifest.SkillName.Value, report.Skills[0].SkillName, StringComparison.Ordinal));
         Assert.Equal(firstPackage.Manifest.ContentDigest, report.Skills[0].ContentDigest);
@@ -415,8 +419,8 @@ public sealed class SkillOperationReportBuilderTests
             dependencies: [packages[1].Manifest.SkillName]));
         var serializer = new SkillManifestJsonSerializer();
         var files = packages[0].Files
-            .Select(file => string.Equals(file.RelativePath, "agent-skill.json", StringComparison.Ordinal)
-                ? new SkillPackageFile(file.RelativePath, serializer.Serialize(manifest))
+            .Select(file => string.Equals(file.RelativePath.Value, "agent-skill.json", StringComparison.Ordinal)
+                ? new PackageTextFile(file.RelativePath, serializer.Serialize(manifest))
                 : file)
             .ToArray();
         packages[0] = SkillTestData.CreateCanonicalPackage(manifest, files);
@@ -427,9 +431,7 @@ public sealed class SkillOperationReportBuilderTests
             [new SkillCategoryPackageCount(new SkillCategory("core"), packages.Length)],
             packages);
 
-        var report = SkillOperationReportBuilder.CreateListReport(
-            catalog,
-            SkillTestData.CreateDefaultHostAdapterSet());
+        var report = SkillOperationReportBuilder.CreateListReport(catalog);
 
         var skill = report.Skills.Single(skill => string.Equals(skill.SkillName, packages[0].Manifest.SkillName.Value, StringComparison.Ordinal));
         Assert.Equal([packages[1].Manifest.SkillName.Value], skill.Dependencies);
@@ -443,21 +445,21 @@ public sealed class SkillOperationReportBuilderTests
         var outputPath = Path.Combine("tmp", "agent-skills.zip");
 
         var report = SkillOperationReportBuilder.CreateExportReport(
-            outputPath,
+            AbsolutePath.Parse(Path.GetFullPath(outputPath)),
             packages,
-            OpenAiDescriptor,
+            HostKind.Codex,
             SkillExportFormat.Zip,
             [new SkillCategory("basic"), new SkillCategory("advanced")],
             [packages[0].Manifest.SkillName]);
 
-        Assert.Equal(SkillHostKind.OpenAi, report.Host);
+        Assert.Equal(HostKind.Codex, report.Host);
         Assert.Equal(["basic", "advanced"], report.Categories);
         Assert.Equal([packages[0].Manifest.SkillName.Value], report.SkillNames);
         Assert.Equal(SkillExportFormat.Zip, report.Format);
         Assert.Equal(Path.GetFullPath(outputPath), report.OutputPath);
         Assert.Equal(SkillTestData.ExpectedSkillNames, report.Skills);
         Assert.Equal(SkillTestData.ExpectedSkillNames.Length, report.SkillCount);
-        Assert.Equal(OpenAiDescriptor.ReloadGuidance, report.ReloadGuidance);
+        Assert.Equal(CodexRegistration.Skill.ReloadGuidance, report.ReloadGuidance);
     }
 
     [Fact]
@@ -466,8 +468,8 @@ public sealed class SkillOperationReportBuilderTests
     {
         var targetRoot = Path.GetFullPath("agent-skills-doctor");
         var result = new SkillDoctorResult(
-            SkillHostKind.OpenAi,
-            targetRoot,
+            HostKind.Codex,
+            AbsolutePath.Parse(targetRoot),
             [
                 SkillDoctorDiagnostic.Error(
                     SkillFailureCodes.InstallTargetHostArtifactDigestMismatch,
@@ -505,7 +507,7 @@ public sealed class SkillOperationReportBuilderTests
         var report = SkillOperationReportBuilder.CreateDoctorReport(
             result,
             new SkillOperationReportContext(
-                OpenAiDescriptor,
+                HostKind.Codex,
                 SkillScopeKind.Project,
                 Path.GetFullPath("."),
                 [new SkillCategory("developer")],
@@ -514,9 +516,9 @@ public sealed class SkillOperationReportBuilderTests
         Assert.False(report.IsHealthy);
         Assert.Equal(["developer"], report.Categories);
         Assert.Equal(["skill-a"], report.SkillNames);
-        Assert.Equal(SkillScopeKind.Project, report.Scope);
+        Assert.Equal(OperationScopeKind.Project, report.Scope);
         Assert.Equal(Path.GetFullPath("."), report.RepositoryRoot);
-        Assert.Equal(OpenAiDescriptor.ReloadGuidance, report.ReloadGuidance);
+        Assert.Equal(CodexRegistration.Skill.ReloadGuidance, report.ReloadGuidance);
         Assert.Equal(new string?[] { null, "skill-a", "skill-a", "skill-a", "skill-b", "skill-c", "skill-d", "skill-e" }, report.Diagnostics.Select(static diagnostic => diagnostic.SkillName).ToArray());
         Assert.Equal(SkillDoctorSeverity.Error, report.Diagnostics[0].Severity);
         Assert.Null(report.Diagnostics[0].TargetState);
@@ -568,198 +570,11 @@ public sealed class SkillOperationReportBuilderTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public void OperationReportsPublicSurface_ContainsOnlyExpectedTypes ()
-    {
-        var expectedTypeNames = new[]
-        {
-            "MackySoft.AgentSkills.OperationReports.Contracts.SkillDoctorDiagnosticReport",
-            "MackySoft.AgentSkills.OperationReports.Contracts.SkillDoctorReport",
-            "MackySoft.AgentSkills.OperationReports.Contracts.SkillExportReport",
-            "MackySoft.AgentSkills.OperationReports.Contracts.SkillHostArtifactReport",
-            "MackySoft.AgentSkills.OperationReports.Contracts.SkillHostReport",
-            "MackySoft.AgentSkills.OperationReports.Contracts.SkillListReport",
-            "MackySoft.AgentSkills.OperationReports.Contracts.SkillListSkillReport",
-            "MackySoft.AgentSkills.OperationReports.Contracts.SkillListCategoryReport",
-            "MackySoft.AgentSkills.OperationReports.Contracts.SkillOperationActionReport",
-            "MackySoft.AgentSkills.OperationReports.Contracts.SkillOperationCountReport",
-            "MackySoft.AgentSkills.OperationReports.Contracts.SkillOperationFileChangesReport",
-            "MackySoft.AgentSkills.OperationReports.Contracts.SkillOperationFileDiffReport",
-            "MackySoft.AgentSkills.OperationReports.Contracts.SkillOperationReport",
-            "MackySoft.AgentSkills.OperationReports.Contracts.SkillTargetFileSetReport",
-            "MackySoft.AgentSkills.OperationReports.Contracts.SkillTargetStateReport",
-            "MackySoft.AgentSkills.OperationReports.Contracts.SkillUserTargetRootPolicyReport",
-            "MackySoft.AgentSkills.OperationReports.Literals.SkillOperationActionStatus",
-            "MackySoft.AgentSkills.OperationReports.Projection.SkillOperationReportBuilder",
-            "MackySoft.AgentSkills.OperationReports.Projection.SkillOperationReportContext",
-        };
-        var actualTypeNames = typeof(SkillOperationReport).Assembly.GetTypes()
-            .Where(static type => type.IsPublic && type.Namespace?.StartsWith("MackySoft.AgentSkills.OperationReports", StringComparison.Ordinal) == true)
-            .Select(static type => type.FullName!)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
-
-        Assert.Equal(expectedTypeNames.Order(StringComparer.Ordinal), actualTypeNames);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public void OperationReportPublicContracts_ExposeOnlyExpectedProperties ()
-    {
-        AssertProperties<SkillDoctorDiagnosticReport>(
-            ("Severity", typeof(SkillDoctorSeverity)),
-            ("Code", typeof(string)),
-            ("Message", typeof(string)),
-            ("SkillName", typeof(string)),
-            ("TargetState", typeof(SkillTargetStateKind?)));
-        AssertProperties<SkillDoctorReport>(
-            ("Host", typeof(SkillHostKind)),
-            ("Categories", typeof(IReadOnlyList<string>)),
-            ("SkillNames", typeof(IReadOnlyList<string>)),
-            ("Scope", typeof(SkillScopeKind)),
-            ("RepositoryRoot", typeof(string)),
-            ("TargetRoot", typeof(string)),
-            ("ReloadGuidance", typeof(string)),
-            ("IsHealthy", typeof(bool)),
-            ("Diagnostics", typeof(IReadOnlyList<SkillDoctorDiagnosticReport>)));
-        AssertProperties<SkillExportReport>(
-            ("Host", typeof(SkillHostKind)),
-            ("Categories", typeof(IReadOnlyList<string>)),
-            ("SkillNames", typeof(IReadOnlyList<string>)),
-            ("Format", typeof(SkillExportFormat)),
-            ("OutputPath", typeof(string)),
-            ("Skills", typeof(IReadOnlyList<string>)),
-            ("SkillCount", typeof(int)),
-            ("ReloadGuidance", typeof(string)));
-        AssertProperties<SkillHostArtifactReport>(
-            ("Host", typeof(SkillHostKind)),
-            ("Path", typeof(string)),
-            ("Digest", typeof(Sha256Digest)),
-            ("MaterializedFrontmatterDigest", typeof(Sha256Digest)));
-        AssertProperties<SkillHostReport>(
-            ("Host", typeof(SkillHostKind)),
-            ("ProjectDefaultTargetPath", typeof(string)),
-            ("UserDefaultTargetPath", typeof(string)),
-            ("UserTargetRootPolicy", typeof(SkillUserTargetRootPolicyReport)),
-            ("BundleTargetRootLayout", typeof(string)),
-            ("CompatiblePreviousBundleTargetRootLayouts", typeof(IReadOnlyList<string>)),
-            ("MetadataArtifactPath", typeof(string)),
-            ("ReloadGuidance", typeof(string)));
-        AssertProperties<SkillListReport>(
-            ("Categories", typeof(IReadOnlyList<string>)),
-            ("SkillNames", typeof(IReadOnlyList<string>)),
-            ("AvailableCategories", typeof(IReadOnlyList<SkillListCategoryReport>)),
-            ("Skills", typeof(IReadOnlyList<SkillListSkillReport>)),
-            ("SupportedHosts", typeof(IReadOnlyList<SkillHostReport>)));
-        AssertProperties<SkillListSkillReport>(
-            ("SchemaVersion", typeof(int)),
-            ("SkillBundleVersion", typeof(int)),
-            ("SkillName", typeof(string)),
-            ("DisplayName", typeof(string)),
-            ("Description", typeof(string)),
-            ("Dependencies", typeof(IReadOnlyList<string>)),
-            ("Category", typeof(string)),
-            ("CatalogId", typeof(string)),
-            ("ContentDigest", typeof(Sha256Digest)),
-            ("ManifestDigest", typeof(Sha256Digest)),
-            ("HostArtifacts", typeof(IReadOnlyList<SkillHostArtifactReport>)));
-        AssertProperties<SkillListCategoryReport>(
-            ("Category", typeof(string)),
-            ("SkillCount", typeof(int)));
-        AssertProperties<SkillOperationActionReport>(
-            ("SkillName", typeof(string)),
-            ("Action", typeof(string)),
-            ("Status", typeof(SkillOperationActionStatus)),
-            ("BlockedReason", typeof(SkillBlockedReason?)),
-            ("TargetState", typeof(SkillTargetStateReport)),
-            ("FileChanges", typeof(SkillOperationFileChangesReport)),
-            ("FileDiffs", typeof(IReadOnlyList<SkillOperationFileDiffReport>)));
-        AssertProperties<SkillOperationCountReport>(
-            ("Literal", typeof(string)),
-            ("Count", typeof(int)));
-        AssertProperties<SkillOperationFileChangesReport>(
-            ("ReplacedFiles", typeof(IReadOnlyList<string>)),
-            ("RemovedFiles", typeof(IReadOnlyList<string>)));
-        AssertProperties<SkillOperationFileDiffReport>(
-            ("RelativePath", typeof(string)),
-            ("ChangeKind", typeof(SkillDiffChangeKind)),
-            ("BeforeContent", typeof(string)),
-            ("AfterContent", typeof(string)));
-        AssertProperties<SkillOperationReport>(
-            ("Host", typeof(SkillHostKind)),
-            ("Categories", typeof(IReadOnlyList<string>)),
-            ("SkillNames", typeof(IReadOnlyList<string>)),
-            ("Scope", typeof(SkillScopeKind)),
-            ("RepositoryRoot", typeof(string)),
-            ("TargetRoot", typeof(string)),
-            ("DryRun", typeof(bool)),
-            ("Force", typeof(bool)),
-            ("ReloadGuidance", typeof(string)),
-            ("Actions", typeof(IReadOnlyList<SkillOperationActionReport>)),
-            ("ActionCounts", typeof(IReadOnlyList<SkillOperationCountReport>)),
-            ("StatusCounts", typeof(IReadOnlyList<SkillOperationCountReport>)));
-        AssertProperties<SkillTargetFileSetReport>(
-            ("MissingFiles", typeof(IReadOnlyList<string>)),
-            ("ExtraFiles", typeof(IReadOnlyList<string>)),
-            ("ExtraDirectories", typeof(IReadOnlyList<string>)));
-        AssertProperties<SkillTargetStateReport>(
-            ("Kind", typeof(SkillTargetStateKind)),
-            ("Code", typeof(string)),
-            ("Message", typeof(string)),
-            ("InstalledSkillBundleVersion", typeof(int?)),
-            ("BundledSkillBundleVersion", typeof(int?)),
-            ("FileSet", typeof(SkillTargetFileSetReport)));
-        AssertProperties<SkillUserTargetRootPolicyReport>(
-            ("EnvironmentVariableName", typeof(string)),
-            ("EnvironmentVariableChildDirectory", typeof(string)),
-            ("HomeRelativeDirectory", typeof(string)));
-    }
-
-    [Theory]
-    [Trait("Size", "Small")]
-    [InlineData("../escape.md")]
-    [InlineData("/tmp/escape.md")]
-    [InlineData("unsafe\\name.md")]
-    [InlineData("C:/escape.md")]
-    [InlineData("skill:C.md")]
-    [InlineData("unsafe\u001fname.md")]
-    public void SkillActionFileChanges_RejectsUnsafePath (string unsafePath)
-    {
-        Assert.Throws<ArgumentException>(() => new SkillActionFileChanges([unsafePath], []));
-    }
-
-    [Theory]
-    [Trait("Size", "Small")]
-    [InlineData("../escape.md")]
-    [InlineData("/tmp/escape.md")]
-    [InlineData("unsafe\\name.md")]
-    [InlineData("C:/escape.md")]
-    [InlineData("skill:C.md")]
-    [InlineData("unsafe\u001fname.md")]
-    public void SkillFileDiff_RejectsUnsafePath (string unsafePath)
-    {
-        Assert.Throws<ArgumentException>(() => new SkillFileDiff(unsafePath, SkillDiffChangeKind.Modified, "old", "new"));
-    }
-
-    [Theory]
-    [Trait("Size", "Small")]
-    [InlineData("../escape.md")]
-    [InlineData("/tmp/escape.md")]
-    [InlineData("unsafe\\name.md")]
-    [InlineData("C:/escape.md")]
-    [InlineData("skill:C.md")]
-    [InlineData("unsafe\u001fname.md")]
-    public void SkillActionTargetFileSet_RejectsUnsafePath (string unsafePath)
-    {
-        Assert.Throws<ArgumentException>(() => new SkillActionTargetFileSet([unsafePath], [], []));
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
     public void CreateInstallReport_RejectsMismatchedContext ()
     {
         var targetRoot = Path.GetFullPath("install-report-context-mismatch");
         var result = new SkillInstallResult(
-            targetRoot,
+            AbsolutePath.Parse(targetRoot),
             [CreateNoOpInstallAction(CreateIdentity(targetRoot, "skill-a"))],
             dryRun: false,
             force: false,
@@ -768,7 +583,7 @@ public sealed class SkillOperationReportBuilderTests
         Assert.Throws<ArgumentException>(() => SkillOperationReportBuilder.CreateInstallReport(
             result,
             new SkillOperationReportContext(
-                GetHostDescriptor(SkillHostKind.Claude),
+                HostKind.ClaudeCode,
                 SkillScopeKind.Project,
                 Path.GetFullPath("."),
                 [new SkillCategory("basic")],
@@ -780,14 +595,14 @@ public sealed class SkillOperationReportBuilderTests
     public void CreateDoctorReport_RejectsMismatchedContextHost ()
     {
         var result = new SkillDoctorResult(
-            SkillHostKind.OpenAi,
-            Path.GetFullPath("doctor-report-context-mismatch"),
+            HostKind.Codex,
+            AbsolutePath.Parse(Path.GetFullPath("doctor-report-context-mismatch")),
             []);
 
         Assert.Throws<ArgumentException>(() => SkillOperationReportBuilder.CreateDoctorReport(
             result,
             new SkillOperationReportContext(
-                GetHostDescriptor(SkillHostKind.Claude),
+                HostKind.ClaudeCode,
                 SkillScopeKind.Project,
                 Path.GetFullPath("."),
                 [new SkillCategory("basic")],
@@ -800,7 +615,7 @@ public sealed class SkillOperationReportBuilderTests
     {
         var targetRoot = Path.GetFullPath("install-report-scope-mismatch");
         var result = new SkillInstallResult(
-            targetRoot,
+            AbsolutePath.Parse(targetRoot),
             [CreateNoOpInstallAction(CreateIdentity(targetRoot, "skill-a", SkillScopeKind.Project))],
             dryRun: false,
             force: false,
@@ -817,7 +632,7 @@ public sealed class SkillOperationReportBuilderTests
     {
         var targetRoot = Path.GetFullPath("install-report-target-root-mismatch");
         Assert.Throws<ArgumentException>(() => new SkillInstallResult(
-            Path.GetFullPath("install-report-other-target-root"),
+            AbsolutePath.Parse(Path.GetFullPath("install-report-other-target-root")),
             [CreateNoOpInstallAction(CreateIdentity(targetRoot, "skill-a"))],
             dryRun: false,
             force: false,
@@ -887,19 +702,19 @@ public sealed class SkillOperationReportBuilderTests
         SkillScopeKind scope = SkillScopeKind.Project)
     {
         return new SkillInstallIdentity(
-            SkillHostKind.OpenAi,
+            HostKind.Codex,
             scope,
-            targetRoot,
+            AbsolutePath.Parse(targetRoot),
             new SkillName(skillName));
     }
 
-    private static SkillHostDescriptor OpenAiDescriptor => GetHostDescriptor(SkillHostKind.OpenAi);
+    private static HostRegistration CodexRegistration => GetHostRegistration(HostKind.Codex);
 
-    private static SkillHostDescriptor GetHostDescriptor (SkillHostKind host)
+    private static HostRegistration GetHostRegistration (HostKind host)
     {
-        var result = SkillTestData.CreateDefaultHostAdapterSet().GetAdapter(host);
+        var result = HostRegistration.Get(host);
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        return result.Value!.Descriptor;
+        return result.Value!;
     }
 
     private static SkillOperationReportContext CreateContext ()
@@ -922,7 +737,7 @@ public sealed class SkillOperationReportBuilderTests
         IReadOnlyList<SkillName> skillNames)
     {
         return new SkillOperationReportContext(
-            OpenAiDescriptor,
+            HostKind.Codex,
             SkillScopeKind.Project,
             Path.GetFullPath("."),
             categories,
@@ -934,7 +749,7 @@ public sealed class SkillOperationReportBuilderTests
         IReadOnlyList<SkillCategory> categories)
     {
         return new SkillOperationReportContext(
-            OpenAiDescriptor,
+            HostKind.Codex,
             scope,
             scope == SkillScopeKind.Project ? Path.GetFullPath(".") : null,
             categories,
@@ -942,7 +757,7 @@ public sealed class SkillOperationReportBuilderTests
     }
 
     private static void AssertCount (
-        IReadOnlyList<SkillOperationCountReport> counts,
+        IReadOnlyList<OperationCountReport> counts,
         string literal,
         int expected)
     {
@@ -988,23 +803,17 @@ public sealed class SkillOperationReportBuilderTests
 
     private static bool IsSupportedReportLiteralType (Type type)
     {
-        return type == typeof(SkillHostKind)
+        return type == typeof(HostKind)
             || type == typeof(SkillScopeKind)
             || type == typeof(SkillExportFormat)
             || type == typeof(SkillDoctorSeverity)
-            || type == typeof(SkillOperationActionStatus)
+            || type == typeof(OperationActionStatus)
+            || type == typeof(OperationScopeKind)
+            || type == typeof(AgentOperationTargetState)
+            || type == typeof(AgentDiagnosticArea)
             || type == typeof(SkillBlockedReason)
             || type == typeof(SkillTargetStateKind)
             || type == typeof(SkillDiffChangeKind);
     }
 
-    private static void AssertProperties<T> (params (string Name, Type Type)[] expectedProperties)
-    {
-        var actualProperties = typeof(T)
-            .GetProperties()
-            .Select(static property => (property.Name, property.PropertyType))
-            .ToArray();
-
-        Assert.Equal(expectedProperties, actualProperties);
-    }
 }

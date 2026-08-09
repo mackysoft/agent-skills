@@ -22,17 +22,17 @@ internal sealed class MutatingSkillMaterializedPackageWriter : ISkillMaterialize
 
     /// <inheritdoc />
     public ValueTask<SkillOperationResult<bool>> WriteAsync (
-        string targetRoot,
-        string skillDirectory,
+        AbsolutePath targetRoot,
+        AbsolutePath skillDirectory,
         SkillMaterializedPackage materializedPackage,
         SkillMaterializedPackageWriteMode writeMode,
-        Func<string, CancellationToken, ValueTask<SkillOperationResult<bool>>>? precondition,
+        Func<AbsolutePath, CancellationToken, ValueTask<SkillOperationResult<bool>>>? precondition,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (Interlocked.Exchange(ref mutationInvoked, 1) == 0)
         {
-            mutate(skillDirectory);
+            mutate(skillDirectory.Value);
         }
 
         return inner.WriteAsync(

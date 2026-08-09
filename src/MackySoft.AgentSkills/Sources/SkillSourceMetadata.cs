@@ -1,6 +1,3 @@
-using MackySoft.AgentSkills.Categories;
-using MackySoft.AgentSkills.Names;
-
 namespace MackySoft.AgentSkills.Sources;
 
 /// <summary> Represents host-independent metadata assembled from directory names, <c>skill.json</c>, and reference templates. </summary>

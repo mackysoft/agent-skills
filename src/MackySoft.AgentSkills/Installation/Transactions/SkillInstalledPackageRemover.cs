@@ -1,6 +1,7 @@
 using MackySoft.AgentSkills.Installation.Contracts;
-using MackySoft.AgentSkills.Packaging.FileSystem;
+using MackySoft.AgentSkills.Packaging.Paths;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Installation.Transactions;
 
@@ -19,16 +20,16 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
 
     /// <inheritdoc />
     public async ValueTask<SkillOperationResult<bool>> DeleteAsync (
-        string targetRoot,
-        string skillDirectory,
-        Func<string, CancellationToken, ValueTask<SkillOperationResult<bool>>>? precondition,
+        AbsolutePath targetRoot,
+        AbsolutePath skillDirectory,
+        Func<AbsolutePath, CancellationToken, ValueTask<SkillOperationResult<bool>>>? precondition,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(targetRoot);
-        ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+        ArgumentNullException.ThrowIfNull(targetRoot);
+        ArgumentNullException.ThrowIfNull(skillDirectory);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var targetRootResult = SkillPackagePathBoundary.ResolveUnderRoot(targetRoot, targetRoot);
+        var targetRootResult = PackagePathResolver.ResolveUnderRoot(targetRoot, targetRoot);
         if (!targetRootResult.IsSuccess)
         {
             return SkillOperationResult<bool>.FailureResult(
@@ -37,7 +38,7 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
         }
 
         var resolvedTargetRoot = targetRootResult.Value!;
-        var skillDirectoryResult = SkillPackagePathBoundary.ResolveUnderRoot(resolvedTargetRoot, skillDirectory);
+        var skillDirectoryResult = PackagePathResolver.ResolveUnderRoot(resolvedTargetRoot, skillDirectory);
         if (!skillDirectoryResult.IsSuccess)
         {
             return SkillOperationResult<bool>.FailureResult(
@@ -46,7 +47,7 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
         }
 
         var resolvedSkillDirectory = skillDirectoryResult.Value!;
-        if (IsSamePath(resolvedTargetRoot, resolvedSkillDirectory))
+        if (resolvedTargetRoot.IsSameAs(resolvedSkillDirectory))
         {
             return SkillOperationResult<bool>.FailureResult(
                 SkillFailureCodes.PathUnsafe,
@@ -71,17 +72,16 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
             return SkillOperationResult<bool>.Success(true);
         }
 
-        var parentDirectory = Path.GetDirectoryName(resolvedSkillDirectory);
-        if (string.IsNullOrWhiteSpace(parentDirectory))
+        if (!resolvedSkillDirectory.TryGetParent(out var parentDirectory))
         {
             return SkillOperationResult<bool>.FailureResult(
                 SkillFailureCodes.InstallTargetWriteFailed,
                 $"Skill directory parent could not be resolved: {resolvedSkillDirectory}");
         }
 
-        var transactionRootResult = SkillPackagePathBoundary.ResolveUnderRoot(
+        var transactionRootResult = PackagePathResolver.ResolveUnderRoot(
             resolvedTargetRoot,
-            Path.Combine(parentDirectory, ".agent-skills-skill-transactions"));
+            ContainedPath.Create(parentDirectory, RootRelativePath.Parse(".agent-skills-skill-transactions")).Target);
         if (!transactionRootResult.IsSuccess)
         {
             return SkillOperationResult<bool>.FailureResult(
@@ -89,9 +89,11 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
                 transactionRootResult.Failure.Message);
         }
 
-        var deletedContainerResult = SkillPackagePathBoundary.ResolveUnderRoot(
+        var deletedContainerResult = PackagePathResolver.ResolveUnderRoot(
             resolvedTargetRoot,
-            Path.Combine(transactionRootResult.Value!, $"{Path.GetFileName(resolvedSkillDirectory)}.delete.{Guid.NewGuid():N}"));
+            ContainedPath.Create(
+                transactionRootResult.Value!,
+                RootRelativePath.Parse($"{Path.GetFileName(resolvedSkillDirectory.Value)}.delete.{Guid.NewGuid():N}")).Target);
         if (!deletedContainerResult.IsSuccess)
         {
             return SkillOperationResult<bool>.FailureResult(
@@ -99,9 +101,11 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
                 deletedContainerResult.Failure.Message);
         }
 
-        var deletedDirectoryResult = SkillPackagePathBoundary.ResolveUnderRoot(
+        var deletedDirectoryResult = PackagePathResolver.ResolveUnderRoot(
             resolvedTargetRoot,
-            Path.Combine(deletedContainerResult.Value!, Path.GetFileName(resolvedSkillDirectory)));
+            ContainedPath.Create(
+                deletedContainerResult.Value!,
+                RootRelativePath.Parse(Path.GetFileName(resolvedSkillDirectory.Value))).Target);
         if (!deletedDirectoryResult.IsSuccess)
         {
             return SkillOperationResult<bool>.FailureResult(
@@ -185,31 +189,7 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
         }
     }
 
-    /// <summary> Deletes one installed SKILL package directory without an execution precondition. </summary>
-    /// <param name="targetRoot"> The resolved bundle target root. </param>
-    /// <param name="skillDirectory"> The resolved skill package directory. </param>
-    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
-    /// <returns> Success when the directory is deleted or already absent; otherwise a failure. </returns>
-    public ValueTask<SkillOperationResult<bool>> DeleteAsync (
-        string targetRoot,
-        string skillDirectory,
-        CancellationToken cancellationToken = default)
-    {
-        return DeleteAsync(targetRoot, skillDirectory, precondition: null, cancellationToken);
-    }
-
-    private static bool IsSamePath (
-        string left,
-        string right)
-    {
-        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        return string.Equals(
-            Path.TrimEndingDirectorySeparator(left),
-            Path.TrimEndingDirectorySeparator(right),
-            comparison);
-    }
-
-    private void DeleteDirectoryBestEffort (string path)
+    private void DeleteDirectoryBestEffort (AbsolutePath path)
     {
         if (!directoryOperations.Exists(path))
         {

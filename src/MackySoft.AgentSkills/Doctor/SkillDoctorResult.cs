@@ -1,5 +1,4 @@
-using MackySoft.AgentSkills.Hosts.Contracts;
-using MackySoft.AgentSkills.Shared.Text;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Doctor;
 
@@ -11,19 +10,13 @@ public sealed class SkillDoctorResult
     /// <param name="targetRoot"> The diagnosed bundle target root. </param>
     /// <param name="diagnostics"> The complete diagnostics. </param>
     public SkillDoctorResult (
-        SkillHostKind host,
-        string targetRoot,
+        HostKind host,
+        AbsolutePath targetRoot,
         IReadOnlyList<SkillDoctorDiagnostic> diagnostics)
     {
-        if (!ContractLiteralCodec.IsDefined(host))
+        if (!Vocabulary.IsDefined(host))
         {
             throw new ArgumentOutOfRangeException(nameof(host), host, "Unsupported SKILL host.");
-        }
-
-        ArgumentException.ThrowIfNullOrWhiteSpace(targetRoot);
-        if (!Path.IsPathFullyQualified(targetRoot))
-        {
-            throw new ArgumentException("Doctor target root must be an absolute path.", nameof(targetRoot));
         }
 
         ArgumentNullException.ThrowIfNull(diagnostics);
@@ -34,15 +27,15 @@ public sealed class SkillDoctorResult
         }
 
         Host = host;
-        TargetRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(targetRoot));
+        TargetRoot = targetRoot ?? throw new ArgumentNullException(nameof(targetRoot));
         Diagnostics = Array.AsReadOnly(diagnosticSnapshot);
     }
 
     /// <summary> Gets the diagnosed host. </summary>
-    public SkillHostKind Host { get; }
+    public HostKind Host { get; }
 
     /// <summary> Gets the diagnosed bundle target root. </summary>
-    public string TargetRoot { get; }
+    public AbsolutePath TargetRoot { get; }
 
     /// <summary> Gets an immutable snapshot of diagnostics. </summary>
     public IReadOnlyList<SkillDoctorDiagnostic> Diagnostics { get; }

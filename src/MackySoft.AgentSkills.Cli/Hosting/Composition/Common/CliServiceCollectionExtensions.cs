@@ -1,5 +1,6 @@
 using MackySoft.AgentSkills.Cli.Hosting.Composition.Features;
 using MackySoft.AgentSkills.Hosting.Composition;
+using MackySoft.FileSystem;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MackySoft.AgentSkills.Cli.Hosting.Composition.Common;
@@ -18,8 +19,7 @@ internal static class CliServiceCollectionExtensions
         services.AddAgentSkillsCommandRuntime(options =>
         {
             options.ProductName = "Agent Skills CLI";
-            options.PackageBaseDirectory = AppContext.BaseDirectory;
-            options.CommandRoot = "agent-skills";
+            options.PackageBaseDirectory = AbsolutePath.Parse(AppContext.BaseDirectory);
         });
         services.AddAgentSkillsBuildFeatureServices();
         return services;

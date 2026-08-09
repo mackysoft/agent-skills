@@ -1,0 +1,7 @@
+interface:
+  display_name: "Review Context"
+  short_description: "Reviews the available context before producing a result."
+  default_prompt: "Use $review-context to follow the Review Context workflow."
+
+policy:
+  allow_implicit_invocation: true

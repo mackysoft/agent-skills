@@ -11,10 +11,10 @@ public sealed class AgentSkillsCommandResultTests
     {
         var payload = new object();
 
-        var result = AgentSkillsCommandResult.Success("skills.list", payload);
+        var result = AgentSkillsCommandResult.Success("test.command", payload);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("skills.list", result.Command);
+        Assert.Equal("test.command", result.Command);
         Assert.Same(payload, result.Payload);
         Assert.Null(result.Failure);
         Assert.Equal(0, result.ExitCode);
@@ -26,10 +26,10 @@ public sealed class AgentSkillsCommandResultTests
     {
         var failure = SkillFailure.Create(SkillFailureCodes.InputInvalid, "Invalid input.");
 
-        var result = AgentSkillsCommandResult.FailureResult("skills.install", failure);
+        var result = AgentSkillsCommandResult.FailureResult("test.command", failure);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("skills.install", result.Command);
+        Assert.Equal("test.command", result.Command);
         Assert.Null(result.Payload);
         Assert.Same(failure, result.Failure);
         Assert.Equal(1, result.ExitCode);
@@ -39,13 +39,13 @@ public sealed class AgentSkillsCommandResultTests
     [Trait("Size", "Small")]
     public void Success_WhenPayloadIsNull_ThrowsArgumentNullException ()
     {
-        Assert.Throws<ArgumentNullException>(() => AgentSkillsCommandResult.Success("skills.list", null!));
+        Assert.Throws<ArgumentNullException>(() => AgentSkillsCommandResult.Success("test.command", null!));
     }
 
     [Fact]
     [Trait("Size", "Small")]
     public void FailureResult_WhenFailureIsNull_ThrowsArgumentNullException ()
     {
-        Assert.Throws<ArgumentNullException>(() => AgentSkillsCommandResult.FailureResult("skills.install", null!));
+        Assert.Throws<ArgumentNullException>(() => AgentSkillsCommandResult.FailureResult("test.command", null!));
     }
 }

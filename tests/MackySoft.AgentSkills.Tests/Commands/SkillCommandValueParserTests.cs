@@ -1,6 +1,5 @@
 using MackySoft.AgentSkills.Commands;
 using MackySoft.AgentSkills.Distribution;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Shared;
 
@@ -12,21 +11,17 @@ public sealed class SkillCommandValueParserTests
     [Trait("Size", "Small")]
     public void ParseHostLiteral_CanonicalizesRegisteredHost ()
     {
-        var result = SkillCommandValueParser.ParseHostLiteral(
-            "OpenAI",
-            SkillTestData.CreateDefaultHostAdapterSet());
+        var result = SkillCommandValueParser.ParseHostLiteral("CODEX");
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(SkillHostKind.OpenAi, result.Value!.Host);
+        Assert.Equal(HostKind.Codex, result.Value);
     }
 
     [Fact]
     [Trait("Size", "Small")]
     public void ParseHostLiteral_ReturnsUnsupportedHost_ForUnknownHost ()
     {
-        var result = SkillCommandValueParser.ParseHostLiteral(
-            "generic",
-            SkillTestData.CreateDefaultHostAdapterSet());
+        var result = SkillCommandValueParser.ParseHostLiteral("generic");
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.HostUnsupported, result.Failure!.Code);
@@ -39,9 +34,7 @@ public sealed class SkillCommandValueParserTests
     [InlineData(" ")]
     public void ParseHostLiteral_ReturnsInputInvalid_ForBlankHost (string? host)
     {
-        var result = SkillCommandValueParser.ParseHostLiteral(
-            host,
-            SkillTestData.CreateDefaultHostAdapterSet());
+        var result = SkillCommandValueParser.ParseHostLiteral(host);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
@@ -108,7 +101,7 @@ public sealed class SkillCommandValueParserTests
     {
         var failures = new[]
         {
-            SkillCommandValueParser.ParseHostLiteral(literal, SkillTestData.CreateDefaultHostAdapterSet()).Failure,
+            SkillCommandValueParser.ParseHostLiteral(literal).Failure,
             SkillCommandValueParser.ParseScopeLiteral(literal).Failure,
             SkillCommandValueParser.ParseExportFormatLiteral(literal).Failure,
         };

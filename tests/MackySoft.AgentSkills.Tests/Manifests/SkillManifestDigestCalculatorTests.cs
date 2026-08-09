@@ -2,11 +2,9 @@ using System.Security.Cryptography;
 using System.Text;
 using MackySoft.AgentSkills.Bundles;
 using MackySoft.AgentSkills.Catalogs;
-using MackySoft.AgentSkills.Categories;
 using MackySoft.AgentSkills.Digests;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Manifests;
-using MackySoft.AgentSkills.Names;
+using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Tests.Manifests;
 
@@ -32,18 +30,18 @@ public sealed class SkillManifestDigestCalculatorTests
             "  \"contentDigest\": \"0000000000000000000000000000000000000000000000000000000000000000\",",
             "  \"hostArtifacts\": [",
             "    {",
-            "      \"host\": \"claude\",",
-            "      \"materializedFrontmatterDigest\": \"1111111111111111111111111111111111111111111111111111111111111111\"",
-            "    },",
-            "    {",
-            "      \"host\": \"copilot\",",
-            "      \"materializedFrontmatterDigest\": \"2222222222222222222222222222222222222222222222222222222222222222\"",
-            "    },",
-            "    {",
-            "      \"host\": \"openai\",",
+            "      \"host\": \"codex\",",
             "      \"path\": \"agents/openai.yaml\",",
             "      \"digest\": \"3333333333333333333333333333333333333333333333333333333333333333\",",
             "      \"materializedFrontmatterDigest\": \"4444444444444444444444444444444444444444444444444444444444444444\"",
+            "    },",
+            "    {",
+            "      \"host\": \"claude-code\",",
+            "      \"materializedFrontmatterDigest\": \"1111111111111111111111111111111111111111111111111111111111111111\"",
+            "    },",
+            "    {",
+            "      \"host\": \"github-copilot\",",
+            "      \"materializedFrontmatterDigest\": \"2222222222222222222222222222222222222222222222222222222222222222\"",
             "    }",
             "  ]",
             "}",
@@ -60,9 +58,9 @@ public sealed class SkillManifestDigestCalculatorTests
             Digest('0'),
             Digest('f'),
             [
-                new SkillHostArtifactManifest(SkillHostKind.OpenAi, "agents/openai.yaml", Digest('3'), Digest('4')),
-                new SkillHostArtifactManifest(SkillHostKind.Claude, null, null, Digest('1')),
-                new SkillHostArtifactManifest(SkillHostKind.Copilot, null, null, Digest('2')),
+                new SkillHostArtifactManifest(HostKind.Codex, PackageRelativePath.Parse("agents/openai.yaml"), Digest('3'), Digest('4')),
+                new SkillHostArtifactManifest(HostKind.ClaudeCode, null, null, Digest('1')),
+                new SkillHostArtifactManifest(HostKind.GitHubCopilot, null, null, Digest('2')),
             ]);
         var calculator = new SkillManifestDigestCalculator(new SkillManifestJsonSerializer());
         var expectedHash = SHA256.HashData(Encoding.UTF8.GetBytes(expectedDigestInput));

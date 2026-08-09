@@ -1,9 +1,8 @@
 using MackySoft.AgentSkills.Catalogs;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
+using MackySoft.AgentSkills.Installation.Validation;
 using MackySoft.AgentSkills.Manifests;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
@@ -99,8 +98,9 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
         var (packages, targetRoot) = await InstallOpenAiAsync(scope);
         var package = packages[0];
         var skillDirectory = GetSkillDirectory(targetRoot, package);
-        var referencePath = package.Files.First(static file => file.RelativePath.StartsWith("references/", StringComparison.Ordinal)).RelativePath;
-        File.Delete(Path.Combine(skillDirectory, referencePath));
+        var referencePath = package.Files.First(static file =>
+            file.RelativePath.IsDescendantOf(SkillManagedFileSetPaths.ReferencesDirectoryPath)).RelativePath;
+        File.Delete(Path.Combine(skillDirectory, referencePath.Value));
 
         var state = await AnalyzeOpenAiAsync(package, skillDirectory);
 
@@ -122,7 +122,7 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
         Assert.Equal(SkillTargetStateKind.FileSetDrift, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, state.Failure!.Code);
-        Assert.Contains("local-notes", state.FileSet!.ExtraDirectories);
+        Assert.Contains(PackageRelativePath.Parse("local-notes"), state.FileSet!.ExtraDirectories);
     }
 
     [Fact]
@@ -140,7 +140,7 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
 
         Assert.Equal(SkillTargetStateKind.FileSetDrift, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, state.Failure!.Code);
-        Assert.Contains("references/extra.md", state.FileSet!.ExtraFiles);
+        Assert.Contains(PackageRelativePath.Parse("references/extra.md"), state.FileSet!.ExtraFiles);
     }
 
     [Fact]
@@ -186,7 +186,7 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var aheadPackage = SkillTestData.CreatePackageWithSkillBundleVersion(packages[0], packages[0].Manifest.SkillBundleVersion.Next().Value);
         var installService = SkillTestData.CreateInstallService();
-        var request = new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath);
+        var request = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath);
         var install = await installService.InstallAsync(
             aheadPackage.Manifest.CatalogId,
             [aheadPackage],
@@ -194,7 +194,7 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
             CancellationToken.None);
         Assert.True(install.IsSuccess, install.Failure?.Message);
 
-        var state = await AnalyzeOpenAiAsync(packages[0], GetSkillDirectory(install.Value!.TargetRoot, packages[0]));
+        var state = await AnalyzeOpenAiAsync(packages[0], GetSkillDirectory(install.Value!.TargetRoot.Value, packages[0]));
 
         Assert.Equal(SkillTargetStateKind.VersionAhead, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetVersionAhead, state.Failure!.Code);
@@ -212,11 +212,11 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
         var installResult = await installService.InstallAsync(
             packages[0].Manifest.CatalogId,
             packages,
-            new SkillInstallRequest(SkillHostKind.Claude, SkillScopeKind.Project, scope.FullPath, "shared-skills"),
+            SkillTestData.CreateInstallRequest(HostKind.ClaudeCode, SkillScopeKind.Project, scope.FullPath, "shared-skills"),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
 
-        var state = await AnalyzeAsync(packages[0], GetSkillDirectory(installResult.Value!.TargetRoot, packages[0]), SkillHostKind.OpenAi);
+        var state = await AnalyzeAsync(packages[0], GetSkillDirectory(installResult.Value!.TargetRoot.Value, packages[0]), HostKind.Codex);
 
         Assert.Equal(SkillTargetStateKind.HostConflict, state.Kind);
         Assert.Equal(SkillFailureCodes.InstallTargetHostConflict, state.Failure!.Code);
@@ -309,26 +309,26 @@ public sealed class SkillInstalledTargetStateAnalyzerTests
         var installResult = await installService.InstallAsync(
             packages[0].Manifest.CatalogId,
             packages,
-            new SkillInstallRequest(SkillHostKind.OpenAi, SkillScopeKind.Project, scope.FullPath),
+            SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath),
             CancellationToken.None);
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
-        return (packages, installResult.Value!.TargetRoot);
+        return (packages, installResult.Value!.TargetRoot.Value);
     }
 
     private static async Task<SkillInstalledTargetState> AnalyzeOpenAiAsync (
         CanonicalSkillPackage package,
         string skillDirectory)
     {
-        return await AnalyzeAsync(package, skillDirectory, SkillHostKind.OpenAi);
+        return await AnalyzeAsync(package, skillDirectory, HostKind.Codex);
     }
 
     private static async Task<SkillInstalledTargetState> AnalyzeAsync (
         CanonicalSkillPackage package,
         string skillDirectory,
-        SkillHostKind host)
+        HostKind host)
     {
         var analyzer = SkillTestData.CreateTargetStateAnalyzer();
-        var result = await analyzer.AnalyzeAsync(package, skillDirectory, host, CancellationToken.None);
+        var result = await analyzer.AnalyzeAsync(package, AbsolutePath.Parse(skillDirectory), host, CancellationToken.None);
         Assert.True(result.IsSuccess, result.Failure?.Message);
         return result.Value!;
     }

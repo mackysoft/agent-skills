@@ -1,4 +1,3 @@
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Dependencies;
@@ -18,7 +17,7 @@ internal static class SkillDependencyGraphValidator
             ArgumentNullException.ThrowIfNull(dependencies);
             foreach (var dependency in dependencies.OrderBy(static dependency => dependency.Value, StringComparer.Ordinal))
             {
-                if (string.Equals(skillName.Value, dependency.Value, StringComparison.Ordinal))
+                if (skillName == dependency)
                 {
                     return SkillOperationResult<bool>.FailureResult(failureCode, $"{graphLabel} dependency must not reference itself: {skillName.Value}.");
                 }

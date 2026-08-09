@@ -1,5 +1,5 @@
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Installation.Targeting;
 
@@ -23,7 +23,7 @@ public sealed class SkillUserTargetRootResolver
     /// <summary> Resolves the default user-scope SKILL root for one host. </summary>
     /// <param name="descriptor"> The host descriptor that owns the user-root policy. </param>
     /// <returns> The full host SKILL root or an environment failure. </returns>
-    public SkillOperationResult<string> ResolveDefaultTargetRoot (SkillHostDescriptor descriptor)
+    public SkillOperationResult<AbsolutePath> ResolveDefaultTargetRoot (SkillHostDescriptor descriptor)
     {
         ArgumentNullException.ThrowIfNull(descriptor);
 
@@ -33,54 +33,44 @@ public sealed class SkillUserTargetRootResolver
             var environmentRoot = environmentVariableProvider(policy.EnvironmentVariableName);
             if (!string.IsNullOrWhiteSpace(environmentRoot))
             {
-                if (!Path.IsPathFullyQualified(environmentRoot))
+                if (!AbsolutePath.TryParse(environmentRoot, out var absoluteEnvironmentRoot, out _))
                 {
-                    return SkillOperationResult<string>.FailureResult(
+                    return SkillOperationResult<AbsolutePath>.FailureResult(
                         SkillFailureCodes.UserTargetUnavailable,
                         $"Environment variable '{policy.EnvironmentVariableName}' must contain an absolute path for SKILL user scope.");
                 }
 
-                var targetRoot = policy.EnvironmentVariableChildDirectory is null
-                    ? environmentRoot
-                    : Path.Combine(environmentRoot, policy.EnvironmentVariableChildDirectory);
-                return GetFullPath(targetRoot);
+                return policy.EnvironmentVariableChildDirectory is null
+                    ? SkillOperationResult<AbsolutePath>.Success(absoluteEnvironmentRoot)
+                    : ResolveUnderRoot(absoluteEnvironmentRoot, policy.EnvironmentVariableChildDirectory);
             }
         }
 
         return ResolveUnderHome(policy.HomeRelativeDirectory);
     }
 
-    private SkillOperationResult<string> ResolveUnderHome (string homeRelativeDirectory)
+    private SkillOperationResult<AbsolutePath> ResolveUnderHome (RootRelativePath homeRelativeDirectory)
     {
         var homeDirectory = homeDirectoryProvider();
         if (string.IsNullOrWhiteSpace(homeDirectory))
         {
-            return SkillOperationResult<string>.FailureResult(
+            return SkillOperationResult<AbsolutePath>.FailureResult(
                 SkillFailureCodes.UserTargetUnavailable,
                 "Could not resolve the current user's home directory for SKILL user scope.");
         }
 
-        if (!Path.IsPathFullyQualified(homeDirectory))
+        if (!AbsolutePath.TryParse(homeDirectory, out var absoluteHomeDirectory, out _))
         {
-            return SkillOperationResult<string>.FailureResult(
+            return SkillOperationResult<AbsolutePath>.FailureResult(
                 SkillFailureCodes.UserTargetUnavailable,
                 "Current user's home directory must be an absolute path for SKILL user scope.");
         }
 
-        return GetFullPath(Path.Combine(homeDirectory, homeRelativeDirectory));
+        return ResolveUnderRoot(absoluteHomeDirectory, homeRelativeDirectory);
     }
 
-    private static SkillOperationResult<string> GetFullPath (string path)
+    private static SkillOperationResult<AbsolutePath> ResolveUnderRoot (AbsolutePath root, RootRelativePath relativePath)
     {
-        try
-        {
-            return SkillOperationResult<string>.Success(Path.GetFullPath(path));
-        }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
-        {
-            return SkillOperationResult<string>.FailureResult(
-                SkillFailureCodes.UserTargetUnavailable,
-                $"Could not resolve the SKILL user target path. {ex.Message}");
-        }
+        return SkillOperationResult<AbsolutePath>.Success(ContainedPath.Create(root, relativePath).Target);
     }
 }

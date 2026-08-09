@@ -1,25 +1,20 @@
 using MackySoft.AgentSkills.Catalogs;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Registration;
-using MackySoft.AgentSkills.Packaging.FileSystem;
+using MackySoft.AgentSkills.Packaging.Paths;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Installation.Targeting;
 
 /// <summary> Resolves project- and user-scope SKILL bundle target roots. </summary>
 public sealed class SkillInstallTargetResolver
 {
-    private readonly SkillHostAdapterSet hostAdapters;
     private readonly SkillUserTargetRootResolver userTargetRootResolver;
 
     /// <summary> Initializes a new instance of the <see cref="SkillInstallTargetResolver" /> class. </summary>
-    /// <param name="hostAdapters"> The supported host adapter set. </param>
     /// <param name="userTargetRootResolver"> The user-scope host-root resolver. </param>
-    public SkillInstallTargetResolver (
-        SkillHostAdapterSet hostAdapters,
-        SkillUserTargetRootResolver userTargetRootResolver)
+    public SkillInstallTargetResolver (SkillUserTargetRootResolver userTargetRootResolver)
     {
-        this.hostAdapters = hostAdapters ?? throw new ArgumentNullException(nameof(hostAdapters));
         this.userTargetRootResolver = userTargetRootResolver ?? throw new ArgumentNullException(nameof(userTargetRootResolver));
     }
 
@@ -46,20 +41,21 @@ public sealed class SkillInstallTargetResolver
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(catalogId);
 
-        var adapterResult = hostAdapters.GetAdapter(request.Host);
-        if (!adapterResult.IsSuccess)
+        var registrationResult = HostRegistration.Get(request.Host);
+        if (!registrationResult.IsSuccess)
         {
             return SkillOperationResult<SkillInstallTargetCandidates>.FailureResult(
-                adapterResult.Failure!.Code,
-                adapterResult.Failure.Message);
+                registrationResult.Failure!.Code,
+                registrationResult.Failure.Message);
         }
 
-        var descriptor = adapterResult.Value!.Descriptor;
+        var registration = registrationResult.Value!;
+        var descriptor = registration.Skill;
         if (request.TargetRoot is not null)
         {
             var explicitTargetResult = request.Scope == SkillScopeKind.Project
-                ? ResolveExplicitProjectTarget(request, descriptor.Host)
-                : ResolveExplicitUserTarget(request, descriptor.Host);
+                ? ResolveExplicitProjectTarget(request, registration.Host)
+                : ResolveExplicitUserTarget(request, registration.Host);
             return CreateCandidateSet(explicitTargetResult);
         }
 
@@ -80,7 +76,7 @@ public sealed class SkillInstallTargetResolver
         foreach (var layout in layouts)
         {
             var bundleTargetRootResult = ResolveDefaultBundleTargetRoot(hostRootResult.Value!, catalogId, layout);
-            var targetResult = CreateResolvedTarget(descriptor.Host, bundleTargetRootResult);
+            var targetResult = CreateResolvedTarget(registration.Host, bundleTargetRootResult);
             if (!targetResult.IsSuccess)
             {
                 return SkillOperationResult<SkillInstallTargetCandidates>.FailureResult(
@@ -97,52 +93,53 @@ public sealed class SkillInstallTargetResolver
             layouts.Contains(SkillBundleTargetRootLayout.CatalogDirectory)));
     }
 
-    private static SkillOperationResult<string> ResolveDefaultProjectHostRoot (
+    private static SkillOperationResult<AbsolutePath> ResolveDefaultProjectHostRoot (
         SkillInstallRequest request,
-        string projectTargetDirectory)
+        RootRelativePath projectTargetDirectory)
     {
         var repositoryRoot = request.RepositoryRoot!;
-        return SkillPackagePathBoundary.ResolveUnderRoot(
+        var result = PackagePathResolver.ResolveUnderRoot(
             repositoryRoot,
-            Path.Combine(repositoryRoot, projectTargetDirectory));
+            ContainedPath.Create(repositoryRoot, projectTargetDirectory).Target);
+        return result;
     }
 
     private static SkillOperationResult<SkillResolvedInstallTarget> ResolveExplicitProjectTarget (
         SkillInstallRequest request,
-        SkillHostKind host)
+        HostKind host)
     {
         var repositoryRoot = request.RepositoryRoot!;
-        var requestedTargetRoot = Path.IsPathRooted(request.TargetRoot!)
-            ? request.TargetRoot!
-            : Path.Combine(repositoryRoot, request.TargetRoot!);
-        var targetRootResult = SkillPackagePathBoundary.ResolveUnderRoot(repositoryRoot, requestedTargetRoot);
+        var targetRootResult = PackagePathResolver.ResolveUnderRoot(repositoryRoot, request.TargetRoot!);
         return CreateResolvedTarget(host, targetRootResult);
     }
 
     private static SkillOperationResult<SkillResolvedInstallTarget> ResolveExplicitUserTarget (
         SkillInstallRequest request,
-        SkillHostKind host)
+        HostKind host)
     {
-        var targetRootResult = SkillPackagePathBoundary.ResolveUnderRoot(request.TargetRoot!, request.TargetRoot!);
+        var targetRoot = request.TargetRoot!;
+        var targetRootResult = PackagePathResolver.ResolveUnderRoot(targetRoot, targetRoot);
         return CreateResolvedTarget(host, targetRootResult);
     }
 
-    private static SkillOperationResult<string> ResolveDefaultBundleTargetRoot (
-        string hostRoot,
+    private static SkillOperationResult<AbsolutePath> ResolveDefaultBundleTargetRoot (
+        AbsolutePath hostRoot,
         SkillCatalogId catalogId,
         SkillBundleTargetRootLayout layout)
     {
         return layout switch
         {
-            SkillBundleTargetRootLayout.Flat => SkillPackagePathBoundary.ResolveUnderRoot(hostRoot, hostRoot),
-            SkillBundleTargetRootLayout.CatalogDirectory => SkillPackagePathBoundary.ResolvePackageDirectory(hostRoot, catalogId.Value),
+            SkillBundleTargetRootLayout.Flat => PackagePathResolver.ResolveUnderRoot(hostRoot, hostRoot),
+            SkillBundleTargetRootLayout.CatalogDirectory => PackagePathResolver.ResolveUnderRoot(
+                hostRoot,
+                ContainedPath.Create(hostRoot, RootRelativePath.Parse(catalogId.Value)).Target),
             _ => throw new ArgumentOutOfRangeException(nameof(layout), layout, "Unsupported bundle target-root layout."),
         };
     }
 
     private static SkillOperationResult<SkillResolvedInstallTarget> CreateResolvedTarget (
-        SkillHostKind host,
-        SkillOperationResult<string> targetRootResult)
+        HostKind host,
+        SkillOperationResult<AbsolutePath> targetRootResult)
     {
         return targetRootResult.IsSuccess
             ? SkillOperationResult<SkillResolvedInstallTarget>.Success(

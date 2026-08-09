@@ -1,7 +1,5 @@
 using MackySoft.AgentSkills.Doctor;
-using MackySoft.AgentSkills.Hosts.Contracts;
-using MackySoft.AgentSkills.Installation.Targeting;
-using MackySoft.AgentSkills.Shared.Text;
+using MackySoft.AgentSkills.OperationReports.Literals;
 
 namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
@@ -9,21 +7,21 @@ namespace MackySoft.AgentSkills.OperationReports.Contracts;
 public sealed class SkillDoctorReport
 {
     internal SkillDoctorReport (
-        SkillHostKind host,
+        HostKind host,
         IReadOnlyList<string> categories,
         IReadOnlyList<string> skillNames,
-        SkillScopeKind scope,
+        OperationScopeKind scope,
         string? repositoryRoot,
         string targetRoot,
         string reloadGuidance,
         IReadOnlyList<SkillDoctorDiagnosticReport> diagnostics)
     {
-        if (!ContractLiteralCodec.IsDefined(host))
+        if (!Vocabulary.IsDefined(host))
         {
             throw new ArgumentOutOfRangeException(nameof(host), host, "Unsupported SKILL host.");
         }
 
-        if (!ContractLiteralCodec.IsDefined(scope))
+        if (!Vocabulary.IsDefined(scope))
         {
             throw new ArgumentOutOfRangeException(nameof(scope), scope, "Unsupported install scope.");
         }
@@ -41,7 +39,7 @@ public sealed class SkillDoctorReport
     }
 
     /// <summary> Gets the host diagnosed by the doctor workflow. </summary>
-    public SkillHostKind Host { get; }
+    public HostKind Host { get; }
 
     /// <summary> Gets the selected category literals. </summary>
     public IReadOnlyList<string> Categories { get; }
@@ -50,7 +48,7 @@ public sealed class SkillDoctorReport
     public IReadOnlyList<string> SkillNames { get; }
 
     /// <summary> Gets the install scope. </summary>
-    public SkillScopeKind Scope { get; }
+    public OperationScopeKind Scope { get; }
 
     /// <summary> Gets the canonical absolute repository root for project scope, or <see langword="null" /> for user scope. </summary>
     public string? RepositoryRoot { get; }

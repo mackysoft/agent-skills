@@ -1,7 +1,9 @@
 using MackySoft.AgentSkills.Installation.Contracts;
 using MackySoft.AgentSkills.Materialization;
-using MackySoft.AgentSkills.Packaging.FileSystem;
+using MackySoft.AgentSkills.Packaging.Paths;
+using MackySoft.AgentSkills.Serialization;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Installation.Transactions;
 
@@ -20,61 +22,66 @@ public sealed class SkillMaterializedPackageWriter : ISkillMaterializedPackageWr
 
     /// <inheritdoc />
     public async ValueTask<SkillOperationResult<bool>> WriteAsync (
-        string targetRoot,
-        string skillDirectory,
+        AbsolutePath targetRoot,
+        AbsolutePath skillDirectory,
         SkillMaterializedPackage materializedPackage,
         SkillMaterializedPackageWriteMode writeMode,
-        Func<string, CancellationToken, ValueTask<SkillOperationResult<bool>>>? precondition,
+        Func<AbsolutePath, CancellationToken, ValueTask<SkillOperationResult<bool>>>? precondition,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(targetRoot);
-        ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+        ArgumentNullException.ThrowIfNull(targetRoot);
+        ArgumentNullException.ThrowIfNull(skillDirectory);
         ArgumentNullException.ThrowIfNull(materializedPackage);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var skillDirectoryResult = SkillPackagePathBoundary.ResolveUnderRoot(targetRoot, skillDirectory);
+        var skillDirectoryResult = PackagePathResolver.ResolveUnderRoot(targetRoot, skillDirectory);
         if (!skillDirectoryResult.IsSuccess)
         {
             return SkillOperationResult<bool>.FailureResult(skillDirectoryResult.Failure!.Code, skillDirectoryResult.Failure.Message);
         }
 
         var resolvedSkillDirectory = skillDirectoryResult.Value!;
-        var parentDirectory = Path.GetDirectoryName(resolvedSkillDirectory);
-        if (string.IsNullOrWhiteSpace(parentDirectory))
+        if (!resolvedSkillDirectory.TryGetParent(out var parentDirectory))
         {
             return SkillOperationResult<bool>.FailureResult(
                 SkillFailureCodes.InstallTargetWriteFailed,
                 $"Skill directory parent could not be resolved: {resolvedSkillDirectory}");
         }
 
-        var transactionRootResult = SkillPackagePathBoundary.ResolveUnderRoot(
+        var transactionRootResult = PackagePathResolver.ResolveUnderRoot(
             targetRoot,
-            Path.Combine(parentDirectory, ".agent-skills-skill-transactions"));
+            ContainedPath.Create(parentDirectory, RootRelativePath.Parse(".agent-skills-skill-transactions")).Target);
         if (!transactionRootResult.IsSuccess)
         {
             return SkillOperationResult<bool>.FailureResult(transactionRootResult.Failure!.Code, transactionRootResult.Failure.Message);
         }
 
         var transactionRoot = transactionRootResult.Value!;
-        var stagingDirectoryResult = SkillPackagePathBoundary.ResolveUnderRoot(
+        var stagingDirectoryResult = PackagePathResolver.ResolveUnderRoot(
             targetRoot,
-            Path.Combine(transactionRoot, $"{Path.GetFileName(resolvedSkillDirectory)}.staging.{Guid.NewGuid():N}"));
+            ContainedPath.Create(
+                transactionRoot,
+                RootRelativePath.Parse($"{Path.GetFileName(resolvedSkillDirectory.Value)}.staging.{Guid.NewGuid():N}")).Target);
         if (!stagingDirectoryResult.IsSuccess)
         {
             return SkillOperationResult<bool>.FailureResult(stagingDirectoryResult.Failure!.Code, stagingDirectoryResult.Failure.Message);
         }
 
-        var backupContainerResult = SkillPackagePathBoundary.ResolveUnderRoot(
+        var backupContainerResult = PackagePathResolver.ResolveUnderRoot(
             targetRoot,
-            Path.Combine(transactionRoot, $"{Path.GetFileName(resolvedSkillDirectory)}.backup.{Guid.NewGuid():N}"));
+            ContainedPath.Create(
+                transactionRoot,
+                RootRelativePath.Parse($"{Path.GetFileName(resolvedSkillDirectory.Value)}.backup.{Guid.NewGuid():N}")).Target);
         if (!backupContainerResult.IsSuccess)
         {
             return SkillOperationResult<bool>.FailureResult(backupContainerResult.Failure!.Code, backupContainerResult.Failure.Message);
         }
 
-        var backupDirectoryResult = SkillPackagePathBoundary.ResolveUnderRoot(
+        var backupDirectoryResult = PackagePathResolver.ResolveUnderRoot(
             targetRoot,
-            Path.Combine(backupContainerResult.Value!, Path.GetFileName(resolvedSkillDirectory)));
+            ContainedPath.Create(
+                backupContainerResult.Value!,
+                RootRelativePath.Parse(Path.GetFileName(resolvedSkillDirectory.Value))).Target);
         if (!backupDirectoryResult.IsSuccess)
         {
             return SkillOperationResult<bool>.FailureResult(backupDirectoryResult.Failure!.Code, backupDirectoryResult.Failure.Message);
@@ -113,19 +120,23 @@ public sealed class SkillMaterializedPackageWriter : ISkillMaterializedPackageWr
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var finalPathResult = SkillPackagePathBoundary.ResolvePackageFilePathUnderRoot(targetRoot, resolvedSkillDirectory, file.RelativePath);
+                var finalPathResult = PackagePathResolver.ResolveUnderRoot(
+                    targetRoot,
+                    ContainedPath.Create(resolvedSkillDirectory, file.RelativePath.RootRelativePath).Target);
                 if (!finalPathResult.IsSuccess)
                 {
                     return SkillOperationResult<bool>.FailureResult(finalPathResult.Failure!.Code, finalPathResult.Failure.Message);
                 }
 
-                var stagingPathResult = SkillPackagePathBoundary.ResolvePackageFilePathUnderRoot(targetRoot, stagingDirectory, file.RelativePath);
+                var stagingPathResult = PackagePathResolver.ResolveUnderRoot(
+                    targetRoot,
+                    ContainedPath.Create(stagingDirectory, file.RelativePath.RootRelativePath).Target);
                 if (!stagingPathResult.IsSuccess)
                 {
                     return SkillOperationResult<bool>.FailureResult(stagingPathResult.Failure!.Code, stagingPathResult.Failure.Message);
                 }
 
-                await SkillPackageFileWriter.WriteAllTextAtomicallyAsync(stagingPathResult.Value!, file.Content, cancellationToken).ConfigureAwait(false);
+                await CanonicalTextFilePublisher.PublishAsync(stagingPathResult.Value!, file.Content, cancellationToken).ConfigureAwait(false);
             }
 
             cancellationToken.ThrowIfCancellationRequested();
@@ -231,28 +242,7 @@ public sealed class SkillMaterializedPackageWriter : ISkillMaterializedPackageWr
         }
     }
 
-    /// <summary> Writes all files for one materialized package using the legacy upsert behavior. </summary>
-    /// <param name="targetRoot"> The resolved bundle target root. </param>
-    /// <param name="skillDirectory"> The resolved skill package directory. </param>
-    /// <param name="materializedPackage"> The materialized package to write. </param>
-    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
-    /// <returns> Success when all file paths stay under the target root; otherwise a path-safety failure. </returns>
-    public ValueTask<SkillOperationResult<bool>> WriteAsync (
-        string targetRoot,
-        string skillDirectory,
-        SkillMaterializedPackage materializedPackage,
-        CancellationToken cancellationToken = default)
-    {
-        return WriteAsync(
-            targetRoot,
-            skillDirectory,
-            materializedPackage,
-            directoryOperations.Exists(skillDirectory) ? SkillMaterializedPackageWriteMode.ReplaceExisting : SkillMaterializedPackageWriteMode.CreateNew,
-            precondition: null,
-            cancellationToken);
-    }
-
-    private void DeleteDirectoryBestEffort (string path)
+    private void DeleteDirectoryBestEffort (AbsolutePath path)
     {
         if (!directoryOperations.Exists(path))
         {

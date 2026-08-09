@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "model": "sonnet",
+  "tools": ["Read", "Grep"],
+  "permissionMode": "manual",
+  "maxTurns": 20
+}

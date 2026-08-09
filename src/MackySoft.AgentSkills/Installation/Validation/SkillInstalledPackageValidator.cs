@@ -1,8 +1,8 @@
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Materialization;
 using MackySoft.AgentSkills.Packaging.Canonical;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Installation.Validation;
 
@@ -43,12 +43,12 @@ public sealed class SkillInstalledPackageValidator
     /// <returns> The installed manifest when validation succeeds; otherwise a validation failure. </returns>
     public async ValueTask<SkillOperationResult<SkillManifest>> ValidateAsync (
         CanonicalSkillPackage package,
-        string skillDirectory,
-        SkillHostKind host,
+        AbsolutePath skillDirectory,
+        HostKind host,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(package);
-        ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+        ArgumentNullException.ThrowIfNull(skillDirectory);
         cancellationToken.ThrowIfCancellationRequested();
 
         var installedManifestResult = await installedManifestReader.ReadRequiredAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
@@ -108,7 +108,7 @@ public sealed class SkillInstalledPackageValidator
 
     private async ValueTask<SkillOperationResult<SkillManifest>> ValidateInstalledContentAsync (
         CanonicalSkillPackage package,
-        string skillDirectory,
+        AbsolutePath skillDirectory,
         string installedManifestText,
         SkillManifest manifest,
         CancellationToken cancellationToken)
@@ -144,7 +144,7 @@ public sealed class SkillInstalledPackageValidator
         string installedManifestText,
         SkillManifest manifest)
     {
-        var canonicalManifestText = package.Files.Single(static file => file.RelativePath == "agent-skill.json").Content;
+        var canonicalManifestText = package.Files.Single(static file => file.RelativePath == SkillManagedFileSetPaths.ManifestPath).Content;
         return string.Equals(installedManifestText, canonicalManifestText, StringComparison.Ordinal)
             ? SkillOperationResult<SkillManifest>.Success(manifest)
             : SkillOperationResult<SkillManifest>.FailureResult(

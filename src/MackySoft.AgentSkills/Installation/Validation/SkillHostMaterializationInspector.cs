@@ -1,27 +1,21 @@
 using MackySoft.AgentSkills.Digests;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Hosts.Registration;
 using MackySoft.AgentSkills.Manifests;
-using MackySoft.AgentSkills.Packaging.FileSystem;
+using MackySoft.AgentSkills.Packaging.Paths;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.Text;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Installation.Validation;
 
 /// <summary> Inspects installed files to determine whether they belong to the requested host. </summary>
 public sealed class SkillHostMaterializationInspector
 {
-    private readonly SkillHostAdapterSet hostAdapters;
     private readonly SkillDigestCalculator digestCalculator;
 
     /// <summary> Initializes a new instance of the <see cref="SkillHostMaterializationInspector" /> class. </summary>
-    /// <param name="hostAdapters"> The supported host adapter set. </param>
     /// <param name="digestCalculator"> The digest calculator. </param>
-    public SkillHostMaterializationInspector (
-        SkillHostAdapterSet hostAdapters,
-        SkillDigestCalculator digestCalculator)
+    public SkillHostMaterializationInspector (SkillDigestCalculator digestCalculator)
     {
-        this.hostAdapters = hostAdapters ?? throw new ArgumentNullException(nameof(hostAdapters));
         this.digestCalculator = digestCalculator ?? throw new ArgumentNullException(nameof(digestCalculator));
     }
 
@@ -32,53 +26,53 @@ public sealed class SkillHostMaterializationInspector
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> <see langword="true" /> when files match the requested host; otherwise <see langword="false" />. </returns>
     public async ValueTask<SkillOperationResult<bool>> MatchesHostAsync (
-        string skillDirectory,
+        AbsolutePath skillDirectory,
         SkillManifest manifest,
-        SkillHostKind host,
+        HostKind host,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+        ArgumentNullException.ThrowIfNull(skillDirectory);
         ArgumentNullException.ThrowIfNull(manifest);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var adapterResult = hostAdapters.GetAdapter(host);
-        if (!adapterResult.IsSuccess)
+        var registrationResult = HostRegistration.Get(host);
+        if (!registrationResult.IsSuccess)
         {
             return SkillOperationResult<bool>.FailureResult(
-                adapterResult.Failure!.Code,
-                adapterResult.Failure.Message);
+                registrationResult.Failure!.Code,
+                registrationResult.Failure.Message);
         }
 
-        var adapter = adapterResult.Value!;
-        var registeredHost = adapter.Descriptor.Host;
-        var descriptorMetadataArtifactPath = adapter.Descriptor.MetadataArtifactPath;
+        var registration = registrationResult.Value!;
+        var registeredHost = registration.Host;
+        var descriptorMetadataArtifactPath = registration.Skill.MetadataArtifactPath;
         var expectedArtifact = manifest.HostArtifacts.SingleOrDefault(artifact => artifact.Host == registeredHost);
         if (expectedArtifact is null)
         {
             return SkillOperationResult<bool>.FailureResult(
                 SkillFailureCodes.ManifestInvalid,
-                $"Manifest does not contain host artifact '{ContractLiteralCodec.ToValue(registeredHost)}'.");
+                $"Manifest does not contain host artifact '{Vocabulary.GetText(registeredHost)}'.");
         }
 
-        var skillPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, "SKILL.md");
+        var skillPathResult = PackagePathResolver.ResolveRegularFile(skillDirectory, PackageRelativePath.Parse("SKILL.md"));
         if (!skillPathResult.IsSuccess)
         {
             return SkillOperationResult<bool>.FailureResult(skillPathResult.Failure!.Code, skillPathResult.Failure.Message);
         }
 
         var skillPath = skillPathResult.Value!;
-        if (!File.Exists(skillPath))
+        if (!File.Exists(skillPath.Value))
         {
             return SkillOperationResult<bool>.Success(false);
         }
 
-        var skillText = SkillTextNormalizer.NormalizeToLf(await File.ReadAllTextAsync(skillPath, cancellationToken).ConfigureAwait(false));
+        var skillText = SkillTextNormalizer.NormalizeToLf(await File.ReadAllTextAsync(skillPath.Value, cancellationToken).ConfigureAwait(false));
         if (!TryExtractFrontmatter(skillText, out var frontmatter))
         {
             return SkillOperationResult<bool>.Success(false);
         }
 
-        var actualFrontmatterDigest = digestCalculator.ComputeSingleFileDigest("SKILL.md.frontmatter", frontmatter);
+        var actualFrontmatterDigest = digestCalculator.ComputeSingleFileDigest(PackageRelativePath.Parse("SKILL.md.frontmatter"), frontmatter);
         if (actualFrontmatterDigest != expectedArtifact.MaterializedFrontmatterDigest)
         {
             return SkillOperationResult<bool>.Success(false);
@@ -90,32 +84,32 @@ public sealed class SkillHostMaterializationInspector
                 ? SkillOperationResult<bool>.Success(true)
                 : SkillOperationResult<bool>.FailureResult(
                     SkillFailureCodes.ManifestInvalid,
-                    $"Manifest host artifact '{ContractLiteralCodec.ToValue(registeredHost)}' must not contain metadata artifact fields.");
+                    $"Manifest host artifact '{Vocabulary.GetText(registeredHost)}' must not contain metadata artifact fields.");
         }
 
         var metadataArtifactPath = expectedArtifact.Path;
         var metadataArtifactDigest = expectedArtifact.Digest;
         if (metadataArtifactPath is null
-            || !string.Equals(metadataArtifactPath, descriptorMetadataArtifactPath, StringComparison.Ordinal)
+            || metadataArtifactPath != descriptorMetadataArtifactPath
             || metadataArtifactDigest is null)
         {
             return SkillOperationResult<bool>.FailureResult(
                 SkillFailureCodes.ManifestInvalid,
-                $"Manifest host artifact '{ContractLiteralCodec.ToValue(registeredHost)}' must contain metadata artifact fields.");
+                $"Manifest host artifact '{Vocabulary.GetText(registeredHost)}' must contain metadata artifact fields.");
         }
 
-        var metadataPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, metadataArtifactPath);
+        var metadataPathResult = PackagePathResolver.ResolveRegularFile(skillDirectory, metadataArtifactPath);
         if (!metadataPathResult.IsSuccess)
         {
             return SkillOperationResult<bool>.FailureResult(metadataPathResult.Failure!.Code, metadataPathResult.Failure.Message);
         }
 
-        if (!File.Exists(metadataPathResult.Value!))
+        if (!File.Exists(metadataPathResult.Value!.Value))
         {
             return SkillOperationResult<bool>.Success(false);
         }
 
-        var metadata = SkillTextNormalizer.NormalizeToLf(await File.ReadAllTextAsync(metadataPathResult.Value!, cancellationToken).ConfigureAwait(false));
+        var metadata = SkillTextNormalizer.NormalizeToLf(await File.ReadAllTextAsync(metadataPathResult.Value!.Value, cancellationToken).ConfigureAwait(false));
         var actualDigest = digestCalculator.ComputeSingleFileDigest(metadataArtifactPath, metadata);
         return SkillOperationResult<bool>.Success(actualDigest == metadataArtifactDigest);
     }
@@ -127,29 +121,29 @@ public sealed class SkillHostMaterializationInspector
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> <see langword="true" /> when files match another supported host; otherwise <see langword="false" />. </returns>
     public async ValueTask<SkillOperationResult<bool>> MatchesDifferentHostAsync (
-        string skillDirectory,
+        AbsolutePath skillDirectory,
         SkillManifest manifest,
-        SkillHostKind host,
+        HostKind host,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+        ArgumentNullException.ThrowIfNull(skillDirectory);
         ArgumentNullException.ThrowIfNull(manifest);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var requestedAdapterResult = hostAdapters.GetAdapter(host);
-        if (!requestedAdapterResult.IsSuccess)
+        var requestedRegistrationResult = HostRegistration.Get(host);
+        if (!requestedRegistrationResult.IsSuccess)
         {
             return SkillOperationResult<bool>.FailureResult(
-                requestedAdapterResult.Failure!.Code,
-                requestedAdapterResult.Failure.Message);
+                requestedRegistrationResult.Failure!.Code,
+                requestedRegistrationResult.Failure.Message);
         }
 
-        var requestedHost = requestedAdapterResult.Value!.Descriptor.Host;
-        foreach (var adapter in hostAdapters.Adapters)
+        var requestedHost = requestedRegistrationResult.Value!.Host;
+        foreach (var registration in HostRegistration.Registrations)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var candidateHost = adapter.Descriptor.Host;
+            var candidateHost = registration.Host;
             if (candidateHost == requestedHost)
             {
                 continue;

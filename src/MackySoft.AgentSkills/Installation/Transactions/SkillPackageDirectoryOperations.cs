@@ -1,34 +1,36 @@
 using MackySoft.AgentSkills.Installation.Contracts;
+using MackySoft.FileSystem;
+
 namespace MackySoft.AgentSkills.Installation.Transactions;
 
 /// <summary> Executes SKILL package directory primitives against the local file system. </summary>
 public sealed class SkillPackageDirectoryOperations : ISkillPackageDirectoryOperations
 {
     /// <inheritdoc />
-    public bool Exists (string path)
+    public bool Exists (AbsolutePath path)
     {
-        return Directory.Exists(path);
+        return Directory.Exists(path.Value);
     }
 
     /// <inheritdoc />
-    public void Create (string path)
+    public void Create (AbsolutePath path)
     {
-        Directory.CreateDirectory(path);
+        Directory.CreateDirectory(path.Value);
     }
 
     /// <inheritdoc />
     public void Move (
-        string sourceDirectoryName,
-        string destinationDirectoryName)
+        AbsolutePath sourceDirectoryName,
+        AbsolutePath destinationDirectoryName)
     {
-        Directory.Move(sourceDirectoryName, destinationDirectoryName);
+        Directory.Move(sourceDirectoryName.Value, destinationDirectoryName.Value);
     }
 
     /// <inheritdoc />
     public void Delete (
-        string path,
+        AbsolutePath path,
         bool recursive)
     {
-        Directory.Delete(path, recursive);
+        Directory.Delete(path.Value, recursive);
     }
 }

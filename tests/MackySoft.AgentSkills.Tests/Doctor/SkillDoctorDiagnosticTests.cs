@@ -1,5 +1,4 @@
 using MackySoft.AgentSkills.Doctor;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Shared;
 
 namespace MackySoft.AgentSkills.Tests.Doctor;

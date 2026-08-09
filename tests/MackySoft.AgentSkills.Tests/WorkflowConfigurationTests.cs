@@ -240,10 +240,8 @@ public sealed class WorkflowConfigurationTests
         Assert.Contains("MackySoft.AgentSkills.Hosting.$package_version.nupkg", script, StringComparison.Ordinal);
         Assert.Contains("MackySoft.AgentSkills.ConsoleAppFramework.$package_version.nupkg", script, StringComparison.Ordinal);
         Assert.Contains("MackySoft.AgentSkills.ConsoleAppFramework", script, StringComparison.Ordinal);
-        Assert.Contains("RegisterAgentSkillsCommands", script, StringComparison.Ordinal);
-        Assert.Contains("AgentSkillsConsoleAppFrameworkCommandRoot=agent-skills", script, StringComparison.Ordinal);
-        Assert.Contains("agent-skills list --pretty", script, StringComparison.Ordinal);
-        Assert.Contains("dotnet tool run agent-skills -- list --pretty", script, StringComparison.Ordinal);
+        Assert.Contains("--host codex", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("--host openai", script, StringComparison.Ordinal);
         Assert.Contains("agent-skills-packaging", script, StringComparison.Ordinal);
     }
 

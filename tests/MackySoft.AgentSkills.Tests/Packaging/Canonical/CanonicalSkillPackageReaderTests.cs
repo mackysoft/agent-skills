@@ -1,6 +1,5 @@
 using System.Text;
 using MackySoft.AgentSkills.Digests;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Manifests;
 using MackySoft.AgentSkills.Shared;
 using MackySoft.Tests;
@@ -16,7 +15,7 @@ public sealed class CanonicalSkillPackageReaderTests
         var sourcePackages = await SkillTestData.GenerateFixturePackagesAsync();
         var reader = SkillTestData.CreatePackageReader();
 
-        var generatedPackages = await reader.ReadAllAsync(SkillTestData.GetGeneratedSkillsRoot(), CancellationToken.None);
+        var generatedPackages = await reader.ReadAllAsync(AbsolutePath.Parse(SkillTestData.GetGeneratedSkillsRoot()), CancellationToken.None);
 
         Assert.True(generatedPackages.IsSuccess, generatedPackages.Failure?.Message);
         var actualPackages = generatedPackages.Value!;
@@ -32,7 +31,7 @@ public sealed class CanonicalSkillPackageReaderTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "generated-content-drift");
         var skillsRoot = CopyGeneratedSkills(scope);
-        await File.AppendAllTextAsync(Path.Combine(skillsRoot, SkillTestData.ExpectedSkillNames[0], "SKILL.md"), "\nDrifted body.\n");
+        await File.AppendAllTextAsync(Path.Combine(skillsRoot.Value, SkillTestData.ExpectedSkillNames[0], "SKILL.md"), "\nDrifted body.\n");
         var reader = SkillTestData.CreatePackageReader();
 
         var result = await reader.ReadAllAsync(skillsRoot, CancellationToken.None);
@@ -47,7 +46,7 @@ public sealed class CanonicalSkillPackageReaderTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "generated-host-artifact-drift");
         var skillsRoot = CopyGeneratedSkills(scope);
-        await File.AppendAllTextAsync(Path.Combine(skillsRoot, SkillTestData.ExpectedSkillNames[0], "agents", "openai.yaml"), "\n# drift\n");
+        await File.AppendAllTextAsync(Path.Combine(skillsRoot.Value, SkillTestData.ExpectedSkillNames[0], "agents", "openai.yaml"), "\n# drift\n");
         var reader = SkillTestData.CreatePackageReader();
 
         var result = await reader.ReadAllAsync(skillsRoot, CancellationToken.None);
@@ -62,7 +61,7 @@ public sealed class CanonicalSkillPackageReaderTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "generated-manifest-drift");
         var skillsRoot = CopyGeneratedSkills(scope);
-        var manifestPath = Path.Combine(skillsRoot, SkillTestData.ExpectedSkillNames[0], "agent-skill.json");
+        var manifestPath = Path.Combine(skillsRoot.Value, SkillTestData.ExpectedSkillNames[0], "agent-skill.json");
         var serializer = new SkillManifestJsonSerializer();
         var manifestText = await File.ReadAllTextAsync(manifestPath);
         var manifest = serializer.Deserialize(manifestText);
@@ -86,7 +85,7 @@ public sealed class CanonicalSkillPackageReaderTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "generated-manifest-digest-tampered");
         var skillsRoot = CopyGeneratedSkills(scope);
-        var manifestPath = Path.Combine(skillsRoot, SkillTestData.ExpectedSkillNames[0], "agent-skill.json");
+        var manifestPath = Path.Combine(skillsRoot.Value, SkillTestData.ExpectedSkillNames[0], "agent-skill.json");
         var serializer = new SkillManifestJsonSerializer();
         var manifestText = await File.ReadAllTextAsync(manifestPath);
         var manifest = serializer.Deserialize(manifestText);
@@ -111,7 +110,7 @@ public sealed class CanonicalSkillPackageReaderTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "generated-manifest-crlf");
         var skillsRoot = CopyGeneratedSkills(scope);
-        var manifestPath = Path.Combine(skillsRoot, SkillTestData.ExpectedSkillNames[0], "agent-skill.json");
+        var manifestPath = Path.Combine(skillsRoot.Value, SkillTestData.ExpectedSkillNames[0], "agent-skill.json");
         var manifestText = await File.ReadAllTextAsync(manifestPath);
         await File.WriteAllTextAsync(manifestPath, manifestText.Replace("\n", "\r\n", StringComparison.Ordinal));
         var reader = SkillTestData.CreatePackageReader();
@@ -129,7 +128,7 @@ public sealed class CanonicalSkillPackageReaderTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "generated-manifest-bom");
         var skillsRoot = CopyGeneratedSkills(scope);
-        var manifestPath = Path.Combine(skillsRoot, SkillTestData.ExpectedSkillNames[0], "agent-skill.json");
+        var manifestPath = Path.Combine(skillsRoot.Value, SkillTestData.ExpectedSkillNames[0], "agent-skill.json");
         var manifestText = await File.ReadAllTextAsync(manifestPath);
         await File.WriteAllBytesAsync(manifestPath, [0xEF, 0xBB, 0xBF, .. Encoding.UTF8.GetBytes(manifestText)]);
         var reader = SkillTestData.CreatePackageReader();
@@ -147,7 +146,7 @@ public sealed class CanonicalSkillPackageReaderTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "generated-host-artifact-adapter-drift");
         var skillsRoot = CopyGeneratedSkills(scope);
-        var skillDirectory = Path.Combine(skillsRoot, SkillTestData.ExpectedSkillNames[0]);
+        var skillDirectory = Path.Combine(skillsRoot.Value, SkillTestData.ExpectedSkillNames[0]);
         var artifactPath = Path.Combine(skillDirectory, "agents", "openai.yaml");
         var driftedArtifact = "interface:\n  display_name: Drifted\n  short_description: Drifted\n  default_prompt: Drifted\n\npolicy:\n  allow_implicit_invocation: false\n";
         await File.WriteAllTextAsync(artifactPath, driftedArtifact);
@@ -155,11 +154,11 @@ public sealed class CanonicalSkillPackageReaderTests
         var manifestPath = Path.Combine(skillDirectory, "agent-skill.json");
         var serializer = new SkillManifestJsonSerializer();
         var manifest = serializer.Deserialize(await File.ReadAllTextAsync(manifestPath));
-        var driftedDigest = new SkillDigestCalculator().ComputeSingleFileDigest("agents/openai.yaml", driftedArtifact);
+        var driftedDigest = new SkillDigestCalculator().ComputeSingleFileDigest(PackageRelativePath.Parse("agents/openai.yaml"), driftedArtifact);
         var driftedManifest = SkillTestData.CopyManifest(
             manifest,
             hostArtifacts: manifest.HostArtifacts
-                .Select(artifact => artifact.Host == SkillHostKind.OpenAi
+                .Select(artifact => artifact.Host == HostKind.Codex
                     ? new SkillHostArtifactManifest(artifact.Host, artifact.Path, driftedDigest, artifact.MaterializedFrontmatterDigest)
                     : artifact)
                 .ToArray());
@@ -179,13 +178,13 @@ public sealed class CanonicalSkillPackageReaderTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "generated-frontmatter-drift");
         var skillsRoot = CopyGeneratedSkills(scope);
-        var manifestPath = Path.Combine(skillsRoot, SkillTestData.ExpectedSkillNames[0], "agent-skill.json");
+        var manifestPath = Path.Combine(skillsRoot.Value, SkillTestData.ExpectedSkillNames[0], "agent-skill.json");
         var serializer = new SkillManifestJsonSerializer();
         var manifest = serializer.Deserialize(await File.ReadAllTextAsync(manifestPath));
         var driftedManifest = SkillTestData.CopyManifest(
             manifest,
             hostArtifacts: manifest.HostArtifacts
-                .Select(static artifact => artifact.Host == SkillHostKind.Claude
+                .Select(static artifact => artifact.Host == HostKind.ClaudeCode
                     ? new SkillHostArtifactManifest(artifact.Host, artifact.Path, artifact.Digest, Sha256Digest.Parse(new string('0', 64)))
                     : artifact)
                 .ToArray());
@@ -210,7 +209,7 @@ public sealed class CanonicalSkillPackageReaderTests
 
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "generated-unsafe-path");
         var skillsRoot = CopyGeneratedSkills(scope);
-        var unsafePath = Path.Combine(skillsRoot, SkillTestData.ExpectedSkillNames[0], "bad\\name.md");
+        var unsafePath = Path.Combine(skillsRoot.Value, SkillTestData.ExpectedSkillNames[0], "bad\\name.md");
         await File.WriteAllTextAsync(unsafePath, "unsafe path");
         var reader = SkillTestData.CreatePackageReader();
 
@@ -232,7 +231,7 @@ public sealed class CanonicalSkillPackageReaderTests
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "generated-file-symlink");
         var skillsRoot = CopyGeneratedSkills(scope);
         var outsideFile = scope.WriteFile("outside.md", "outside content");
-        var linkPath = Path.Combine(skillsRoot, SkillTestData.ExpectedSkillNames[0], "references", "linked.md");
+        var linkPath = Path.Combine(skillsRoot.Value, SkillTestData.ExpectedSkillNames[0], "references", "linked.md");
         File.CreateSymbolicLink(linkPath, outsideFile);
         var reader = SkillTestData.CreatePackageReader();
 
@@ -240,7 +239,7 @@ public sealed class CanonicalSkillPackageReaderTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
-        Assert.Contains("non-regular file", result.Failure.Message, StringComparison.Ordinal);
+        Assert.Contains("non-regular path", result.Failure.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -253,9 +252,9 @@ public sealed class CanonicalSkillPackageReaderTests
         }
 
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "generated-directory-symlink");
-        var skillsRoot = scope.CreateDirectory("skills");
+        var skillsRoot = AbsolutePath.Parse(scope.CreateDirectory("skills"));
         var outsideDirectory = scope.CreateDirectory("outside");
-        Directory.CreateSymbolicLink(Path.Combine(skillsRoot, "linked-skill"), outsideDirectory);
+        Directory.CreateSymbolicLink(Path.Combine(skillsRoot.Value, "linked-skill"), outsideDirectory);
         var reader = SkillTestData.CreatePackageReader();
 
         var result = await reader.ReadAllAsync(skillsRoot, CancellationToken.None);
@@ -276,7 +275,7 @@ public sealed class CanonicalSkillPackageReaderTests
         using var scope = TestDirectories.CreateTempScope("agent-skills-skills", "generated-nested-directory-symlink");
         var skillsRoot = CopyGeneratedSkills(scope);
         var outsideDirectory = scope.CreateDirectory("outside");
-        var linkPath = Path.Combine(skillsRoot, SkillTestData.ExpectedSkillNames[0], "references", "linked-directory");
+        var linkPath = Path.Combine(skillsRoot.Value, SkillTestData.ExpectedSkillNames[0], "references", "linked-directory");
         Directory.CreateSymbolicLink(linkPath, outsideDirectory);
         var reader = SkillTestData.CreatePackageReader();
 
@@ -284,13 +283,13 @@ public sealed class CanonicalSkillPackageReaderTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
-        Assert.Contains("non-regular directory", result.Failure.Message, StringComparison.Ordinal);
+        Assert.Contains("non-regular path", result.Failure.Message, StringComparison.Ordinal);
     }
 
-    private static string CopyGeneratedSkills (TestDirectoryScope scope)
+    private static AbsolutePath CopyGeneratedSkills (TestDirectoryScope scope)
     {
-        var targetRoot = scope.CreateDirectory("skills");
-        CopyDirectory(SkillTestData.GetGeneratedSkillsRoot(), targetRoot);
+        var targetRoot = AbsolutePath.Parse(scope.CreateDirectory("skills"));
+        CopyDirectory(SkillTestData.GetGeneratedSkillsRoot(), targetRoot.Value);
         return targetRoot;
     }
 

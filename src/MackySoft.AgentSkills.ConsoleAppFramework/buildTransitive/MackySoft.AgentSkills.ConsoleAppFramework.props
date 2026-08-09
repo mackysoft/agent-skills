@@ -1,13 +1,7 @@
 <Project>
   <!--
     NOTE: ConsoleAppFramework generates its builder and dispatch in each consumer assembly and rejects command types from another project with CAF014, so the commands must remain consumer-side source integration.
-    Registrar generation is switchable because ConsoleAppFramework statically collects Add<T> calls even when the registrar is not invoked.
   -->
-  <PropertyGroup>
-    <AgentSkillsConsoleAppFrameworkCommandRoot Condition="'$(AgentSkillsConsoleAppFrameworkCommandRoot)' == ''">skills</AgentSkillsConsoleAppFrameworkCommandRoot>
-    <AgentSkillsConsoleAppFrameworkGenerateRegistrar Condition="'$(AgentSkillsConsoleAppFrameworkGenerateRegistrar)' == ''">true</AgentSkillsConsoleAppFrameworkGenerateRegistrar>
-  </PropertyGroup>
-
   <ItemGroup>
     <Compile
       Include="$(MSBuildThisFileDirectory)..\contentFiles\cs\any\MackySoft.AgentSkills.ConsoleAppFramework\*.cs"
@@ -15,24 +9,13 @@
       Visible="false" />
   </ItemGroup>
 
-  <Target Name="ValidateAgentSkillsConsoleAppFrameworkProperties" BeforeTargets="CoreCompile">
-    <Error
-      Condition="'$(AgentSkillsConsoleAppFrameworkGenerateRegistrar)' != 'true' and '$(AgentSkillsConsoleAppFrameworkGenerateRegistrar)' != 'false'"
-      Text="AgentSkillsConsoleAppFrameworkGenerateRegistrar must be true or false." />
-  </Target>
-
   <Target
     Name="GenerateAgentSkillsConsoleAppFrameworkRegistrar"
-    BeforeTargets="CoreCompile"
-    Condition="'$(AgentSkillsConsoleAppFrameworkGenerateRegistrar)' == 'true'">
+    BeforeTargets="CoreCompile">
     <PropertyGroup>
       <_AgentSkillsConsoleAppFrameworkGeneratedDirectory>$(IntermediateOutputPath)MackySoft.AgentSkills.ConsoleAppFramework\</_AgentSkillsConsoleAppFrameworkGeneratedDirectory>
       <_AgentSkillsConsoleAppFrameworkRegistrarFile>$(_AgentSkillsConsoleAppFrameworkGeneratedDirectory)AgentSkillsConsoleAppCommandRegistrar.g.cs</_AgentSkillsConsoleAppFrameworkRegistrarFile>
     </PropertyGroup>
-
-    <Error
-      Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('$(AgentSkillsConsoleAppFrameworkCommandRoot)', '^[a-z0-9]+(-[a-z0-9]+)*( [a-z0-9]+(-[a-z0-9]+)*)*$')) != 'True'"
-      Text="AgentSkillsConsoleAppFrameworkCommandRoot must be one or more lower-kebab command tokens separated by a single space." />
 
     <MakeDir Directories="$(_AgentSkillsConsoleAppFrameworkGeneratedDirectory)" />
 
@@ -47,13 +30,20 @@
       <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="    public static ConsoleApp.ConsoleAppBuilder RegisterAgentSkillsCommands (this ConsoleApp.ConsoleAppBuilder app)" />
       <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="    {" />
       <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        ArgumentNullException.ThrowIfNull(app)%3B" />
-      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentSkillsListCommand&gt;(&quot;$(AgentSkillsConsoleAppFrameworkCommandRoot)&quot;)%3B" />
-      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentSkillsExportCommand&gt;(&quot;$(AgentSkillsConsoleAppFrameworkCommandRoot)&quot;)%3B" />
-      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentSkillsInstallCommand&gt;(&quot;$(AgentSkillsConsoleAppFrameworkCommandRoot)&quot;)%3B" />
-      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentSkillsUpdateCommand&gt;(&quot;$(AgentSkillsConsoleAppFrameworkCommandRoot)&quot;)%3B" />
-      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentSkillsUninstallCommand&gt;(&quot;$(AgentSkillsConsoleAppFrameworkCommandRoot)&quot;)%3B" />
-      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentSkillsPruneCommand&gt;(&quot;$(AgentSkillsConsoleAppFrameworkCommandRoot)&quot;)%3B" />
-      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentSkillsDoctorCommand&gt;(&quot;$(AgentSkillsConsoleAppFrameworkCommandRoot)&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;SkillListCommand&gt;(&quot;skills&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;SkillExportCommand&gt;(&quot;skills&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;SkillInstallCommand&gt;(&quot;skills&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;SkillUpdateCommand&gt;(&quot;skills&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;SkillUninstallCommand&gt;(&quot;skills&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;SkillPruneCommand&gt;(&quot;skills&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;SkillDoctorCommand&gt;(&quot;skills&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentListCommand&gt;(&quot;agents&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentExportCommand&gt;(&quot;agents&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentInstallCommand&gt;(&quot;agents&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentUpdateCommand&gt;(&quot;agents&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentUninstallCommand&gt;(&quot;agents&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentPruneCommand&gt;(&quot;agents&quot;)%3B" />
+      <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        app.Add&lt;AgentDoctorCommand&gt;(&quot;agents&quot;)%3B" />
       <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="        return app%3B" />
       <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="    }" />
       <_AgentSkillsConsoleAppFrameworkRegistrarLine Include="}" />
@@ -69,4 +59,5 @@
       <Compile Include="$(_AgentSkillsConsoleAppFrameworkRegistrarFile)" Visible="false" />
     </ItemGroup>
   </Target>
+
 </Project>

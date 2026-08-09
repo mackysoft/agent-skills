@@ -1,0 +1,3 @@
+# review-context
+
+Review the available context, identify relevant constraints, and report the evidence used by the result.

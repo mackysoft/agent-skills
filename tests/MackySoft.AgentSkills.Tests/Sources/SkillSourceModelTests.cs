@@ -1,5 +1,3 @@
-using MackySoft.AgentSkills.Categories;
-using MackySoft.AgentSkills.Names;
 using MackySoft.AgentSkills.Sources;
 
 namespace MackySoft.AgentSkills.Tests.Sources;

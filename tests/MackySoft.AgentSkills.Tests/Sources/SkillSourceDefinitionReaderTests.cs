@@ -12,7 +12,7 @@ public sealed class SkillSourceDefinitionReaderTests
     {
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadAllAsync(SkillTestData.GetDefinitionsRoot(), CancellationToken.None);
+        var result = await reader.ReadAllAsync(AbsolutePath.Parse(SkillTestData.GetDefinitionsRoot()), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal(SkillTestData.ExpectedSkillNames, result.Value!.Select(static definition => definition.Metadata.SkillName.Value).ToArray());
@@ -35,7 +35,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var skillDirectory = WriteMinimalDefinition(scope, category: "utilities");
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal("utilities", result.Value!.Metadata.Category.Value);
@@ -53,7 +53,7 @@ public sealed class SkillSourceDefinitionReaderTests
             CreateSkillJson([]));
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadAllAsync(scope.FullPath, CancellationToken.None);
+        var result = await reader.ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal(["sample-skill"], result.Value!.Select(static definition => definition.Metadata.SkillName.Value).ToArray());
@@ -69,7 +69,7 @@ public sealed class SkillSourceDefinitionReaderTests
         scope.WriteFile("sample-skill/references/reference.md.template", "# Reference\n");
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadAllAsync(scope.FullPath, CancellationToken.None);
+        var result = await reader.ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -84,7 +84,7 @@ public sealed class SkillSourceDefinitionReaderTests
         WriteMinimalDefinition(scope, category: "Core");
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadAllAsync(scope.FullPath, CancellationToken.None);
+        var result = await reader.ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -99,7 +99,7 @@ public sealed class SkillSourceDefinitionReaderTests
         scope.CreateDirectory("core");
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadAllAsync(scope.FullPath, CancellationToken.None);
+        var result = await reader.ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -115,7 +115,7 @@ public sealed class SkillSourceDefinitionReaderTests
         WriteMinimalDefinition(scope, category: "utilities", skillName: "sample-skill");
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadAllAsync(scope.FullPath, CancellationToken.None);
+        var result = await reader.ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -130,7 +130,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var skillDirectory = WriteMinimalDefinition(scope, extraJsonProperty: ",\n  \"tier\": \"basic\"");
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -144,7 +144,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var skillDirectory = WriteMinimalDefinition(scope, extraJsonProperty: ",\n  \"category\": \"core\"");
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -158,7 +158,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var skillDirectory = WriteMinimalDefinition(scope, extraJsonProperty: ",\n  \"skillName\": \"sample-skill\"");
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -172,7 +172,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var skillDirectory = WriteMinimalDefinition(scope, extraJsonProperty: ",\n  \"references\": [\"reference.md\"]");
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -197,7 +197,7 @@ public sealed class SkillSourceDefinitionReaderTests
         scope.WriteFile("core/sample-skill/SKILL.md.template", "Use this skill when testing source validation.\n");
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -213,7 +213,7 @@ public sealed class SkillSourceDefinitionReaderTests
         scope.WriteFile("core/sample-skill/SKILL.md.template", "Use this skill when testing source validation.\n");
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -227,7 +227,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var skillDirectory = WriteMinimalDefinition(scope, schemaVersion: 2);
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -241,7 +241,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var skillDirectory = WriteMinimalDefinition(scope, references: [], writeReferenceTemplates: false);
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Empty(result.Value!.Metadata.References);
@@ -256,7 +256,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var skillDirectory = WriteMinimalDefinition(scope, references: ["z-reference.md", "a-reference.md"]);
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal(["a-reference.md", "z-reference.md"], result.Value!.Metadata.References);
@@ -273,7 +273,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var skillDirectory = WriteMinimalDefinition(scope, skillTemplate: "# Sample\n");
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -288,7 +288,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var skillDirectory = WriteMinimalDefinition(scope, dependencies: ["z-helper", "a-helper"]);
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Equal(["a-helper", "z-helper"], result.Value!.Metadata.Dependencies.Select(static dependency => dependency.Value).ToArray());
@@ -306,7 +306,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var skillDirectory = WriteMinimalDefinition(scope, dependencies: [dependency]);
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -320,7 +320,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var skillDirectory = WriteMinimalDefinition(scope, dependencies: ["helper-skill", "helper-skill"]);
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -334,7 +334,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var skillDirectory = WriteMinimalDefinition(scope, dependencies: ["sample-skill"]);
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -348,7 +348,7 @@ public sealed class SkillSourceDefinitionReaderTests
         WriteMinimalDefinition(scope, dependencies: ["missing-helper"]);
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadAllAsync(scope.FullPath, CancellationToken.None);
+        var result = await reader.ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -364,7 +364,7 @@ public sealed class SkillSourceDefinitionReaderTests
         WriteMinimalDefinition(scope, category: "utilities", skillName: "skill-b", dependencies: ["skill-a"]);
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadAllAsync(scope.FullPath, CancellationToken.None);
+        var result = await reader.ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -380,7 +380,7 @@ public sealed class SkillSourceDefinitionReaderTests
         scope.WriteFile("core/sample-skill/references/reference.txt.template", "Reference\n");
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -395,7 +395,7 @@ public sealed class SkillSourceDefinitionReaderTests
         scope.WriteFile("core/sample-skill/references/nested/reference.md.template", "Reference\n");
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -409,7 +409,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var skillDirectory = WriteMinimalDefinition(scope, skillName: "SampleSkill");
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -435,7 +435,7 @@ public sealed class SkillSourceDefinitionReaderTests
 
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -462,7 +462,7 @@ public sealed class SkillSourceDefinitionReaderTests
 
         var reader = new SkillSourceDefinitionReader();
 
-        var result = await reader.ReadOneAsync(skillDirectory, CancellationToken.None);
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);

@@ -46,7 +46,7 @@ public sealed class CanonicalSkillPackageFactoryTests
         var changedPackage = ReplaceFile(
             package,
             "agent-skill.json",
-            static file => new SkillPackageFile(file.RelativePath, file.Content + "\n"));
+            static file => new PackageTextFile(file.RelativePath, file.Content + "\n"));
         var factory = CreateFactory();
 
         var result = factory.CreateCanonical(changedPackage);
@@ -62,7 +62,7 @@ public sealed class CanonicalSkillPackageFactoryTests
         var package = (await SkillTestData.GenerateFixturePackagesAsync())[0];
         var changedPackage = new CanonicalSkillPackageCandidate(
             package.Manifest,
-            [.. package.Files, new SkillPackageFile("unsupported.txt", "unsupported\n")]);
+            [.. package.Files, new PackageTextFile(PackageRelativePath.Parse("unsupported.txt"), "unsupported\n")]);
         var factory = CreateFactory();
 
         var result = factory.CreateCanonical(changedPackage);
@@ -79,7 +79,7 @@ public sealed class CanonicalSkillPackageFactoryTests
         var changedPackage = ReplaceFile(
             package,
             "SKILL.md",
-            static file => new SkillPackageFile(file.RelativePath, file.Content + "drift\n"));
+            static file => new PackageTextFile(file.RelativePath, file.Content + "drift\n"));
         var factory = CreateFactory();
 
         var result = factory.CreateCanonical(changedPackage);
@@ -90,10 +90,8 @@ public sealed class CanonicalSkillPackageFactoryTests
 
     private static CanonicalSkillPackage.Factory CreateFactory (SkillManifestJsonSerializer? manifestSerializer = null)
     {
-        var hostAdapters = SkillTestData.CreateDefaultHostAdapterSet();
         manifestSerializer ??= new SkillManifestJsonSerializer();
         return new CanonicalSkillPackage.Factory(
-            hostAdapters,
             new SkillDigestCalculator(),
             manifestSerializer);
     }
@@ -101,12 +99,12 @@ public sealed class CanonicalSkillPackageFactoryTests
     private static CanonicalSkillPackageCandidate ReplaceFile (
         CanonicalSkillPackage package,
         string relativePath,
-        Func<SkillPackageFile, SkillPackageFile> replace)
+        Func<PackageTextFile, PackageTextFile> replace)
     {
         return new CanonicalSkillPackageCandidate(
             package.Manifest,
             package.Files
-                .Select(file => string.Equals(file.RelativePath, relativePath, StringComparison.Ordinal) ? replace(file) : file)
+                .Select(file => string.Equals(file.RelativePath.Value, relativePath, StringComparison.Ordinal) ? replace(file) : file)
                 .ToArray());
     }
 }

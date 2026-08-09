@@ -1,6 +1,6 @@
-using MackySoft.AgentSkills.Installation.Targeting;
+using MackySoft.AgentSkills.OperationReports.Literals;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.FileSystem;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
@@ -8,11 +8,11 @@ namespace MackySoft.AgentSkills.OperationReports.Contracts;
 internal static class OperationReportContractGuard
 {
     public static string? NormalizeRepositoryRoot (
-        SkillScopeKind scope,
+        OperationScopeKind scope,
         string? repositoryRoot,
         string parameterName)
     {
-        if (scope == SkillScopeKind.User)
+        if (scope == OperationScopeKind.User)
         {
             if (repositoryRoot is not null)
             {
@@ -31,35 +31,31 @@ internal static class OperationReportContractGuard
         string parameterName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path, parameterName);
-        if (!Path.IsPathFullyQualified(path))
+        if (!AbsolutePath.TryParse(path, out var absolutePath, out var failure))
         {
-            throw new ArgumentException("Report paths must be absolute.", parameterName);
+            throw new ArgumentException($"Report paths must be absolute and canonicalizable: {failure.Message}", parameterName);
         }
 
-        return Path.GetFullPath(path);
+        return absolutePath.Value;
     }
 
     public static string NormalizeTargetRoot (
-        SkillScopeKind scope,
+        OperationScopeKind scope,
         string? repositoryRoot,
         string targetRoot,
         string parameterName)
     {
         var normalizedTargetRoot = NormalizeAbsolutePath(targetRoot, parameterName);
-        var allowedRoot = scope == SkillScopeKind.Project
+        var allowedRoot = AbsolutePath.Parse(scope == OperationScopeKind.Project
             ? repositoryRoot!
-            : normalizedTargetRoot;
-        var result = SkillPathBoundary.ResolveUnderRoot(
-            allowedRoot,
-            normalizedTargetRoot,
-            SkillFailureCodes.PathUnsafe,
-            "Report target path");
-        if (!result.IsSuccess)
+            : normalizedTargetRoot);
+        var absoluteTargetRoot = AbsolutePath.Parse(normalizedTargetRoot);
+        if (!ContainedPath.TryCreate(allowedRoot, absoluteTargetRoot, out _, out var failure))
         {
-            throw new ArgumentException(result.Failure!.Message, parameterName);
+            throw new ArgumentException($"Report target path is outside the allowed root: {failure.Message}", parameterName);
         }
 
-        return result.Value!;
+        return absoluteTargetRoot.Value;
     }
 
     public static IReadOnlyList<string> SnapshotRequiredStrings (
@@ -123,15 +119,7 @@ internal static class OperationReportContractGuard
         string? relativePath,
         string parameterName)
     {
-        if (string.IsNullOrWhiteSpace(relativePath)
-            || Path.IsPathRooted(relativePath)
-            || relativePath.Contains('\\', StringComparison.Ordinal)
-            || relativePath.Contains(':', StringComparison.Ordinal)
-            || relativePath.Any(char.IsControl)
-            || relativePath.Split('/').Any(static segment =>
-                string.IsNullOrWhiteSpace(segment)
-                || segment is "." or ".."
-                || Path.IsPathRooted(segment)))
+        if (!PackageRelativePath.TryParse(relativePath, out _))
         {
             throw new ArgumentException($"Operation report path must be a safe slash-separated relative path: {relativePath}", parameterName);
         }

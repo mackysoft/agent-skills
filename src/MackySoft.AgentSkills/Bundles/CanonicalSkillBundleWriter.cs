@@ -1,6 +1,8 @@
 using MackySoft.AgentSkills.Packaging.Canonical;
-using MackySoft.AgentSkills.Packaging.FileSystem;
+using MackySoft.AgentSkills.Packaging.Paths;
+using MackySoft.AgentSkills.Serialization;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Bundles;
 
@@ -30,30 +32,33 @@ public sealed class CanonicalSkillBundleWriter
     /// <param name="outputRoot"> A directory named <c>generated</c> or <c>skills</c>. </param>
     /// <param name="cancellationToken"> The cancellation token propagated through file access. </param>
     /// <returns> The full output root path, or a validation/path failure. </returns>
-    internal async ValueTask<SkillOperationResult<string>> WriteAsync (
+    internal async ValueTask<SkillOperationResult<AbsolutePath>> WriteAsync (
         CanonicalSkillBundle bundle,
-        string outputRoot,
+        AbsolutePath outputRoot,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(bundle);
-        ArgumentException.ThrowIfNullOrWhiteSpace(outputRoot);
+        ArgumentNullException.ThrowIfNull(outputRoot);
         cancellationToken.ThrowIfCancellationRequested();
 
         var outputRootResult = ResolveOutputRoot(outputRoot);
         if (!outputRootResult.IsSuccess)
         {
-            return outputRootResult;
+            return SkillOperationResult<AbsolutePath>.FailureResult(outputRootResult.Failure!.Code, outputRootResult.Failure.Message);
         }
 
         var fullOutputRoot = outputRootResult.Value!;
-        var parentDirectory = Path.GetDirectoryName(fullOutputRoot)
-            ?? throw new InvalidOperationException($"Generated SKILL output root parent could not be resolved: {fullOutputRoot}");
-        Directory.CreateDirectory(parentDirectory);
+        if (!fullOutputRoot.TryGetParent(out var parentDirectory))
+        {
+            throw new InvalidOperationException($"Generated SKILL output root parent could not be resolved: {fullOutputRoot.Value}");
+        }
+
+        Directory.CreateDirectory(parentDirectory.Value);
 
         var operationId = Guid.NewGuid().ToString("N");
-        var outputName = Path.GetFileName(fullOutputRoot);
-        var stagingRoot = Path.Combine(parentDirectory, $".{outputName}.staging.{operationId}");
-        var backupRoot = Path.Combine(parentDirectory, $".{outputName}.backup.{operationId}");
+        var outputName = Path.GetFileName(fullOutputRoot.Value);
+        var stagingRoot = ContainedPath.Create(parentDirectory, RootRelativePath.Parse($".{outputName}.staging.{operationId}")).Target;
+        var backupRoot = ContainedPath.Create(parentDirectory, RootRelativePath.Parse($".{outputName}.backup.{operationId}")).Target;
         var published = false;
 
         try
@@ -67,19 +72,21 @@ public sealed class CanonicalSkillBundleWriter
                     .ConfigureAwait(false);
                 if (!packageWriteResult.IsSuccess)
                 {
-                    return packageWriteResult;
+                    return SkillOperationResult<AbsolutePath>.FailureResult(packageWriteResult.Failure!.Code, packageWriteResult.Failure.Message);
                 }
             }
 
-            var descriptorPathResult = SkillPackagePathBoundary.ResolvePackageFilePath(stagingRoot, "bundle.json");
+            var descriptorPathResult = PackagePathResolver.ResolveUnderRoot(
+                stagingRoot,
+                ContainedPath.Create(stagingRoot, RootRelativePath.Parse("bundle.json")).Target);
             if (!descriptorPathResult.IsSuccess)
             {
-                return SkillOperationResult<string>.FailureResult(
+                return SkillOperationResult<AbsolutePath>.FailureResult(
                     descriptorPathResult.Failure!.Code,
                     descriptorPathResult.Failure.Message);
             }
 
-            await SkillPackageFileWriter.WriteAllTextAtomicallyAsync(
+            await CanonicalTextFilePublisher.PublishAsync(
                     descriptorPathResult.Value!,
                     bundleSerializer.SerializeDescriptor(bundle.Descriptor),
                     cancellationToken)
@@ -88,7 +95,7 @@ public sealed class CanonicalSkillBundleWriter
             var stagedBundleResult = await bundleReader.ReadAsync(stagingRoot, cancellationToken).ConfigureAwait(false);
             if (!stagedBundleResult.IsSuccess)
             {
-                return SkillOperationResult<string>.FailureResult(
+                return SkillOperationResult<AbsolutePath>.FailureResult(
                     stagedBundleResult.Failure!.Code,
                     stagedBundleResult.Failure.Message);
             }
@@ -98,7 +105,7 @@ public sealed class CanonicalSkillBundleWriter
             published = true;
             TryDeleteDirectory(backupRoot);
 
-            return SkillOperationResult<string>.Success(fullOutputRoot);
+            return SkillOperationResult<AbsolutePath>.Success(fullOutputRoot);
         }
         finally
         {
@@ -109,36 +116,38 @@ public sealed class CanonicalSkillBundleWriter
         }
     }
 
-    private static SkillOperationResult<string> ResolveOutputRoot (string outputRoot)
+    private static SkillOperationResult<AbsolutePath> ResolveOutputRoot (AbsolutePath outputRoot)
     {
-        var fullOutputRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(outputRoot));
-        var outputName = Path.GetFileName(fullOutputRoot);
+        var outputName = Path.GetFileName(outputRoot.Value);
         if (!string.Equals(outputName, "generated", StringComparison.Ordinal)
             && !string.Equals(outputName, "skills", StringComparison.Ordinal))
         {
-            return SkillOperationResult<string>.FailureResult(
+            return SkillOperationResult<AbsolutePath>.FailureResult(
                 SkillFailureCodes.PathUnsafe,
-                $"Generated SKILL output root must be named 'generated' or 'skills': {fullOutputRoot}");
+                $"Generated SKILL output root must be named 'generated' or 'skills': {outputRoot}");
         }
 
-        if (File.Exists(fullOutputRoot)
-            || (Directory.Exists(fullOutputRoot) && !SkillPackageFileSystemEntryGuard.IsDirectory(fullOutputRoot)))
+        if (!FileSystemEntryInspector.TryInspect(
+                outputRoot,
+                out var outputRootObservation,
+                out _)
+            || outputRootObservation.State is not FileSystemEntryState.Missing and not FileSystemEntryState.Directory)
         {
-            return SkillOperationResult<string>.FailureResult(
+            return SkillOperationResult<AbsolutePath>.FailureResult(
                 SkillFailureCodes.PathUnsafe,
-                $"Generated SKILL output root must be a regular directory: {fullOutputRoot}");
+                $"Generated SKILL output root must be a regular directory: {outputRoot}");
         }
 
-        return SkillOperationResult<string>.Success(fullOutputRoot);
+        return SkillOperationResult<AbsolutePath>.Success(outputRoot);
     }
 
-    private static void TryDeleteDirectory (string path)
+    private static void TryDeleteDirectory (AbsolutePath path)
     {
         try
         {
-            if (Directory.Exists(path))
+            if (Directory.Exists(path.Value))
             {
-                Directory.Delete(path, recursive: true);
+                Directory.Delete(path.Value, recursive: true);
             }
         }
         catch (IOException)

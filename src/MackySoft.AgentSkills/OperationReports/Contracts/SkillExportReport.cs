@@ -1,6 +1,5 @@
 using MackySoft.AgentSkills.Distribution;
-using MackySoft.AgentSkills.Hosts.Contracts;
-using MackySoft.AgentSkills.Shared.Text;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.OperationReports.Contracts;
 
@@ -8,26 +7,26 @@ namespace MackySoft.AgentSkills.OperationReports.Contracts;
 public sealed class SkillExportReport
 {
     internal SkillExportReport (
-        SkillHostKind host,
+        HostKind host,
         IReadOnlyList<string> categories,
         IReadOnlyList<string> skillNames,
         SkillExportFormat format,
-        string outputPath,
+        AbsolutePath outputPath,
         IReadOnlyList<string> skills,
         int skillCount,
         string reloadGuidance)
     {
-        if (!ContractLiteralCodec.IsDefined(host))
+        if (!Vocabulary.IsDefined(host))
         {
             throw new ArgumentOutOfRangeException(nameof(host), host, "Unsupported SKILL host.");
         }
 
-        if (!ContractLiteralCodec.IsDefined(format))
+        if (!Vocabulary.IsDefined(format))
         {
             throw new ArgumentOutOfRangeException(nameof(format), format, "Unsupported export format.");
         }
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
+        ArgumentNullException.ThrowIfNull(outputPath);
         ArgumentException.ThrowIfNullOrWhiteSpace(reloadGuidance);
 
         var categorySnapshot = OperationReportContractGuard.SnapshotRequiredStrings(categories, nameof(categories));
@@ -42,14 +41,14 @@ public sealed class SkillExportReport
         Categories = categorySnapshot;
         SkillNames = skillNameSnapshot;
         Format = format;
-        OutputPath = Path.GetFullPath(outputPath);
+        OutputPath = outputPath.Value;
         Skills = exportedSkillSnapshot;
         SkillCount = skillCount;
         ReloadGuidance = reloadGuidance;
     }
 
     /// <summary> Gets the host used for export. </summary>
-    public SkillHostKind Host { get; }
+    public HostKind Host { get; }
 
     /// <summary> Gets the selected category literals. </summary>
     public IReadOnlyList<string> Categories { get; }

@@ -1,4 +1,3 @@
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.Tests;
 
@@ -16,10 +15,8 @@ public sealed class SkillUserTargetRootResolverTests
             () => scope.GetPath("home"),
             name => string.Equals(name, "TEST_SKILLS_HOME", StringComparison.Ordinal) ? environmentRoot : null);
         var descriptor = new SkillHostDescriptor(
-            SkillHostKind.OpenAi,
-            ".test/project-skills",
-            "${TEST_SKILLS_HOME}",
-            new SkillUserTargetRootPolicy("TEST_SKILLS_HOME", null, ".test/skills"),
+            RootRelativePath.Parse(".test/project-skills"),
+            new SkillUserTargetRootPolicy("TEST_SKILLS_HOME", null, RootRelativePath.Parse(".test/skills")),
             SkillBundleTargetRootLayout.Flat,
             [],
             null,
@@ -28,7 +25,7 @@ public sealed class SkillUserTargetRootResolverTests
         var result = resolver.ResolveDefaultTargetRoot(descriptor);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.Equal(Path.GetFullPath(environmentRoot), result.Value);
+        Assert.Equal(Path.GetFullPath(environmentRoot), result.Value!.Value);
     }
 
 }

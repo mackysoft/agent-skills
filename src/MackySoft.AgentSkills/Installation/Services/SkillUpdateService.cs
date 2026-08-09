@@ -1,4 +1,3 @@
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Contracts;
 using MackySoft.AgentSkills.Installation.Diffing;
 using MackySoft.AgentSkills.Installation.Inventory;
@@ -8,8 +7,9 @@ using MackySoft.AgentSkills.Installation.State;
 using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.Materialization;
 using MackySoft.AgentSkills.Packaging.Canonical;
-using MackySoft.AgentSkills.Packaging.FileSystem;
+using MackySoft.AgentSkills.Packaging.Paths;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Installation.Services;
 
@@ -53,6 +53,25 @@ public sealed class SkillUpdateService
         cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(input);
 
+        var planResult = await PlanAsync(input, cancellationToken).ConfigureAwait(false);
+        if (!planResult.IsSuccess)
+        {
+            return SkillOperationResult<SkillUpdateResult>.FailureResult(planResult.Failure!.Code, planResult.Failure.Message);
+        }
+
+        return input.DryRun
+            ? SkillOperationResult<SkillUpdateResult>.Success(planResult.Value!.CreateResult(dryRun: true))
+            : await ApplyAsync(planResult.Value!, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary> Creates the complete SKILL update plan without writing package files. </summary>
+    internal async ValueTask<SkillOperationResult<SkillUpdatePlan>> PlanAsync (
+        SkillUpdateInput input,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        cancellationToken.ThrowIfCancellationRequested();
+
         var targetRequest = input.TargetRequest;
         var targetResult = await targetSelector.SelectTargetAsync(
                 targetRequest,
@@ -62,7 +81,7 @@ public sealed class SkillUpdateService
             .ConfigureAwait(false);
         if (!targetResult.IsSuccess)
         {
-            return SkillOperationResult<SkillUpdateResult>.FailureResult(targetResult.Failure!.Code, targetResult.Failure.Message);
+            return SkillOperationResult<SkillUpdatePlan>.FailureResult(targetResult.Failure!.Code, targetResult.Failure.Message);
         }
 
         var target = targetResult.Value!;
@@ -73,10 +92,13 @@ public sealed class SkillUpdateService
             cancellationToken.ThrowIfCancellationRequested();
 
             var skillName = package.Manifest.SkillName;
-            var skillDirectoryResult = SkillPackagePathBoundary.ResolvePackageDirectory(targetRoot, skillName.Value);
+            var skillDirectoryPath = ContainedPath.Create(
+                targetRoot,
+                RootRelativePath.Parse(skillName.Value)).Target;
+            var skillDirectoryResult = PackagePathResolver.ResolveUnderRoot(targetRoot, skillDirectoryPath);
             if (!skillDirectoryResult.IsSuccess)
             {
-                return SkillOperationResult<SkillUpdateResult>.FailureResult(skillDirectoryResult.Failure!.Code, skillDirectoryResult.Failure.Message);
+                return SkillOperationResult<SkillUpdatePlan>.FailureResult(skillDirectoryResult.Failure!.Code, skillDirectoryResult.Failure.Message);
             }
 
             var skillDirectory = skillDirectoryResult.Value!;
@@ -84,7 +106,7 @@ public sealed class SkillUpdateService
             var stateResult = await targetStateAnalyzer.AnalyzeAsync(package, skillDirectory, target.Host, cancellationToken).ConfigureAwait(false);
             if (!stateResult.IsSuccess)
             {
-                return SkillOperationResult<SkillUpdateResult>.FailureResult(stateResult.Failure!.Code, stateResult.Failure.Message);
+                return SkillOperationResult<SkillUpdatePlan>.FailureResult(stateResult.Failure!.Code, stateResult.Failure.Message);
             }
 
             var actionPlanResult = await CreateActionPlanAsync(
@@ -98,79 +120,85 @@ public sealed class SkillUpdateService
                 .ConfigureAwait(false);
             if (!actionPlanResult.IsSuccess)
             {
-                return SkillOperationResult<SkillUpdateResult>.FailureResult(actionPlanResult.Failure!.Code, actionPlanResult.Failure.Message);
+                return SkillOperationResult<SkillUpdatePlan>.FailureResult(actionPlanResult.Failure!.Code, actionPlanResult.Failure.Message);
             }
 
             actionPlans.Add(actionPlanResult.Value!);
         }
 
-        if (!input.DryRun)
-        {
-            foreach (var actionPlan in actionPlans)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (actionPlan.MaterializedPackage is null)
-                {
-                    continue;
-                }
+        return SkillOperationResult<SkillUpdatePlan>.Success(new SkillUpdatePlan(input, target, actionPlans));
+    }
 
-                var preconditionResult = await ValidateWritePreconditionAsync(
-                        actionPlan.Package,
-                        target.Host,
-                        actionPlan.SkillDirectory,
-                        actionPlan.Action.ActionKind,
-                        actionPlan.TargetSnapshot,
-                        input.Force,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-                if (!preconditionResult.IsSuccess)
-                {
-                    return SkillOperationResult<SkillUpdateResult>.FailureResult(preconditionResult.Failure!.Code, preconditionResult.Failure.Message);
-                }
+    /// <summary> Applies a previously created SKILL update plan without resolving the target or rebuilding actions. </summary>
+    internal async ValueTask<SkillOperationResult<SkillUpdateResult>> ApplyAsync (
+        SkillUpdatePlan plan,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var input = plan.Input;
+        var target = plan.Target;
+        var targetRoot = target.TargetRoot;
+        foreach (var actionPlan in plan.ActionPlans)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (actionPlan.MaterializedPackage is null)
+            {
+                continue;
             }
 
-            foreach (var actionPlan in actionPlans)
+            var preconditionResult = await ValidateWritePreconditionAsync(
+                    actionPlan.Package,
+                    target.Host,
+                    actionPlan.SkillDirectory,
+                    actionPlan.Action.ActionKind,
+                    actionPlan.TargetSnapshot,
+                    input.Force,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (!preconditionResult.IsSuccess)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (actionPlan.MaterializedPackage is null)
-                {
-                    continue;
-                }
-
-                var writeResult = await packageWriter.WriteAsync(
-                        targetRoot,
-                        actionPlan.SkillDirectory,
-                        actionPlan.MaterializedPackage,
-                        ResolveWriteMode(actionPlan.Action.ActionKind),
-                        (directory, token) => ValidateWritePreconditionAsync(
-                            actionPlan.Package,
-                            target.Host,
-                            directory,
-                            actionPlan.Action.ActionKind,
-                            actionPlan.TargetSnapshot,
-                            input.Force,
-                            token),
-                        cancellationToken)
-                    .ConfigureAwait(false);
-                if (!writeResult.IsSuccess)
-                {
-                    return SkillOperationResult<SkillUpdateResult>.FailureResult(writeResult.Failure!.Code, writeResult.Failure.Message);
-                }
+                return SkillOperationResult<SkillUpdateResult>.FailureResult(preconditionResult.Failure!.Code, preconditionResult.Failure.Message);
             }
         }
 
-        return SkillOperationResult<SkillUpdateResult>.Success(new SkillUpdateResult(
-            targetRoot,
-            actionPlans.Select(static actionPlan => actionPlan.Action).ToArray(),
-            input.DryRun,
-            input.Force,
-            input.PrintDiff));
+        foreach (var actionPlan in plan.ActionPlans)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (actionPlan.MaterializedPackage is null)
+            {
+                continue;
+            }
+
+            var writeResult = await packageWriter.WriteAsync(
+                    targetRoot,
+                    actionPlan.SkillDirectory,
+                    actionPlan.MaterializedPackage,
+                    ResolveWriteMode(actionPlan.Action.ActionKind),
+                    (directory, token) => ValidateWritePreconditionAsync(
+                        actionPlan.Package,
+                        target.Host,
+                        directory,
+                        actionPlan.Action.ActionKind,
+                        actionPlan.TargetSnapshot,
+                        input.Force,
+                        token),
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (!writeResult.IsSuccess)
+            {
+                return SkillOperationResult<SkillUpdateResult>.FailureResult(writeResult.Failure!.Code, writeResult.Failure.Message);
+            }
+        }
+
+        return SkillOperationResult<SkillUpdateResult>.Success(plan.CreateResult(dryRun: false));
     }
 
     private async ValueTask<SkillOperationResult<SkillUpdateActionPlan>> CreateActionPlanAsync (
         CanonicalSkillPackage package,
-        SkillHostKind host,
-        string skillDirectory,
+        HostKind host,
+        AbsolutePath skillDirectory,
         SkillInstallIdentity identity,
         SkillInstalledTargetState state,
         SkillUpdateInput input,
@@ -264,8 +292,8 @@ public sealed class SkillUpdateService
 
     private async ValueTask<SkillOperationResult<SkillUpdateActionPlan>> CreateVersionAheadActionPlanAsync (
         CanonicalSkillPackage package,
-        SkillHostKind host,
-        string skillDirectory,
+        HostKind host,
+        AbsolutePath skillDirectory,
         SkillInstallIdentity identity,
         SkillInstalledTargetState state,
         SkillUpdateInput input,
@@ -307,8 +335,8 @@ public sealed class SkillUpdateService
 
     private async ValueTask<SkillOperationResult<SkillUpdateActionPlan>> CreateLocalModificationActionPlanAsync (
         CanonicalSkillPackage package,
-        SkillHostKind host,
-        string skillDirectory,
+        HostKind host,
+        AbsolutePath skillDirectory,
         SkillInstallIdentity identity,
         SkillInstalledTargetState state,
         SkillUpdateInput input,
@@ -350,8 +378,8 @@ public sealed class SkillUpdateService
 
     private async ValueTask<SkillOperationResult<SkillUpdateActionPlan>> CreateWriteActionPlanAsync (
         CanonicalSkillPackage package,
-        SkillHostKind host,
-        string skillDirectory,
+        HostKind host,
+        AbsolutePath skillDirectory,
         SkillInstallIdentity identity,
         SkillUpdateActionKind actionKind,
         SkillInstalledTargetState state,
@@ -381,8 +409,8 @@ public sealed class SkillUpdateService
 
     private async ValueTask<SkillOperationResult<SkillUpdateActionPlan>> CreateBlockedActionPlanAsync (
         CanonicalSkillPackage package,
-        SkillHostKind host,
-        string skillDirectory,
+        HostKind host,
+        AbsolutePath skillDirectory,
         SkillInstallIdentity identity,
         SkillUpdateActionKind actionKind,
         SkillBlockedReason blockedReason,
@@ -409,8 +437,8 @@ public sealed class SkillUpdateService
 
     private async ValueTask<SkillOperationResult<bool>> ValidateWritePreconditionAsync (
         CanonicalSkillPackage package,
-        SkillHostKind host,
-        string skillDirectory,
+        HostKind host,
+        AbsolutePath skillDirectory,
         SkillUpdateActionKind actionKind,
         SkillActionTargetSnapshot? targetSnapshot,
         bool force,
@@ -464,7 +492,7 @@ public sealed class SkillUpdateService
     }
 
     private async ValueTask<SkillOperationResult<bool>> ValidateTargetSnapshotAsync (
-        string skillDirectory,
+        AbsolutePath skillDirectory,
         SkillActionTargetSnapshot expectedSnapshot,
         SkillInstalledTargetState state,
         CancellationToken cancellationToken)
@@ -487,8 +515,8 @@ public sealed class SkillUpdateService
 
     private async ValueTask<SkillOperationResult<SkillMaterializedPackagePlan>> CreateMaterializedPackagePlanAsync (
         CanonicalSkillPackage package,
-        SkillHostKind host,
-        string skillDirectory,
+        HostKind host,
+        AbsolutePath skillDirectory,
         bool printDiff,
         CancellationToken cancellationToken)
     {
@@ -506,8 +534,8 @@ public sealed class SkillUpdateService
 
     private async ValueTask<SkillOperationResult<SkillMaterializedPackageWritePlan>> CreateMaterializedPackageWritePlanAsync (
         CanonicalSkillPackage package,
-        SkillHostKind host,
-        string skillDirectory,
+        HostKind host,
+        AbsolutePath skillDirectory,
         bool printDiff,
         CancellationToken cancellationToken)
     {
@@ -569,36 +597,4 @@ public sealed class SkillUpdateService
         public SkillActionTargetSnapshot TargetSnapshot { get; }
     }
 
-    private sealed class SkillUpdateActionPlan
-    {
-        public SkillUpdateActionPlan (
-            SkillUpdateAction action,
-            string skillDirectory,
-            CanonicalSkillPackage package,
-            SkillMaterializedPackage? materializedPackage,
-            SkillActionTargetSnapshot? targetSnapshot)
-        {
-            Action = action ?? throw new ArgumentNullException(nameof(action));
-            ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
-            if ((materializedPackage is null) != (targetSnapshot is null))
-            {
-                throw new ArgumentException("A materialized package and its target snapshot must be provided together.", nameof(targetSnapshot));
-            }
-
-            SkillDirectory = skillDirectory;
-            Package = package ?? throw new ArgumentNullException(nameof(package));
-            MaterializedPackage = materializedPackage;
-            TargetSnapshot = targetSnapshot;
-        }
-
-        public SkillUpdateAction Action { get; }
-
-        public string SkillDirectory { get; }
-
-        public CanonicalSkillPackage Package { get; }
-
-        public SkillMaterializedPackage? MaterializedPackage { get; }
-
-        public SkillActionTargetSnapshot? TargetSnapshot { get; }
-    }
 }

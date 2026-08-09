@@ -1,6 +1,8 @@
 using MackySoft.AgentSkills.Manifests;
-using MackySoft.AgentSkills.Packaging.FileSystem;
+using MackySoft.AgentSkills.Packaging.Canonical;
+using MackySoft.AgentSkills.Packaging.Paths;
 using MackySoft.AgentSkills.Shared;
+using MackySoft.FileSystem;
 
 namespace MackySoft.AgentSkills.Installation.Validation;
 
@@ -26,13 +28,15 @@ public sealed class SkillInstalledManifestReader
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The installed manifest or validation failure. </returns>
     public async ValueTask<SkillOperationResult<SkillInstalledManifest>> ReadRequiredAsync (
-        string skillDirectory,
+        AbsolutePath skillDirectory,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(skillDirectory);
+        ArgumentNullException.ThrowIfNull(skillDirectory);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var manifestPathResult = SkillPackageRegularFileResolver.ResolvePackageFilePath(skillDirectory, "agent-skill.json");
+        var manifestPathResult = PackagePathResolver.ResolveRegularFile(
+            skillDirectory,
+            PackageRelativePath.Parse("agent-skill.json"));
         if (!manifestPathResult.IsSuccess)
         {
             return SkillOperationResult<SkillInstalledManifest>.FailureResult(
@@ -41,14 +45,14 @@ public sealed class SkillInstalledManifestReader
         }
 
         var manifestPath = manifestPathResult.Value!;
-        if (!File.Exists(manifestPath))
+        if (!File.Exists(manifestPath.Value))
         {
             return SkillOperationResult<SkillInstalledManifest>.FailureResult(
                 SkillFailureCodes.InstallTargetUnmanaged,
                 $"Target skill directory is missing agent-skill.json: {skillDirectory}");
         }
 
-        var manifestTextResult = await SkillPackageTextFileReader.ReadAsync(manifestPath, cancellationToken).ConfigureAwait(false);
+        var manifestTextResult = await CanonicalPackageTextReader.ReadAsync(manifestPath, cancellationToken).ConfigureAwait(false);
         if (!manifestTextResult.IsSuccess)
         {
             return SkillOperationResult<SkillInstalledManifest>.FailureResult(
@@ -74,7 +78,7 @@ public sealed class SkillInstalledManifestReader
         }
 
         var manifest = validationResult.Value!;
-        if (!string.Equals(Path.GetFileName(skillDirectory), manifest.SkillName.Value, StringComparison.Ordinal))
+        if (!string.Equals(Path.GetFileName(skillDirectory.Value), manifest.SkillName.Value, StringComparison.Ordinal))
         {
             return SkillOperationResult<SkillInstalledManifest>.FailureResult(
                 SkillFailureCodes.InstallTargetNameCollision,

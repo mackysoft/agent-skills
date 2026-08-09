@@ -8,7 +8,7 @@ internal sealed class CanonicalSkillPackageCandidate
 {
     internal CanonicalSkillPackageCandidate (
         SkillManifest manifest,
-        IReadOnlyList<SkillPackageFile> files)
+        IReadOnlyList<PackageTextFile> files)
     {
         Manifest = manifest ?? throw new ArgumentNullException(nameof(manifest));
         ArgumentNullException.ThrowIfNull(files);
@@ -22,5 +22,5 @@ internal sealed class CanonicalSkillPackageCandidate
 
     internal SkillManifest Manifest { get; }
 
-    internal IReadOnlyList<SkillPackageFile> Files { get; }
+    internal IReadOnlyList<PackageTextFile> Files { get; }
 }

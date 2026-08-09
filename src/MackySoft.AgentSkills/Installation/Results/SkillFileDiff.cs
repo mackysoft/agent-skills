@@ -1,17 +1,18 @@
 namespace MackySoft.AgentSkills.Installation.Results;
 
+using MackySoft.AgentSkills.Shared;
+
 /// <summary> Represents one structured file difference. </summary>
 public sealed class SkillFileDiff
 {
     /// <summary> Initializes one structured file difference. </summary>
     internal SkillFileDiff (
-        string relativePath,
+        PackageRelativePath relativePath,
         SkillDiffChangeKind changeKind,
         string? beforeContent,
         string? afterContent)
     {
-        SkillActionContractGuard.ValidateRelativePath(relativePath, nameof(relativePath));
-        RelativePath = relativePath;
+        RelativePath = relativePath ?? throw new ArgumentNullException(nameof(relativePath));
         ChangeKind = SkillActionContractGuard.ValidateEnum(changeKind, nameof(changeKind));
         BeforeContent = beforeContent;
         AfterContent = afterContent;
@@ -30,7 +31,7 @@ public sealed class SkillFileDiff
     }
 
     /// <summary> Gets the slash-separated path relative to the SKILL directory. </summary>
-    public string RelativePath { get; }
+    public PackageRelativePath RelativePath { get; }
 
     /// <summary> Gets the file change kind. </summary>
     public SkillDiffChangeKind ChangeKind { get; }

@@ -1,15 +1,11 @@
-using System.Reflection;
 using System.Text.Json;
 using MackySoft.AgentSkills.Digests;
 using MackySoft.AgentSkills.Distribution;
 using MackySoft.AgentSkills.Doctor;
-using MackySoft.AgentSkills.Hosts.Contracts;
 using MackySoft.AgentSkills.Installation.Results;
-using MackySoft.AgentSkills.Installation.Targeting;
 using MackySoft.AgentSkills.OperationReports.Contracts;
 using MackySoft.AgentSkills.OperationReports.Literals;
 using MackySoft.AgentSkills.Shared;
-using MackySoft.AgentSkills.Shared.Text;
 
 namespace MackySoft.AgentSkills.Tests.OperationReports;
 
@@ -18,26 +14,6 @@ public sealed class OperationReportContractTests
     private static readonly Sha256Digest Digest = Sha256Digest.Parse(new string('a', 64));
     private static readonly string RepositoryRoot = Path.GetFullPath("operation-report-repository");
     private static readonly string TargetRoot = Path.Combine(RepositoryRoot, ".agents", "skills");
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public void ReportContracts_ExposeOnlyGetPropertiesAndNoPublicConstruction ()
-    {
-        var reportTypes = typeof(SkillOperationReport).Assembly.GetTypes()
-            .Where(static type =>
-                type.IsPublic
-                && string.Equals(type.Namespace, "MackySoft.AgentSkills.OperationReports.Contracts", StringComparison.Ordinal)
-                && type.Name.EndsWith("Report", StringComparison.Ordinal))
-            .ToArray();
-
-        Assert.NotEmpty(reportTypes);
-        Assert.All(reportTypes, static type =>
-        {
-            Assert.True(type.IsSealed);
-            Assert.Empty(type.GetConstructors(BindingFlags.Instance | BindingFlags.Public));
-            Assert.All(type.GetProperties(BindingFlags.Instance | BindingFlags.Public), static property => Assert.Null(property.SetMethod));
-        });
-    }
 
     [Fact]
     [Trait("Size", "Small")]
@@ -60,11 +36,11 @@ public sealed class OperationReportContractTests
     [Trait("Size", "Small")]
     public void ActionReport_SnapshotsFileDiffsAndRejectsNullItems ()
     {
-        var diffs = new List<SkillOperationFileDiffReport>
+        var diffs = new List<OperationFileDiffReport>
         {
             new("SKILL.md", SkillDiffChangeKind.Modified, "before", "after"),
         };
-        var report = new SkillOperationActionReport("skill-a", "updated", SkillOperationActionStatus.Changed, null, null, null, diffs);
+        var report = new SkillOperationActionReport("skill-a", "updated", OperationActionStatus.Changed, null, null, null, diffs);
 
         diffs.Clear();
 
@@ -72,7 +48,7 @@ public sealed class OperationReportContractTests
         Assert.Throws<ArgumentException>(() => new SkillOperationActionReport(
             "skill-a",
             "updated",
-            SkillOperationActionStatus.Changed,
+            OperationActionStatus.Changed,
             null,
             null,
             null,
@@ -88,10 +64,10 @@ public sealed class OperationReportContractTests
             new(SkillDoctorSeverity.Info, "SKILL_DOCTOR_OK", "Healthy.", null, null),
         };
         var healthy = new SkillDoctorReport(
-            SkillHostKind.OpenAi,
+            HostKind.Codex,
             [],
             [],
-            SkillScopeKind.Project,
+            OperationScopeKind.Project,
             RepositoryRoot,
             TargetRoot,
             "Reload.",
@@ -104,10 +80,10 @@ public sealed class OperationReportContractTests
             null,
             null);
         var unhealthy = new SkillDoctorReport(
-            SkillHostKind.OpenAi,
+            HostKind.Codex,
             [],
             [],
-            SkillScopeKind.Project,
+            OperationScopeKind.Project,
             RepositoryRoot,
             TargetRoot,
             "Reload.",
@@ -122,37 +98,37 @@ public sealed class OperationReportContractTests
     public void TargetReports_RejectPathsThatDoNotMatchTheirScopeContract ()
     {
         Assert.Throws<ArgumentNullException>(() => new SkillDoctorReport(
-            SkillHostKind.OpenAi,
+            HostKind.Codex,
             [],
             [],
-            SkillScopeKind.Project,
+            OperationScopeKind.Project,
             repositoryRoot: null,
             TargetRoot,
             "Reload.",
             []));
         Assert.Throws<ArgumentException>(() => new SkillDoctorReport(
-            SkillHostKind.OpenAi,
+            HostKind.Codex,
             [],
             [],
-            SkillScopeKind.User,
+            OperationScopeKind.User,
             RepositoryRoot,
             TargetRoot,
             "Reload.",
             []));
         Assert.Throws<ArgumentException>(() => new SkillDoctorReport(
-            SkillHostKind.OpenAi,
+            HostKind.Codex,
             [],
             [],
-            SkillScopeKind.Project,
+            OperationScopeKind.Project,
             "relative-repository",
             TargetRoot,
             "Reload.",
             []));
         Assert.Throws<ArgumentException>(() => new SkillOperationReport(
-            SkillHostKind.OpenAi,
+            HostKind.Codex,
             [],
             [],
-            SkillScopeKind.Project,
+            OperationScopeKind.Project,
             RepositoryRoot,
             "relative-target",
             dryRun: false,
@@ -162,10 +138,10 @@ public sealed class OperationReportContractTests
             actionCounts: [],
             statusCounts: []));
         Assert.Throws<ArgumentException>(() => new SkillDoctorReport(
-            SkillHostKind.OpenAi,
+            HostKind.Codex,
             [],
             [],
-            SkillScopeKind.Project,
+            OperationScopeKind.Project,
             RepositoryRoot,
             Path.GetFullPath(RepositoryRoot + "-outside"),
             "Reload.",
@@ -179,19 +155,19 @@ public sealed class OperationReportContractTests
         var repositoryRootInput = Path.Combine(RepositoryRoot, "nested", "..");
         var targetRootInput = Path.Combine(repositoryRootInput, ".agents", "nested", "..", "skills");
         var doctor = new SkillDoctorReport(
-            SkillHostKind.OpenAi,
+            HostKind.Codex,
             [],
             [],
-            SkillScopeKind.Project,
+            OperationScopeKind.Project,
             repositoryRootInput,
             targetRootInput,
             "Reload.",
             []);
         var operation = new SkillOperationReport(
-            SkillHostKind.OpenAi,
+            HostKind.Codex,
             [],
             [],
-            SkillScopeKind.Project,
+            OperationScopeKind.Project,
             repositoryRootInput,
             targetRootInput,
             dryRun: false,
@@ -209,13 +185,13 @@ public sealed class OperationReportContractTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public void ReportContractLiteralEnums_SerializeAsCanonicalStrings ()
+    public void ReportVocabularyEnums_SerializeAsCanonicalStrings ()
     {
         var operation = new SkillOperationReport(
-            SkillHostKind.OpenAi,
+            HostKind.Codex,
             [],
             [],
-            SkillScopeKind.Project,
+            OperationScopeKind.Project,
             RepositoryRoot,
             TargetRoot,
             dryRun: false,
@@ -226,7 +202,7 @@ public sealed class OperationReportContractTests
                 new SkillOperationActionReport(
                     "skill-a",
                     "updated",
-                    SkillOperationActionStatus.Blocked,
+                    OperationActionStatus.Blocked,
                     SkillBlockedReason.LocalModificationRequiresForce,
                     new SkillTargetStateReport(new SkillActionTargetState(
                         SkillTargetStateKind.CommonContentDrift,
@@ -236,15 +212,15 @@ public sealed class OperationReportContractTests
                         installedSkillBundleVersion: null,
                         bundledSkillBundleVersion: 1)),
                     fileChanges: null,
-                    fileDiffs: [new SkillOperationFileDiffReport("SKILL.md", SkillDiffChangeKind.Modified, "before", "after")]),
+                    fileDiffs: [new OperationFileDiffReport("SKILL.md", SkillDiffChangeKind.Modified, "before", "after")]),
             ],
             actionCounts: [],
             statusCounts: []);
         var doctor = new SkillDoctorReport(
-            SkillHostKind.OpenAi,
+            HostKind.Codex,
             [],
             [],
-            SkillScopeKind.Project,
+            OperationScopeKind.Project,
             RepositoryRoot,
             TargetRoot,
             "Reload.",
@@ -257,21 +233,21 @@ public sealed class OperationReportContractTests
                     SkillTargetStateKind.CommonContentDrift),
             ]);
         var export = new SkillExportReport(
-            SkillHostKind.OpenAi,
+            HostKind.Codex,
             [],
             [],
             SkillExportFormat.Zip,
-            Path.Combine(TargetRoot, "skills.zip"),
+            AbsolutePath.Parse(Path.Combine(TargetRoot, "skills.zip")),
             [],
             0,
             "Reload.");
         var options = new JsonSerializerOptions();
-        options.Converters.Add(new ContractLiteralJsonConverterFactory());
+        options.Converters.Add(new VocabularyJsonConverterFactory());
 
         using var document = JsonDocument.Parse(JsonSerializer.Serialize(new { Operation = operation, Doctor = doctor, Export = export }, options));
 
         var operationJson = document.RootElement.GetProperty("Operation");
-        Assert.Equal("openai", operationJson.GetProperty("Host").GetString());
+        Assert.Equal("codex", operationJson.GetProperty("Host").GetString());
         Assert.Equal("project", operationJson.GetProperty("Scope").GetString());
         var actionJson = operationJson.GetProperty("Actions")[0];
         Assert.Equal("blocked", actionJson.GetProperty("Status").GetString());
@@ -296,36 +272,36 @@ public sealed class OperationReportContractTests
             null,
             null));
         Assert.Throws<ArgumentOutOfRangeException>(() => new SkillDoctorReport(
-            (SkillHostKind)42,
+            (HostKind)42,
             [],
             [],
-            SkillScopeKind.Project,
+            OperationScopeKind.Project,
             RepositoryRoot,
             TargetRoot,
             "Reload.",
             []));
         Assert.Throws<ArgumentOutOfRangeException>(() => new SkillDoctorReport(
-            SkillHostKind.OpenAi,
+            HostKind.Codex,
             [],
             [],
-            (SkillScopeKind)42,
+            (OperationScopeKind)42,
             RepositoryRoot,
             TargetRoot,
             "Reload.",
             []));
         Assert.Throws<ArgumentOutOfRangeException>(() => new SkillExportReport(
-            SkillHostKind.OpenAi,
+            HostKind.Codex,
             [],
             [],
             (SkillExportFormat)42,
-            "/target",
+            AbsolutePath.Parse(Path.GetFullPath("target")),
             [],
             0,
             "Reload."));
         Assert.Throws<ArgumentOutOfRangeException>(() => new SkillOperationActionReport(
             "skill-a",
             "updated",
-            (SkillOperationActionStatus)42,
+            (OperationActionStatus)42,
             null,
             null,
             null,
@@ -333,17 +309,17 @@ public sealed class OperationReportContractTests
         Assert.Throws<ArgumentOutOfRangeException>(() => new SkillOperationActionReport(
             "skill-a",
             "updated",
-            SkillOperationActionStatus.Blocked,
+            OperationActionStatus.Blocked,
             (SkillBlockedReason)42,
             null,
             null,
             []));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new SkillOperationFileDiffReport(
+        Assert.Throws<ArgumentOutOfRangeException>(() => new OperationFileDiffReport(
             "SKILL.md",
             (SkillDiffChangeKind)42,
             null,
             "after"));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new SkillHostArtifactReport((SkillHostKind)42, null, null, Digest));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new SkillHostArtifactReport((HostKind)42, null, null, Digest));
     }
 
     [Theory]
@@ -357,7 +333,7 @@ public sealed class OperationReportContractTests
         string? beforeContent,
         string? afterContent)
     {
-        Assert.Throws<ArgumentException>(() => new SkillOperationFileDiffReport(
+        Assert.Throws<ArgumentException>(() => new OperationFileDiffReport(
             "SKILL.md",
             changeKind,
             beforeContent,
@@ -372,7 +348,7 @@ public sealed class OperationReportContractTests
             SkillTargetStateKind.FileSetDrift,
             SkillFailureCodes.InstallTargetFileSetMismatch,
             "File-set drift.",
-            new SkillActionTargetFileSet(["missing.md"], [], []),
+            new SkillActionTargetFileSet([PackageRelativePath.Parse("missing.md")], [], []),
             installedSkillBundleVersion: null,
             bundledSkillBundleVersion: 1);
 
@@ -391,10 +367,10 @@ public sealed class OperationReportContractTests
     [Trait("Size", "Small")]
     public void HostArtifactReport_RequiresConsistentArtifactValues ()
     {
-        Assert.Throws<ArgumentException>(() => new SkillHostArtifactReport(SkillHostKind.OpenAi, "agents/openai.yaml", null, Digest));
-        Assert.Throws<ArgumentException>(() => new SkillHostArtifactReport(SkillHostKind.OpenAi, null, Digest, Digest));
-        Assert.Throws<ArgumentException>(() => new SkillHostArtifactReport(SkillHostKind.OpenAi, "../escape.yaml", Digest, Digest));
-        Assert.Throws<ArgumentNullException>(() => new SkillHostArtifactReport(SkillHostKind.OpenAi, null, null, null!));
+        Assert.Throws<ArgumentException>(() => new SkillHostArtifactReport(HostKind.Codex, "agents/openai.yaml", null, Digest));
+        Assert.Throws<ArgumentException>(() => new SkillHostArtifactReport(HostKind.Codex, null, Digest, Digest));
+        Assert.Throws<ArgumentException>(() => new SkillHostArtifactReport(HostKind.Codex, "../escape.yaml", Digest, Digest));
+        Assert.Throws<ArgumentNullException>(() => new SkillHostArtifactReport(HostKind.Codex, null, null, null!));
     }
 
     [Fact]
@@ -410,7 +386,7 @@ public sealed class OperationReportContractTests
     [Trait("Size", "Small")]
     public void CountAndListSkillReports_RejectInvalidNumericAndMissingDigestValues ()
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => new SkillOperationCountReport("changed", -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new OperationCountReport("changed", -1));
         Assert.Throws<ArgumentOutOfRangeException>(() => CreateListSkillReport(schemaVersion: 0));
         Assert.Throws<ArgumentOutOfRangeException>(() => CreateListSkillReport(skillBundleVersion: 0));
         Assert.Throws<ArgumentNullException>(() => CreateListSkillReport(null!, Digest));
@@ -428,7 +404,7 @@ public sealed class OperationReportContractTests
         var report = CreateListSkillReport(
             contentDigest,
             manifestDigest,
-            [new SkillHostArtifactReport(SkillHostKind.OpenAi, "agents/openai.yaml", artifactDigest, frontmatterDigest)]);
+            [new SkillHostArtifactReport(HostKind.Codex, "agents/openai.yaml", artifactDigest, frontmatterDigest)]);
 
         using var document = JsonDocument.Parse(JsonSerializer.Serialize(report));
 

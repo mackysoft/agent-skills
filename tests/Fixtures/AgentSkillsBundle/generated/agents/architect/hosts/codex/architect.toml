@@ -1,0 +1,6 @@
+name = "architect"
+description = "Creates an implementation-ready design from reviewed context."
+model = "gpt-5.6-terra"
+model_reasoning_effort = "high"
+sandbox_mode = "workspace-write"
+developer_instructions = "Review the available context before creating an implementation-ready design. State the relevant constraints and the completion criteria.\n"

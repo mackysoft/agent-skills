@@ -7,43 +7,6 @@ public sealed class ActionDefinitionTests
 {
     [Fact]
     [Trait("Size", "Small")]
-    public void Actions_ExposeSeparateVerifyAndSyncContracts ()
-    {
-        var repositoryRoot = SkillTestData.GetRepositoryRoot();
-        var verifyAction = ReadAction("verify");
-        var syncAction = ReadAction("sync");
-        var runner = File.ReadAllText(GetRunnerPath());
-
-        Assert.Contains("default: skills", verifyAction, StringComparison.Ordinal);
-        Assert.Contains("run-bundle-operation.sh\" verify", verifyAction, StringComparison.Ordinal);
-        Assert.DoesNotContain("outputs:", verifyAction, StringComparison.Ordinal);
-        Assert.DoesNotContain("mode:", verifyAction, StringComparison.Ordinal);
-
-        Assert.Contains("default: skills", syncAction, StringComparison.Ordinal);
-        Assert.Contains("run-bundle-operation.sh\" sync", syncAction, StringComparison.Ordinal);
-        Assert.Contains("outputs:", syncAction, StringComparison.Ordinal);
-        Assert.Contains("changed:", syncAction, StringComparison.Ordinal);
-        Assert.Contains("skill-bundle-version:", syncAction, StringComparison.Ordinal);
-        Assert.Contains("AGENT_SKILLS_SKILL_BUNDLE_VERSION: ${{ inputs.skill-bundle-version }}", syncAction, StringComparison.Ordinal);
-        Assert.DoesNotContain("mode:", syncAction, StringComparison.Ordinal);
-
-        Assert.Contains("dotnet tool restore", runner, StringComparison.Ordinal);
-        Assert.Contains("build_arguments=(tool run agent-skills -- build --root \"${cli_root}\")", runner, StringComparison.Ordinal);
-        Assert.Contains("build_arguments+=(--skill-bundle-version \"${AGENT_SKILLS_SKILL_BUNDLE_VERSION}\")", runner, StringComparison.Ordinal);
-        Assert.Contains("dotnet \"${build_arguments[@]}\" --check", runner, StringComparison.Ordinal);
-        Assert.Contains("dotnet \"${build_arguments[@]}\"", runner, StringComparison.Ordinal);
-        Assert.DoesNotContain("git status", runner, StringComparison.Ordinal);
-        Assert.Contains("git add --all --force", runner, StringComparison.Ordinal);
-        Assert.Contains("git commit", runner, StringComparison.Ordinal);
-        Assert.Contains("git push origin", runner, StringComparison.Ordinal);
-
-        Assert.False(File.Exists(Path.Combine(repositoryRoot, "action.yml")));
-        Assert.False(File.Exists(Path.Combine(repositoryRoot, "actions", "verify", "action.yml")));
-        Assert.False(File.Exists(Path.Combine(repositoryRoot, "actions", "sync", "action.yml")));
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
     public async Task VerifyAction_WhenBundleRequiresSynchronization_DoesNotWrite ()
     {
         if (OperatingSystem.IsWindows())
@@ -136,7 +99,7 @@ public sealed class ActionDefinitionTests
         var outputPath = scope.GetPath("github-output.txt");
         var environment = CreateActionEnvironment(scope, fakeBin, dotnetLog, outputPath);
         environment["GITHUB_REF"] = "refs/heads/main";
-        environment["AGENT_SKILLS_SKILL_BUNDLE_VERSION"] = "2";
+        environment["AGENT_SKILLS_BUNDLE_VERSION"] = "2";
 
         await RunProcessAsync("bash", [GetRunnerPath(), "sync"], scope.FullPath, environment);
 
@@ -144,8 +107,8 @@ public sealed class ActionDefinitionTests
         Assert.Equal(
             [
                 "tool restore",
-                "tool run agent-skills -- build --root ./skills --skill-bundle-version 2 --check",
-                "tool run agent-skills -- build --root ./skills --skill-bundle-version 2",
+                "tool run agent-skills -- build --root ./skills --bundle-version 2 --check",
+                "tool run agent-skills -- build --root ./skills --bundle-version 2",
             ],
             File.ReadAllLines(dotnetLog));
         Assert.True(File.Exists(scope.GetPath("skills/generated/result.txt")));
@@ -307,15 +270,6 @@ public sealed class ActionDefinitionTests
             File.ReadAllLines(dotnetLog));
         Assert.False(Directory.Exists(scope.GetPath("skills/generated")));
         Assert.False(File.Exists(outputPath));
-    }
-
-    private static string ReadAction (string operation)
-    {
-        return File.ReadAllText(Path.Combine(
-            SkillTestData.GetRepositoryRoot(),
-            "actions",
-            operation,
-            "action.yaml"));
     }
 
     private static string GetRunnerPath ()

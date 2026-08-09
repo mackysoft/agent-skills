@@ -1,5 +1,7 @@
 namespace MackySoft.AgentSkills.Bundles;
 
+using MackySoft.FileSystem;
+
 /// <summary> Publishes a verified staging directory while preserving the previous bundle on commit failure. </summary>
 internal static class CanonicalSkillBundleDirectoryPublisher
 {
@@ -8,32 +10,32 @@ internal static class CanonicalSkillBundleDirectoryPublisher
     /// <param name="outputRoot"> The authoritative output directory path. </param>
     /// <param name="backupRoot"> The unique sibling path used while committing. </param>
     internal static void Publish (
-        string stagingRoot,
-        string outputRoot,
-        string backupRoot)
+        AbsolutePath stagingRoot,
+        AbsolutePath outputRoot,
+        AbsolutePath backupRoot)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(stagingRoot);
-        ArgumentException.ThrowIfNullOrWhiteSpace(outputRoot);
-        ArgumentException.ThrowIfNullOrWhiteSpace(backupRoot);
+        ArgumentNullException.ThrowIfNull(stagingRoot);
+        ArgumentNullException.ThrowIfNull(outputRoot);
+        ArgumentNullException.ThrowIfNull(backupRoot);
 
         var backupCreated = false;
-        if (Directory.Exists(outputRoot))
+        if (Directory.Exists(outputRoot.Value))
         {
-            Directory.Move(outputRoot, backupRoot);
+            Directory.Move(outputRoot.Value, backupRoot.Value);
             backupCreated = true;
         }
 
         try
         {
-            Directory.Move(stagingRoot, outputRoot);
+            Directory.Move(stagingRoot.Value, outputRoot.Value);
         }
         catch (Exception publicationException)
         {
-            if (backupCreated && !Directory.Exists(outputRoot) && Directory.Exists(backupRoot))
+            if (backupCreated && !Directory.Exists(outputRoot.Value) && Directory.Exists(backupRoot.Value))
             {
                 try
                 {
-                    Directory.Move(backupRoot, outputRoot);
+                    Directory.Move(backupRoot.Value, outputRoot.Value);
                 }
                 catch (Exception rollbackException)
                 {

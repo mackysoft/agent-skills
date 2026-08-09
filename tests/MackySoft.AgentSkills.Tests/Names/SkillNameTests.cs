@@ -1,5 +1,3 @@
-using MackySoft.AgentSkills.Names;
-
 namespace MackySoft.AgentSkills.Tests.Names;
 
 public sealed class SkillNameTests

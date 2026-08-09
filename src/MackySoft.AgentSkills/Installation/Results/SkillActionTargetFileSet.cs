@@ -1,13 +1,15 @@
 namespace MackySoft.AgentSkills.Installation.Results;
 
+using MackySoft.AgentSkills.Shared;
+
 /// <summary> Represents structured file-set drift details attached to an action target state. </summary>
 public sealed class SkillActionTargetFileSet
 {
     /// <summary> Initializes structured file-set drift details. </summary>
     internal SkillActionTargetFileSet (
-        IReadOnlyList<string> missingFiles,
-        IReadOnlyList<string> extraFiles,
-        IReadOnlyList<string> extraDirectories)
+        IReadOnlyList<PackageRelativePath> missingFiles,
+        IReadOnlyList<PackageRelativePath> extraFiles,
+        IReadOnlyList<PackageRelativePath> extraDirectories)
     {
         MissingFiles = SkillActionContractGuard.PathSnapshot(missingFiles, nameof(missingFiles));
         ExtraFiles = SkillActionContractGuard.PathSnapshot(extraFiles, nameof(extraFiles));
@@ -15,11 +17,11 @@ public sealed class SkillActionTargetFileSet
     }
 
     /// <summary> Gets expected files that are absent. </summary>
-    public IReadOnlyList<string> MissingFiles { get; }
+    public IReadOnlyList<PackageRelativePath> MissingFiles { get; }
 
     /// <summary> Gets installed files that are not expected. </summary>
-    public IReadOnlyList<string> ExtraFiles { get; }
+    public IReadOnlyList<PackageRelativePath> ExtraFiles { get; }
 
     /// <summary> Gets installed directories that are not expected. </summary>
-    public IReadOnlyList<string> ExtraDirectories { get; }
+    public IReadOnlyList<PackageRelativePath> ExtraDirectories { get; }
 }
