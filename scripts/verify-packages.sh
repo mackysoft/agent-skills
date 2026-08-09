@@ -298,6 +298,16 @@ dotnet run \
   --project "$console_consumer_dir/console-consumer.csproj" \
   --configuration "$configuration" \
   --no-build \
+  -- agents install --help > "$work_root/agents-install-help.txt"
+grep -Eq '^  --agent[[:space:]]' "$work_root/agents-install-help.txt"
+if grep -Eq '^  --category[[:space:]]' "$work_root/agents-install-help.txt"; then
+  printf 'Custom-agent command exposed a category selector.\n' >&2
+  exit 1
+fi
+dotnet run \
+  --project "$console_consumer_dir/console-consumer.csproj" \
+  --configuration "$configuration" \
+  --no-build \
   -- skills list --pretty > "$work_root/skills-list.json"
 grep -q '"Command": "skills.list"' "$work_root/skills-list.json"
 grep -q '"Status": "ok"' "$work_root/skills-list.json"

@@ -55,13 +55,7 @@ public sealed class AgentCommandRunner
         cancellationToken.ThrowIfCancellationRequested();
 
         const string commandName = "agents.list";
-        var selection = NormalizeOptionalSelection(request.Category, request.Agent);
-        if (!selection.IsSuccess)
-        {
-            return Failure(commandName, selection.Failure!);
-        }
-
-        var catalog = await GetCatalogAsync(selection.Value!, cancellationToken).ConfigureAwait(false);
+        var catalog = await GetCatalogAsync(NormalizeOptionalAgentNames(request.Agent), cancellationToken).ConfigureAwait(false);
         return catalog.IsSuccess
             ? AgentDistributionCommandResult.Success(commandName, AgentOperationReportBuilder.CreateListReport(catalog.Value!))
             : Failure(commandName, catalog.Failure!);
@@ -76,7 +70,7 @@ public sealed class AgentCommandRunner
         cancellationToken.ThrowIfCancellationRequested();
 
         const string commandName = "agents.export";
-        var selection = NormalizeRequiredSelection(request.Category, request.Agent);
+        var selection = NormalizeRequiredAgentNames(request.Agent);
         if (!selection.IsSuccess)
         {
             return Failure(commandName, selection.Failure!);
@@ -130,7 +124,6 @@ public sealed class AgentCommandRunner
                 request.RepositoryRoot,
                 request.AgentTargetDir,
                 request.SkillTargetDir,
-                request.Category,
                 request.Agent,
                 cancellationToken)
             .ConfigureAwait(false);
@@ -171,7 +164,6 @@ public sealed class AgentCommandRunner
                 request.RepositoryRoot,
                 request.AgentTargetDir,
                 request.SkillTargetDir,
-                request.Category,
                 request.Agent,
                 cancellationToken)
             .ConfigureAwait(false);
@@ -212,7 +204,6 @@ public sealed class AgentCommandRunner
                 request.RepositoryRoot,
                 request.AgentTargetDir,
                 skillTargetDir: null,
-                request.Category,
                 request.Agent,
                 cancellationToken)
             .ConfigureAwait(false);
@@ -241,7 +232,7 @@ public sealed class AgentCommandRunner
         cancellationToken.ThrowIfCancellationRequested();
 
         const string commandName = "agents.prune";
-        var selection = NormalizeRequiredSelection(request.Category, request.Agent);
+        var selection = NormalizeRequiredAgentNames(request.Agent);
         if (!selection.IsSuccess)
         {
             return Failure(commandName, selection.Failure!);
@@ -259,7 +250,7 @@ public sealed class AgentCommandRunner
             return Failure(commandName, catalog.Failure!);
         }
 
-        var pruneSelection = NormalizePruneSelection(selection.Value!);
+        var pruneSelection = AgentNameLiteralParser.ParseOptionalAgentNames(selection.Value!);
         if (!pruneSelection.IsSuccess)
         {
             return Failure(commandName, pruneSelection.Failure!);
@@ -271,8 +262,7 @@ public sealed class AgentCommandRunner
                     target.Value!.AgentTargetRequest,
                     request.DryRun,
                     request.Force,
-                    pruneSelection.Value!.Categories,
-                    pruneSelection.Value.AgentNames),
+                    pruneSelection.Value!),
                 cancellationToken)
             .ConfigureAwait(false);
         return result.IsSuccess
@@ -282,8 +272,7 @@ public sealed class AgentCommandRunner
                     result.Value!,
                     CreateReportContext(
                         target.Value!,
-                        pruneSelection.Value.Categories,
-                        pruneSelection.Value.AgentNames,
+                        pruneSelection.Value!,
                         catalog.Value!.ResolvedSkills.Select(static package => package.Manifest.SkillName).ToArray())))
             : Failure(commandName, result.Failure!);
     }
@@ -303,7 +292,6 @@ public sealed class AgentCommandRunner
                 request.RepositoryRoot,
                 request.AgentTargetDir,
                 request.SkillTargetDir,
-                request.Category,
                 request.Agent,
                 cancellationToken)
             .ConfigureAwait(false);
@@ -334,11 +322,10 @@ public sealed class AgentCommandRunner
         string? repositoryRoot,
         string? agentTargetDir,
         string? skillTargetDir,
-        IReadOnlyList<string>? category,
         IReadOnlyList<string>? agent,
         CancellationToken cancellationToken)
     {
-        var selection = NormalizeRequiredSelection(category, agent);
+        var selection = NormalizeRequiredAgentNames(agent);
         if (!selection.IsSuccess)
         {
             return Failure<PreparedAgentTargetOperation>(selection.Failure!);
@@ -357,10 +344,10 @@ public sealed class AgentCommandRunner
     }
 
     private ValueTask<SkillOperationResult<AgentPackageCatalog>> GetCatalogAsync (
-        AgentSelection selection,
+        IReadOnlyList<string> selectedAgentNames,
         CancellationToken cancellationToken)
     {
-        return packageProvider.GetPackageCatalogAsync(selection.Categories, selection.Agents, cancellationToken);
+        return packageProvider.GetPackageCatalogAsync(selectedAgentNames, cancellationToken);
     }
 
     private SkillOperationResult<AgentTargetPair> NormalizeTarget (
@@ -424,43 +411,22 @@ public sealed class AgentCommandRunner
             hostKind));
     }
 
-    private SkillOperationResult<AgentSelection> NormalizeOptionalSelection (
-        IReadOnlyList<string>? category,
-        IReadOnlyList<string>? agent)
+    private static IReadOnlyList<string> NormalizeOptionalAgentNames (IReadOnlyList<string>? agent)
     {
-        var categories = CommandOptionValues.Expand(category);
-        var agents = CommandOptionValues.Expand(agent);
-        return SkillOperationResult<AgentSelection>.Success(new AgentSelection(categories, agents));
+        return CommandOptionValues.Expand(agent);
     }
 
-    private SkillOperationResult<AgentSelection> NormalizeRequiredSelection (
-        IReadOnlyList<string>? category,
-        IReadOnlyList<string>? agent)
+    private static SkillOperationResult<IReadOnlyList<string>> NormalizeRequiredAgentNames (IReadOnlyList<string>? agent)
     {
-        var selection = NormalizeOptionalSelection(category, agent);
-        if (selection.Value!.Categories.Count == 0 && selection.Value.Agents.Count == 0)
+        var selection = NormalizeOptionalAgentNames(agent);
+        if (selection.Count == 0)
         {
-            return SkillOperationResult<AgentSelection>.FailureResult(
+            return SkillOperationResult<IReadOnlyList<string>>.FailureResult(
                 SkillFailureCodes.InputInvalid,
-                "Option '--category' or '--agent' is required.");
+                "Option '--agent' is required.");
         }
 
-        return selection;
-    }
-
-    private static SkillOperationResult<AgentPruneSelection> NormalizePruneSelection (AgentSelection selection)
-    {
-        var categoriesResult = AgentCategoryLiteralParser.ParseOptionalCategories(selection.Categories);
-        if (!categoriesResult.IsSuccess)
-        {
-            return Failure<AgentPruneSelection>(categoriesResult.Failure!);
-        }
-
-        var agentNamesResult = AgentNameLiteralParser.ParseOptionalAgentNames(selection.Agents);
-        return agentNamesResult.IsSuccess
-            ? SkillOperationResult<AgentPruneSelection>.Success(
-                new AgentPruneSelection(categoriesResult.Value!, agentNamesResult.Value!))
-            : Failure<AgentPruneSelection>(agentNamesResult.Failure!);
+        return SkillOperationResult<IReadOnlyList<string>>.Success(selection);
     }
 
     private static AgentDistributionCommandResult Failure (string command, SkillFailure failure)
@@ -477,14 +443,12 @@ public sealed class AgentCommandRunner
     {
         return CreateReportContext(
             prepared.Target,
-            prepared.Catalog.SelectedCategories,
             prepared.Catalog.SelectedAgentNames,
             prepared.Catalog.ResolvedSkills.Select(static package => package.Manifest.SkillName).ToArray());
     }
 
     private static AgentOperationReportContext CreateReportContext (
         AgentTargetPair target,
-        IReadOnlyList<AgentCategory> selectedCategories,
         IReadOnlyList<AgentName> selectedAgentNames,
         IReadOnlyList<SkillName> resolvedSkillNames)
     {
@@ -494,7 +458,6 @@ public sealed class AgentCommandRunner
             agentRequest.HostId,
             agentRequest.Scope,
             agentRequest.RepositoryRoot?.Value,
-            selectedCategories,
             selectedAgentNames,
             new SkillOperationReportContext(
                 target.Host,
@@ -502,21 +465,6 @@ public sealed class AgentCommandRunner
                 skillRequest.RepositoryRoot?.Value,
                 [],
                 resolvedSkillNames));
-    }
-
-    private sealed class AgentSelection
-    {
-        public AgentSelection (IReadOnlyList<string> categories, IReadOnlyList<string> agents)
-        {
-            ArgumentNullException.ThrowIfNull(categories);
-            ArgumentNullException.ThrowIfNull(agents);
-            Categories = Array.AsReadOnly(categories.ToArray());
-            Agents = Array.AsReadOnly(agents.ToArray());
-        }
-
-        public IReadOnlyList<string> Categories { get; }
-
-        public IReadOnlyList<string> Agents { get; }
     }
 
     private sealed class AgentTargetPair
@@ -536,21 +484,6 @@ public sealed class AgentCommandRunner
         public SkillInstallRequest SkillTargetRequest { get; }
 
         public HostKind Host { get; }
-    }
-
-    private sealed class AgentPruneSelection
-    {
-        public AgentPruneSelection (
-            IReadOnlyList<AgentCategory> categories,
-            IReadOnlyList<AgentName> agentNames)
-        {
-            Categories = categories ?? throw new ArgumentNullException(nameof(categories));
-            AgentNames = agentNames ?? throw new ArgumentNullException(nameof(agentNames));
-        }
-
-        public IReadOnlyList<AgentCategory> Categories { get; }
-
-        public IReadOnlyList<AgentName> AgentNames { get; }
     }
 
     private sealed class PreparedAgentTargetOperation

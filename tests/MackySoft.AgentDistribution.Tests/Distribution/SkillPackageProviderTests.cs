@@ -16,7 +16,7 @@ public sealed class SkillPackageProviderTests
     [Trait("Size", "Small")]
     public async Task GetPackageCatalogAsync_ReadsSkillNamespaceFromV2Bundle ()
     {
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-package-provider", "v2-skill-view");
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-package-provider", "v3-skill-view");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         await WriteV2BundleAsync(scope.FullPath, packages);
         var provider = CreateV2Provider(scope.FullPath);

@@ -55,7 +55,6 @@ public sealed class GitHubCopilotAgentHostArtifactAdapterTests
     {
         return new AgentSourceMetadata(
             schemaVersion: 1,
-            new AgentCategory("orchestration"),
             new AgentName("architect"),
             "Architect",
             "Creates an implementation-ready design contract.",

@@ -36,7 +36,7 @@
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "catalogId": "com.example.skills",
   "bundleVersion": 1
 }
@@ -44,7 +44,7 @@
 
 | プロパティ | 型 | 制約 |
 | --- | --- | --- |
-| `schemaVersion` | 32 ビット整数 | `2` |
+| `schemaVersion` | 32 ビット整数 | `3` |
 | `catalogId` | 文字列 | 1〜255 文字。ピリオド区切りの各区間は ASCII 小文字または数字で始まり、以降は ASCII 小文字、数字、ハイフンを使える。区間の末尾をハイフンにせず、空の区間を含めない。 |
 | `bundleVersion` | 32 ビット整数 | 1 以上 |
 

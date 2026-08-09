@@ -6,12 +6,12 @@ using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Agents.Sources;
 
-/// <summary> Reads agent definitions from fixed <c>agents/&lt;category&gt;/&lt;agent&gt;</c> source directories. </summary>
+/// <summary> Reads agent definitions from fixed <c>agents/&lt;agent&gt;</c> source directories. </summary>
 internal sealed class AgentSourceDefinitionReader
 {
     private static readonly string[] ExpectedAgentEntries = ["AGENT.md.template", "agent.json", "hosts"];
     private static readonly string[] ExpectedJsonProperties = ["schemaVersion", "displayName", "description", "skillDependencies"];
-    /// <summary> Reads all agent definitions below the v2 agent namespace root. </summary>
+    /// <summary> Reads all agent definitions below the v3 agent namespace root. </summary>
     public async ValueTask<SkillOperationResult<IReadOnlyList<AgentSourceDefinition>>> ReadAllAsync (
         AbsolutePath agentsRoot,
         CancellationToken cancellationToken)
@@ -34,63 +34,35 @@ internal sealed class AgentSourceDefinitionReader
             }
 
             var definitions = new List<AgentSourceDefinition>();
-            foreach (var categoryEntry in Directory.GetFileSystemEntries(root.Value).Order(StringComparer.Ordinal))
+            foreach (var agentEntry in Directory.GetFileSystemEntries(root.Value).Order(StringComparer.Ordinal))
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var categoryLiteral = Path.GetFileName(categoryEntry);
-                if (!AgentCategory.TryCreate(categoryLiteral, out var category))
+                var agentLiteral = Path.GetFileName(agentEntry);
+                if (!RootRelativePath.TryParse(agentLiteral, out var agentRelativePath, out var pathFailure)
+                    || agentRelativePath.IsRoot)
                 {
-                    return Failure($"Agent category directory name is invalid: {categoryLiteral}");
+                    return Failure($"Agent directory name is invalid: {agentLiteral}. {pathFailure.Message}");
                 }
 
-                var categoryDirectoryResult = AuthoredSourcePathResolver.ResolveDirectory(root, RootRelativePath.Parse(categoryLiteral), "Agent category directory");
-                if (!categoryDirectoryResult.IsSuccess)
+                var agentDirectoryResult = AuthoredSourcePathResolver.ResolveDirectory(root, agentRelativePath, "Agent definition directory");
+                if (!agentDirectoryResult.IsSuccess)
                 {
-                    return Failure(categoryDirectoryResult.Failure!.Message);
+                    return Failure(agentDirectoryResult.Failure!.Message);
                 }
 
-                var agentEntries = Directory.GetFileSystemEntries(categoryDirectoryResult.Value!.Value).Order(StringComparer.Ordinal).ToArray();
-                if (agentEntries.Length == 0)
+                var definitionResult = await ReadOneAsync(agentDirectoryResult.Value!, cancellationToken).ConfigureAwait(false);
+                if (!definitionResult.IsSuccess)
                 {
-                    return Failure($"Agent category does not contain any definitions: {categoryLiteral}");
+                    return SkillOperationResult<IReadOnlyList<AgentSourceDefinition>>.FailureResult(
+                        definitionResult.Failure!.Code,
+                        definitionResult.Failure.Message);
                 }
 
-                foreach (var agentEntry in agentEntries)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    var agentLiteral = Path.GetFileName(agentEntry);
-                    if (!RootRelativePath.TryParse(agentLiteral, out var agentRelativePath, out var pathFailure)
-                        || agentRelativePath.IsRoot)
-                    {
-                        return Failure($"Agent directory name is invalid: {agentLiteral}. {pathFailure.Message}");
-                    }
-
-                    var agentDirectoryResult = AuthoredSourcePathResolver.ResolveDirectory(categoryDirectoryResult.Value!, agentRelativePath, "Agent definition directory");
-                    if (!agentDirectoryResult.IsSuccess)
-                    {
-                        return Failure(agentDirectoryResult.Failure!.Message);
-                    }
-
-                    var definitionResult = await ReadOneAsync(agentDirectoryResult.Value!, category, cancellationToken).ConfigureAwait(false);
-                    if (!definitionResult.IsSuccess)
-                    {
-                        return SkillOperationResult<IReadOnlyList<AgentSourceDefinition>>.FailureResult(
-                            definitionResult.Failure!.Code,
-                            definitionResult.Failure.Message);
-                    }
-
-                    definitions.Add(definitionResult.Value!);
-                }
+                definitions.Add(definitionResult.Value!);
             }
 
-            var duplicate = definitions
-                .GroupBy(static definition => definition.Metadata.AgentName)
-                .FirstOrDefault(static group => group.Count() > 1);
-            return duplicate is null
-                ? SkillOperationResult<IReadOnlyList<AgentSourceDefinition>>.Success(Array.AsReadOnly(definitions.ToArray()))
-                : Failure($"Agent definitions contain a duplicate agent directory name across categories: {duplicate.Key.Value}");
+            return SkillOperationResult<IReadOnlyList<AgentSourceDefinition>>.Success(Array.AsReadOnly(definitions.ToArray()));
         }
         catch (Exception exception) when (IsSourceFileSystemException(exception))
         {
@@ -100,7 +72,6 @@ internal sealed class AgentSourceDefinitionReader
 
     private async ValueTask<SkillOperationResult<AgentSourceDefinition>> ReadOneAsync (
         AbsolutePath agentDirectory,
-        AgentCategory category,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -154,7 +125,6 @@ internal sealed class AgentSourceDefinitionReader
                 .ToArray();
             metadata = new AgentSourceMetadata(
                 root.GetProperty("schemaVersion").GetInt32(),
-                category,
                 agentName,
                 root.GetProperty("displayName").GetString() ?? string.Empty,
                 root.GetProperty("description").GetString() ?? string.Empty,

@@ -8,7 +8,6 @@ public sealed class AgentExportReport
 {
     internal AgentExportReport (
         HostKind hostId,
-        IReadOnlyList<string> categories,
         IReadOnlyList<string> agentNames,
         SkillExportFormat format,
         AbsolutePath outputPath,
@@ -27,7 +26,6 @@ public sealed class AgentExportReport
 
         ArgumentNullException.ThrowIfNull(outputPath);
         HostId = hostId;
-        Categories = OperationReportContractGuard.SnapshotRequiredStrings(categories, nameof(categories));
         AgentNames = OperationReportContractGuard.SnapshotRequiredStrings(agentNames, nameof(agentNames));
         Format = format;
         OutputPath = outputPath.Value;
@@ -37,9 +35,6 @@ public sealed class AgentExportReport
 
     /// <summary> Gets the host identifier used for export. </summary>
     public HostKind HostId { get; }
-
-    /// <summary> Gets selected agent category literals. </summary>
-    public IReadOnlyList<string> Categories { get; }
 
     /// <summary> Gets exact selected agent names. An empty collection means no name filter. </summary>
     public IReadOnlyList<string> AgentNames { get; }

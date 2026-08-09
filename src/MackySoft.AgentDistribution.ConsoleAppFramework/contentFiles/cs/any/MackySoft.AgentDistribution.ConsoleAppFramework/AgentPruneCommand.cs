@@ -26,7 +26,6 @@ internal sealed class AgentPruneCommand
     [Command("prune")]
     public async Task<int> PruneAsync (
         string? host = null,
-        string[]? category = null,
         string[]? agent = null,
         string? scope = null,
         string? repositoryRoot = null,
@@ -36,7 +35,7 @@ internal sealed class AgentPruneCommand
         bool pretty = false,
         CancellationToken cancellationToken = default)
     {
-        var result = await runner.PruneAsync(new AgentPruneCommandRequest(host, category, agent, scope, repositoryRoot, agentTargetDir, dryRun, force), cancellationToken).ConfigureAwait(false);
+        var result = await runner.PruneAsync(new AgentPruneCommandRequest(host, agent, scope, repositoryRoot, agentTargetDir, dryRun, force), cancellationToken).ConfigureAwait(false);
         return await emitter.EmitAsync(result, new AgentDistributionCommandOutputOptions(pretty), cancellationToken).ConfigureAwait(false);
     }
 }

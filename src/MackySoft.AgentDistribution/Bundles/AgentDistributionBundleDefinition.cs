@@ -2,13 +2,13 @@ using MackySoft.AgentDistribution.Catalogs;
 
 namespace MackySoft.AgentDistribution.Bundles;
 
-/// <summary> Represents an authored v2 bundle containing skills, agents, or both. </summary>
+/// <summary> Represents an authored v3 bundle containing skills, agents, or both. </summary>
 public sealed class AgentDistributionBundleDefinition
 {
-    /// <summary> Gets the v2 source schema version. </summary>
-    public const int CurrentSchemaVersion = 2;
+    /// <summary> Gets the v3 source schema version. </summary>
+    public const int CurrentSchemaVersion = 3;
 
-    /// <summary> Initializes a v2 source bundle definition. </summary>
+    /// <summary> Initializes a v3 source bundle definition. </summary>
     public AgentDistributionBundleDefinition (int schemaVersion, SkillCatalogId catalogId, AgentDistributionBundleVersion bundleVersion)
     {
         if (schemaVersion != CurrentSchemaVersion)

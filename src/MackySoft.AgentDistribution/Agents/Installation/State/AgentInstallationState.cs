@@ -9,7 +9,7 @@ namespace MackySoft.AgentDistribution.Agents.Installation.State;
 public sealed class AgentInstallationState
 {
     /// <summary> Gets the only supported installation-state schema version. </summary>
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
 
     /// <summary> Initializes canonical ownership state. </summary>
     public AgentInstallationState (
@@ -17,7 +17,6 @@ public sealed class AgentInstallationState
         AgentDistributionBundleVersion bundleVersion,
         SkillCatalogId catalogId,
         HostKind hostId,
-        AgentCategory category,
         AgentName agentName,
         Sha256Digest agentManifestDigest,
         IReadOnlyList<AgentInstalledArtifact> managedArtifacts)
@@ -34,7 +33,6 @@ public sealed class AgentInstallationState
             throw new ArgumentOutOfRangeException(nameof(hostId), hostId, "Unsupported agent host.");
         }
 
-        ArgumentNullException.ThrowIfNull(category);
         ArgumentNullException.ThrowIfNull(agentName);
         ArgumentNullException.ThrowIfNull(agentManifestDigest);
         ArgumentNullException.ThrowIfNull(managedArtifacts);
@@ -50,7 +48,6 @@ public sealed class AgentInstallationState
         BundleVersion = bundleVersion;
         CatalogId = catalogId;
         HostId = hostId;
-        Category = category;
         AgentName = agentName;
         AgentManifestDigest = agentManifestDigest;
         ManagedArtifacts = Array.AsReadOnly(artifacts.OrderBy(static artifact => artifact.Path.Value, StringComparer.Ordinal).ToArray());
@@ -67,9 +64,6 @@ public sealed class AgentInstallationState
 
     /// <summary> Gets the host that owns the managed artifacts. </summary>
     public HostKind HostId { get; }
-
-    /// <summary> Gets the agent category. </summary>
-    public AgentCategory Category { get; }
 
     /// <summary> Gets the agent name. </summary>
     public AgentName AgentName { get; }

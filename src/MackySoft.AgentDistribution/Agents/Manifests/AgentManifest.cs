@@ -9,10 +9,10 @@ namespace MackySoft.AgentDistribution.Agents.Manifests;
 public sealed class AgentManifest
 {
     /// <summary> Gets the generated manifest schema version. </summary>
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
 
     /// <summary> Initializes a canonical manifest. </summary>
-    internal AgentManifest (int schemaVersion, AgentDistributionBundleVersion bundleVersion, SkillCatalogId catalogId, AgentCategory category, AgentName agentName, string displayName, string description, IReadOnlyList<SkillName> skillDependencies, Sha256Digest contentDigest, Sha256Digest manifestDigest, IReadOnlyList<AgentHostArtifactManifest> hostArtifacts)
+    internal AgentManifest (int schemaVersion, AgentDistributionBundleVersion bundleVersion, SkillCatalogId catalogId, AgentName agentName, string displayName, string description, IReadOnlyList<SkillName> skillDependencies, Sha256Digest contentDigest, Sha256Digest manifestDigest, IReadOnlyList<AgentHostArtifactManifest> hostArtifacts)
     {
         if (schemaVersion != CurrentSchemaVersion)
         {
@@ -21,7 +21,6 @@ public sealed class AgentManifest
 
         ArgumentNullException.ThrowIfNull(bundleVersion);
         ArgumentNullException.ThrowIfNull(catalogId);
-        ArgumentNullException.ThrowIfNull(category);
         ArgumentNullException.ThrowIfNull(agentName);
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
         ArgumentException.ThrowIfNullOrWhiteSpace(description);
@@ -41,7 +40,6 @@ public sealed class AgentManifest
         SchemaVersion = schemaVersion;
         BundleVersion = bundleVersion;
         CatalogId = catalogId;
-        Category = category;
         AgentName = agentName;
         DisplayName = displayName;
         Description = description;
@@ -57,8 +55,6 @@ public sealed class AgentManifest
     public AgentDistributionBundleVersion BundleVersion { get; }
     /// <summary> Gets catalog identity. </summary>
     public SkillCatalogId CatalogId { get; }
-    /// <summary> Gets source category. </summary>
-    public AgentCategory Category { get; }
     /// <summary> Gets agent identity. </summary>
     public AgentName AgentName { get; }
     /// <summary> Gets display name. </summary>

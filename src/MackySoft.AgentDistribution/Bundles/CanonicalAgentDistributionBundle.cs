@@ -3,7 +3,7 @@ using MackySoft.AgentDistribution.Packaging.Canonical;
 
 namespace MackySoft.AgentDistribution.Bundles;
 
-/// <summary> Represents a validated v2 generated bundle with separate skill and agent namespaces. </summary>
+/// <summary> Represents a validated v3 generated bundle with separate skill and agent namespaces. </summary>
 public sealed class CanonicalAgentDistributionBundle
 {
     /// <summary> Initializes a mixed canonical bundle. </summary>

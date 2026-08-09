@@ -4,10 +4,9 @@ namespace MackySoft.AgentDistribution.Hosting.Commands;
 public sealed class AgentDoctorCommandRequest
 {
     /// <summary> Initializes one doctor request. </summary>
-    public AgentDoctorCommandRequest (string? host = null, IReadOnlyList<string>? category = null, IReadOnlyList<string>? agent = null, string? scope = null, string? repositoryRoot = null, string? agentTargetDir = null, string? skillTargetDir = null)
+    public AgentDoctorCommandRequest (string? host = null, IReadOnlyList<string>? agent = null, string? scope = null, string? repositoryRoot = null, string? agentTargetDir = null, string? skillTargetDir = null)
     {
         Host = host;
-        Category = CommandOptionValues.Snapshot(category, nameof(category));
         Agent = CommandOptionValues.Snapshot(agent, nameof(agent));
         Scope = scope;
         RepositoryRoot = repositoryRoot;
@@ -17,9 +16,6 @@ public sealed class AgentDoctorCommandRequest
 
     /// <summary> Gets the raw host literal. </summary>
     public string? Host { get; }
-
-    /// <summary> Gets raw selected custom-agent categories. </summary>
-    public IReadOnlyList<string>? Category { get; }
 
     /// <summary> Gets raw selected exact custom-agent names. </summary>
     public IReadOnlyList<string>? Agent { get; }

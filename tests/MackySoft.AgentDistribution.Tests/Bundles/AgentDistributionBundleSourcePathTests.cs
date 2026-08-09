@@ -15,8 +15,8 @@ public sealed class AgentDistributionBundleSourcePathTests
             return;
         }
 
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-v2", "linked-descriptor");
-        using var outsideScope = TestDirectories.CreateTempScope("agent-distribution-v2", "linked-descriptor-outside");
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-v3", "linked-descriptor");
+        using var outsideScope = TestDirectories.CreateTempScope("agent-distribution-v3", "linked-descriptor-outside");
         var target = outsideScope.WriteFile("bundle.json", CreateBundleJson());
         if (!TryCreateFileSymbolicLink(scope.GetPath("bundle.json"), target))
         {
@@ -42,8 +42,8 @@ public sealed class AgentDistributionBundleSourcePathTests
             return;
         }
 
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-v2", "linked-root");
-        using var outsideScope = TestDirectories.CreateTempScope("agent-distribution-v2", "linked-root-outside");
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-v3", "linked-root");
+        using var outsideScope = TestDirectories.CreateTempScope("agent-distribution-v3", "linked-root-outside");
         outsideScope.WriteFile("bundle.json", CreateBundleJson());
         var rootLink = scope.GetPath("bundle-root");
         if (!TryCreateDirectorySymbolicLink(rootLink, outsideScope.FullPath))
@@ -65,7 +65,7 @@ public sealed class AgentDistributionBundleSourcePathTests
     {
         return """
             {
-              "schemaVersion": 2,
+              "schemaVersion": 3,
               "catalogId": "com.mackysoft.agent-distribution.tests",
               "bundleVersion": 1
             }

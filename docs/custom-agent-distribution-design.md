@@ -110,7 +110,7 @@ GitHub Copilot の project 成果物は公開 custom-agent contract を使う。
 
 ### バンドルレイアウト
 
-ソーススキーマ v2 は次の固定レイアウトを使う。
+ソーススキーマ v3 は次の固定レイアウトを使う。
 
 ```text
 <bundle-root>/
@@ -123,14 +123,13 @@ GitHub Copilot の project 成果物は公開 custom-agent contract を使う。
           SKILL.md.template
           references/
     agents/
-      <category>/
-        <agent-name>/
-          agent.json
-          AGENT.md.template
-          hosts/
-            codex.json
-            claude-code.json
-            github-copilot.json
+      <agent-name>/
+        agent.json
+        AGENT.md.template
+        hosts/
+          codex.json
+          claude-code.json
+          github-copilot.json
   generated/
 ```
 
@@ -142,7 +141,7 @@ Agent 名は全 Agent 間で一意な lower-kebab とする。この制約は Cl
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "catalogId": "com.example.agent-assets",
   "bundleVersion": 1
 }
@@ -170,7 +169,7 @@ Agent 名は全 Agent 間で一意な lower-kebab とする。この制約は Cl
 | `description` | ホストが委譲判断に利用できるホスト非依存の説明 |
 | `skillDependencies` | 同じカタログ内で直接要求する Skill 名 |
 
-category と Agent 名はディレクトリから導出する。モデル、モデル提供者、推論強度、権限、ツール、ホスト識別子、導入先を `agent.json` に置かない。
+Agent 名は `definitions/agents` 直下のディレクトリ名から導出する。モデル、モデル提供者、推論強度、権限、ツール、ホスト識別子、導入先を `agent.json` に置かない。
 
 ### `AGENT.md.template`
 
@@ -301,7 +300,7 @@ generated/
 `agent-manifest.json` は次を持つ。
 
 - `schemaVersion`、`catalogId`、`bundleVersion`
-- category、Agent 名、`displayName`、`description`
+- Agent 名、`displayName`、`description`
 - 直接の `skillDependencies`
 - 正規 `AGENT.md` の digest
 - manifest 自身の digest
@@ -368,7 +367,7 @@ ConsoleAppFramework 統合では `RegisterAgentDistributionCommands()` が両 re
 
 | 入力 | 契約 |
 | --- | --- |
-| `--agent`、`--category` | Agent の名前または category を選択する |
+| `--agent` | Agent 名を選択する。`list` では省略して全 Agent を列挙できる |
 | `--host` | `codex`、`claude-code`、`github-copilot` のいずれか |
 | `--scope`、`--repository-root` | host target policy が project/user の既定対象を解決するために使う |
 | `--agent-target-dir` | Agent 成果物の対象だけを明示的に上書きする |
@@ -421,9 +420,9 @@ Foundation の resolution は操作時点の snapshot であり、永続的な�
 ## 継続する既存契約
 
 - ソーススキーマ v1 とその生成物は、Skill 専用レイアウトとして読む。
-- v2 は `definitions/skills` と `definitions/agents` を明示し、ディレクトリの有無から version を推定しない。
+- v3 は `definitions/skills` と `definitions/agents` を明示し、ディレクトリの有無から version を推定しない。
 - Skill コマンドは既存の位置と意味を変えない。
-- v2 Agent source、manifest、operation report は `codex`、`claude-code`、`github-copilot` を正規値にする。
+- v3 Agent source、manifest、operation report は `codex`、`claude-code`、`github-copilot` を正規値にする。
 - 現在の skills-pack `feat/agent-orchestration-foundation` にある `.codex/agents/*.toml` は、エージェント責務を検討する作業配置であり、Codex 固有の配布設計を正本化するものではない。
 
 ## 非目標

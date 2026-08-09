@@ -12,7 +12,6 @@ public sealed class AgentOperationReportContext
         HostKind host,
         AgentInstallScopeKind scope,
         string? repositoryRoot,
-        IReadOnlyList<AgentCategory> selectedCategories,
         IReadOnlyList<AgentName> selectedAgentNames,
         SkillOperationReportContext skillContext)
     {
@@ -26,12 +25,9 @@ public sealed class AgentOperationReportContext
             throw new ArgumentOutOfRangeException(nameof(scope), scope, "Unsupported agent install scope.");
         }
 
-        ArgumentNullException.ThrowIfNull(selectedCategories);
         ArgumentNullException.ThrowIfNull(selectedAgentNames);
-        var categorySnapshot = selectedCategories.ToArray();
         var agentNameSnapshot = selectedAgentNames.ToArray();
-        if (categorySnapshot.Any(static category => category is null)
-            || agentNameSnapshot.Any(static agentName => agentName is null))
+        if (agentNameSnapshot.Any(static agentName => agentName is null))
         {
             throw new ArgumentException("Agent report selections must not contain null values.");
         }
@@ -39,7 +35,6 @@ public sealed class AgentOperationReportContext
         Host = host;
         Scope = scope;
         RepositoryRoot = OperationReportContractGuard.NormalizeRepositoryRoot(ToOperationScope(scope), repositoryRoot, nameof(repositoryRoot));
-        SelectedCategories = Array.AsReadOnly(categorySnapshot);
         SelectedAgentNames = Array.AsReadOnly(agentNameSnapshot);
         SkillContext = skillContext ?? throw new ArgumentNullException(nameof(skillContext));
     }
@@ -52,9 +47,6 @@ public sealed class AgentOperationReportContext
 
     /// <summary> Gets the project repository root, or <see langword="null" /> for user scope. </summary>
     public string? RepositoryRoot { get; }
-
-    /// <summary> Gets selected agent categories. </summary>
-    public IReadOnlyList<AgentCategory> SelectedCategories { get; }
 
     /// <summary> Gets exact selected agent names. </summary>
     public IReadOnlyList<AgentName> SelectedAgentNames { get; }

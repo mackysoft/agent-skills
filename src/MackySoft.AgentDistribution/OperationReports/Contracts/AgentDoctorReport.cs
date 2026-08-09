@@ -7,7 +7,6 @@ public sealed class AgentDoctorReport
 {
     internal AgentDoctorReport (
         HostKind host,
-        IReadOnlyList<string> categories,
         IReadOnlyList<string> agentNames,
         OperationScopeKind scope,
         string? repositoryRoot,
@@ -27,7 +26,6 @@ public sealed class AgentDoctorReport
         }
 
         Host = host;
-        Categories = OperationReportContractGuard.SnapshotRequiredStrings(categories, nameof(categories));
         AgentNames = OperationReportContractGuard.SnapshotRequiredStrings(agentNames, nameof(agentNames));
         Scope = scope;
         RepositoryRoot = OperationReportContractGuard.NormalizeRepositoryRoot(scope, repositoryRoot, nameof(repositoryRoot));
@@ -39,9 +37,6 @@ public sealed class AgentDoctorReport
 
     /// <summary> Gets the custom-agent host. </summary>
     public HostKind Host { get; }
-
-    /// <summary> Gets selected agent categories. </summary>
-    public IReadOnlyList<string> Categories { get; }
 
     /// <summary> Gets exact selected agent names. </summary>
     public IReadOnlyList<string> AgentNames { get; }

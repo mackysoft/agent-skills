@@ -8,6 +8,33 @@ public sealed class AgentSourceDefinitionReaderTests
 {
     [Fact]
     [Trait("Size", "Small")]
+    public async Task ReadAllAsync_WhenFlatAgentDefinitionIsValid_ReturnsDefinition ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-agents", "flat-definition");
+        WriteDefinition(scope);
+
+        var result = await CreateReader().ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        var definition = Assert.Single(result.Value!);
+        Assert.Equal("architect", definition.Metadata.AgentName.Value);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task ReadAllAsync_WhenAgentIsNestedBelowCategory_ReturnsSourceInvalid ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-agents", "categorized-definition");
+        WriteDefinition(scope, agentDirectory: "orchestration/architect");
+
+        var result = await CreateReader().ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task ReadAllAsync_WhenAgentsNamespaceIsAbsent_ReturnsEmptySnapshot ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-agents", "absent-namespace");
@@ -40,21 +67,12 @@ public sealed class AgentSourceDefinitionReaderTests
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
-    [Theory]
-    [InlineData("empty-category")]
-    [InlineData("empty-hosts")]
+    [Fact]
     [Trait("Size", "Small")]
-    public async Task ReadAllAsync_WhenRequiredDirectoryIsEmpty_ReturnsSourceInvalid (string scenario)
+    public async Task ReadAllAsync_WhenHostsDirectoryIsEmpty_ReturnsSourceInvalid ()
     {
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-agents", scenario);
-        if (scenario == "empty-category")
-        {
-            scope.CreateDirectory("core");
-        }
-        else
-        {
-            WriteDefinition(scope, writeHostBinding: false);
-        }
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-agents", "empty-hosts");
+        WriteDefinition(scope, writeHostBinding: false);
 
         var result = await CreateReader().ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
@@ -77,7 +95,7 @@ public sealed class AgentSourceDefinitionReaderTests
         using var scope = TestDirectories.CreateTempScope("agent-distribution-agents", "linked-file");
         using var outsideScope = TestDirectories.CreateTempScope("agent-distribution-agents", "linked-file-outside");
         WriteDefinition(scope);
-        var linkPath = scope.GetPath(Path.Combine("core/architect", relativeFile));
+        var linkPath = scope.GetPath(Path.Combine("architect", relativeFile));
         File.Delete(linkPath);
         var targetPath = outsideScope.WriteFile("outside.txt", GetReplacementContent(relativeFile));
         if (!TryCreateFileSymbolicLink(linkPath, targetPath))
@@ -93,17 +111,17 @@ public sealed class AgentSourceDefinitionReaderTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task ReadAllAsync_WhenCategoryDirectoryIsSymbolicLink_ReturnsSourceInvalid ()
+    public async Task ReadAllAsync_WhenAgentDirectoryIsSymbolicLink_ReturnsSourceInvalid ()
     {
         if (OperatingSystem.IsWindows())
         {
             return;
         }
 
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-agents", "linked-category");
-        using var outsideScope = TestDirectories.CreateTempScope("agent-distribution-agents", "linked-category-outside");
-        outsideScope.CreateDirectory("core");
-        if (!TryCreateDirectorySymbolicLink(scope.GetPath("core"), outsideScope.GetPath("core")))
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-agents", "linked-agent");
+        using var outsideScope = TestDirectories.CreateTempScope("agent-distribution-agents", "linked-agent-outside");
+        outsideScope.CreateDirectory("architect");
+        if (!TryCreateDirectorySymbolicLink(scope.GetPath("architect"), outsideScope.GetPath("architect")))
         {
             return;
         }
@@ -120,7 +138,7 @@ public sealed class AgentSourceDefinitionReaderTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-agents", "unexpected-node");
         WriteDefinition(scope);
-        scope.WriteFile("core/architect/notes.txt", "not part of the authored layout\n");
+        scope.WriteFile("architect/notes.txt", "not part of the authored layout\n");
 
         var result = await CreateReader().ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
@@ -134,7 +152,7 @@ public sealed class AgentSourceDefinitionReaderTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-agents", "unsupported-host-binding");
         WriteDefinition(scope, writeHostBinding: false);
-        scope.WriteFile("core/architect/hosts/unknown.json", CreateCodexBinding());
+        scope.WriteFile("architect/hosts/unknown.json", CreateCodexBinding());
 
         var result = await CreateReader().ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
@@ -149,10 +167,11 @@ public sealed class AgentSourceDefinitionReaderTests
 
     private static void WriteDefinition (
         TestDirectoryScope scope,
-        bool writeHostBinding = true)
+        bool writeHostBinding = true,
+        string agentDirectory = "architect")
     {
         scope.WriteFile(
-            "core/architect/agent.json",
+            $"{agentDirectory}/agent.json",
             """
             {
               "schemaVersion": 1,
@@ -161,11 +180,11 @@ public sealed class AgentSourceDefinitionReaderTests
               "skillDependencies": []
             }
             """);
-        scope.WriteFile("core/architect/AGENT.md.template", "Create an implementation-ready design.\n");
-        scope.CreateDirectory("core/architect/hosts");
+        scope.WriteFile($"{agentDirectory}/AGENT.md.template", "Create an implementation-ready design.\n");
+        scope.CreateDirectory($"{agentDirectory}/hosts");
         if (writeHostBinding)
         {
-            scope.WriteFile("core/architect/hosts/codex.json", CreateCodexBinding());
+            scope.WriteFile($"{agentDirectory}/hosts/codex.json", CreateCodexBinding());
         }
     }
 

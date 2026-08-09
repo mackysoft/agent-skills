@@ -24,14 +24,13 @@ internal sealed class AgentExportCommand
     [Command("export")]
     public async Task<int> ExportAsync (
         string? host = null,
-        string[]? category = null,
         string[]? agent = null,
         string? output = null,
         string? format = null,
         bool pretty = false,
         CancellationToken cancellationToken = default)
     {
-        var result = await runner.ExportAsync(new AgentExportCommandRequest(host, category, agent, output, format), cancellationToken).ConfigureAwait(false);
+        var result = await runner.ExportAsync(new AgentExportCommandRequest(host, agent, output, format), cancellationToken).ConfigureAwait(false);
         return await emitter.EmitAsync(result, new AgentDistributionCommandOutputOptions(pretty), cancellationToken).ConfigureAwait(false);
     }
 }

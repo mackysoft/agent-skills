@@ -15,7 +15,7 @@ public sealed class AgentExportServiceTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-agent-export", "directory");
         var skills = await SkillTestData.GenerateFixturePackagesAsync();
-        var agent = AgentDistributionTestData.CreateAgent(skills, "planning", "planner", HostKind.Codex, "planner.toml");
+        var agent = AgentDistributionTestData.CreateAgent(skills, "planner", HostKind.Codex, "planner.toml");
         var catalog = AgentDistributionTestData.CreateCatalog(skills, [agent]);
         var outputPath = scope.GetPath("exported");
         var service = new AgentExportService(SkillTestData.CreateMaterializationService());
@@ -52,7 +52,7 @@ public sealed class AgentExportServiceTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-agent-export", "zip");
         var skills = await SkillTestData.GenerateFixturePackagesAsync();
-        var agent = AgentDistributionTestData.CreateAgent(skills, "planning", "planner", HostKind.Codex, "planner.toml");
+        var agent = AgentDistributionTestData.CreateAgent(skills, "planner", HostKind.Codex, "planner.toml");
         var catalog = AgentDistributionTestData.CreateCatalog(skills, [agent]);
         var service = new AgentExportService(SkillTestData.CreateMaterializationService());
         var firstPath = scope.GetPath("first.zip");
@@ -78,8 +78,8 @@ public sealed class AgentExportServiceTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-agent-export", "artifact-collision");
         var skills = await SkillTestData.GenerateFixturePackagesAsync();
-        var first = AgentDistributionTestData.CreateAgent(skills, "planning", "planner", HostKind.Codex, "shared.toml");
-        var second = AgentDistributionTestData.CreateAgent(skills, "quality", "reviewer", HostKind.Codex, "shared.toml");
+        var first = AgentDistributionTestData.CreateAgent(skills, "planner", HostKind.Codex, "shared.toml");
+        var second = AgentDistributionTestData.CreateAgent(skills, "reviewer", HostKind.Codex, "shared.toml");
         var catalog = AgentDistributionTestData.CreateCatalog(skills, [second, first]);
         var outputPath = scope.GetPath("exported");
         var service = new AgentExportService(SkillTestData.CreateMaterializationService());
@@ -117,7 +117,7 @@ public sealed class AgentExportServiceTests
         }
 
         var skills = await SkillTestData.GenerateFixturePackagesAsync();
-        var agent = AgentDistributionTestData.CreateAgent(skills, "planning", "planner", HostKind.Codex, "planner.toml");
+        var agent = AgentDistributionTestData.CreateAgent(skills, "planner", HostKind.Codex, "planner.toml");
         var service = new AgentExportService(SkillTestData.CreateMaterializationService());
 
         var result = await service.ExportAsync(

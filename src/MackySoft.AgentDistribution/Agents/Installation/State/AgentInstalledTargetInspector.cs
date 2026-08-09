@@ -74,7 +74,6 @@ public sealed class AgentInstalledTargetInspector
         }
 
         if (state.HostId != target.HostId
-            || state.Category != manifest.Category
             || state.AgentName != manifest.AgentName)
         {
             return SkillOperationResult<AgentInstalledTargetState>.Success(new AgentInstalledTargetState(AgentInstalledTargetStateKind.Invalid, "Agent ownership state does not match the selected target."));

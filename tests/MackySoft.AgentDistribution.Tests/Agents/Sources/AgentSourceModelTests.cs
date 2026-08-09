@@ -14,7 +14,6 @@ public sealed class AgentSourceModelTests
     {
         Assert.Throws<ArgumentException>(() => new AgentSourceMetadata(
             schemaVersion: 1,
-            new AgentCategory("orchestration"),
             new AgentName("architect"),
             displayName,
             description,
@@ -47,7 +46,6 @@ public sealed class AgentSourceModelTests
     {
         return new AgentSourceMetadata(
             schemaVersion: 1,
-            new AgentCategory("orchestration"),
             new AgentName("architect"),
             "Architect",
             "Creates an implementation-ready design contract.",

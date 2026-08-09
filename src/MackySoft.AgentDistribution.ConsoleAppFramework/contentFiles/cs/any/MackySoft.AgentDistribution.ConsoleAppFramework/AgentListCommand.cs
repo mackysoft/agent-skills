@@ -23,12 +23,11 @@ internal sealed class AgentListCommand
     /// <summary> Lists custom agents and their resolved SKILL dependencies. </summary>
     [Command("list")]
     public async Task<int> ListAsync (
-        string[]? category = null,
         string[]? agent = null,
         bool pretty = false,
         CancellationToken cancellationToken = default)
     {
-        var result = await runner.ListAsync(new AgentListCommandRequest(category, agent), cancellationToken).ConfigureAwait(false);
+        var result = await runner.ListAsync(new AgentListCommandRequest(agent), cancellationToken).ConfigureAwait(false);
         return await emitter.EmitAsync(result, new AgentDistributionCommandOutputOptions(pretty), cancellationToken).ConfigureAwait(false);
     }
 }

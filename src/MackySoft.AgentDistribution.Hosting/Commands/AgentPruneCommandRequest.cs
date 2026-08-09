@@ -4,10 +4,9 @@ namespace MackySoft.AgentDistribution.Hosting.Commands;
 public sealed class AgentPruneCommandRequest
 {
     /// <summary> Initializes one prune request. </summary>
-    public AgentPruneCommandRequest (string? host = null, IReadOnlyList<string>? category = null, IReadOnlyList<string>? agent = null, string? scope = null, string? repositoryRoot = null, string? agentTargetDir = null, bool dryRun = false, bool force = false)
+    public AgentPruneCommandRequest (string? host = null, IReadOnlyList<string>? agent = null, string? scope = null, string? repositoryRoot = null, string? agentTargetDir = null, bool dryRun = false, bool force = false)
     {
         Host = host;
-        Category = CommandOptionValues.Snapshot(category, nameof(category));
         Agent = CommandOptionValues.Snapshot(agent, nameof(agent));
         Scope = scope;
         RepositoryRoot = repositoryRoot;
@@ -18,9 +17,6 @@ public sealed class AgentPruneCommandRequest
 
     /// <summary> Gets the raw host literal. </summary>
     public string? Host { get; }
-
-    /// <summary> Gets raw custom-agent category filters. </summary>
-    public IReadOnlyList<string>? Category { get; }
 
     /// <summary> Gets raw exact custom-agent name filters, including names removed from the current catalog. </summary>
     public IReadOnlyList<string>? Agent { get; }

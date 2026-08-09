@@ -9,19 +9,16 @@ public sealed class AgentPackageCatalog
 {
     /// <summary> Initializes a validated selected custom-agent package catalog. </summary>
     /// <param name="bundleDescriptor"> The descriptor that owns selected agents and resolved skills. </param>
-    /// <param name="selectedCategories"> The caller's selected agent categories. </param>
     /// <param name="selectedAgentNames"> The caller's exact selected agent names. </param>
     /// <param name="selectedAgents"> The selected root agent packages. </param>
     /// <param name="resolvedSkills"> The transitive SKILL dependency closure required by <paramref name="selectedAgents" />. </param>
     internal AgentPackageCatalog (
         AgentDistributionBundleDescriptor bundleDescriptor,
-        IReadOnlyList<AgentCategory> selectedCategories,
         IReadOnlyList<AgentName> selectedAgentNames,
         IReadOnlyList<CanonicalAgentPackage> selectedAgents,
         IReadOnlyList<CanonicalSkillPackage> resolvedSkills)
     {
         BundleDescriptor = bundleDescriptor ?? throw new ArgumentNullException(nameof(bundleDescriptor));
-        SelectedCategories = CopyRequiredItems(selectedCategories, nameof(selectedCategories));
         SelectedAgentNames = CopyRequiredItems(selectedAgentNames, nameof(selectedAgentNames));
         SelectedAgents = CreateAgentSnapshot(selectedAgents, bundleDescriptor, nameof(selectedAgents));
         ResolvedSkills = CreateSkillSnapshot(resolvedSkills, bundleDescriptor, nameof(resolvedSkills));
@@ -29,9 +26,6 @@ public sealed class AgentPackageCatalog
 
     /// <summary> Gets the descriptor that owns selected agents and resolved skills. </summary>
     public AgentDistributionBundleDescriptor BundleDescriptor { get; }
-
-    /// <summary> Gets the caller's selected agent categories. </summary>
-    public IReadOnlyList<AgentCategory> SelectedCategories { get; }
 
     /// <summary> Gets the caller's exact selected agent names. An empty selection means no name filter. </summary>
     public IReadOnlyList<AgentName> SelectedAgentNames { get; }

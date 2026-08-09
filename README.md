@@ -5,7 +5,7 @@ Agent Distribution helps product teams ship skill packages and host-specific cus
 Use it when your product owns:
 
 - the skill catalog and release cadence;
-- the category names represented by source definition directories;
+- the skill category names represented by source definition directories;
 - the public CLI shape and output envelope.
 
 Agent Distribution provides the build tool, package formats, dependency resolution, host materialization, command runtime, and report data needed to list, export, install, update, uninstall, prune, and diagnose skills and custom agents.
@@ -27,7 +27,7 @@ The core package uses [`MackySoft.FileSystem`](https://github.com/mackysoft/dotn
 
 ## Create Distribution Bundles
 
-Agent Distribution separates authored definitions from generated packages. Source schema `2` can contain skills, custom agents, or both. The namespaces are separate, and the only distribution dependency direction is Agent to Skill. Skills never depend on agents, and agents do not form a distribution dependency graph with other agents.
+Agent Distribution separates authored definitions from generated packages. Source schema `3` can contain skills, custom agents, or both. The namespaces are separate, and the only distribution dependency direction is Agent to Skill. Skills never depend on agents, and agents do not form a distribution dependency graph with other agents.
 
 ### Define the Source Layout
 
@@ -43,7 +43,7 @@ Create this fixed layout in the product repository:
         SKILL.md.template
         references/
     agents/
-      <category>/<agent-name>/
+      <agent-name>/
         agent.json
         AGENT.md.template
         hosts/
@@ -58,7 +58,7 @@ Create `bundle.json` at the bundle root. One `bundleVersion` covers both package
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "catalogId": "com.example.agent-assets",
   "bundleVersion": 1
 }
@@ -66,7 +66,7 @@ Create `bundle.json` at the bundle root. One `bundleVersion` covers both package
 
 | Property | JSON type | Meaning |
 | --- | --- | --- |
-| `schemaVersion` | 32-bit integer | Selects source schema `2`. |
+| `schemaVersion` | 32-bit integer | Selects source schema `3`. |
 | `catalogId` | string | Provides the stable identity shared by source definitions, generated packages, and managed installations. |
 | `bundleVersion` | 32-bit integer | Identifies the revision of the complete generated bundle. A new bundle starts at `1`. |
 
@@ -95,6 +95,8 @@ Do not repeat bundle identity, category, skill name, reference-file names, diges
 Use the [skill source definition contract](skills/generated/skills/agent-distribution-packaging/references/source-definition-contract.md) shipped with `agent-distribution-packaging` for the complete skill layout, naming, dependency, content, and encoding rules.
 
 ### Define Custom Agents
+
+Create each custom agent at `definitions/agents/<agent-name>`. The directory name is the globally unique agent name within the catalog.
 
 An agent's `agent.json` contains only host-independent metadata and direct skill dependencies:
 
@@ -161,7 +163,7 @@ Install the build tool in the product repository:
 
 ```bash
 dotnet new tool-manifest
-dotnet tool install MackySoft.AgentDistribution.Cli --version 3.0.0
+dotnet tool install MackySoft.AgentDistribution.Cli --version 4.0.0
 ```
 
 Build the source bundle:
@@ -216,7 +218,7 @@ Use `verify` for pull requests and other read-only checks. It runs `build --chec
   uses: actions/checkout@v5
 
 - name: Verify Agent Distribution
-  uses: mackysoft/agent-distribution/actions/verify@3.0.0
+  uses: mackysoft/agent-distribution/actions/verify@4.0.0
   with:
     root: skills
 ```
@@ -233,7 +235,7 @@ steps:
 
   - name: Sync Agent Distribution
     id: agent-distribution
-    uses: mackysoft/agent-distribution/actions/sync@3.0.0
+    uses: mackysoft/agent-distribution/actions/sync@4.0.0
     with:
       root: skills
       bundle-version: 2
@@ -252,7 +254,7 @@ Use the hosting package when the product CLI wants standard Agent Distribution c
 Add the hosting package to the product CLI.
 
 ```bash
-dotnet add <PROJECT>.csproj package MackySoft.AgentDistribution.Hosting --version 3.0.0
+dotnet add <PROJECT>.csproj package MackySoft.AgentDistribution.Hosting --version 4.0.0
 ```
 
 Register the runtime in the product's DI container.
@@ -268,7 +270,7 @@ services.AddAgentDistributionCommandRuntime(options =>
 });
 ```
 
-The package base directory must contain the shipped generated packages under `skills/`. A schema `1` root contains skill packages directly. A schema `2` root contains separate `skills/` and `agents/` namespaces.
+The package base directory must contain the shipped generated packages under `skills/`. A schema `1` root contains skill packages directly. A schema `3` root contains separate `skills/` and `agents/` namespaces.
 
 ```text
 <PackageBaseDirectory>/
@@ -278,7 +280,7 @@ The package base directory must contain the shipped generated packages under `sk
     agents/<agent-name>/...
 ```
 
-The runtime reads the catalog identity and available categories from the generated bundle descriptor and package manifests. Categories are not configured separately in product code.
+The runtime reads the catalog identity, available skill categories, and agent names from the generated bundle descriptor and package manifests. Skill categories are not configured separately in product code.
 
 Project-scope commands use the current directory when `--repository-root` is omitted. If the product CLI already has a repository-root policy, set `RepositoryRootResolver` to keep Agent Distribution commands aligned with it.
 
@@ -298,7 +300,7 @@ Use the ConsoleAppFramework integration when the product CLI already uses Consol
 Add the integration package to the product CLI.
 
 ```bash
-dotnet add <PROJECT>.csproj package MackySoft.AgentDistribution.ConsoleAppFramework --version 3.0.0
+dotnet add <PROJECT>.csproj package MackySoft.AgentDistribution.ConsoleAppFramework --version 4.0.0
 dotnet add <PROJECT>.csproj package Microsoft.Extensions.Hosting
 ```
 
@@ -337,7 +339,7 @@ The command examples in this README use ConsoleAppFramework's default lower-keba
 The product CLI still owns:
 
 - when generated packages are built and how they are shipped;
-- the source `bundle.json`, category directories, and skill definitions;
+- the source `bundle.json`, skill category directories, skill definitions, and agent definitions;
 - `ProductName`, `PackageBaseDirectory`, and the default repository-root policy;
 - the public command surface outside the fixed `skills` and `agents` groups;
 - pre-dispatch command validation, help policy, filters, global options, and logging;
@@ -373,12 +375,12 @@ The standalone `MackySoft.AgentDistribution.Cli` is the top-level composition ro
 dotnet tool run agent-distribution -- skills list --pretty
 dotnet tool run agent-distribution -- skills install --host codex --scope project --category basic --dry-run --pretty
 dotnet tool run agent-distribution -- agents list --pretty
-dotnet tool run agent-distribution -- agents install --host claude-code --scope project --category orchestration --dry-run --pretty
+dotnet tool run agent-distribution -- agents install --host claude-code --scope project --agent architect --dry-run --pretty
 ```
 
 The standalone executable and product integration both use lower-kebab-case option names.
 
-`skills list` can omit selectors and then lists every bundled skill category. Other skill commands require `--category`, `--skill`, or both. `agents list` can likewise omit selectors; other custom-agent commands require `--category`, `--agent`, or both.
+`skills list` can omit selectors and then lists every bundled skill category. Other skill commands require `--category`, `--skill`, or both. `agents list` can omit its selector and then lists every bundled custom agent; other custom-agent commands require `--agent`.
 
 ### Examples
 
@@ -393,11 +395,11 @@ example skills doctor --host codex --scope project --category core
 
 example agents list
 example agents export --host github-copilot --agent architect --output ./exported-agent-assets
-example agents install --host github-copilot --scope project --category orchestration
+example agents install --host github-copilot --scope project --agent architect
 example agents update --host github-copilot --scope project --agent architect
 example agents uninstall --host github-copilot --scope project --agent architect
 example agents prune --host github-copilot --scope project --agent retired-agent
-example agents doctor --host github-copilot --scope project --category orchestration
+example agents doctor --host github-copilot --scope project --agent architect
 ```
 
 ### Skill Command Options
@@ -421,7 +423,6 @@ example agents doctor --host github-copilot --scope project --category orchestra
 | --- | --- | --- |
 | `--host` | export, install, update, uninstall, prune, doctor | Target host literal: `codex`, `claude-code`, or `github-copilot`. |
 | `--scope` | install, update, uninstall, prune, doctor | `project` or `user`. |
-| `--category` | all commands | Select custom agents by agent category. It does not select a skill category. |
 | `--agent` | all commands | Select exact custom-agent names. `prune` also accepts names removed from the current catalog. |
 | `--repository-root` | project scope | Project root. Defaults to the configured repository-root resolver. |
 | `--agent-target-dir` | install, update, uninstall, prune, doctor | Use an exact host-discovered custom-agent artifact directory. |
@@ -461,6 +462,6 @@ Prune deletes only managed, clean, current-host skill directories that belong to
 
 ### Prune Removed Custom Agents
 
-`agents prune` reads the complete current agent catalog before applying its installed-state filters. This prevents a narrow category or name selection from treating an unselected current agent as removed. An exact `--agent` or `--category` may identify an entry no longer present in the current bundle.
+`agents prune` reads the complete current agent catalog before applying its installed-state filters. This prevents an exact name selection from treating another current agent as removed. `--agent` may identify an entry no longer present in the current bundle.
 
 Prune deletes only same-catalog custom agents that are absent from the complete current catalog and whose managed artifacts still match their ownership state. It never deletes skill dependencies. `--force` may remove a locally modified managed orphan, but unmanaged artifacts, foreign catalogs, invalid state, and conflicting ownership remain blocked.

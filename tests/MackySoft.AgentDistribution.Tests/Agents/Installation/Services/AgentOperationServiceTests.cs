@@ -201,7 +201,6 @@ public sealed class AgentOperationServiceTests
             currentState.BundleVersion,
             currentState.CatalogId,
             currentState.HostId,
-            currentState.Category,
             new AgentName("orphan"),
             currentState.AgentManifestDigest,
             currentState.ManagedArtifacts);

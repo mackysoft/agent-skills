@@ -1,8 +1,7 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "bundleVersion": 1,
   "catalogId": "com.mackysoft.agent-distribution.consumer-tests",
-  "category": "orchestration",
   "agentName": "architect",
   "displayName": "Architect",
   "description": "Creates an implementation-ready design from reviewed context.",
@@ -10,7 +9,7 @@
     "review-context"
   ],
   "contentDigest": "21c6e670fb559939645c18a77a06215c1ff227667799cf830fbb6a5be1a14dd2",
-  "manifestDigest": "5abdb7fe672d9b4558df8852cec3089bc25b319984ef0b3534362e033ba60aa1",
+  "manifestDigest": "f475113d8dbf831743d88211c57825567ddce3a0ef53c073789c4b253c5debf0",
   "hostArtifacts": [
     {
       "host": "claude-code",

@@ -10,7 +10,7 @@ public sealed class AgentDistributionBundleBuildServiceTests
     [Trait("Size", "Small")]
     public async Task BuildAsync_WithValidMixedSource_IsDeterministicAndCheckDoesNotWrite ()
     {
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-v2", "deterministic-build");
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-v3", "deterministic-build");
         WriteMixedSource(scope);
         var service = AgentDistributionBundleBuildService.CreateDefault();
 
@@ -29,7 +29,7 @@ public sealed class AgentDistributionBundleBuildServiceTests
     [Trait("Size", "Small")]
     public async Task BuildAsync_WithExplicitNextVersion_PublishesMatchingSourceAndGeneratedBundle ()
     {
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-v2", "next-version");
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-v3", "next-version");
         WriteMixedSource(scope);
         var serializer = new AgentDistributionBundleJsonSerializer();
 
@@ -52,7 +52,7 @@ public sealed class AgentDistributionBundleBuildServiceTests
     [Trait("Size", "Small")]
     public async Task BuildAsync_WithNonPositiveVersion_ReturnsInputFailureWithoutWriting ()
     {
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-v2", "invalid-version");
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-v3", "invalid-version");
         WriteMixedSource(scope);
 
         var result = await AgentDistributionBundleBuildService.CreateDefault().BuildAsync(
@@ -70,8 +70,8 @@ public sealed class AgentDistributionBundleBuildServiceTests
     [Trait("Size", "Small")]
     public async Task BuildAsync_WhenGeneratedOutputIsSymbolicLink_ReturnsPathUnsafe ()
     {
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-v2", "generated-link");
-        using var outside = TestDirectories.CreateTempScope("agent-distribution-v2", "generated-link-outside");
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-v3", "generated-link");
+        using var outside = TestDirectories.CreateTempScope("agent-distribution-v3", "generated-link-outside");
         WriteMixedSource(scope);
         try
         {
@@ -100,7 +100,7 @@ public sealed class AgentDistributionBundleBuildServiceTests
     [Trait("Size", "Small")]
     public async Task BuildAsync_WhenAgentReferencesMissingSkill_FailsBeforeWriting ()
     {
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-v2", "missing-skill");
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-v3", "missing-skill");
         WriteMixedSource(scope, dependency: "missing-skill");
         var result = await AgentDistributionBundleBuildService.CreateDefault().BuildAsync(scope.FullPath, null, check: false, CancellationToken.None);
 
@@ -113,7 +113,7 @@ public sealed class AgentDistributionBundleBuildServiceTests
     [Trait("Size", "Small")]
     public async Task BuildAsync_WhenHostBindingIsUnknown_FailsBeforeWriting ()
     {
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-v2", "unknown-host");
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-v3", "unknown-host");
         WriteMixedSource(scope, hostId: "unknown");
         var result = await AgentDistributionBundleBuildService.CreateDefault().BuildAsync(scope.FullPath, null, check: false, CancellationToken.None);
 
@@ -126,7 +126,7 @@ public sealed class AgentDistributionBundleBuildServiceTests
     [Trait("Size", "Small")]
     public async Task BuildAsync_WhenAgentUsesBuiltInCodexName_FailsBeforeWriting ()
     {
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-v2", "built-in-codex-name");
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-v3", "built-in-codex-name");
         WriteMixedSource(scope, agentName: "worker");
 
         var result = await AgentDistributionBundleBuildService.CreateDefault().BuildAsync(
@@ -145,7 +145,7 @@ public sealed class AgentDistributionBundleBuildServiceTests
     [Trait("Size", "Small")]
     public async Task BuildAsync_WhenDefinitionsContainsUnknownNamespace_FailsBeforeWriting ()
     {
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-v2", "unknown-definition-namespace");
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-v3", "unknown-definition-namespace");
         WriteMixedSource(scope);
         scope.WriteFile("definitions/tools/config.json", "{}\n");
 
@@ -172,7 +172,7 @@ public sealed class AgentDistributionBundleBuildServiceTests
             "bundle.json",
             """
             {
-              "schemaVersion": 2,
+              "schemaVersion": 3,
               "catalogId": "com.mackysoft.agent-distribution.tests",
               "bundleVersion": 1
             }
@@ -189,7 +189,7 @@ public sealed class AgentDistributionBundleBuildServiceTests
             """);
         scope.WriteFile("definitions/skills/core/example-skill/SKILL.md.template", "Follow the example workflow.\n");
         scope.WriteFile(
-            $"definitions/agents/core/{agentName}/agent.json",
+            $"definitions/agents/{agentName}/agent.json",
             $$"""
             {
               "schemaVersion": 1,
@@ -199,10 +199,10 @@ public sealed class AgentDistributionBundleBuildServiceTests
             }
             """);
         scope.WriteFile(
-            $"definitions/agents/core/{agentName}/AGENT.md.template",
+            $"definitions/agents/{agentName}/AGENT.md.template",
             instructions ?? "Follow the example workflow before producing the design.\n");
         scope.WriteFile(
-            $"definitions/agents/core/{agentName}/hosts/{hostId}.json",
+            $"definitions/agents/{agentName}/hosts/{hostId}.json",
             """
             {
               "schemaVersion": 1,

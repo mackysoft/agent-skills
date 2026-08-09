@@ -3,7 +3,7 @@ using MackySoft.AgentDistribution.Digests;
 
 namespace MackySoft.AgentDistribution.Bundles;
 
-/// <summary> Represents a generated v2 mixed bundle descriptor. </summary>
+/// <summary> Represents a generated v3 mixed bundle descriptor. </summary>
 public sealed class AgentDistributionBundleDescriptor
 {
     /// <summary> Initializes a generated descriptor. </summary>

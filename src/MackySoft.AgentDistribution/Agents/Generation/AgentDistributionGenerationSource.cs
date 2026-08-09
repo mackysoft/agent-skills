@@ -4,7 +4,7 @@ using MackySoft.AgentDistribution.Sources;
 
 namespace MackySoft.AgentDistribution.Agents.Generation;
 
-/// <summary> Holds the fully validated v2 mixed source snapshot used by generation. </summary>
+/// <summary> Holds the fully validated v3 mixed source snapshot used by generation. </summary>
 internal sealed class AgentDistributionGenerationSource
 {
     /// <summary> Initializes a source snapshot. </summary>
@@ -15,7 +15,7 @@ internal sealed class AgentDistributionGenerationSource
         ArgumentNullException.ThrowIfNull(agents);
         if (skills.Count == 0 && agents.Count == 0)
         {
-            throw new ArgumentException("A v2 bundle must contain at least one skill or agent.");
+            throw new ArgumentException("A v3 bundle must contain at least one skill or agent.");
         }
 
         Skills = Array.AsReadOnly(skills.ToArray());
