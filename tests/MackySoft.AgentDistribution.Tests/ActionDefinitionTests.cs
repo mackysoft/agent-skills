@@ -98,16 +98,14 @@ public sealed class ActionDefinitionTests
         var outputPath = scope.GetPath("github-output.txt");
         var environment = CreateActionEnvironment(scope, fakeBin, dotnetLog, outputPath);
         environment["GITHUB_REF"] = "refs/heads/main";
-        environment["AGENT_DISTRIBUTION_BUNDLE_VERSION"] = "2";
-
         await RunProcessAsync("bash", [GetRunnerPath(), "sync"], scope.FullPath, environment);
 
         Assert.Equal("changed=true\n", File.ReadAllText(outputPath).ReplaceLineEndings("\n"));
         Assert.Equal(
             [
                 "tool restore",
-                "tool run agent-distribution -- build --root ./skills --bundle-version 2 --check",
-                "tool run agent-distribution -- build --root ./skills --bundle-version 2",
+                "tool run agent-distribution -- build --root ./skills --check",
+                "tool run agent-distribution -- build --root ./skills",
             ],
             File.ReadAllLines(dotnetLog));
         Assert.True(File.Exists(scope.GetPath("skills/generated/result.txt")));
@@ -117,6 +115,68 @@ public sealed class ActionDefinitionTests
             await RunProcessForOutputAsync(
                 "git",
                 ["--git-dir", remotePath, "log", "-1", "--format=%s", "refs/heads/main"],
+                scope.FullPath));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task ReleaseAction_WhenBundleRequiresReleasePreparation_CommitsExactVersion ()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "action-release-changed");
+        scope.CreateDirectory("skills");
+        scope.WriteFile("skills/bundle.json", "{}\n");
+        await RunProcessAsync("git", ["init", "--quiet"], scope.FullPath);
+        await RunProcessAsync("git", ["switch", "-c", "release/4.1.0"], scope.FullPath);
+        var remotePath = scope.CreateDirectory("remote.git");
+        await RunProcessAsync("git", ["init", "--bare", "--quiet", remotePath], scope.FullPath);
+        await RunProcessAsync("git", ["remote", "add", "origin", remotePath], scope.FullPath);
+
+        var fakeBin = scope.CreateDirectory("fake-bin");
+        var dotnetLog = scope.GetPath("dotnet.log");
+        var fakeDotnet = scope.WriteFile(
+            "fake-bin/dotnet",
+            """
+            #!/usr/bin/env bash
+            set -euo pipefail
+            printf '%s\n' "$*" >> "${DOTNET_LOG}"
+            if [[ "$*" == "tool restore" ]]; then
+              exit 0
+            fi
+            if [[ "$*" == *" --check" ]]; then
+              exit 1
+            fi
+            mkdir -p "${ACTION_BUNDLE_ROOT}/generated"
+            printf 'generated release\n' > "${ACTION_BUNDLE_ROOT}/generated/result.txt"
+            """);
+        File.SetUnixFileMode(
+            fakeDotnet,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+        var outputPath = scope.GetPath("github-output.txt");
+        var environment = CreateActionEnvironment(scope, fakeBin, dotnetLog, outputPath);
+        environment["GITHUB_REF"] = "refs/heads/release/4.1.0";
+        environment["AGENT_DISTRIBUTION_RELEASE_BUNDLE_VERSION"] = "2";
+
+        await RunProcessAsync("bash", [GetRunnerPath(), "release"], scope.FullPath, environment);
+
+        Assert.Equal("changed=true\n", File.ReadAllText(outputPath).ReplaceLineEndings("\n"));
+        Assert.Equal(
+            [
+                "tool restore",
+                "tool run agent-distribution -- prepare-release --bundle-version 2 --root ./skills --check",
+                "tool run agent-distribution -- prepare-release --bundle-version 2 --root ./skills",
+            ],
+            File.ReadAllLines(dotnetLog));
+        Assert.Equal(
+            "chore(release): prepare bundle version 2\n",
+            await RunProcessForOutputAsync(
+                "git",
+                ["--git-dir", remotePath, "log", "-1", "--format=%s", "refs/heads/release/4.1.0"],
                 scope.FullPath));
     }
 

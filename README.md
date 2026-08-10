@@ -170,13 +170,13 @@ Build the source bundle:
 
 ```bash
 dotnet tool run agent-distribution -- build --root skills
-dotnet tool run agent-distribution -- build --root skills --bundle-version 2
 dotnet tool run agent-distribution -- build --root skills --check
+dotnet tool run agent-distribution -- prepare-release --root skills --bundle-version 2
 ```
 
 The command reads `bundle.json` and `definitions`, then publishes `generated` as one canonical bundle. Do not edit generated files manually. When packaging a product CLI, ship `generated` as `<PackageBaseDirectory>/skills`.
 
-The requested version must equal the authored `bundleVersion` or its next revision. Selecting the next revision updates `bundle.json` and generated output together. Repeating the same build is a no-op.
+`build` always preserves the version authored in `bundle.json`, so local generation and ordinary CI synchronization cannot advance a release revision. `prepare-release` accepts an exact current or next revision and updates `bundle.json` and generated output together. Repeating release preparation with the same exact revision is a no-op.
 
 The generated layout preserves the two artifact namespaces:
 
@@ -209,7 +209,7 @@ When generated output already matches the source definition and bundle version, 
 dotnet tool run agent-distribution -- build --root skills --check
 ```
 
-The repository provides separate `verify` and `sync` composite GitHub Actions. Both accept `root`, a bundle root relative to the GitHub workspace that resolves inside the checked-out Git worktree, and restore the CLI version pinned by the caller's .NET tool manifest. `sync` also accepts an optional exact `bundle-version`.
+The repository provides `verify`, `sync`, and `release` composite GitHub Actions. Each accepts `root`, a bundle root relative to the GitHub workspace that resolves inside the checked-out Git worktree, and restores the CLI version pinned by the caller's .NET tool manifest.
 
 Use `verify` for pull requests and other read-only checks. It runs `build --check`, fails when committed output is stale, and never generates or commits files.
 
@@ -223,7 +223,7 @@ Use `verify` for pull requests and other read-only checks. It runs `build --chec
     root: skills
 ```
 
-Use `sync` only from a branch workflow with `contents: write`. When reconciliation is required, it requires a clean Git index, synchronizes generated output, updates `bundle.json` when the exact next version is selected, stages only `<root>/bundle.json` and `<root>/generated`, creates a `github-actions[bot]` commit, and pushes that commit to the current branch. Its `changed` output is `true` only after that push succeeds.
+Use `sync` only from a branch workflow with `contents: write`. When reconciliation is required, it requires a clean Git index, preserves the authored bundle version, synchronizes generated output, stages only `<root>/bundle.json` and `<root>/generated`, creates a `github-actions[bot]` commit, and pushes that commit to the current branch. Its `changed` output is `true` only after that push succeeds.
 
 ```yaml
 permissions:
@@ -238,12 +238,27 @@ steps:
     uses: mackysoft/agent-distribution/actions/sync@4.0.0
     with:
       root: skills
+```
+
+Use `release` only from a release branch workflow. The caller must resolve one exact release revision from an authoritative base before invoking the Action. The Action runs `prepare-release`, commits the matching source descriptor and generated output, and pushes the release commit to the current branch.
+
+```yaml
+permissions:
+  contents: write
+
+steps:
+  - name: Checkout
+    uses: actions/checkout@v5
+
+  - name: Prepare Agent Distribution release
+    id: agent-distribution-release
+    uses: mackysoft/agent-distribution/actions/release@4.0.0
+    with:
+      root: skills
       bundle-version: 2
 ```
 
-Omit `bundle-version` when synchronization should preserve the value authored in `bundle.json`.
-
-Pushes made with the default `GITHUB_TOKEN` do not trigger another workflow run. If the caller supplies credentials that do trigger workflows, the synchronized bundle makes the next run a no-op because `build --check` passes. Branch protection still applies; use `verify` when direct bot pushes are not permitted.
+Pushes made with the default `GITHUB_TOKEN` do not trigger another workflow run. If the caller supplies credentials that do trigger workflows, synchronization and release preparation converge because their respective `--check` commands pass. Branch protection still applies; use `verify` when direct bot pushes are not permitted.
 
 ## Add Agent Distribution to a Product CLI
 

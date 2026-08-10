@@ -4,16 +4,18 @@ using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Cli.Hosting.Cli.Build;
 
-/// <summary> Provides the public build command for canonical SKILL package generation. </summary>
-internal sealed class BuildCommand
+/// <summary> Provides public commands for canonical bundle generation and release preparation. </summary>
+internal sealed class BundleGenerationCommand
 {
     private readonly SkillBundleBuildService buildService;
     private readonly AgentDistributionBundleBuildService agentDistributionBuildService;
     private readonly BundleSchemaVersionReader schemaVersionReader;
 
-    /// <summary> Initializes a new instance of the <see cref="BuildCommand" /> class. </summary>
+    /// <summary> Initializes a new instance of the <see cref="BundleGenerationCommand" /> class. </summary>
     /// <param name="buildService"> The source and generated bundle reconciliation service. </param>
-    public BuildCommand (SkillBundleBuildService buildService, AgentDistributionBundleBuildService agentDistributionBuildService, BundleSchemaVersionReader schemaVersionReader)
+    /// <param name="agentDistributionBuildService"> The mixed source and generated bundle reconciliation service. </param>
+    /// <param name="schemaVersionReader"> The source bundle schema reader. </param>
+    public BundleGenerationCommand (SkillBundleBuildService buildService, AgentDistributionBundleBuildService agentDistributionBuildService, BundleSchemaVersionReader schemaVersionReader)
     {
         this.buildService = buildService ?? throw new ArgumentNullException(nameof(buildService));
         this.agentDistributionBuildService = agentDistributionBuildService ?? throw new ArgumentNullException(nameof(agentDistributionBuildService));
@@ -22,18 +24,39 @@ internal sealed class BuildCommand
 
     /// <summary> Reconciles a canonical runtime bundle from a fixed-layout source bundle root. </summary>
     /// <param name="root"> The root containing <c>bundle.json</c>, <c>definitions</c>, and generated output. </param>
-    /// <param name="skillBundleVersion"> The exact target bundle version. Omit it to preserve the version authored in bundle.json. </param>
-    /// <param name="bundleVersion"> The exact target mixed-bundle version. </param>
     /// <param name="check"> Whether to fail without writing when generated output requires changes. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The process exit code. </returns>
     [Command("build")]
-    public async Task<int> BuildAsync (
+    public Task<int> BuildAsync (
         string root = "skills",
-        int? skillBundleVersion = null,
-        int? bundleVersion = null,
         bool check = false,
         CancellationToken cancellationToken = default)
+    {
+        return ExecuteAsync(root, releaseBundleVersion: null, check, cancellationToken);
+    }
+
+    /// <summary> Prepares an exact bundle release revision and its generated output. </summary>
+    /// <param name="bundleVersion"> The exact current or next bundle release revision. </param>
+    /// <param name="root"> The root containing <c>bundle.json</c>, <c>definitions</c>, and generated output. </param>
+    /// <param name="check"> Whether to fail without writing when release preparation requires changes. </param>
+    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
+    /// <returns> The process exit code. </returns>
+    [Command("prepare-release")]
+    public Task<int> PrepareReleaseAsync (
+        int bundleVersion,
+        string root = "skills",
+        bool check = false,
+        CancellationToken cancellationToken = default)
+    {
+        return ExecuteAsync(root, bundleVersion, check, cancellationToken);
+    }
+
+    private async Task<int> ExecuteAsync (
+        string root,
+        int? releaseBundleVersion,
+        bool check,
+        CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -56,13 +79,9 @@ internal sealed class BuildCommand
         }
         if (schemaResult.Value == SkillBundleDefinition.CurrentSchemaVersion)
         {
-            if (bundleVersion is not null)
-            {
-                Console.Error.WriteLine($"--bundle-version is valid only for schemaVersion {AgentDistributionBundleDefinition.CurrentSchemaVersion} bundles.");
-                return 1;
-            }
-
-            var result = await buildService.BuildAsync(root, skillBundleVersion, check, cancellationToken).ConfigureAwait(false);
+            var result = releaseBundleVersion is null
+                ? await buildService.BuildAsync(root, check, cancellationToken).ConfigureAwait(false)
+                : await buildService.PrepareReleaseAsync(root, releaseBundleVersion.Value, check, cancellationToken).ConfigureAwait(false);
             if (!result.IsSuccess)
             {
                 Console.Error.WriteLine(result.Failure!.Message);
@@ -74,13 +93,9 @@ internal sealed class BuildCommand
         }
         if (schemaResult.Value == AgentDistributionBundleDefinition.CurrentSchemaVersion)
         {
-            if (skillBundleVersion is not null)
-            {
-                Console.Error.WriteLine("--skill-bundle-version is valid only for schemaVersion 1 bundles.");
-                return 1;
-            }
-
-            var result = await agentDistributionBuildService.BuildAsync(root, bundleVersion, check, cancellationToken).ConfigureAwait(false);
+            var result = releaseBundleVersion is null
+                ? await agentDistributionBuildService.BuildAsync(root, check, cancellationToken).ConfigureAwait(false)
+                : await agentDistributionBuildService.PrepareReleaseAsync(root, releaseBundleVersion.Value, check, cancellationToken).ConfigureAwait(false);
             if (!result.IsSuccess)
             {
                 Console.Error.WriteLine(result.Failure!.Message);

@@ -11,6 +11,7 @@ on:
       - actions/**
       - scripts/dotnet-common.sh
       - scripts/prepare-self-hosted-cli.sh
+      - scripts/resolve-bundle-operation-version.sh
       - src/**
   workflow_dispatch:
 
@@ -26,7 +27,7 @@ jobs:
     permissions:
       contents: write
     outputs:
-      changed: ${{ steps.skills.outputs.changed }}
+      changed: ${{ steps.skills_result.outputs.changed }}
       synchronized_sha: ${{ steps.synchronized.outputs.sha }}
 
     env:
@@ -59,15 +60,58 @@ jobs:
           --version "${SELF_HOSTED_PACKAGE_VERSION}"
           --output "${RUNNER_TEMP}/agent-distribution-feed"
 
+      - name: Resolve bundle operation
+        id: bundle_operation
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_REF_NAME}" == release/* ]]; then
+            git fetch --no-tags origin \
+              "refs/heads/${DEFAULT_BRANCH}:refs/remotes/origin/${DEFAULT_BRANCH}"
+            bundle_version="$(bash scripts/resolve-bundle-operation-version.sh \
+              --operation release \
+              --root skills \
+              --base-ref "origin/${DEFAULT_BRANCH}")"
+            echo "kind=release" >> "${GITHUB_OUTPUT}"
+            echo "bundle-version=${bundle_version}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "kind=sync" >> "${GITHUB_OUTPUT}"
+          fi
+
       - name: Sync repository skills
-        id: skills
+        id: sync_skills
+        if: steps.bundle_operation.outputs.kind == 'sync'
         uses: ./actions/sync
         with:
           root: skills
 
+      - name: Prepare repository skills release
+        id: release_skills
+        if: steps.bundle_operation.outputs.kind == 'release'
+        uses: ./actions/release
+        with:
+          root: skills
+          bundle-version: ${{ steps.bundle_operation.outputs.bundle-version }}
+
+      - name: Capture bundle operation result
+        id: skills_result
+        env:
+          RELEASE_CHANGED: ${{ steps.release_skills.outputs.changed }}
+          SYNC_CHANGED: ${{ steps.sync_skills.outputs.changed }}
+        run: |
+          set -euo pipefail
+          changed="${RELEASE_CHANGED:-${SYNC_CHANGED:-false}}"
+          if [[ "${changed}" != "true" && "${changed}" != "false" ]]; then
+            echo "Bundle operation did not report a valid changed result: ${changed}" >&2
+            exit 1
+          fi
+          echo "changed=${changed}" >> "${GITHUB_OUTPUT}"
+
       - name: Capture synchronized commit
         id: synchronized
-        if: steps.skills.outputs.changed == 'true'
+        if: steps.skills_result.outputs.changed == 'true'
         run: echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
 
   dispatch:

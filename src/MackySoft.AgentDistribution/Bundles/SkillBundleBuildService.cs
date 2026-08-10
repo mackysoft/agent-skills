@@ -5,7 +5,7 @@ using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Bundles;
 
-/// <summary> Reconciles a fixed-layout source bundle and its canonical generated output. </summary>
+/// <summary> Reconciles a fixed-layout source bundle and prepares explicit release revisions. </summary>
 public sealed class SkillBundleBuildService
 {
     private readonly SkillPackageGenerationService generationService;
@@ -32,17 +32,39 @@ public sealed class SkillBundleBuildService
         transaction = new SourceAndGeneratedBundleTransaction(CanonicalTextFilePublisher.PublishAsync);
     }
 
-    /// <summary> Reconciles generated output at the authored or explicitly selected bundle version. </summary>
+    /// <summary> Reconciles generated output while preserving the authored bundle version. </summary>
     /// <param name="bundleRoot"> The root containing <c>bundle.json</c>, <c>definitions</c>, and fixed <c>generated</c> output. </param>
-    /// <param name="skillBundleVersion"> The exact target bundle version, or <see langword="null" /> to preserve the authored version. </param>
     /// <param name="check"> Whether to fail without writing when reconciliation would change files. </param>
     /// <param name="cancellationToken"> The cancellation token propagated through source access and publication. </param>
-    /// <returns> The resulting descriptor and whether files changed, or a structured source, generated, or version failure. </returns>
-    public async ValueTask<SkillOperationResult<SkillBundleBuildResult>> BuildAsync (
+    /// <returns> The resulting descriptor and whether files changed, or a structured source or generated failure. </returns>
+    public ValueTask<SkillOperationResult<SkillBundleBuildResult>> BuildAsync (
         string bundleRoot,
-        int? skillBundleVersion = null,
         bool check = false,
         CancellationToken cancellationToken = default)
+    {
+        return ReconcileAsync(bundleRoot, targetBundleVersion: null, check, cancellationToken);
+    }
+
+    /// <summary> Publishes the current or next exact release revision and its matching generated output. </summary>
+    /// <param name="bundleRoot"> The root containing <c>bundle.json</c>, <c>definitions</c>, and fixed <c>generated</c> output. </param>
+    /// <param name="bundleVersion"> The exact current or next release revision. </param>
+    /// <param name="check"> Whether to fail without writing when release preparation would change files. </param>
+    /// <param name="cancellationToken"> The cancellation token propagated through source access and publication. </param>
+    /// <returns> The resulting descriptor and whether files changed, or a structured source, generated, or version failure. </returns>
+    public ValueTask<SkillOperationResult<SkillBundleBuildResult>> PrepareReleaseAsync (
+        string bundleRoot,
+        int bundleVersion,
+        bool check = false,
+        CancellationToken cancellationToken = default)
+    {
+        return ReconcileAsync(bundleRoot, bundleVersion, check, cancellationToken);
+    }
+
+    private async ValueTask<SkillOperationResult<SkillBundleBuildResult>> ReconcileAsync (
+        string bundleRoot,
+        int? targetBundleVersion,
+        bool check,
+        CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(bundleRoot);
         cancellationToken.ThrowIfCancellationRequested();
@@ -57,15 +79,15 @@ public sealed class SkillBundleBuildService
         var source = sourceResult.Value!;
         var authoredVersion = source.BundleDefinition.SkillBundleVersion;
         SkillBundleVersion targetVersion;
-        if (skillBundleVersion is null)
+        if (targetBundleVersion is null)
         {
             targetVersion = authoredVersion;
         }
-        else if (!SkillBundleVersion.TryCreate(skillBundleVersion.Value, out var requestedVersion))
+        else if (!SkillBundleVersion.TryCreate(targetBundleVersion.Value, out var requestedVersion))
         {
             return SkillOperationResult<SkillBundleBuildResult>.FailureResult(
                 SkillFailureCodes.InputInvalid,
-                $"skillBundleVersion must be a positive integer: {skillBundleVersion.Value}");
+                $"skillBundleVersion must be a positive integer: {targetBundleVersion.Value}");
         }
         else
         {

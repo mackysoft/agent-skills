@@ -29,15 +29,15 @@ public sealed class SkillBundleBuildServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task BuildAsync_WithoutGeneratedBundle_WithExplicitNextVersion_PublishesMatchingSourceAndGeneratedBundle ()
+    public async Task PrepareReleaseAsync_WithoutGeneratedBundle_PublishesMatchingSourceAndGeneratedBundle ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "build-missing-generated-next-version");
         WriteSourceBundle(scope);
         var services = CreateServices();
 
-        var result = await services.BuildService.BuildAsync(
+        var result = await services.BuildService.PrepareReleaseAsync(
             scope.FullPath,
-            skillBundleVersion: 2,
+            bundleVersion: 2,
             check: false,
             cancellationToken: CancellationToken.None);
         var sourceDefinition = await ReadSourceDefinitionAsync(scope, services.Serializer);
@@ -149,7 +149,7 @@ public sealed class SkillBundleBuildServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task BuildAsync_WithExplicitNextVersion_UpdatesVersionWithoutChangingContentDigestsAndIsIdempotent ()
+    public async Task PrepareReleaseAsync_WithNextVersion_UpdatesVersionWithoutChangingContentDigestsAndIsIdempotent ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "build-explicit-version");
         WriteSourceBundle(scope);
@@ -159,9 +159,9 @@ public sealed class SkillBundleBuildServiceTests
         var initialGeneratedResult = await services.Reader.ReadAsync(AbsolutePath.Parse(scope.GetPath("generated")), CancellationToken.None);
         Assert.True(initialGeneratedResult.IsSuccess, initialGeneratedResult.Failure?.Message);
 
-        var result = await services.BuildService.BuildAsync(
+        var result = await services.BuildService.PrepareReleaseAsync(
             scope.FullPath,
-            skillBundleVersion: 2,
+            bundleVersion: 2,
             check: false,
             cancellationToken: CancellationToken.None);
         var sourceDefinition = await ReadSourceDefinitionAsync(scope, services.Serializer);
@@ -179,9 +179,9 @@ public sealed class SkillBundleBuildServiceTests
         Assert.NotEqual(initialPackage.Manifest.ManifestDigest, generatedPackage.Manifest.ManifestDigest);
         var expectedFiles = CaptureFiles(scope.FullPath);
 
-        var repeatedResult = await services.BuildService.BuildAsync(
+        var repeatedResult = await services.BuildService.PrepareReleaseAsync(
             scope.FullPath,
-            skillBundleVersion: 2,
+            bundleVersion: 2,
             check: true,
             cancellationToken: CancellationToken.None);
 
@@ -196,7 +196,7 @@ public sealed class SkillBundleBuildServiceTests
     [InlineData(1, 3)]
     [InlineData(2, 1)]
     [Trait("Size", "Small")]
-    public async Task BuildAsync_WithInvalidExplicitVersion_ReturnsInputFailureWithoutWriting (
+    public async Task PrepareReleaseAsync_WithInvalidVersion_ReturnsInputFailureWithoutWriting (
         int authoredVersion,
         int targetVersion)
     {
@@ -205,9 +205,9 @@ public sealed class SkillBundleBuildServiceTests
         var services = CreateServices();
         var expectedFiles = CaptureFiles(scope.FullPath);
 
-        var result = await services.BuildService.BuildAsync(
+        var result = await services.BuildService.PrepareReleaseAsync(
             scope.FullPath,
-            skillBundleVersion: targetVersion,
+            bundleVersion: targetVersion,
             check: false,
             cancellationToken: CancellationToken.None);
 
@@ -218,7 +218,7 @@ public sealed class SkillBundleBuildServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task BuildAsync_CheckWithExplicitNextVersion_ReturnsStructuredFailureWithoutWriting ()
+    public async Task PrepareReleaseAsync_CheckWithNextVersion_ReturnsStructuredFailureWithoutWriting ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "build-check-explicit-version");
         WriteSourceBundle(scope);
@@ -227,9 +227,9 @@ public sealed class SkillBundleBuildServiceTests
         Assert.True(initialResult.IsSuccess, initialResult.Failure?.Message);
         var expectedFiles = CaptureFiles(scope.FullPath);
 
-        var result = await services.BuildService.BuildAsync(
+        var result = await services.BuildService.PrepareReleaseAsync(
             scope.FullPath,
-            skillBundleVersion: 2,
+            bundleVersion: 2,
             check: true,
             cancellationToken: CancellationToken.None);
 

@@ -6,10 +6,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MackySoft.AgentDistribution.Cli.Hosting.Composition.Features;
 
-/// <summary> Provides DI registration for canonical package build commands. </summary>
+/// <summary> Provides DI registration for canonical bundle generation commands. </summary>
 internal static class BuildServiceCollectionExtensions
 {
-    /// <summary> Registers services required by the <c>build</c> command. </summary>
+    /// <summary> Registers services required by the <c>build</c> and <c>prepare-release</c> commands. </summary>
     /// <param name="services"> The target service collection. </param>
     /// <returns> The updated service collection. </returns>
     /// <exception cref="ArgumentNullException"> Thrown when <paramref name="services" /> is <see langword="null" />. </exception>

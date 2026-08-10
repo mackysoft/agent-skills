@@ -12,7 +12,7 @@ using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Bundles;
 
-/// <summary> Reconciles source schema v3 and its generated mixed bundle. </summary>
+/// <summary> Reconciles source schema v3 and prepares explicit mixed-bundle release revisions. </summary>
 public sealed class AgentDistributionBundleBuildService
 {
     private readonly AgentDistributionBundleGenerationService generationService;
@@ -80,10 +80,37 @@ public sealed class AgentDistributionBundleBuildService
             mixedSerializer);
     }
 
-    /// <summary> Builds v3 generated output at the authored or next explicit version. </summary>
-    public async ValueTask<SkillOperationResult<AgentDistributionBundleBuildResult>> BuildAsync (
+    /// <summary> Builds v3 generated output while preserving the authored bundle version. </summary>
+    /// <param name="bundleRoot"> The root containing the source and generated bundle. </param>
+    /// <param name="check"> Whether to fail without writing when reconciliation would change files. </param>
+    /// <param name="cancellationToken"> The cancellation token propagated through source access and publication. </param>
+    /// <returns> The resulting descriptor and whether files changed, or a structured failure. </returns>
+    public ValueTask<SkillOperationResult<AgentDistributionBundleBuildResult>> BuildAsync (
         string bundleRoot,
-        int? bundleVersion,
+        bool check = false,
+        CancellationToken cancellationToken = default)
+    {
+        return ReconcileAsync(bundleRoot, targetBundleVersion: null, check, cancellationToken);
+    }
+
+    /// <summary> Publishes the current or next exact v3 release revision and its matching generated output. </summary>
+    /// <param name="bundleRoot"> The root containing the source and generated bundle. </param>
+    /// <param name="bundleVersion"> The exact current or next release revision. </param>
+    /// <param name="check"> Whether to fail without writing when release preparation would change files. </param>
+    /// <param name="cancellationToken"> The cancellation token propagated through source access and publication. </param>
+    /// <returns> The resulting descriptor and whether files changed, or a structured failure. </returns>
+    public ValueTask<SkillOperationResult<AgentDistributionBundleBuildResult>> PrepareReleaseAsync (
+        string bundleRoot,
+        int bundleVersion,
+        bool check = false,
+        CancellationToken cancellationToken = default)
+    {
+        return ReconcileAsync(bundleRoot, bundleVersion, check, cancellationToken);
+    }
+
+    private async ValueTask<SkillOperationResult<AgentDistributionBundleBuildResult>> ReconcileAsync (
+        string bundleRoot,
+        int? targetBundleVersion,
         bool check,
         CancellationToken cancellationToken)
     {
@@ -99,15 +126,15 @@ public sealed class AgentDistributionBundleBuildService
 
         var source = sourceResult.Value!;
         AgentDistributionBundleVersion target;
-        if (bundleVersion is null)
+        if (targetBundleVersion is null)
         {
             target = source.BundleDefinition.BundleVersion;
         }
-        else if (!AgentDistributionBundleVersion.TryCreate(bundleVersion.Value, out var requestedVersion))
+        else if (!AgentDistributionBundleVersion.TryCreate(targetBundleVersion.Value, out var requestedVersion))
         {
             return SkillOperationResult<AgentDistributionBundleBuildResult>.FailureResult(
                 SkillFailureCodes.InputInvalid,
-                $"bundleVersion must be a positive integer: {bundleVersion.Value}");
+                $"bundleVersion must be a positive integer: {targetBundleVersion.Value}");
         }
         else
         {
