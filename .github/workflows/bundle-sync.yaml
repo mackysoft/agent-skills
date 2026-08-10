@@ -1,4 +1,4 @@
-name: skills-sync
+name: bundle-sync
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - skills/bundle.json
       - skills/definitions/**
       - .config/dotnet-tools.json
-      - .github/workflows/skills-sync.yaml
+      - .github/workflows/bundle-sync.yaml
       - Directory.Build.props
       - actions/**
       - scripts/dotnet-common.sh
@@ -27,7 +27,7 @@ jobs:
     permissions:
       contents: write
     outputs:
-      changed: ${{ steps.skills_result.outputs.changed }}
+      changed: ${{ steps.bundle_result.outputs.changed }}
       synchronized_sha: ${{ steps.synchronized.outputs.sha }}
 
     env:
@@ -80,15 +80,15 @@ jobs:
             echo "kind=sync" >> "${GITHUB_OUTPUT}"
           fi
 
-      - name: Sync repository skills
-        id: sync_skills
+      - name: Sync repository bundle
+        id: sync_bundle
         if: steps.bundle_operation.outputs.kind == 'sync'
         uses: ./actions/sync
         with:
           root: skills
 
-      - name: Prepare repository skills release
-        id: release_skills
+      - name: Prepare repository bundle release
+        id: release_bundle
         if: steps.bundle_operation.outputs.kind == 'release'
         uses: ./actions/release
         with:
@@ -96,10 +96,10 @@ jobs:
           bundle-version: ${{ steps.bundle_operation.outputs.bundle-version }}
 
       - name: Capture bundle operation result
-        id: skills_result
+        id: bundle_result
         env:
-          RELEASE_CHANGED: ${{ steps.release_skills.outputs.changed }}
-          SYNC_CHANGED: ${{ steps.sync_skills.outputs.changed }}
+          RELEASE_CHANGED: ${{ steps.release_bundle.outputs.changed }}
+          SYNC_CHANGED: ${{ steps.sync_bundle.outputs.changed }}
         run: |
           set -euo pipefail
           changed="${RELEASE_CHANGED:-${SYNC_CHANGED:-false}}"
@@ -111,7 +111,7 @@ jobs:
 
       - name: Capture synchronized commit
         id: synchronized
-        if: steps.skills_result.outputs.changed == 'true'
+        if: steps.bundle_result.outputs.changed == 'true'
         run: echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
 
   dispatch:

@@ -49,7 +49,7 @@ jobs:
           --version "${SELF_HOSTED_PACKAGE_VERSION}"
           --output "${RUNNER_TEMP}/agent-distribution-feed"
 
-      - name: Verify repository skills through the Action
+      - name: Verify repository bundle through the Action
         uses: ./actions/verify
         with:
           root: skills
