@@ -83,16 +83,29 @@
    git commit -m "chore(release): prepare <VERSION>"
    ```
 
-7. commit 後の SHA を使って package smoke test を実行する。
+7. release 準備 branch を push し、`skills-sync` workflow の完了を待つ。
+
+   ```bash
+   git push -u origin release/<VERSION>
+   gh run list --workflow skills-sync --branch release/<VERSION> --limit 5
+   gh run watch <RUN_ID> --exit-status --interval 10
+   git pull --ff-only
+   ```
+
+   `skills-sync` workflow は、`release/` で始まるbranchについて、default branchのバンドル版から次の正確な版を解決します。release Actionが `bundle.json` と生成物を同じ版へ更新し、`github-actions[bot]` のrelease commitを現在のbranchへpushします。通常branchの同期はバンドル版を変更しません。
+
+   workflowを再実行しても、default branchから求める目標版は変わりません。すでにrelease commitが存在する場合は同じ版へ収束し、さらに版を進めません。ローカルでは `bundleVersion` を変更しません。
+
+8. bot commit 後の SHA を使って package smoke test を実行する。
 
    ```bash
    bash scripts/verify-packages.sh \
      --configuration Release \
      --version <VERSION> \
-     --repository-commit <RELEASE_PREPARE_COMMIT_SHA>
+     --repository-commit <RELEASE_BUNDLE_COMMIT_SHA>
    ```
 
-8. PR を作成し、CI が通過したら `master` へ merge する。
+9. PR を作成し、CI が通過したら `master` へ merge する。
 
 ## Tag と公開
 1. merge 後の `origin/master` を取得する。

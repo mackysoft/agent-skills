@@ -13,11 +13,11 @@ public sealed class AgentDistributionBundleBuildServiceTests
         WriteMixedSource(scope);
         var service = AgentDistributionBundleBuildService.CreateDefault();
 
-        var initialResult = await service.BuildAsync(scope.FullPath, null, check: false, CancellationToken.None);
+        var initialResult = await service.BuildAsync(scope.FullPath, check: false, CancellationToken.None);
         Assert.True(initialResult.IsSuccess, initialResult.Failure?.Message);
         Assert.True(initialResult.Value!.Changed);
         var generatedFiles = CaptureFiles(scope.GetPath("generated"));
-        var checkResult = await service.BuildAsync(scope.FullPath, null, check: true, CancellationToken.None);
+        var checkResult = await service.BuildAsync(scope.FullPath, check: true, CancellationToken.None);
 
         Assert.True(checkResult.IsSuccess, checkResult.Failure?.Message);
         Assert.False(checkResult.Value!.Changed);
@@ -26,13 +26,13 @@ public sealed class AgentDistributionBundleBuildServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task BuildAsync_WithExplicitNextVersion_PublishesMatchingSourceAndGeneratedBundle ()
+    public async Task PrepareReleaseAsync_WithNextVersion_PublishesMatchingSourceAndGeneratedBundle ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-v3", "next-version");
         WriteMixedSource(scope);
         var serializer = new AgentDistributionBundleJsonSerializer();
 
-        var result = await AgentDistributionBundleBuildService.CreateDefault().BuildAsync(
+        var result = await AgentDistributionBundleBuildService.CreateDefault().PrepareReleaseAsync(
             scope.FullPath,
             bundleVersion: 2,
             check: false,
@@ -49,12 +49,12 @@ public sealed class AgentDistributionBundleBuildServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task BuildAsync_WithNonPositiveVersion_ReturnsInputFailureWithoutWriting ()
+    public async Task PrepareReleaseAsync_WithNonPositiveVersion_ReturnsInputFailureWithoutWriting ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-v3", "invalid-version");
         WriteMixedSource(scope);
 
-        var result = await AgentDistributionBundleBuildService.CreateDefault().BuildAsync(
+        var result = await AgentDistributionBundleBuildService.CreateDefault().PrepareReleaseAsync(
             scope.FullPath,
             bundleVersion: 0,
             check: false,
@@ -87,7 +87,6 @@ public sealed class AgentDistributionBundleBuildServiceTests
 
         var result = await AgentDistributionBundleBuildService.CreateDefault().BuildAsync(
             scope.FullPath,
-            bundleVersion: null,
             check: false,
             CancellationToken.None);
 
@@ -101,7 +100,7 @@ public sealed class AgentDistributionBundleBuildServiceTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-v3", "missing-skill");
         WriteMixedSource(scope, dependency: "missing-skill");
-        var result = await AgentDistributionBundleBuildService.CreateDefault().BuildAsync(scope.FullPath, null, check: false, CancellationToken.None);
+        var result = await AgentDistributionBundleBuildService.CreateDefault().BuildAsync(scope.FullPath, check: false, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
@@ -114,7 +113,7 @@ public sealed class AgentDistributionBundleBuildServiceTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-v3", "unknown-host");
         WriteMixedSource(scope, hostId: "unknown");
-        var result = await AgentDistributionBundleBuildService.CreateDefault().BuildAsync(scope.FullPath, null, check: false, CancellationToken.None);
+        var result = await AgentDistributionBundleBuildService.CreateDefault().BuildAsync(scope.FullPath, check: false, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SkillFailureCodes.HostUnsupported, result.Failure!.Code);
@@ -130,7 +129,6 @@ public sealed class AgentDistributionBundleBuildServiceTests
 
         var result = await AgentDistributionBundleBuildService.CreateDefault().BuildAsync(
             scope.FullPath,
-            null,
             check: false,
             CancellationToken.None);
 
@@ -150,7 +148,6 @@ public sealed class AgentDistributionBundleBuildServiceTests
 
         var result = await AgentDistributionBundleBuildService.CreateDefault().BuildAsync(
             scope.FullPath,
-            null,
             check: false,
             CancellationToken.None);
 

@@ -3,7 +3,7 @@ set -euo pipefail
 
 operation="${1-}"
 case "${operation}" in
-  verify|sync)
+  verify|sync|release)
     ;;
   *)
     echo "Unsupported Agent Distribution bundle operation: ${operation:-<empty>}" >&2
@@ -55,34 +55,44 @@ fi
 cd -- "${repository_root}"
 dotnet tool restore
 
-build_arguments=(tool run agent-distribution -- build --root "${cli_root}")
-if [[ -n "${AGENT_DISTRIBUTION_BUNDLE_VERSION:-}" ]]; then
-  build_arguments+=(--bundle-version "${AGENT_DISTRIBUTION_BUNDLE_VERSION}")
+if [[ "${operation}" == "release" ]]; then
+  if [[ ! "${AGENT_DISTRIBUTION_RELEASE_BUNDLE_VERSION:-}" =~ ^[1-9][0-9]*$ ]]; then
+    echo "The release action requires a positive exact bundle version." >&2
+    exit 1
+  fi
+
+  bundle_arguments=(
+    tool run agent-distribution -- prepare-release
+    --bundle-version "${AGENT_DISTRIBUTION_RELEASE_BUNDLE_VERSION}"
+    --root "${cli_root}"
+  )
+else
+  bundle_arguments=(tool run agent-distribution -- build --root "${cli_root}")
 fi
 
 if [[ "${operation}" == "verify" ]]; then
-  dotnet "${build_arguments[@]}" --check
+  dotnet "${bundle_arguments[@]}" --check
   exit 0
 fi
 
-: "${GITHUB_OUTPUT:?The sync action requires GITHUB_OUTPUT.}"
-if dotnet "${build_arguments[@]}" --check; then
+: "${GITHUB_OUTPUT:?The sync and release actions require GITHUB_OUTPUT.}"
+if dotnet "${bundle_arguments[@]}" --check; then
   echo "changed=false" >> "${GITHUB_OUTPUT}"
   exit 0
 fi
 
 if ! git diff --cached --quiet; then
-  echo "The sync action requires a clean Git index before generating a commit." >&2
+  echo "The mutating bundle action requires a clean Git index before generating a commit." >&2
   exit 1
 fi
 
 if [[ "${GITHUB_REF:-}" != refs/heads/* ]]; then
-  echo "The sync action can commit only from a branch ref." >&2
+  echo "The mutating bundle action can commit only from a branch ref." >&2
   exit 1
 fi
 branch_name="${GITHUB_REF#refs/heads/}"
 
-dotnet "${build_arguments[@]}"
+dotnet "${bundle_arguments[@]}"
 
 git add --all --force -- "${cli_root}/bundle.json" "${cli_root}/generated"
 if git diff --cached --quiet; then
@@ -92,6 +102,12 @@ fi
 
 git config user.name "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-git commit -m "chore(agent-distribution): sync generated bundle"
+if [[ "${operation}" == "release" ]]; then
+  commit_message="chore(release): prepare bundle version ${AGENT_DISTRIBUTION_RELEASE_BUNDLE_VERSION}"
+else
+  commit_message="chore(agent-distribution): sync generated bundle"
+fi
+
+git commit -m "${commit_message}"
 git push origin "HEAD:${branch_name}"
 echo "changed=true" >> "${GITHUB_OUTPUT}"

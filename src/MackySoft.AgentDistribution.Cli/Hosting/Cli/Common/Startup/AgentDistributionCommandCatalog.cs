@@ -15,7 +15,7 @@ internal static class AgentDistributionCommandCatalog
     {
         ArgumentNullException.ThrowIfNull(app);
 
-        app.Add<BuildCommand>();
+        app.Add<BundleGenerationCommand>();
         return app.RegisterAgentDistributionCommands();
     }
 }

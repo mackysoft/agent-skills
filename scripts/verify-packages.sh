@@ -395,6 +395,8 @@ mkdir -p "$tool_dir"
     --add-source "$package_dir" >/dev/null
 
   dotnet tool run agent-distribution -- --help > "$work_root/tool-help.txt"
+  grep -Eq '^  build[[:space:]]' "$work_root/tool-help.txt"
+  grep -Eq '^  prepare-release[[:space:]]' "$work_root/tool-help.txt"
   grep -Eq '^  skills list[[:space:]]' "$work_root/tool-help.txt"
   grep -Eq '^  agents list[[:space:]]' "$work_root/tool-help.txt"
   if grep -Eq '^  (list|export|install|update|uninstall|prune|doctor)[[:space:]]' "$work_root/tool-help.txt"; then
@@ -408,6 +410,16 @@ mkdir -p "$tool_dir"
   dotnet tool run agent-distribution -- build --root "$bundle_root" >/dev/null
 
   diff -ruN "$DOTNET_REPO_ROOT/tests/Fixtures/SkillBundle/generated" "$bundle_root/generated"
+  grep -Eq '^[[:space:]]*"skillBundleVersion":[[:space:]]*1[,]?$' "$bundle_root/bundle.json"
+  if dotnet tool run agent-distribution -- build --root "$bundle_root" --bundle-version 2 >/dev/null 2>&1; then
+    printf 'The build command accepted a release bundle version.\n' >&2
+    exit 1
+  fi
+
+  dotnet tool run agent-distribution -- prepare-release --bundle-version 2 --root "$bundle_root" >/dev/null
+  grep -Eq '^[[:space:]]*"skillBundleVersion":[[:space:]]*2[,]?$' "$bundle_root/bundle.json"
+  grep -Eq '^[[:space:]]*"skillBundleVersion":[[:space:]]*2[,]?$' "$bundle_root/generated/bundle.json"
+  dotnet tool run agent-distribution -- prepare-release --bundle-version 2 --root "$bundle_root" --check >/dev/null
 
   agent_bundle_root="$work_root/agent-bundle"
   cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/AgentDistributionBundle" "$agent_bundle_root"
@@ -415,6 +427,12 @@ mkdir -p "$tool_dir"
   dotnet tool run agent-distribution -- build --root "$agent_bundle_root" >/dev/null
 
   diff -ruN "$DOTNET_REPO_ROOT/tests/Fixtures/AgentDistributionBundle/generated" "$agent_bundle_root/generated"
+  grep -Eq '^[[:space:]]*"bundleVersion":[[:space:]]*1[,]?$' "$agent_bundle_root/bundle.json"
+
+  dotnet tool run agent-distribution -- prepare-release --bundle-version 2 --root "$agent_bundle_root" >/dev/null
+  grep -Eq '^[[:space:]]*"bundleVersion":[[:space:]]*2[,]?$' "$agent_bundle_root/bundle.json"
+  grep -Eq '^[[:space:]]*"bundleVersion":[[:space:]]*2[,]?$' "$agent_bundle_root/generated/bundle.json"
+  dotnet tool run agent-distribution -- prepare-release --bundle-version 2 --root "$agent_bundle_root" --check >/dev/null
 
   dotnet tool run agent-distribution -- skills list --pretty > "$work_root/agent-distribution-own-list.json"
   grep -q '"Command": "skills.list"' "$work_root/agent-distribution-own-list.json"

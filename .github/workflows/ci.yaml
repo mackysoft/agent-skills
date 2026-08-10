@@ -34,6 +34,29 @@ jobs:
             exit 1
           fi
 
+      - name: Checkout
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Guard bundle version ownership
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_BRANCH: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          operation="sync"
+          if [[ "${HEAD_BRANCH}" == release/* ]]; then
+            operation="release"
+          fi
+          bash scripts/resolve-bundle-operation-version.sh \
+            --operation "${operation}" \
+            --root skills \
+            --base-ref "${BASE_SHA}" \
+            >/dev/null
+
   test:
     needs: source
     uses: ./.github/workflows/dotnet-verify.yaml
