@@ -17,7 +17,7 @@ public sealed class AgentUserTargetRootResolver
     }
 
     /// <summary> Resolves the default user-scope roots for one agent host. </summary>
-    public SkillOperationResult<AgentUserTargetRoots> ResolveDefaultTargetRoots (AgentHostTargetPolicy descriptor)
+    public AgentDistributionOperationResult<AgentUserTargetRoots> ResolveDefaultTargetRoots (AgentHostTargetPolicy descriptor)
     {
         ArgumentNullException.ThrowIfNull(descriptor);
         var policy = descriptor.UserTargetRootPolicy;
@@ -49,24 +49,24 @@ public sealed class AgentUserTargetRootResolver
             ContainedPath.Create(absoluteHome, policy.HomeStateRelativeDirectory));
     }
 
-    private static SkillOperationResult<AgentUserTargetRoots> CreateRoots (ContainedPath artifactRoot, ContainedPath stateRoot)
+    private static AgentDistributionOperationResult<AgentUserTargetRoots> CreateRoots (ContainedPath artifactRoot, ContainedPath stateRoot)
     {
         var artifactResult = AgentPathGuard.Validate(artifactRoot);
         if (!artifactResult.IsSuccess)
         {
-            return SkillOperationResult<AgentUserTargetRoots>.FailureResult(artifactResult.Failure!.Code, artifactResult.Failure.Message);
+            return AgentDistributionOperationResult<AgentUserTargetRoots>.FailureResult(artifactResult.Failure!.Code, artifactResult.Failure.Message);
         }
 
         var stateResult = AgentPathGuard.Validate(stateRoot);
         return stateResult.IsSuccess
-            ? SkillOperationResult<AgentUserTargetRoots>.Success(new AgentUserTargetRoots(
+            ? AgentDistributionOperationResult<AgentUserTargetRoots>.Success(new AgentUserTargetRoots(
                 artifactResult.Value!,
                 stateResult.Value!))
-            : SkillOperationResult<AgentUserTargetRoots>.FailureResult(stateResult.Failure!.Code, stateResult.Failure.Message);
+            : AgentDistributionOperationResult<AgentUserTargetRoots>.FailureResult(stateResult.Failure!.Code, stateResult.Failure.Message);
     }
 
-    private static SkillOperationResult<AgentUserTargetRoots> Failure (string message)
+    private static AgentDistributionOperationResult<AgentUserTargetRoots> Failure (string message)
     {
-        return SkillOperationResult<AgentUserTargetRoots>.FailureResult(SkillFailureCodes.UserTargetUnavailable, message);
+        return AgentDistributionOperationResult<AgentUserTargetRoots>.FailureResult(AgentDistributionFailureCodes.UserTargetUnavailable, message);
     }
 }

@@ -92,7 +92,7 @@ public sealed class CanonicalSkillPackageFactoryTests
     {
         manifestSerializer ??= new SkillManifestJsonSerializer();
         return new CanonicalSkillPackage.Factory(
-            new SkillDigestCalculator(),
+            new PackageContentDigestCalculator(),
             manifestSerializer);
     }
 

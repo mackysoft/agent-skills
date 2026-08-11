@@ -7,7 +7,7 @@ namespace MackySoft.AgentDistribution.Bundles;
 public sealed class AgentDistributionBundleDescriptor
 {
     /// <summary> Initializes a generated descriptor. </summary>
-    public AgentDistributionBundleDescriptor (int schemaVersion, SkillCatalogId catalogId, AgentDistributionBundleVersion bundleVersion, Sha256Digest bundleDigest)
+    public AgentDistributionBundleDescriptor (int schemaVersion, AgentDistributionCatalogId catalogId, AgentDistributionBundleVersion bundleVersion, Sha256Digest bundleDigest)
     {
         if (schemaVersion != AgentDistributionBundleDefinition.CurrentSchemaVersion)
         {
@@ -24,7 +24,7 @@ public sealed class AgentDistributionBundleDescriptor
     public int SchemaVersion { get; }
 
     /// <summary> Gets the stable catalog identity. </summary>
-    public SkillCatalogId CatalogId { get; }
+    public AgentDistributionCatalogId CatalogId { get; }
 
     /// <summary> Gets the release version. </summary>
     public AgentDistributionBundleVersion BundleVersion { get; }

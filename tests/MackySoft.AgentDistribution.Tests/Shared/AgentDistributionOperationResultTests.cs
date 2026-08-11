@@ -2,7 +2,7 @@ using MackySoft.AgentDistribution.Shared;
 
 namespace MackySoft.AgentDistribution.Tests.Shared;
 
-public sealed class SkillOperationResultTests
+public sealed class AgentDistributionOperationResultTests
 {
     [Fact]
     [Trait("Size", "Small")]
@@ -10,7 +10,7 @@ public sealed class SkillOperationResultTests
     {
         var value = new object();
 
-        var result = SkillOperationResult<object>.Success(value);
+        var result = AgentDistributionOperationResult<object>.Success(value);
 
         Assert.True(result.IsSuccess);
         Assert.Same(value, result.Value);
@@ -21,11 +21,11 @@ public sealed class SkillOperationResultTests
     [Trait("Size", "Small")]
     public void FailureResult_CreatesFailureStateOnly ()
     {
-        var result = SkillOperationResult<object>.FailureResult(SkillFailureCodes.InputInvalid, "Invalid input.");
+        var result = AgentDistributionOperationResult<object>.FailureResult(AgentDistributionFailureCodes.InputInvalid, "Invalid input.");
 
         Assert.False(result.IsSuccess);
         Assert.Null(result.Value);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
         Assert.Equal("Invalid input.", result.Failure.Message);
     }
 }

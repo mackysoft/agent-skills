@@ -50,19 +50,19 @@ internal sealed class HostRegistration
     internal static IReadOnlyList<HostRegistration> Registrations => BuiltIns;
 
     /// <summary>Gets the complete registration for one execution host.</summary>
-    internal static SkillOperationResult<HostRegistration> Get (HostKind host)
+    internal static AgentDistributionOperationResult<HostRegistration> Get (HostKind host)
     {
         if (!Vocabulary.IsDefined(host))
         {
-            return SkillOperationResult<HostRegistration>.FailureResult(
-                SkillFailureCodes.HostUnsupported,
+            return AgentDistributionOperationResult<HostRegistration>.FailureResult(
+                AgentDistributionFailureCodes.HostUnsupported,
                 $"Unsupported execution host value: {host}");
         }
 
         return BuiltInsByHost.TryGetValue(host, out var registration)
-            ? SkillOperationResult<HostRegistration>.Success(registration)
-            : SkillOperationResult<HostRegistration>.FailureResult(
-                SkillFailureCodes.HostUnsupported,
+            ? AgentDistributionOperationResult<HostRegistration>.Success(registration)
+            : AgentDistributionOperationResult<HostRegistration>.FailureResult(
+                AgentDistributionFailureCodes.HostUnsupported,
                 $"Unsupported execution host: {Vocabulary.GetText(host)}");
     }
 

@@ -1,12 +1,12 @@
 namespace MackySoft.AgentDistribution.Shared;
 
-/// <summary> Represents a SKILL library operation result. </summary>
+/// <summary> Represents an Agent Distribution operation result. </summary>
 /// <typeparam name="T"> The successful value type. </typeparam>
-public sealed class SkillOperationResult<T>
+public sealed class AgentDistributionOperationResult<T>
 {
-    private SkillOperationResult (
+    private AgentDistributionOperationResult (
         T? value,
-        SkillFailure? failure)
+        AgentDistributionFailure? failure)
     {
         Value = value;
         Failure = failure;
@@ -16,7 +16,7 @@ public sealed class SkillOperationResult<T>
     public T? Value { get; }
 
     /// <summary> Gets the failure, or <see langword="null" /> when succeeded. </summary>
-    public SkillFailure? Failure { get; }
+    public AgentDistributionFailure? Failure { get; }
 
     /// <summary> Gets a value indicating whether this result succeeded. </summary>
     public bool IsSuccess => Failure is null;
@@ -24,20 +24,20 @@ public sealed class SkillOperationResult<T>
     /// <summary> Creates a successful result. </summary>
     /// <param name="value"> The successful value. </param>
     /// <returns> The successful result. </returns>
-    public static SkillOperationResult<T> Success (T value)
+    public static AgentDistributionOperationResult<T> Success (T value)
     {
         ArgumentNullException.ThrowIfNull(value);
-        return new SkillOperationResult<T>(value, null);
+        return new AgentDistributionOperationResult<T>(value, null);
     }
 
     /// <summary> Creates a failed result. </summary>
     /// <param name="code"> The failure code. </param>
     /// <param name="message"> The user-facing failure message. </param>
     /// <returns> The failed result. </returns>
-    public static SkillOperationResult<T> FailureResult (
-        SkillFailureCode code,
+    public static AgentDistributionOperationResult<T> FailureResult (
+        AgentDistributionFailureCode code,
         string message)
     {
-        return new SkillOperationResult<T>(default, SkillFailure.Create(code, message));
+        return new AgentDistributionOperationResult<T>(default, AgentDistributionFailure.Create(code, message));
     }
 }

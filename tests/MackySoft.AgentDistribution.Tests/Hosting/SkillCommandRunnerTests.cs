@@ -53,7 +53,7 @@ public sealed class SkillCommandRunnerTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(1, result.ExitCode);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
         Assert.Contains("--category", result.Failure.Message, StringComparison.Ordinal);
         Assert.Contains("--skill", result.Failure.Message, StringComparison.Ordinal);
     }
@@ -70,7 +70,7 @@ public sealed class SkillCommandRunnerTests
         var result = await runner.ListAsync(new SkillListCommandRequest(category: ["core "]), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public sealed class SkillCommandRunnerTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
     }
 
     [Fact]
@@ -252,7 +252,7 @@ public sealed class SkillCommandRunnerTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
         Assert.Contains("Unsupported SKILL category: removed", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -384,7 +384,7 @@ public sealed class SkillCommandRunnerTests
                 bundleFactory));
         var result = await writer.WriteAsync(
             bundle,
-            AbsolutePath.Parse(Path.Combine(packageBaseDirectory, "skills")),
+            AbsolutePath.Parse(Path.Combine(packageBaseDirectory, "agent-distribution")),
             CancellationToken.None);
         Assert.True(result.IsSuccess, result.Failure?.Message);
     }

@@ -22,21 +22,21 @@ public sealed class SkillInstallTargetResolver
     /// <param name="request"> The install request. </param>
     /// <param name="catalogId"> The catalog that owns the resolved bundle target. </param>
     /// <returns> The canonical preferred bundle target, or a structured path-resolution failure. </returns>
-    public SkillOperationResult<SkillResolvedInstallTarget> ResolveTarget (
+    public AgentDistributionOperationResult<SkillResolvedInstallTarget> ResolveTarget (
         SkillInstallRequest request,
-        SkillCatalogId catalogId)
+        AgentDistributionCatalogId catalogId)
     {
         var candidatesResult = ResolveTargetCandidates(request, catalogId);
         return candidatesResult.IsSuccess
-            ? SkillOperationResult<SkillResolvedInstallTarget>.Success(candidatesResult.Value!.PreferredTarget)
-            : SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(
+            ? AgentDistributionOperationResult<SkillResolvedInstallTarget>.Success(candidatesResult.Value!.PreferredTarget)
+            : AgentDistributionOperationResult<SkillResolvedInstallTarget>.FailureResult(
                 candidatesResult.Failure!.Code,
                 candidatesResult.Failure.Message);
     }
 
-    internal SkillOperationResult<SkillInstallTargetCandidates> ResolveTargetCandidates (
+    internal AgentDistributionOperationResult<SkillInstallTargetCandidates> ResolveTargetCandidates (
         SkillInstallRequest request,
-        SkillCatalogId catalogId)
+        AgentDistributionCatalogId catalogId)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(catalogId);
@@ -44,7 +44,7 @@ public sealed class SkillInstallTargetResolver
         var registrationResult = HostRegistration.Get(request.Host);
         if (!registrationResult.IsSuccess)
         {
-            return SkillOperationResult<SkillInstallTargetCandidates>.FailureResult(
+            return AgentDistributionOperationResult<SkillInstallTargetCandidates>.FailureResult(
                 registrationResult.Failure!.Code,
                 registrationResult.Failure.Message);
         }
@@ -64,7 +64,7 @@ public sealed class SkillInstallTargetResolver
             : userTargetRootResolver.ResolveDefaultTargetRoot(descriptor);
         if (!hostRootResult.IsSuccess)
         {
-            return SkillOperationResult<SkillInstallTargetCandidates>.FailureResult(
+            return AgentDistributionOperationResult<SkillInstallTargetCandidates>.FailureResult(
                 hostRootResult.Failure!.Code,
                 hostRootResult.Failure.Message);
         }
@@ -79,7 +79,7 @@ public sealed class SkillInstallTargetResolver
             var targetResult = CreateResolvedTarget(registration.Host, bundleTargetRootResult);
             if (!targetResult.IsSuccess)
             {
-                return SkillOperationResult<SkillInstallTargetCandidates>.FailureResult(
+                return AgentDistributionOperationResult<SkillInstallTargetCandidates>.FailureResult(
                     targetResult.Failure!.Code,
                     targetResult.Failure.Message);
             }
@@ -87,13 +87,13 @@ public sealed class SkillInstallTargetResolver
             targets.Add(targetResult.Value!);
         }
 
-        return SkillOperationResult<SkillInstallTargetCandidates>.Success(new SkillInstallTargetCandidates(
+        return AgentDistributionOperationResult<SkillInstallTargetCandidates>.Success(new SkillInstallTargetCandidates(
             targets,
             hostRootResult.Value!,
             layouts.Contains(SkillBundleTargetRootLayout.CatalogDirectory)));
     }
 
-    private static SkillOperationResult<AbsolutePath> ResolveDefaultProjectHostRoot (
+    private static AgentDistributionOperationResult<AbsolutePath> ResolveDefaultProjectHostRoot (
         SkillInstallRequest request,
         RootRelativePath projectTargetDirectory)
     {
@@ -104,7 +104,7 @@ public sealed class SkillInstallTargetResolver
         return result;
     }
 
-    private static SkillOperationResult<SkillResolvedInstallTarget> ResolveExplicitProjectTarget (
+    private static AgentDistributionOperationResult<SkillResolvedInstallTarget> ResolveExplicitProjectTarget (
         SkillInstallRequest request,
         HostKind host)
     {
@@ -113,7 +113,7 @@ public sealed class SkillInstallTargetResolver
         return CreateResolvedTarget(host, targetRootResult);
     }
 
-    private static SkillOperationResult<SkillResolvedInstallTarget> ResolveExplicitUserTarget (
+    private static AgentDistributionOperationResult<SkillResolvedInstallTarget> ResolveExplicitUserTarget (
         SkillInstallRequest request,
         HostKind host)
     {
@@ -122,9 +122,9 @@ public sealed class SkillInstallTargetResolver
         return CreateResolvedTarget(host, targetRootResult);
     }
 
-    private static SkillOperationResult<AbsolutePath> ResolveDefaultBundleTargetRoot (
+    private static AgentDistributionOperationResult<AbsolutePath> ResolveDefaultBundleTargetRoot (
         AbsolutePath hostRoot,
-        SkillCatalogId catalogId,
+        AgentDistributionCatalogId catalogId,
         SkillBundleTargetRootLayout layout)
     {
         return layout switch
@@ -137,28 +137,28 @@ public sealed class SkillInstallTargetResolver
         };
     }
 
-    private static SkillOperationResult<SkillResolvedInstallTarget> CreateResolvedTarget (
+    private static AgentDistributionOperationResult<SkillResolvedInstallTarget> CreateResolvedTarget (
         HostKind host,
-        SkillOperationResult<AbsolutePath> targetRootResult)
+        AgentDistributionOperationResult<AbsolutePath> targetRootResult)
     {
         return targetRootResult.IsSuccess
-            ? SkillOperationResult<SkillResolvedInstallTarget>.Success(
+            ? AgentDistributionOperationResult<SkillResolvedInstallTarget>.Success(
                 new SkillResolvedInstallTarget(host, targetRootResult.Value!))
-            : SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(
+            : AgentDistributionOperationResult<SkillResolvedInstallTarget>.FailureResult(
                 targetRootResult.Failure!.Code,
                 targetRootResult.Failure.Message);
     }
 
-    private static SkillOperationResult<SkillInstallTargetCandidates> CreateCandidateSet (
-        SkillOperationResult<SkillResolvedInstallTarget> targetResult)
+    private static AgentDistributionOperationResult<SkillInstallTargetCandidates> CreateCandidateSet (
+        AgentDistributionOperationResult<SkillResolvedInstallTarget> targetResult)
     {
         return targetResult.IsSuccess
-            ? SkillOperationResult<SkillInstallTargetCandidates>.Success(
+            ? AgentDistributionOperationResult<SkillInstallTargetCandidates>.Success(
                 new SkillInstallTargetCandidates(
                     [targetResult.Value!],
                     defaultHostRoot: null,
                     includesCatalogDirectoryLayout: false))
-            : SkillOperationResult<SkillInstallTargetCandidates>.FailureResult(
+            : AgentDistributionOperationResult<SkillInstallTargetCandidates>.FailureResult(
                 targetResult.Failure!.Code,
                 targetResult.Failure.Message);
     }

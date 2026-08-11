@@ -92,7 +92,7 @@ For each skill, create `definitions/skills/<category>/<skill-name>/skill.json`. 
 
 Do not repeat bundle identity, category, skill name, reference-file names, digests, or host artifacts in `skill.json`. Those values belong to the bundle, directory layout, reference files, or generated package.
 
-Use the [skill source definition contract](skills/generated/skills/agent-distribution-packaging/references/source-definition-contract.md) shipped with `agent-distribution-packaging` for the complete skill layout, naming, dependency, content, and encoding rules.
+Use the [skill source definition contract](agent-distribution/generated/skills/agent-distribution-packaging/references/source-definition-contract.md) shipped with `agent-distribution-packaging` for the complete skill layout, naming, dependency, content, and encoding rules.
 
 ### Define Custom Agents
 
@@ -169,14 +169,13 @@ dotnet tool install MackySoft.AgentDistribution.Cli --version 4.0.0
 Build the source bundle:
 
 ```bash
-dotnet tool run agent-distribution -- build --root skills
-dotnet tool run agent-distribution -- build --root skills --check
-dotnet tool run agent-distribution -- prepare-release --root skills --bundle-version 2
+dotnet tool run agent-distribution -- build --root agent-distribution
+dotnet tool run agent-distribution -- build --root agent-distribution --check
 ```
 
-The command reads `bundle.json` and `definitions`, then publishes `generated` as one canonical bundle. Do not edit generated files manually. When packaging a product CLI, ship `generated` as `<PackageBaseDirectory>/skills`.
+The command reads `bundle.json` and `definitions`, then publishes `generated` as one canonical bundle. Do not edit generated files manually. When packaging a product CLI, ship `generated` as `<PackageBaseDirectory>/agent-distribution`.
 
-`build` always preserves the version authored in `bundle.json`, so local generation and ordinary CI synchronization cannot advance a release revision. `prepare-release` accepts an exact current or next revision and updates `bundle.json` and generated output together. Repeating release preparation with the same exact revision is a no-op.
+`build` always preserves the version authored in `bundle.json`; the CLI and build services do not expose a bundle-version update operation. The release Action owns the version transition, updates `bundle.json` to the exact next revision inside release CI, and then invokes the same version-preserving `build` command.
 
 The generated layout preserves the two artifact namespaces:
 
@@ -206,7 +205,7 @@ Each `generated/skills/<skill-name>/agent-skill.json` records the skill identity
 When generated output already matches the source definition and bundle version, the command does not write any files. To verify committed output without changing the working tree, use:
 
 ```bash
-dotnet tool run agent-distribution -- build --root skills --check
+dotnet tool run agent-distribution -- build --root agent-distribution --check
 ```
 
 The repository provides `verify`, `sync`, and `release` composite GitHub Actions. Each accepts `root`, a bundle root relative to the GitHub workspace that resolves inside the checked-out Git worktree, and restores the CLI version pinned by the caller's .NET tool manifest.
@@ -220,10 +219,10 @@ Use `verify` for pull requests and other read-only checks. It runs `build --chec
 - name: Verify Agent Distribution
   uses: mackysoft/agent-distribution/actions/verify@4.0.0
   with:
-    root: skills
+    root: agent-distribution
 ```
 
-Use `sync` only from a branch workflow with `contents: write`. When reconciliation is required, it requires a clean Git index, preserves the authored bundle version, synchronizes generated output, stages only `<root>/bundle.json` and `<root>/generated`, creates a `github-actions[bot]` commit, and pushes that commit to the current branch. Its `changed` output is `true` only after that push succeeds.
+Use `sync` only from a branch workflow with `contents: write`. When reconciliation is required, it requires a clean Git index, preserves the authored bundle version, synchronizes generated output, stages only `<root>/generated`, creates a `github-actions[bot]` commit, and pushes that commit to the current branch. Its `changed` output is `true` only after that push succeeds.
 
 ```yaml
 permissions:
@@ -237,10 +236,10 @@ steps:
     id: agent-distribution
     uses: mackysoft/agent-distribution/actions/sync@4.0.0
     with:
-      root: skills
+      root: agent-distribution
 ```
 
-Use `release` only from a release branch workflow. The caller must resolve one exact release revision from an authoritative base before invoking the Action. The Action runs `prepare-release`, commits the matching source descriptor and generated output, and pushes the release commit to the current branch.
+Use `release` only from a release branch workflow. The caller must resolve one exact release revision from an authoritative base before invoking the Action. The Action requires a tracked, unmodified source descriptor, accepts only its current or next revision, updates `bundle.json` when the next revision is requested, runs `build`, commits the matching source descriptor and generated output, and pushes the release commit to the current branch. Ordinary pull requests must preserve the base bundle version; the repository CI guard rejects manual version changes even on release branches.
 
 ```yaml
 permissions:
@@ -254,11 +253,11 @@ steps:
     id: agent-distribution-release
     uses: mackysoft/agent-distribution/actions/release@4.0.0
     with:
-      root: skills
+      root: agent-distribution
       bundle-version: 2
 ```
 
-Pushes made with the default `GITHUB_TOKEN` do not trigger another workflow run. If the caller supplies credentials that do trigger workflows, synchronization and release preparation converge because their respective `--check` commands pass. Branch protection still applies; use `verify` when direct bot pushes are not permitted.
+Pushes made with the default `GITHUB_TOKEN` do not trigger another workflow run. If the caller supplies credentials that do trigger workflows, synchronization and release preparation converge because `build --check` passes after the release commit. Branch protection still applies; use `verify` when direct bot pushes are not permitted.
 
 ## Add Agent Distribution to a Product CLI
 
@@ -285,11 +284,11 @@ services.AddAgentDistributionCommandRuntime(options =>
 });
 ```
 
-The package base directory must contain the shipped generated packages under `skills/`. A schema `1` root contains skill packages directly. A schema `3` root contains separate `skills/` and `agents/` namespaces.
+The package base directory must contain the shipped generated bundle at `<PackageBaseDirectory>/agent-distribution/`. A schema `1` bundle uses that physical root as the direct container for skill packages. A schema `3` bundle places `bundle.json`, `skills/`, and `agents/` directly below that physical root.
 
 ```text
 <PackageBaseDirectory>/
-  skills/
+  agent-distribution/
     bundle.json
     skills/<skill-name>/...
     agents/<agent-name>/...

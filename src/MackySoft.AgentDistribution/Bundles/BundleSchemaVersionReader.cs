@@ -9,7 +9,7 @@ namespace MackySoft.AgentDistribution.Bundles;
 public sealed class BundleSchemaVersionReader
 {
     /// <summary> Reads the schema version from <c>bundle.json</c>. </summary>
-    public async ValueTask<SkillOperationResult<int>> ReadAsync (AbsolutePath bundleRoot, CancellationToken cancellationToken)
+    public async ValueTask<AgentDistributionOperationResult<int>> ReadAsync (AbsolutePath bundleRoot, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(bundleRoot);
         cancellationToken.ThrowIfCancellationRequested();
@@ -30,7 +30,7 @@ public sealed class BundleSchemaVersionReader
         {
             await using var stream = File.OpenRead(pathResult.Value!.Value);
             using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
-            return SkillOperationResult<int>.Success(document.RootElement.GetProperty("schemaVersion").GetInt32());
+            return AgentDistributionOperationResult<int>.Success(document.RootElement.GetProperty("schemaVersion").GetInt32());
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException or InvalidOperationException or FormatException)
         {
@@ -38,8 +38,8 @@ public sealed class BundleSchemaVersionReader
         }
     }
 
-    private static SkillOperationResult<int> Failure (string message)
+    private static AgentDistributionOperationResult<int> Failure (string message)
     {
-        return SkillOperationResult<int>.FailureResult(SkillFailureCodes.SourceInvalid, message);
+        return AgentDistributionOperationResult<int>.FailureResult(AgentDistributionFailureCodes.SourceInvalid, message);
     }
 }

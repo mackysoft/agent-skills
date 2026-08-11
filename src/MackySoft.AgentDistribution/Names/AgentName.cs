@@ -10,7 +10,7 @@ public sealed record AgentName
     /// <param name="value"> The canonical lowercase name. </param>
     public AgentName (string value)
     {
-        if (!SkillIdentifierValidator.IsSafeLowercaseHyphenLiteral(value))
+        if (!AgentDistributionIdentifierValidator.IsSafeLowercaseHyphenLiteral(value))
         {
             throw new ArgumentException($"Agent name literal is invalid: {value}", nameof(value));
         }
@@ -24,7 +24,7 @@ public sealed record AgentName
     /// <summary> Tries to create an agent name without throwing. </summary>
     public static bool TryCreate (string? value, [NotNullWhen(true)] out AgentName? agentName)
     {
-        if (SkillIdentifierValidator.IsSafeLowercaseHyphenLiteral(value))
+        if (AgentDistributionIdentifierValidator.IsSafeLowercaseHyphenLiteral(value))
         {
             agentName = new AgentName(value!);
             return true;

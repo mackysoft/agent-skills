@@ -53,7 +53,7 @@ public static class AgentOperationReportBuilder
         AbsolutePath outputPath,
         AgentPackageCatalog catalog,
         HostKind hostId,
-        SkillExportFormat format)
+        PackageExportFormat format)
     {
         ArgumentNullException.ThrowIfNull(outputPath);
         ArgumentNullException.ThrowIfNull(catalog);

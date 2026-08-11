@@ -19,10 +19,10 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
     }
 
     /// <inheritdoc />
-    public async ValueTask<SkillOperationResult<bool>> DeleteAsync (
+    public async ValueTask<AgentDistributionOperationResult<bool>> DeleteAsync (
         AbsolutePath targetRoot,
         AbsolutePath skillDirectory,
-        Func<AbsolutePath, CancellationToken, ValueTask<SkillOperationResult<bool>>>? precondition,
+        Func<AbsolutePath, CancellationToken, ValueTask<AgentDistributionOperationResult<bool>>>? precondition,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(targetRoot);
@@ -32,7 +32,7 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
         var targetRootResult = PackagePathResolver.ResolveUnderRoot(targetRoot, targetRoot);
         if (!targetRootResult.IsSuccess)
         {
-            return SkillOperationResult<bool>.FailureResult(
+            return AgentDistributionOperationResult<bool>.FailureResult(
                 targetRootResult.Failure!.Code,
                 targetRootResult.Failure.Message);
         }
@@ -41,7 +41,7 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
         var skillDirectoryResult = PackagePathResolver.ResolveUnderRoot(resolvedTargetRoot, skillDirectory);
         if (!skillDirectoryResult.IsSuccess)
         {
-            return SkillOperationResult<bool>.FailureResult(
+            return AgentDistributionOperationResult<bool>.FailureResult(
                 skillDirectoryResult.Failure!.Code,
                 skillDirectoryResult.Failure.Message);
         }
@@ -49,8 +49,8 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
         var resolvedSkillDirectory = skillDirectoryResult.Value!;
         if (resolvedTargetRoot.IsSameAs(resolvedSkillDirectory))
         {
-            return SkillOperationResult<bool>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
+            return AgentDistributionOperationResult<bool>.FailureResult(
+                AgentDistributionFailureCodes.PathUnsafe,
                 $"Skill directory must not be the target root: {resolvedSkillDirectory}");
         }
 
@@ -61,21 +61,21 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
                 var preconditionResult = await precondition(resolvedSkillDirectory, cancellationToken).ConfigureAwait(false);
                 if (!preconditionResult.IsSuccess)
                 {
-                    return SkillOperationResult<bool>.FailureResult(preconditionResult.Failure!.Code, preconditionResult.Failure.Message);
+                    return AgentDistributionOperationResult<bool>.FailureResult(preconditionResult.Failure!.Code, preconditionResult.Failure.Message);
                 }
 
-                return SkillOperationResult<bool>.FailureResult(
-                    SkillFailureCodes.InstallTargetDigestMismatch,
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.InstallTargetDigestMismatch,
                     $"Target skill directory changed after planning; refusing to delete: {resolvedSkillDirectory}");
             }
 
-            return SkillOperationResult<bool>.Success(true);
+            return AgentDistributionOperationResult<bool>.Success(true);
         }
 
         if (!resolvedSkillDirectory.TryGetParent(out var parentDirectory))
         {
-            return SkillOperationResult<bool>.FailureResult(
-                SkillFailureCodes.InstallTargetWriteFailed,
+            return AgentDistributionOperationResult<bool>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetWriteFailed,
                 $"Skill directory parent could not be resolved: {resolvedSkillDirectory}");
         }
 
@@ -84,7 +84,7 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
             ContainedPath.Create(parentDirectory, RootRelativePath.Parse(".agent-distribution-skill-transactions")).Target);
         if (!transactionRootResult.IsSuccess)
         {
-            return SkillOperationResult<bool>.FailureResult(
+            return AgentDistributionOperationResult<bool>.FailureResult(
                 transactionRootResult.Failure!.Code,
                 transactionRootResult.Failure.Message);
         }
@@ -96,7 +96,7 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
                 RootRelativePath.Parse($"{Path.GetFileName(resolvedSkillDirectory.Value)}.delete.{Guid.NewGuid():N}")).Target);
         if (!deletedContainerResult.IsSuccess)
         {
-            return SkillOperationResult<bool>.FailureResult(
+            return AgentDistributionOperationResult<bool>.FailureResult(
                 deletedContainerResult.Failure!.Code,
                 deletedContainerResult.Failure.Message);
         }
@@ -108,7 +108,7 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
                 RootRelativePath.Parse(Path.GetFileName(resolvedSkillDirectory.Value))).Target);
         if (!deletedDirectoryResult.IsSuccess)
         {
-            return SkillOperationResult<bool>.FailureResult(
+            return AgentDistributionOperationResult<bool>.FailureResult(
                 deletedDirectoryResult.Failure!.Code,
                 deletedDirectoryResult.Failure.Message);
         }
@@ -123,7 +123,7 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
             var transactionRootGuard = SkillPackageTransactionPathGuard.ValidateCreatedDirectory(resolvedTargetRoot, transactionRoot);
             if (!transactionRootGuard.IsSuccess)
             {
-                return SkillOperationResult<bool>.FailureResult(
+                return AgentDistributionOperationResult<bool>.FailureResult(
                     transactionRootGuard.Failure!.Code,
                     transactionRootGuard.Failure.Message);
             }
@@ -131,7 +131,7 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
             var lockResult = SkillPackageTransactionLock.Acquire(resolvedTargetRoot, transactionRoot);
             if (!lockResult.IsSuccess)
             {
-                return SkillOperationResult<bool>.FailureResult(lockResult.Failure!.Code, lockResult.Failure.Message);
+                return AgentDistributionOperationResult<bool>.FailureResult(lockResult.Failure!.Code, lockResult.Failure.Message);
             }
 
             using var transactionLock = lockResult.Value!;
@@ -140,14 +140,14 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
                 var preconditionResult = await precondition(resolvedSkillDirectory, cancellationToken).ConfigureAwait(false);
                 if (!preconditionResult.IsSuccess)
                 {
-                    return SkillOperationResult<bool>.FailureResult(preconditionResult.Failure!.Code, preconditionResult.Failure.Message);
+                    return AgentDistributionOperationResult<bool>.FailureResult(preconditionResult.Failure!.Code, preconditionResult.Failure.Message);
                 }
             }
 
             if (!directoryOperations.Exists(resolvedSkillDirectory))
             {
-                return SkillOperationResult<bool>.FailureResult(
-                    SkillFailureCodes.InstallTargetDigestMismatch,
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.InstallTargetDigestMismatch,
                     $"Target skill directory changed after planning; refusing to delete: {resolvedSkillDirectory}");
             }
 
@@ -155,7 +155,7 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
             var deletedContainerGuard = SkillPackageTransactionPathGuard.ValidateCreatedDirectory(resolvedTargetRoot, deletedContainer);
             if (!deletedContainerGuard.IsSuccess)
             {
-                return SkillOperationResult<bool>.FailureResult(deletedContainerGuard.Failure!.Code, deletedContainerGuard.Failure.Message);
+                return AgentDistributionOperationResult<bool>.FailureResult(deletedContainerGuard.Failure!.Code, deletedContainerGuard.Failure.Message);
             }
 
             directoryOperations.Move(resolvedSkillDirectory, deletedDirectory);
@@ -165,19 +165,19 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
                 if (!movedTargetResult.IsSuccess)
                 {
                     directoryOperations.Move(deletedDirectory, resolvedSkillDirectory);
-                    return SkillOperationResult<bool>.FailureResult(movedTargetResult.Failure!.Code, movedTargetResult.Failure.Message);
+                    return AgentDistributionOperationResult<bool>.FailureResult(movedTargetResult.Failure!.Code, movedTargetResult.Failure.Message);
                 }
             }
 
             DeleteDirectoryBestEffort(deletedDirectory);
             DeleteDirectoryBestEffort(transactionRoot);
 
-            return SkillOperationResult<bool>.Success(true);
+            return AgentDistributionOperationResult<bool>.Success(true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return SkillOperationResult<bool>.FailureResult(
-                SkillFailureCodes.InstallTargetWriteFailed,
+            return AgentDistributionOperationResult<bool>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetWriteFailed,
                 $"Failed to delete installed SKILL package: {resolvedSkillDirectory}. {ex.Message}");
         }
         finally

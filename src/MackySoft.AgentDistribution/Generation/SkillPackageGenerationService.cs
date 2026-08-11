@@ -15,7 +15,7 @@ public sealed class SkillPackageGenerationService
 {
     private readonly SkillBundleDefinitionReader bundleReader;
     private readonly SkillSourceDefinitionReader sourceReader;
-    private readonly SkillDigestCalculator digestCalculator;
+    private readonly PackageContentDigestCalculator digestCalculator;
     private readonly SkillManifestJsonSerializer manifestSerializer;
     private readonly SkillManifest.Factory manifestFactory;
     private readonly CanonicalSkillPackage.Factory packageFactory;
@@ -34,7 +34,7 @@ public sealed class SkillPackageGenerationService
     public SkillPackageGenerationService (
         SkillBundleDefinitionReader bundleReader,
         SkillSourceDefinitionReader sourceReader,
-        SkillDigestCalculator digestCalculator,
+        PackageContentDigestCalculator digestCalculator,
         SkillManifestJsonSerializer manifestSerializer,
         SkillManifest.Factory manifestFactory,
         CanonicalSkillPackage.Factory packageFactory,
@@ -55,7 +55,7 @@ public sealed class SkillPackageGenerationService
     /// <param name="bundleRoot"> The root containing authored <c>bundle.json</c> and <c>definitions</c>. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The generated descriptor and complete canonical package set, or a source validation failure. </returns>
-    internal async ValueTask<SkillOperationResult<CanonicalSkillBundle>> GenerateAllAsync (
+    internal async ValueTask<AgentDistributionOperationResult<CanonicalSkillBundle>> GenerateAllAsync (
         AbsolutePath bundleRoot,
         CancellationToken cancellationToken = default)
     {
@@ -69,7 +69,7 @@ public sealed class SkillPackageGenerationService
         }
 
         var source = sourceResult.Value!;
-        return SkillOperationResult<CanonicalSkillBundle>.Success(
+        return AgentDistributionOperationResult<CanonicalSkillBundle>.Success(
             GenerateAll(source, source.BundleDefinition.SkillBundleVersion));
     }
 
@@ -77,7 +77,7 @@ public sealed class SkillPackageGenerationService
     /// <param name="bundleRoot"> The root containing authored <c>bundle.json</c> and <c>definitions</c>. </param>
     /// <param name="cancellationToken"> The cancellation token propagated through source access. </param>
     /// <returns> The validated source snapshot, or a source validation failure. </returns>
-    internal async ValueTask<SkillOperationResult<SkillPackageGenerationSource>> ReadSourceAsync (
+    internal async ValueTask<AgentDistributionOperationResult<SkillPackageGenerationSource>> ReadSourceAsync (
         AbsolutePath bundleRoot,
         CancellationToken cancellationToken)
     {
@@ -108,8 +108,8 @@ public sealed class SkillPackageGenerationService
 
         if (sourceResult.Value!.Count == 0)
         {
-            return SkillOperationResult<SkillPackageGenerationSource>.FailureResult(
-                SkillFailureCodes.SourceInvalid,
+            return AgentDistributionOperationResult<SkillPackageGenerationSource>.FailureResult(
+                AgentDistributionFailureCodes.SourceInvalid,
                 $"SKILL definitions directory does not contain any definitions: {definitionsRoot.Value}");
         }
 
@@ -119,7 +119,7 @@ public sealed class SkillPackageGenerationService
             return SourceFailure(dependencyReferenceResult.Failure!);
         }
 
-        return SkillOperationResult<SkillPackageGenerationSource>.Success(
+        return AgentDistributionOperationResult<SkillPackageGenerationSource>.Success(
             new SkillPackageGenerationSource(bundleResult.Value!, sourceResult.Value));
     }
 
@@ -175,8 +175,8 @@ public sealed class SkillPackageGenerationService
             .ToArray();
 
         var contentDigest = digestCalculator.ComputeDigest(
-            new[] { new SkillDigestInputFile(bodyFile.RelativePath, bodyFile.Content) }
-                .Concat(referenceFiles.Select(static file => new SkillDigestInputFile(file.RelativePath, file.Content))));
+            new[] { new PackageContentDigestInputFile(bodyFile.RelativePath, bodyFile.Content) }
+                .Concat(referenceFiles.Select(static file => new PackageContentDigestInputFile(file.RelativePath, file.Content))));
 
         var hostArtifactOutputs = CreateHostArtifactOutputs(definition.Metadata)
             .OrderBy(static artifact => artifact.Manifest.Host)
@@ -225,19 +225,19 @@ public sealed class SkillPackageGenerationService
         return packageResult.Value!;
     }
 
-    private static SkillOperationResult<CanonicalSkillBundle> GenerationFailure (SkillFailure failure)
+    private static AgentDistributionOperationResult<CanonicalSkillBundle> GenerationFailure (AgentDistributionFailure failure)
     {
-        return SkillOperationResult<CanonicalSkillBundle>.FailureResult(failure.Code, failure.Message);
+        return AgentDistributionOperationResult<CanonicalSkillBundle>.FailureResult(failure.Code, failure.Message);
     }
 
-    private static SkillOperationResult<SkillPackageGenerationSource> SourceFailure (SkillFailure failure)
+    private static AgentDistributionOperationResult<SkillPackageGenerationSource> SourceFailure (AgentDistributionFailure failure)
     {
-        return SkillOperationResult<SkillPackageGenerationSource>.FailureResult(failure.Code, failure.Message);
+        return AgentDistributionOperationResult<SkillPackageGenerationSource>.FailureResult(failure.Code, failure.Message);
     }
 
     private static string CreateSkillBody (SkillSourceDefinition definition)
     {
-        var body = SkillTextNormalizer.NormalizeToLf(definition.SkillTemplate).TrimStart('\n');
+        var body = AgentDistributionTextNormalizer.NormalizeToLf(definition.SkillTemplate).TrimStart('\n');
         return $"# {definition.Metadata.SkillName.Value}\n\n{body}";
     }
 

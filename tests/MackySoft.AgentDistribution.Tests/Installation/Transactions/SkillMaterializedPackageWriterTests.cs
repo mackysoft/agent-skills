@@ -33,7 +33,7 @@ public sealed class SkillMaterializedPackageWriterTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
         Assert.True(Directory.Exists(skillDirectory));
         Assert.Equal("# Existing\n", File.ReadAllText(skillPath));
         Assert.False(Directory.Exists(Path.Combine(targetRoot, ".agent-distribution-skill-transactions")));
@@ -65,7 +65,7 @@ public sealed class SkillMaterializedPackageWriterTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetWriteFailed, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetWriteFailed, result.Failure!.Code);
         Assert.True(Directory.Exists(skillDirectory));
         Assert.Equal("# Existing\n", File.ReadAllText(skillPath));
         Assert.False(File.Exists(Path.Combine(skillDirectory, "new.md")));
@@ -96,12 +96,12 @@ public sealed class SkillMaterializedPackageWriterTests
             SkillMaterializedPackageWriteMode.ReplaceExisting,
             (_, _) => ValueTask.FromResult(
                 ++preconditionCallCount == 1
-                    ? SkillOperationResult<bool>.Success(true)
-                    : SkillOperationResult<bool>.FailureResult(SkillFailureCodes.InstallTargetDigestMismatch, "Synthetic moved target failure.")),
+                    ? AgentDistributionOperationResult<bool>.Success(true)
+                    : AgentDistributionOperationResult<bool>.FailureResult(AgentDistributionFailureCodes.InstallTargetDigestMismatch, "Synthetic moved target failure.")),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
         Assert.True(Directory.Exists(skillDirectory));
         Assert.Equal("# Existing\n", File.ReadAllText(skillPath));
         Assert.False(Directory.Exists(Path.Combine(targetRoot, ".agent-distribution-skill-transactions")));
@@ -125,7 +125,7 @@ public sealed class SkillMaterializedPackageWriterTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
         Assert.False(Directory.Exists(outsideSkillDirectory));
         Assert.Empty(Directory.EnumerateFileSystemEntries(outsideScope.FullPath));
     }

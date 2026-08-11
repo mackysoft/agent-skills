@@ -25,13 +25,13 @@ public sealed class SkillExportService
     /// <param name="outputRoot"> The output root directory. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The output root or failure. </returns>
-    public ValueTask<SkillOperationResult<AbsolutePath>> ExportAsync (
+    public ValueTask<AgentDistributionOperationResult<AbsolutePath>> ExportAsync (
         IReadOnlyList<CanonicalSkillPackage> packages,
         HostKind host,
         AbsolutePath outputRoot,
         CancellationToken cancellationToken = default)
     {
-        return ExportAsync(packages, host, outputRoot, SkillExportFormat.Directory, cancellationToken);
+        return ExportAsync(packages, host, outputRoot, PackageExportFormat.Directory, cancellationToken);
     }
 
     /// <summary> Exports all packages into an output path. </summary>
@@ -41,11 +41,11 @@ public sealed class SkillExportService
     /// <param name="format"> The output format. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The output path or failure. </returns>
-    public async ValueTask<SkillOperationResult<AbsolutePath>> ExportAsync (
+    public async ValueTask<AgentDistributionOperationResult<AbsolutePath>> ExportAsync (
         IReadOnlyList<CanonicalSkillPackage> packages,
         HostKind host,
         AbsolutePath outputRoot,
-        SkillExportFormat format,
+        PackageExportFormat format,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(packages);
@@ -54,15 +54,15 @@ public sealed class SkillExportService
 
         return format switch
         {
-            SkillExportFormat.Directory => await ExportDirectoryAsync(packages, host, outputRoot, cancellationToken).ConfigureAwait(false),
-            SkillExportFormat.Zip => await ExportZipAsync(packages, host, outputRoot, cancellationToken).ConfigureAwait(false),
-            _ => SkillOperationResult<AbsolutePath>.FailureResult(
-                SkillFailureCodes.InputInvalid,
+            PackageExportFormat.Directory => await ExportDirectoryAsync(packages, host, outputRoot, cancellationToken).ConfigureAwait(false),
+            PackageExportFormat.Zip => await ExportZipAsync(packages, host, outputRoot, cancellationToken).ConfigureAwait(false),
+            _ => AgentDistributionOperationResult<AbsolutePath>.FailureResult(
+                AgentDistributionFailureCodes.InputInvalid,
                 $"Unsupported SKILL export format: {format}"),
         };
     }
 
-    private async ValueTask<SkillOperationResult<AbsolutePath>> ExportDirectoryAsync (
+    private async ValueTask<AgentDistributionOperationResult<AbsolutePath>> ExportDirectoryAsync (
         IReadOnlyList<CanonicalSkillPackage> packages,
         HostKind host,
         AbsolutePath outputRoot,
@@ -78,7 +78,7 @@ public sealed class SkillExportService
             var materializedResult = materializationService.Materialize(package, host);
             if (!materializedResult.IsSuccess)
             {
-                return SkillOperationResult<AbsolutePath>.FailureResult(materializedResult.Failure!.Code, materializedResult.Failure.Message);
+                return AgentDistributionOperationResult<AbsolutePath>.FailureResult(materializedResult.Failure!.Code, materializedResult.Failure.Message);
             }
 
             var skillDirectoryResult = PackagePathResolver.ResolveUnderRoot(
@@ -86,7 +86,7 @@ public sealed class SkillExportService
                 ContainedPath.Create(outputRoot, RootRelativePath.Parse(package.Manifest.SkillName.Value)).Target);
             if (!skillDirectoryResult.IsSuccess)
             {
-                return SkillOperationResult<AbsolutePath>.FailureResult(skillDirectoryResult.Failure!.Code, skillDirectoryResult.Failure.Message);
+                return AgentDistributionOperationResult<AbsolutePath>.FailureResult(skillDirectoryResult.Failure!.Code, skillDirectoryResult.Failure.Message);
             }
 
             var skillDirectory = skillDirectoryResult.Value!;
@@ -97,17 +97,17 @@ public sealed class SkillExportService
                     ContainedPath.Create(skillDirectory, file.RelativePath.RootRelativePath).Target);
                 if (!filePathResult.IsSuccess)
                 {
-                    return SkillOperationResult<AbsolutePath>.FailureResult(filePathResult.Failure!.Code, filePathResult.Failure.Message);
+                    return AgentDistributionOperationResult<AbsolutePath>.FailureResult(filePathResult.Failure!.Code, filePathResult.Failure.Message);
                 }
 
                 await CanonicalTextFilePublisher.PublishAsync(filePathResult.Value!, file.Content, cancellationToken).ConfigureAwait(false);
             }
         }
 
-        return SkillOperationResult<AbsolutePath>.Success(outputRoot);
+        return AgentDistributionOperationResult<AbsolutePath>.Success(outputRoot);
     }
 
-    private async ValueTask<SkillOperationResult<AbsolutePath>> ExportZipAsync (
+    private async ValueTask<AgentDistributionOperationResult<AbsolutePath>> ExportZipAsync (
         IReadOnlyList<CanonicalSkillPackage> packages,
         HostKind host,
         AbsolutePath outputPath,
@@ -115,8 +115,8 @@ public sealed class SkillExportService
     {
         if (!outputPath.TryGetParent(out _))
         {
-            return SkillOperationResult<AbsolutePath>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
+            return AgentDistributionOperationResult<AbsolutePath>.FailureResult(
+                AgentDistributionFailureCodes.PathUnsafe,
                 $"SKILL export zip output path is invalid: {outputPath}");
         }
 
@@ -128,7 +128,7 @@ public sealed class SkillExportService
             var materializedResult = materializationService.Materialize(package, host);
             if (!materializedResult.IsSuccess)
             {
-                return SkillOperationResult<AbsolutePath>.FailureResult(materializedResult.Failure!.Code, materializedResult.Failure.Message);
+                return AgentDistributionOperationResult<AbsolutePath>.FailureResult(materializedResult.Failure!.Code, materializedResult.Failure.Message);
             }
 
             foreach (var file in materializedResult.Value!.Files.OrderBy(static file => file.RelativePath.Value, StringComparer.Ordinal))
@@ -136,8 +136,8 @@ public sealed class SkillExportService
                 var entryPath = $"{package.Manifest.SkillName.Value}/{file.RelativePath.Value}";
                 if (!PackageRelativePath.TryParse(entryPath, out var relativeEntryPath))
                 {
-                    return SkillOperationResult<AbsolutePath>.FailureResult(
-                        SkillFailureCodes.PathUnsafe,
+                    return AgentDistributionOperationResult<AbsolutePath>.FailureResult(
+                        AgentDistributionFailureCodes.PathUnsafe,
                         $"SKILL export zip entry path is unsafe: {entryPath}");
                 }
 
@@ -152,12 +152,12 @@ public sealed class SkillExportService
                     zipEntries,
                     cancellationToken)
                 .ConfigureAwait(false);
-            return SkillOperationResult<AbsolutePath>.Success(outputPath);
+            return AgentDistributionOperationResult<AbsolutePath>.Success(outputPath);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
-            return SkillOperationResult<AbsolutePath>.FailureResult(
-                SkillFailureCodes.InstallTargetWriteFailed,
+            return AgentDistributionOperationResult<AbsolutePath>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetWriteFailed,
                 $"Failed to export SKILL zip: {outputPath}. {ex.Message}");
         }
     }

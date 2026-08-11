@@ -93,7 +93,7 @@ public sealed class SkillPackageCatalogTests
         var bundle = await SkillTestData.GenerateFixtureBundleAsync();
         var foreignDescriptor = new SkillBundleDescriptor(
             bundle.Descriptor.SchemaVersion,
-            new SkillCatalogId("foreign-catalog"),
+            new AgentDistributionCatalogId("foreign-catalog"),
             bundle.Descriptor.SkillBundleVersion,
             bundle.Descriptor.BundleDigest);
 

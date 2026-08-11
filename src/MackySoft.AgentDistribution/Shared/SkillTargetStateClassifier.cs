@@ -5,25 +5,25 @@ internal static class SkillTargetStateClassifier
 {
     private static readonly StateClassification[] DriftClassifications =
     [
-        new(SkillFailureCodes.InstallTargetManifestDigestMismatch, SkillTargetStateKind.ManifestDrift, 0),
-        new(SkillFailureCodes.InstallTargetHostArtifactDigestMismatch, SkillTargetStateKind.HostArtifactDrift, 1),
-        new(SkillFailureCodes.InstallTargetFileSetMismatch, SkillTargetStateKind.FileSetDrift, 2),
-        new(SkillFailureCodes.InstallTargetFrontmatterDigestMismatch, SkillTargetStateKind.FrontmatterDrift, 3),
-        new(SkillFailureCodes.InstallTargetContentDigestMismatch, SkillTargetStateKind.CommonContentDrift, 4),
-        new(SkillFailureCodes.InstallTargetDigestMismatch, SkillTargetStateKind.LocalModified, 5),
-        new(SkillFailureCodes.InstallTargetLocalModification, SkillTargetStateKind.LocalModified, 5),
+        new(AgentDistributionFailureCodes.InstallTargetManifestDigestMismatch, SkillTargetStateKind.ManifestDrift, 0),
+        new(AgentDistributionFailureCodes.InstallTargetHostArtifactDigestMismatch, SkillTargetStateKind.HostArtifactDrift, 1),
+        new(AgentDistributionFailureCodes.InstallTargetFileSetMismatch, SkillTargetStateKind.FileSetDrift, 2),
+        new(AgentDistributionFailureCodes.InstallTargetFrontmatterDigestMismatch, SkillTargetStateKind.FrontmatterDrift, 3),
+        new(AgentDistributionFailureCodes.InstallTargetContentDigestMismatch, SkillTargetStateKind.CommonContentDrift, 4),
+        new(AgentDistributionFailureCodes.InstallTargetDigestMismatch, SkillTargetStateKind.LocalModified, 5),
+        new(AgentDistributionFailureCodes.InstallTargetLocalModification, SkillTargetStateKind.LocalModified, 5),
     ];
 
     private static readonly StateClassification[] BlockingClassifications =
     [
-        new(SkillFailureCodes.InstallTargetUnmanaged, SkillTargetStateKind.Unmanaged, 0),
-        new(SkillFailureCodes.InstallTargetNameCollision, SkillTargetStateKind.NameCollision, 0),
-        new(SkillFailureCodes.InstallTargetHostConflict, SkillTargetStateKind.HostConflict, 0),
+        new(AgentDistributionFailureCodes.InstallTargetUnmanaged, SkillTargetStateKind.Unmanaged, 0),
+        new(AgentDistributionFailureCodes.InstallTargetNameCollision, SkillTargetStateKind.NameCollision, 0),
+        new(AgentDistributionFailureCodes.InstallTargetHostConflict, SkillTargetStateKind.HostConflict, 0),
     ];
 
     /// <summary> Resolves a failure code that represents managed target drift. </summary>
     public static bool TryResolveDriftKind (
-        SkillFailureCode code,
+        AgentDistributionFailureCode code,
         out SkillTargetStateKind kind)
     {
         return TryResolve(DriftClassifications, code, out kind);
@@ -31,7 +31,7 @@ internal static class SkillTargetStateClassifier
 
     /// <summary> Resolves a failure code that represents a non-drift target state. </summary>
     public static bool TryResolveNonDriftFailureKind (
-        SkillFailureCode code,
+        AgentDistributionFailureCode code,
         out SkillTargetStateKind kind)
     {
         if (TryResolveBlockingKind(code, out kind))
@@ -39,19 +39,19 @@ internal static class SkillTargetStateClassifier
             return true;
         }
 
-        if (code == SkillFailureCodes.InstallTargetOutdated)
+        if (code == AgentDistributionFailureCodes.InstallTargetOutdated)
         {
             kind = SkillTargetStateKind.CleanOutdated;
             return true;
         }
 
-        if (code == SkillFailureCodes.InstallTargetVersionAhead)
+        if (code == AgentDistributionFailureCodes.InstallTargetVersionAhead)
         {
             kind = SkillTargetStateKind.VersionAhead;
             return true;
         }
 
-        if (code == SkillFailureCodes.InstallTargetRemovedFromCatalog)
+        if (code == AgentDistributionFailureCodes.InstallTargetRemovedFromCatalog)
         {
             kind = SkillTargetStateKind.RemovedFromCatalog;
             return true;
@@ -63,7 +63,7 @@ internal static class SkillTargetStateClassifier
 
     /// <summary> Resolves a failure code that blocks normal replacement or deletion. </summary>
     public static bool TryResolveBlockingKind (
-        SkillFailureCode code,
+        AgentDistributionFailureCode code,
         out SkillTargetStateKind kind)
     {
         return TryResolve(BlockingClassifications, code, out kind);
@@ -92,7 +92,7 @@ internal static class SkillTargetStateClassifier
 
     private static bool TryResolve (
         IReadOnlyList<StateClassification> classifications,
-        SkillFailureCode code,
+        AgentDistributionFailureCode code,
         out SkillTargetStateKind kind)
     {
         ArgumentNullException.ThrowIfNull(code);
@@ -113,7 +113,7 @@ internal static class SkillTargetStateClassifier
     private sealed class StateClassification
     {
         public StateClassification (
-            SkillFailureCode code,
+            AgentDistributionFailureCode code,
             SkillTargetStateKind kind,
             int priority)
         {
@@ -132,7 +132,7 @@ internal static class SkillTargetStateClassifier
             Priority = priority;
         }
 
-        public SkillFailureCode Code { get; }
+        public AgentDistributionFailureCode Code { get; }
 
         public SkillTargetStateKind Kind { get; }
 

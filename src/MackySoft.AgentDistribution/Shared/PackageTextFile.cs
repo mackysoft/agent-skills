@@ -18,7 +18,7 @@ public sealed class PackageTextFile
         }
 
         RelativePath = relativePath;
-        Content = SkillTextNormalizer.NormalizeToLf(content);
+        Content = AgentDistributionTextNormalizer.NormalizeToLf(content);
     }
 
     /// <summary> Gets the slash-separated package-relative path. </summary>

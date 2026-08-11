@@ -29,8 +29,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="../../skills/generated/**/*"
-          Link="skills/%(RecursiveDir)%(Filename)%(Extension)"
+    <None Include="../../agent-distribution/generated/**/*"
+          Link="agent-distribution/%(RecursiveDir)%(Filename)%(Extension)"
           CopyToOutputDirectory="PreserveNewest"
           CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>

@@ -12,7 +12,7 @@ public sealed class AgentManifest
     public const int CurrentSchemaVersion = 2;
 
     /// <summary> Initializes a canonical manifest. </summary>
-    internal AgentManifest (int schemaVersion, AgentDistributionBundleVersion bundleVersion, SkillCatalogId catalogId, AgentName agentName, string displayName, string description, IReadOnlyList<SkillName> skillDependencies, Sha256Digest contentDigest, Sha256Digest manifestDigest, IReadOnlyList<AgentHostArtifactManifest> hostArtifacts)
+    internal AgentManifest (int schemaVersion, AgentDistributionBundleVersion bundleVersion, AgentDistributionCatalogId catalogId, AgentName agentName, string displayName, string description, IReadOnlyList<SkillName> skillDependencies, Sha256Digest contentDigest, Sha256Digest manifestDigest, IReadOnlyList<AgentHostArtifactManifest> hostArtifacts)
     {
         if (schemaVersion != CurrentSchemaVersion)
         {
@@ -54,7 +54,7 @@ public sealed class AgentManifest
     /// <summary> Gets bundle version. </summary>
     public AgentDistributionBundleVersion BundleVersion { get; }
     /// <summary> Gets catalog identity. </summary>
-    public SkillCatalogId CatalogId { get; }
+    public AgentDistributionCatalogId CatalogId { get; }
     /// <summary> Gets agent identity. </summary>
     public AgentName AgentName { get; }
     /// <summary> Gets display name. </summary>

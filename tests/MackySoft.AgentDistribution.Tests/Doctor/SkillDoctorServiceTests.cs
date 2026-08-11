@@ -50,7 +50,7 @@ public sealed class SkillDoctorServiceTests
         var result = await doctor.DiagnoseAsync(packages, HostKind.Codex, targetRoot, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
-        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetUnmanaged);
+        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == AgentDistributionFailureCodes.InstallTargetUnmanaged);
     }
 
     [Fact]
@@ -71,7 +71,7 @@ public sealed class SkillDoctorServiceTests
         var result = await doctor.DiagnoseAsync(packages, HostKind.Codex, installResult.Value!.TargetRoot.Value, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
-        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetHostConflict);
+        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == AgentDistributionFailureCodes.InstallTargetHostConflict);
     }
 
     [Theory]
@@ -122,7 +122,7 @@ public sealed class SkillDoctorServiceTests
         var result = await doctor.DiagnoseAsync(packages, HostKind.Codex, installResult.Value.TargetRoot.Value, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
-        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetContentDigestMismatch);
+        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == AgentDistributionFailureCodes.InstallTargetContentDigestMismatch);
     }
 
     [Fact]
@@ -144,7 +144,7 @@ public sealed class SkillDoctorServiceTests
         var result = await doctor.DiagnoseAsync(packages, HostKind.Codex, installResult.Value.TargetRoot.Value, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
-        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetFileSetMismatch);
+        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == AgentDistributionFailureCodes.InstallTargetFileSetMismatch);
     }
 
     [Fact]
@@ -171,7 +171,7 @@ public sealed class SkillDoctorServiceTests
         var result = await doctor.DiagnoseAsync(packages, HostKind.Codex, installResult.Value.TargetRoot.Value, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
-        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetManifestDigestMismatch);
+        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == AgentDistributionFailureCodes.InstallTargetManifestDigestMismatch);
     }
 
     [Fact]
@@ -194,7 +194,7 @@ public sealed class SkillDoctorServiceTests
         var result = await doctor.DiagnoseAsync(packages, HostKind.Codex, installResult.Value.TargetRoot.Value, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
-        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetManifestDigestMismatch);
+        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == AgentDistributionFailureCodes.InstallTargetManifestDigestMismatch);
     }
 
     [Fact]
@@ -220,7 +220,7 @@ public sealed class SkillDoctorServiceTests
         var result = await doctor.DiagnoseAsync(packages, HostKind.Codex, installResult.Value.TargetRoot.Value, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
-        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetFileSetMismatch);
+        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == AgentDistributionFailureCodes.InstallTargetFileSetMismatch);
     }
 
     [Fact]
@@ -242,7 +242,7 @@ public sealed class SkillDoctorServiceTests
         var result = await doctor.DiagnoseAsync(packages, HostKind.Codex, installResult.Value.TargetRoot.Value, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
-        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetFileSetMismatch);
+        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == AgentDistributionFailureCodes.InstallTargetFileSetMismatch);
     }
 
     [Fact]
@@ -264,7 +264,7 @@ public sealed class SkillDoctorServiceTests
         var result = await doctor.DiagnoseAsync(packages, HostKind.Codex, installResult.Value.TargetRoot.Value, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
-        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetHostArtifactDigestMismatch);
+        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == AgentDistributionFailureCodes.InstallTargetHostArtifactDigestMismatch);
     }
 
     [Fact]
@@ -286,7 +286,7 @@ public sealed class SkillDoctorServiceTests
         var result = await doctor.DiagnoseAsync(packages, HostKind.Codex, installResult.Value.TargetRoot.Value, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
-        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetHostArtifactDigestMismatch);
+        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == AgentDistributionFailureCodes.InstallTargetHostArtifactDigestMismatch);
     }
 
     [Fact]
@@ -342,7 +342,7 @@ public sealed class SkillDoctorServiceTests
         var result = await doctor.DiagnoseAsync(currentPackages, HostKind.Codex, installResult.Value!.TargetRoot.Value, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
-        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetOutdated);
+        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == AgentDistributionFailureCodes.InstallTargetOutdated);
     }
 
     [Fact]
@@ -366,7 +366,7 @@ public sealed class SkillDoctorServiceTests
         var result = await doctor.DiagnoseAsync(currentPackages, HostKind.ClaudeCode, installResult.Value!.TargetRoot.Value, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
-        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.InstallTargetOutdated);
+        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == AgentDistributionFailureCodes.InstallTargetOutdated);
     }
 
     [Fact]
@@ -382,7 +382,7 @@ public sealed class SkillDoctorServiceTests
         var result = await doctor.DiagnoseAsync(packages, HostKind.Codex, targetRoot, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
-        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.ManifestInvalid);
+        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == AgentDistributionFailureCodes.ManifestInvalid);
     }
 
     [Fact]
@@ -418,7 +418,7 @@ public sealed class SkillDoctorServiceTests
         var result = await doctor.DiagnoseAsync(packages, HostKind.Codex, targetRoot, CancellationToken.None);
 
         Assert.False(result.IsHealthy);
-        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == SkillFailureCodes.PathUnsafe);
+        Assert.Contains(result.Diagnostics, static diagnostic => diagnostic.Code == AgentDistributionFailureCodes.PathUnsafe);
     }
 
     [Fact]
@@ -501,17 +501,17 @@ public sealed class SkillDoctorServiceTests
         return (targetRoot, skillDirectory);
     }
 
-    private static SkillFailureCode GetExpectedSharedDriftCode (SharedDriftCase driftCase)
+    private static AgentDistributionFailureCode GetExpectedSharedDriftCode (SharedDriftCase driftCase)
     {
         return driftCase switch
         {
-            SharedDriftCase.Manifest => SkillFailureCodes.InstallTargetManifestDigestMismatch,
-            SharedDriftCase.CommonContent => SkillFailureCodes.InstallTargetContentDigestMismatch,
-            SharedDriftCase.FileSet => SkillFailureCodes.InstallTargetFileSetMismatch,
-            SharedDriftCase.Frontmatter => SkillFailureCodes.InstallTargetFrontmatterDigestMismatch,
-            SharedDriftCase.HostArtifact => SkillFailureCodes.InstallTargetHostArtifactDigestMismatch,
-            SharedDriftCase.HostConflict => SkillFailureCodes.InstallTargetHostConflict,
-            SharedDriftCase.NameCollision => SkillFailureCodes.InstallTargetNameCollision,
+            SharedDriftCase.Manifest => AgentDistributionFailureCodes.InstallTargetManifestDigestMismatch,
+            SharedDriftCase.CommonContent => AgentDistributionFailureCodes.InstallTargetContentDigestMismatch,
+            SharedDriftCase.FileSet => AgentDistributionFailureCodes.InstallTargetFileSetMismatch,
+            SharedDriftCase.Frontmatter => AgentDistributionFailureCodes.InstallTargetFrontmatterDigestMismatch,
+            SharedDriftCase.HostArtifact => AgentDistributionFailureCodes.InstallTargetHostArtifactDigestMismatch,
+            SharedDriftCase.HostConflict => AgentDistributionFailureCodes.InstallTargetHostConflict,
+            SharedDriftCase.NameCollision => AgentDistributionFailureCodes.InstallTargetNameCollision,
             _ => throw new ArgumentOutOfRangeException(nameof(driftCase), driftCase, "Unsupported shared drift case."),
         };
     }

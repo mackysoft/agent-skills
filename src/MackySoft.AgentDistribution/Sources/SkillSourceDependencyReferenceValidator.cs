@@ -4,7 +4,7 @@ namespace MackySoft.AgentDistribution.Sources;
 
 internal static class SkillSourceDependencyReferenceValidator
 {
-    public static SkillOperationResult<bool> Validate (IReadOnlyList<SkillSourceDefinition> definitions)
+    public static AgentDistributionOperationResult<bool> Validate (IReadOnlyList<SkillSourceDefinition> definitions)
     {
         ArgumentNullException.ThrowIfNull(definitions);
 
@@ -29,8 +29,8 @@ internal static class SkillSourceDependencyReferenceValidator
                 .ToArray();
             if (missingReferences.Length != 0)
             {
-                return SkillOperationResult<bool>.FailureResult(
-                    SkillFailureCodes.SourceInvalid,
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.SourceInvalid,
                     $"skill.json dependencies are not referenced in source text for '{definition.Metadata.SkillName.Value}': {string.Join(", ", missingReferences)}.");
             }
 
@@ -41,12 +41,12 @@ internal static class SkillSourceDependencyReferenceValidator
                 .ToArray();
             if (missingDeclarations.Length != 0)
             {
-                return SkillOperationResult<bool>.FailureResult(
-                    SkillFailureCodes.SourceInvalid,
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.SourceInvalid,
                     $"Source text references undeclared skill dependencies for '{definition.Metadata.SkillName.Value}': {string.Join(", ", missingDeclarations)}.");
             }
         }
 
-        return SkillOperationResult<bool>.Success(true);
+        return AgentDistributionOperationResult<bool>.Success(true);
     }
 }

@@ -32,14 +32,14 @@ public sealed class CanonicalSkillPackage
     /// <summary> Validates complete package candidates and creates canonical package snapshots. </summary>
     public sealed class Factory
     {
-        private readonly SkillDigestCalculator digestCalculator;
+        private readonly PackageContentDigestCalculator digestCalculator;
         private readonly SkillManifestJsonSerializer manifestSerializer;
 
         /// <summary> Initializes the canonical package construction boundary. </summary>
         /// <param name="digestCalculator"> The canonical file digest calculator. </param>
         /// <param name="manifestSerializer"> The canonical manifest serializer. </param>
         public Factory (
-            SkillDigestCalculator digestCalculator,
+            PackageContentDigestCalculator digestCalculator,
             SkillManifestJsonSerializer manifestSerializer)
         {
             this.digestCalculator = digestCalculator ?? throw new ArgumentNullException(nameof(digestCalculator));
@@ -47,17 +47,17 @@ public sealed class CanonicalSkillPackage
         }
 
         /// <summary> Validates one complete candidate and creates its canonical package snapshot. </summary>
-        internal SkillOperationResult<CanonicalSkillPackage> CreateCanonical (CanonicalSkillPackageCandidate candidate)
+        internal AgentDistributionOperationResult<CanonicalSkillPackage> CreateCanonical (CanonicalSkillPackageCandidate candidate)
         {
             ArgumentNullException.ThrowIfNull(candidate);
 
             var validationResult = Validate(candidate.Manifest, candidate.Files);
             return validationResult.IsSuccess
-                ? SkillOperationResult<CanonicalSkillPackage>.Success(new CanonicalSkillPackage(candidate))
+                ? AgentDistributionOperationResult<CanonicalSkillPackage>.Success(new CanonicalSkillPackage(candidate))
                 : Failure(validationResult.Failure!.Message);
         }
 
-        private SkillOperationResult<bool> Validate (
+        private AgentDistributionOperationResult<bool> Validate (
             SkillManifest manifest,
             IReadOnlyList<PackageTextFile> files)
         {
@@ -90,7 +90,7 @@ public sealed class CanonicalSkillPackage
             return ValidateDigests(filesByPath, manifest);
         }
 
-        private static SkillOperationResult<bool> ValidateFileSet (
+        private static AgentDistributionOperationResult<bool> ValidateFileSet (
             IReadOnlyDictionary<PackageRelativePath, PackageTextFile> filesByPath,
             SkillManifest manifest)
         {
@@ -117,17 +117,17 @@ public sealed class CanonicalSkillPackage
                 return BoolFailure($"Generated SKILL package contains an unsupported file: {manifest.SkillName}/{relativePath}");
             }
 
-            return SkillOperationResult<bool>.Success(true);
+            return AgentDistributionOperationResult<bool>.Success(true);
         }
 
-        private SkillOperationResult<bool> ValidateDigests (
+        private AgentDistributionOperationResult<bool> ValidateDigests (
             IReadOnlyDictionary<PackageRelativePath, PackageTextFile> filesByPath,
             SkillManifest manifest)
         {
             var contentDigest = digestCalculator.ComputeDigest(filesByPath.Values
                 .Where(static file => file.RelativePath == SkillBodyPath
                     || file.RelativePath.IsDescendantOf(ReferencesDirectoryPath))
-                .Select(static file => new SkillDigestInputFile(file.RelativePath, file.Content)));
+                .Select(static file => new PackageContentDigestInputFile(file.RelativePath, file.Content)));
 
             if (contentDigest != manifest.ContentDigest)
             {
@@ -176,17 +176,17 @@ public sealed class CanonicalSkillPackage
                 }
             }
 
-            return SkillOperationResult<bool>.Success(true);
+            return AgentDistributionOperationResult<bool>.Success(true);
         }
 
-        private static SkillOperationResult<CanonicalSkillPackage> Failure (string message)
+        private static AgentDistributionOperationResult<CanonicalSkillPackage> Failure (string message)
         {
-            return SkillOperationResult<CanonicalSkillPackage>.FailureResult(SkillFailureCodes.ManifestInvalid, message);
+            return AgentDistributionOperationResult<CanonicalSkillPackage>.FailureResult(AgentDistributionFailureCodes.ManifestInvalid, message);
         }
 
-        private static SkillOperationResult<bool> BoolFailure (string message)
+        private static AgentDistributionOperationResult<bool> BoolFailure (string message)
         {
-            return SkillOperationResult<bool>.FailureResult(SkillFailureCodes.ManifestInvalid, message);
+            return AgentDistributionOperationResult<bool>.FailureResult(AgentDistributionFailureCodes.ManifestInvalid, message);
         }
     }
 }

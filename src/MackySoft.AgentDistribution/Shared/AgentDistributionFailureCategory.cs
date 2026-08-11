@@ -1,7 +1,7 @@
 namespace MackySoft.AgentDistribution.Shared;
 
-/// <summary> Defines product-neutral failure categories for SKILL operation failures. </summary>
-public enum SkillFailureCategory
+/// <summary> Defines product-neutral failure categories for Agent Distribution operation failures. </summary>
+public enum AgentDistributionFailureCategory
 {
     /// <summary> The failure was caused by an invalid command or request input value. </summary>
     InvalidInput = 0,
@@ -9,19 +9,19 @@ public enum SkillFailureCategory
     /// <summary> The failure was caused by a path that escapes an allowed boundary or cannot be treated safely. </summary>
     UnsafePath = 1,
 
-    /// <summary> The requested host is not registered as a supported SKILL host. </summary>
+    /// <summary> The requested host is not registered as a supported Agent Distribution host. </summary>
     UnsupportedHost = 2,
 
     /// <summary> The requested install scope is not supported by the selected host. </summary>
     UnsupportedScope = 3,
 
-    /// <summary> The user-scope host SKILL root cannot be resolved from the current environment. </summary>
+    /// <summary> The user-scope host package root cannot be resolved from the current environment. </summary>
     UserTargetUnavailable = 4,
 
-    /// <summary> A canonical or installed SKILL manifest is missing, malformed, or inconsistent. </summary>
+    /// <summary> A canonical or installed package manifest is missing, malformed, or inconsistent. </summary>
     ManifestInvalid = 5,
 
-    /// <summary> A source SKILL definition is missing, malformed, or inconsistent. </summary>
+    /// <summary> A source package definition is missing, malformed, or inconsistent. </summary>
     SourceInvalid = 6,
 
     /// <summary> An installed target is outdated, drifted, or contains local modifications. </summary>
@@ -30,7 +30,7 @@ public enum SkillFailureCategory
     /// <summary> The target directory is not managed by an Agent Distribution manifest. </summary>
     UnmanagedTarget = 8,
 
-    /// <summary> A managed target identifies a different SKILL name than the requested package. </summary>
+    /// <summary> A managed target identifies a different package name than the requested package. </summary>
     NameCollision = 9,
 
     /// <summary> The target root or directory is managed for a different host. </summary>

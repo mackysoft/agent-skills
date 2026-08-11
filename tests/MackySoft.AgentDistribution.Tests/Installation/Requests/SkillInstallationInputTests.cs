@@ -14,7 +14,7 @@ public sealed class SkillInstallationInputTests
     public void InstallInput_CapturesPackageSnapshot ()
     {
         var packages = new List<CanonicalSkillPackage>();
-        var catalogId = new SkillCatalogId("catalog");
+        var catalogId = new AgentDistributionCatalogId("catalog");
         var input = new SkillInstallInput(catalogId, packages, CreateTargetRequest());
 
         packages.Add(null!);
@@ -28,7 +28,7 @@ public sealed class SkillInstallationInputTests
     public void InstallInput_RejectsNullPackageItem ()
     {
         Assert.Throws<ArgumentException>(() => new SkillInstallInput(
-            new SkillCatalogId("catalog"),
+            new AgentDistributionCatalogId("catalog"),
             [null!],
             CreateTargetRequest()));
     }
@@ -82,7 +82,7 @@ public sealed class SkillInstallationInputTests
         var categories = new List<SkillCategory> { new("core") };
         var names = new List<SkillName> { new("skill-a") };
         var input = new SkillPruneInput(
-            new SkillCatalogId("catalog"),
+            new AgentDistributionCatalogId("catalog"),
             [],
             CreateTargetRequest(),
             SelectedCategories: categories,
@@ -100,7 +100,7 @@ public sealed class SkillInstallationInputTests
     public void PruneInput_RejectsNullSkillNameFilter ()
     {
         Assert.Throws<ArgumentException>(() => new SkillPruneInput(
-            new SkillCatalogId("catalog"),
+            new AgentDistributionCatalogId("catalog"),
             [],
             CreateTargetRequest(),
             SelectedSkillNames: [null!]));
@@ -111,7 +111,7 @@ public sealed class SkillInstallationInputTests
     public async Task PruneInput_RejectsPackageFromAnotherCatalog ()
     {
         var package = (await SkillTestData.GenerateFixturePackagesAsync())[0];
-        var foreignPackage = CopyPackageWithCatalogId(package, new SkillCatalogId("foreign-catalog"));
+        var foreignPackage = CopyPackageWithCatalogId(package, new AgentDistributionCatalogId("foreign-catalog"));
 
         Assert.Throws<ArgumentException>(() => new SkillPruneInput(
             package.Manifest.CatalogId,
@@ -124,7 +124,7 @@ public sealed class SkillInstallationInputTests
     public async Task OperationInputs_RejectPackageFromAnotherCatalog ()
     {
         var package = (await SkillTestData.GenerateFixturePackagesAsync())[0];
-        var foreignPackage = CopyPackageWithCatalogId(package, new SkillCatalogId("foreign-catalog"));
+        var foreignPackage = CopyPackageWithCatalogId(package, new AgentDistributionCatalogId("foreign-catalog"));
         var request = CreateTargetRequest();
 
         Assert.Throws<ArgumentException>(() => new SkillInstallInput(package.Manifest.CatalogId, [foreignPackage], request));
@@ -160,7 +160,7 @@ public sealed class SkillInstallationInputTests
 
     private static CanonicalSkillPackage CopyPackageWithCatalogId (
         CanonicalSkillPackage package,
-        SkillCatalogId catalogId)
+        AgentDistributionCatalogId catalogId)
     {
         var foreignManifest = SkillTestData.CopyManifest(package.Manifest, catalogId: catalogId);
         var foreignCanonicalManifest = SkillTestData.WithComputedManifestDigest(foreignManifest);

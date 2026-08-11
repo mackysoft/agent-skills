@@ -383,7 +383,7 @@ public sealed class SkillCommandRunner
             report.IsHealthy ? 0 : 1);
     }
 
-    private async ValueTask<SkillOperationResult<PreparedTargetOperation>> PrepareTargetOperationAsync (
+    private async ValueTask<AgentDistributionOperationResult<PreparedTargetOperation>> PrepareTargetOperationAsync (
         string? host,
         string? scope,
         string? repositoryRoot,
@@ -395,25 +395,25 @@ public sealed class SkillCommandRunner
         var selectionResult = NormalizeRequiredPackageSelection(categories, skillNames);
         if (!selectionResult.IsSuccess)
         {
-            return SkillOperationResult<PreparedTargetOperation>.FailureResult(selectionResult.Failure!.Code, selectionResult.Failure.Message);
+            return AgentDistributionOperationResult<PreparedTargetOperation>.FailureResult(selectionResult.Failure!.Code, selectionResult.Failure.Message);
         }
 
         var targetResult = NormalizeTarget(host, scope, repositoryRoot, targetDir);
         if (!targetResult.IsSuccess)
         {
-            return SkillOperationResult<PreparedTargetOperation>.FailureResult(targetResult.Failure!.Code, targetResult.Failure.Message);
+            return AgentDistributionOperationResult<PreparedTargetOperation>.FailureResult(targetResult.Failure!.Code, targetResult.Failure.Message);
         }
 
         var catalogResult = await GetPackageCatalogAsync(selectionResult.Value!, cancellationToken).ConfigureAwait(false);
         if (!catalogResult.IsSuccess)
         {
-            return SkillOperationResult<PreparedTargetOperation>.FailureResult(catalogResult.Failure!.Code, catalogResult.Failure.Message);
+            return AgentDistributionOperationResult<PreparedTargetOperation>.FailureResult(catalogResult.Failure!.Code, catalogResult.Failure.Message);
         }
 
-        return SkillOperationResult<PreparedTargetOperation>.Success(new PreparedTargetOperation(targetResult.Value!, catalogResult.Value!));
+        return AgentDistributionOperationResult<PreparedTargetOperation>.Success(new PreparedTargetOperation(targetResult.Value!, catalogResult.Value!));
     }
 
-    private ValueTask<SkillOperationResult<SkillPackageCatalog>> GetPackageCatalogAsync (
+    private ValueTask<AgentDistributionOperationResult<SkillPackageCatalog>> GetPackageCatalogAsync (
         NormalizedPackageSelection selection,
         CancellationToken cancellationToken)
     {
@@ -423,7 +423,7 @@ public sealed class SkillCommandRunner
             cancellationToken);
     }
 
-    private SkillOperationResult<NormalizedTargetRequest> NormalizeTarget (
+    private AgentDistributionOperationResult<NormalizedTargetRequest> NormalizeTarget (
         string? host,
         string? scope,
         string? repositoryRoot,
@@ -432,19 +432,19 @@ public sealed class SkillCommandRunner
         var hostResult = SkillCommandValueParser.ParseHostLiteral(host);
         if (!hostResult.IsSuccess)
         {
-            return SkillOperationResult<NormalizedTargetRequest>.FailureResult(hostResult.Failure!.Code, hostResult.Failure.Message);
+            return AgentDistributionOperationResult<NormalizedTargetRequest>.FailureResult(hostResult.Failure!.Code, hostResult.Failure.Message);
         }
 
         var scopeResult = SkillCommandValueParser.ParseScopeLiteral(scope);
         if (!scopeResult.IsSuccess)
         {
-            return SkillOperationResult<NormalizedTargetRequest>.FailureResult(scopeResult.Failure!.Code, scopeResult.Failure.Message);
+            return AgentDistributionOperationResult<NormalizedTargetRequest>.FailureResult(scopeResult.Failure!.Code, scopeResult.Failure.Message);
         }
 
         var repositoryContextResult = CommandPathResolver.ResolveRepositoryContext(scopeResult.Value, repositoryRoot, configuration);
         if (!repositoryContextResult.IsSuccess)
         {
-            return SkillOperationResult<NormalizedTargetRequest>.FailureResult(repositoryContextResult.Failure!.Code, repositoryContextResult.Failure.Message);
+            return AgentDistributionOperationResult<NormalizedTargetRequest>.FailureResult(repositoryContextResult.Failure!.Code, repositoryContextResult.Failure.Message);
         }
 
         var repositoryContext = repositoryContextResult.Value!;
@@ -454,7 +454,7 @@ public sealed class SkillCommandRunner
             var targetRootResult = CommandPathResolver.ResolveTarget(targetDir, repositoryContext.RepositoryRoot, "target-dir");
             if (!targetRootResult.IsSuccess)
             {
-                return SkillOperationResult<NormalizedTargetRequest>.FailureResult(targetRootResult.Failure!.Code, targetRootResult.Failure.Message);
+                return AgentDistributionOperationResult<NormalizedTargetRequest>.FailureResult(targetRootResult.Failure!.Code, targetRootResult.Failure.Message);
             }
 
             targetRoot = targetRootResult.Value;
@@ -465,10 +465,10 @@ public sealed class SkillCommandRunner
             repositoryContext.Scope,
             repositoryContext.RepositoryRoot,
             targetRoot);
-        return SkillOperationResult<NormalizedTargetRequest>.Success(new NormalizedTargetRequest(hostResult.Value, repositoryContext.Scope, request));
+        return AgentDistributionOperationResult<NormalizedTargetRequest>.Success(new NormalizedTargetRequest(hostResult.Value, repositoryContext.Scope, request));
     }
 
-    private SkillOperationResult<NormalizedPackageSelection> NormalizeOptionalPackageSelection (
+    private AgentDistributionOperationResult<NormalizedPackageSelection> NormalizeOptionalPackageSelection (
         IReadOnlyList<string>? categoryLiterals,
         IReadOnlyList<string>? skillNameLiterals)
     {
@@ -476,11 +476,11 @@ public sealed class SkillCommandRunner
         var skillNameValues = CommandOptionValues.Expand(skillNameLiterals);
         var skillNamesResult = NormalizeSkillNames(skillNameValues);
         return skillNamesResult.IsSuccess
-            ? SkillOperationResult<NormalizedPackageSelection>.Success(new NormalizedPackageSelection(categoryValues, skillNamesResult.Value!))
-            : SkillOperationResult<NormalizedPackageSelection>.FailureResult(skillNamesResult.Failure!.Code, skillNamesResult.Failure.Message);
+            ? AgentDistributionOperationResult<NormalizedPackageSelection>.Success(new NormalizedPackageSelection(categoryValues, skillNamesResult.Value!))
+            : AgentDistributionOperationResult<NormalizedPackageSelection>.FailureResult(skillNamesResult.Failure!.Code, skillNamesResult.Failure.Message);
     }
 
-    private SkillOperationResult<NormalizedPackageSelection> NormalizeRequiredPackageSelection (
+    private AgentDistributionOperationResult<NormalizedPackageSelection> NormalizeRequiredPackageSelection (
         IReadOnlyList<string>? categoryLiterals,
         IReadOnlyList<string>? skillNameLiterals)
     {
@@ -488,15 +488,15 @@ public sealed class SkillCommandRunner
         var skillNameValues = CommandOptionValues.Expand(skillNameLiterals);
         if (categoryValues.Length == 0 && skillNameValues.Length == 0)
         {
-            return SkillOperationResult<NormalizedPackageSelection>.FailureResult(
-                SkillFailureCodes.InputInvalid,
+            return AgentDistributionOperationResult<NormalizedPackageSelection>.FailureResult(
+                AgentDistributionFailureCodes.InputInvalid,
                 "Option '--category' or '--skill' is required.");
         }
 
         return NormalizeOptionalPackageSelection(categoryValues, skillNameValues);
     }
 
-    private static SkillOperationResult<NormalizedPruneSelection> NormalizePruneSelection (
+    private static AgentDistributionOperationResult<NormalizedPruneSelection> NormalizePruneSelection (
         NormalizedPackageSelection selection,
         IReadOnlyList<SkillCategoryPackageCount> availableCategories)
     {
@@ -515,7 +515,7 @@ public sealed class SkillCommandRunner
             var categoryResult = SkillCategoryLiteralParser.ParseSelectedCategories(selection.Categories);
             if (!categoryResult.IsSuccess)
             {
-                return SkillOperationResult<NormalizedPruneSelection>.FailureResult(
+                return AgentDistributionOperationResult<NormalizedPruneSelection>.FailureResult(
                     categoryResult.Failure!.Code,
                     categoryResult.Failure.Message);
             }
@@ -527,42 +527,42 @@ public sealed class SkillCommandRunner
             ? Array.Empty<SkillCategory>()
             : reportCategories;
         var skillNamesResult = selection.SkillNames.Count == 0
-            ? SkillOperationResult<IReadOnlyList<SkillName>>.Success(Array.Empty<SkillName>())
+            ? AgentDistributionOperationResult<IReadOnlyList<SkillName>>.Success(Array.Empty<SkillName>())
             : SkillNameLiteralParser.ParseSelectedSkillNames(selection.SkillNames);
         if (!skillNamesResult.IsSuccess)
         {
-            return SkillOperationResult<NormalizedPruneSelection>.FailureResult(skillNamesResult.Failure!.Code, skillNamesResult.Failure.Message);
+            return AgentDistributionOperationResult<NormalizedPruneSelection>.FailureResult(skillNamesResult.Failure!.Code, skillNamesResult.Failure.Message);
         }
 
-        return SkillOperationResult<NormalizedPruneSelection>.Success(new NormalizedPruneSelection(
+        return AgentDistributionOperationResult<NormalizedPruneSelection>.Success(new NormalizedPruneSelection(
             reportCategories,
             categoryFilter,
             skillNamesResult.Value!));
     }
 
-    private static SkillOperationResult<IReadOnlyList<string>> NormalizeSkillNames (string[] skillNameValues)
+    private static AgentDistributionOperationResult<IReadOnlyList<string>> NormalizeSkillNames (string[] skillNameValues)
     {
         if (skillNameValues.Length == 0)
         {
-            return SkillOperationResult<IReadOnlyList<string>>.Success(Array.Empty<string>());
+            return AgentDistributionOperationResult<IReadOnlyList<string>>.Success(Array.Empty<string>());
         }
 
         var result = SkillNameLiteralParser.ParseSelectedSkillNames(skillNameValues);
         return result.IsSuccess
-            ? SkillOperationResult<IReadOnlyList<string>>.Success(result.Value!.Select(static skillName => skillName.Value).ToArray())
-            : SkillOperationResult<IReadOnlyList<string>>.FailureResult(result.Failure!.Code, result.Failure.Message);
+            ? AgentDistributionOperationResult<IReadOnlyList<string>>.Success(result.Value!.Select(static skillName => skillName.Value).ToArray())
+            : AgentDistributionOperationResult<IReadOnlyList<string>>.FailureResult(result.Failure!.Code, result.Failure.Message);
     }
 
-    private static SkillOperationResult<SkillExportFormat> NormalizeExportFormat (string? format)
+    private static AgentDistributionOperationResult<PackageExportFormat> NormalizeExportFormat (string? format)
     {
         return string.IsNullOrWhiteSpace(format)
-            ? SkillOperationResult<SkillExportFormat>.Success(SkillExportFormat.Directory)
+            ? AgentDistributionOperationResult<PackageExportFormat>.Success(PackageExportFormat.Directory)
             : SkillCommandValueParser.ParseExportFormatLiteral(format);
     }
 
     private static AgentDistributionCommandResult Failure (
         string command,
-        SkillFailure failure)
+        AgentDistributionFailure failure)
     {
         return AgentDistributionCommandResult.FailureResult(command, failure);
     }

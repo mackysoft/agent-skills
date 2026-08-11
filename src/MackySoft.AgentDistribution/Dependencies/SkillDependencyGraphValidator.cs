@@ -4,9 +4,9 @@ namespace MackySoft.AgentDistribution.Dependencies;
 
 internal static class SkillDependencyGraphValidator
 {
-    public static SkillOperationResult<bool> Validate (
+    public static AgentDistributionOperationResult<bool> Validate (
         IReadOnlyDictionary<SkillName, IReadOnlyList<SkillName>> dependenciesBySkillName,
-        SkillFailureCode failureCode,
+        AgentDistributionFailureCode failureCode,
         string graphLabel)
     {
         ArgumentNullException.ThrowIfNull(dependenciesBySkillName);
@@ -19,12 +19,12 @@ internal static class SkillDependencyGraphValidator
             {
                 if (skillName == dependency)
                 {
-                    return SkillOperationResult<bool>.FailureResult(failureCode, $"{graphLabel} dependency must not reference itself: {skillName.Value}.");
+                    return AgentDistributionOperationResult<bool>.FailureResult(failureCode, $"{graphLabel} dependency must not reference itself: {skillName.Value}.");
                 }
 
                 if (!dependenciesBySkillName.ContainsKey(dependency))
                 {
-                    return SkillOperationResult<bool>.FailureResult(failureCode, $"{graphLabel} dependency was not found: {skillName.Value} -> {dependency.Value}.");
+                    return AgentDistributionOperationResult<bool>.FailureResult(failureCode, $"{graphLabel} dependency was not found: {skillName.Value} -> {dependency.Value}.");
                 }
             }
         }
@@ -40,21 +40,21 @@ internal static class SkillDependencyGraphValidator
             }
         }
 
-        return SkillOperationResult<bool>.Success(true);
+        return AgentDistributionOperationResult<bool>.Success(true);
     }
 
-    private static SkillOperationResult<bool> Visit (
+    private static AgentDistributionOperationResult<bool> Visit (
         SkillName skillName,
         IReadOnlyDictionary<SkillName, IReadOnlyList<SkillName>> dependenciesBySkillName,
         Dictionary<SkillName, VisitState> states,
         List<SkillName> stack,
-        SkillFailureCode failureCode,
+        AgentDistributionFailureCode failureCode,
         string graphLabel)
     {
         var state = states[skillName];
         if (state == VisitState.Visited)
         {
-            return SkillOperationResult<bool>.Success(true);
+            return AgentDistributionOperationResult<bool>.Success(true);
         }
 
         if (state == VisitState.Visiting)
@@ -65,7 +65,7 @@ internal static class SkillDependencyGraphValidator
                 .Concat([skillName])
                 .Select(static skillName => skillName.Value)
                 .ToArray();
-            return SkillOperationResult<bool>.FailureResult(failureCode, $"{graphLabel} dependency cycle was found: {string.Join(" -> ", cycle)}.");
+            return AgentDistributionOperationResult<bool>.FailureResult(failureCode, $"{graphLabel} dependency cycle was found: {string.Join(" -> ", cycle)}.");
         }
 
         states[skillName] = VisitState.Visiting;
@@ -81,7 +81,7 @@ internal static class SkillDependencyGraphValidator
 
         stack.RemoveAt(stack.Count - 1);
         states[skillName] = VisitState.Visited;
-        return SkillOperationResult<bool>.Success(true);
+        return AgentDistributionOperationResult<bool>.Success(true);
     }
 
     private enum VisitState

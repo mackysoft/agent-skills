@@ -70,7 +70,7 @@ if [ "$restore" = true ]; then
   dotnet restore "$solution"
 fi
 
-bash scripts/verify-repository-skills.sh --no-restore
+bash scripts/verify-repository-bundle.sh --no-restore
 bash scripts/code-quality.sh --no-restore --solution "$solution" verify
 dotnet build "$solution" --configuration "$configuration" --no-restore
 

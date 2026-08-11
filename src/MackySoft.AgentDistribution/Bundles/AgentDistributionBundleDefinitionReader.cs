@@ -17,7 +17,7 @@ public sealed class AgentDistributionBundleDefinitionReader
     }
 
     /// <summary> Reads one authored v3 definition. </summary>
-    public async ValueTask<SkillOperationResult<AgentDistributionBundleDefinition>> ReadAsync (AbsolutePath bundleRoot, CancellationToken cancellationToken)
+    public async ValueTask<AgentDistributionOperationResult<AgentDistributionBundleDefinition>> ReadAsync (AbsolutePath bundleRoot, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(bundleRoot);
         cancellationToken.ThrowIfCancellationRequested();
@@ -39,7 +39,7 @@ public sealed class AgentDistributionBundleDefinitionReader
             var text = await File.ReadAllTextAsync(pathResult.Value!.Value, cancellationToken).ConfigureAwait(false);
             var definition = serializer.DeserializeDefinition(text);
             return string.Equals(text, serializer.SerializeDefinition(definition), StringComparison.Ordinal)
-                ? SkillOperationResult<AgentDistributionBundleDefinition>.Success(definition)
+                ? AgentDistributionOperationResult<AgentDistributionBundleDefinition>.Success(definition)
                 : Failure("Source bundle.json is not canonical.");
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or ArgumentException or KeyNotFoundException or FormatException)
@@ -48,5 +48,5 @@ public sealed class AgentDistributionBundleDefinitionReader
         }
     }
 
-    private static SkillOperationResult<AgentDistributionBundleDefinition> Failure (string message) => SkillOperationResult<AgentDistributionBundleDefinition>.FailureResult(SkillFailureCodes.SourceInvalid, message);
+    private static AgentDistributionOperationResult<AgentDistributionBundleDefinition> Failure (string message) => AgentDistributionOperationResult<AgentDistributionBundleDefinition>.FailureResult(AgentDistributionFailureCodes.SourceInvalid, message);
 }

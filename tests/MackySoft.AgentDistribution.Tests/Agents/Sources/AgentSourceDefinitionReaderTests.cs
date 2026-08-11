@@ -29,7 +29,7 @@ public sealed class AgentSourceDefinitionReaderTests
         var result = await CreateReader().ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public sealed class AgentSourceDefinitionReaderTests
         var result = await CreateReader().ReadAllAsync(AbsolutePath.Parse(agentsRoot), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public sealed class AgentSourceDefinitionReaderTests
         var result = await CreateReader().ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     [Theory]
@@ -99,7 +99,7 @@ public sealed class AgentSourceDefinitionReaderTests
         var result = await CreateReader().ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -119,7 +119,7 @@ public sealed class AgentSourceDefinitionReaderTests
         var result = await CreateReader().ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -133,7 +133,7 @@ public sealed class AgentSourceDefinitionReaderTests
         var result = await CreateReader().ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -147,7 +147,7 @@ public sealed class AgentSourceDefinitionReaderTests
         var result = await CreateReader().ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.HostUnsupported, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.HostUnsupported, result.Failure!.Code);
     }
 
     private static AgentSourceDefinitionReader CreateReader ()

@@ -29,29 +29,6 @@ public sealed class SkillBundleBuildServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task PrepareReleaseAsync_WithoutGeneratedBundle_PublishesMatchingSourceAndGeneratedBundle ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "build-missing-generated-next-version");
-        WriteSourceBundle(scope);
-        var services = CreateServices();
-
-        var result = await services.BuildService.PrepareReleaseAsync(
-            scope.FullPath,
-            bundleVersion: 2,
-            check: false,
-            cancellationToken: CancellationToken.None);
-        var sourceDefinition = await ReadSourceDefinitionAsync(scope, services.Serializer);
-        var generatedResult = await services.Reader.ReadAsync(AbsolutePath.Parse(scope.GetPath("generated")), CancellationToken.None);
-
-        Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.True(result.Value!.Changed);
-        Assert.Equal(2, sourceDefinition.SkillBundleVersion.Value);
-        Assert.True(generatedResult.IsSuccess, generatedResult.Failure?.Message);
-        Assert.Equal(2, generatedResult.Value!.Descriptor.SkillBundleVersion.Value);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
     public async Task BuildAsync_WithMatchingDigestAndVersion_DoesNotRewriteGeneratedBundle ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "build-no-op");
@@ -106,7 +83,7 @@ public sealed class SkillBundleBuildServiceTests
         var services = CreateServices();
         var initialResult = await services.BuildService.BuildAsync(scope.FullPath, check: false, cancellationToken: CancellationToken.None);
         Assert.True(initialResult.IsSuccess, initialResult.Failure?.Message);
-        var changedCatalogId = new SkillCatalogId("com.mackysoft.agent-distribution.changed");
+        var changedCatalogId = new AgentDistributionCatalogId("com.mackysoft.agent-distribution.changed");
         WriteBundleDefinition(scope, services.Serializer, skillBundleVersion: 1, catalogId: changedCatalogId);
 
         var result = await services.BuildService.BuildAsync(scope.FullPath, check: false, cancellationToken: CancellationToken.None);
@@ -149,97 +126,6 @@ public sealed class SkillBundleBuildServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task PrepareReleaseAsync_WithNextVersion_UpdatesVersionWithoutChangingContentDigestsAndIsIdempotent ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "build-explicit-version");
-        WriteSourceBundle(scope);
-        var services = CreateServices();
-        var initialResult = await services.BuildService.BuildAsync(scope.FullPath, check: false, cancellationToken: CancellationToken.None);
-        Assert.True(initialResult.IsSuccess, initialResult.Failure?.Message);
-        var initialGeneratedResult = await services.Reader.ReadAsync(AbsolutePath.Parse(scope.GetPath("generated")), CancellationToken.None);
-        Assert.True(initialGeneratedResult.IsSuccess, initialGeneratedResult.Failure?.Message);
-
-        var result = await services.BuildService.PrepareReleaseAsync(
-            scope.FullPath,
-            bundleVersion: 2,
-            check: false,
-            cancellationToken: CancellationToken.None);
-        var sourceDefinition = await ReadSourceDefinitionAsync(scope, services.Serializer);
-        var generatedResult = await services.Reader.ReadAsync(AbsolutePath.Parse(scope.GetPath("generated")), CancellationToken.None);
-
-        Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.True(result.Value!.Changed);
-        Assert.Equal(2, sourceDefinition.SkillBundleVersion.Value);
-        Assert.True(generatedResult.IsSuccess, generatedResult.Failure?.Message);
-        Assert.Equal(2, generatedResult.Value!.Descriptor.SkillBundleVersion.Value);
-        Assert.Equal(initialResult.Value!.Descriptor.BundleDigest, generatedResult.Value.Descriptor.BundleDigest);
-        var initialPackage = Assert.Single(initialGeneratedResult.Value!.Packages);
-        var generatedPackage = Assert.Single(generatedResult.Value.Packages);
-        Assert.Equal(initialPackage.Manifest.ContentDigest, generatedPackage.Manifest.ContentDigest);
-        Assert.NotEqual(initialPackage.Manifest.ManifestDigest, generatedPackage.Manifest.ManifestDigest);
-        var expectedFiles = CaptureFiles(scope.FullPath);
-
-        var repeatedResult = await services.BuildService.PrepareReleaseAsync(
-            scope.FullPath,
-            bundleVersion: 2,
-            check: true,
-            cancellationToken: CancellationToken.None);
-
-        Assert.True(repeatedResult.IsSuccess, repeatedResult.Failure?.Message);
-        Assert.False(repeatedResult.Value!.Changed);
-        Assert.Equal(expectedFiles, CaptureFiles(scope.FullPath));
-    }
-
-    [Theory]
-    [InlineData(1, -1)]
-    [InlineData(1, 0)]
-    [InlineData(1, 3)]
-    [InlineData(2, 1)]
-    [Trait("Size", "Small")]
-    public async Task PrepareReleaseAsync_WithInvalidVersion_ReturnsInputFailureWithoutWriting (
-        int authoredVersion,
-        int targetVersion)
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", $"build-invalid-target-{authoredVersion}-{targetVersion}");
-        WriteSourceBundle(scope, authoredVersion);
-        var services = CreateServices();
-        var expectedFiles = CaptureFiles(scope.FullPath);
-
-        var result = await services.BuildService.PrepareReleaseAsync(
-            scope.FullPath,
-            bundleVersion: targetVersion,
-            check: false,
-            cancellationToken: CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
-        Assert.Equal(expectedFiles, CaptureFiles(scope.FullPath));
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task PrepareReleaseAsync_CheckWithNextVersion_ReturnsStructuredFailureWithoutWriting ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "build-check-explicit-version");
-        WriteSourceBundle(scope);
-        var services = CreateServices();
-        var initialResult = await services.BuildService.BuildAsync(scope.FullPath, check: false, cancellationToken: CancellationToken.None);
-        Assert.True(initialResult.IsSuccess, initialResult.Failure?.Message);
-        var expectedFiles = CaptureFiles(scope.FullPath);
-
-        var result = await services.BuildService.PrepareReleaseAsync(
-            scope.FullPath,
-            bundleVersion: 2,
-            check: true,
-            cancellationToken: CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.BundleUpdateRequired, result.Failure!.Code);
-        Assert.Equal(expectedFiles, CaptureFiles(scope.FullPath));
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
     public async Task BuildAsync_CheckWithRequiredChanges_ReturnsStructuredFailureWithoutWriting ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "build-check-outdated");
@@ -253,7 +139,7 @@ public sealed class SkillBundleBuildServiceTests
         var result = await services.BuildService.BuildAsync(scope.FullPath, check: true, cancellationToken: CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.BundleUpdateRequired, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.BundleUpdateRequired, result.Failure!.Code);
         Assert.Equal(expectedFiles, CaptureFiles(scope.FullPath));
     }
 
@@ -278,7 +164,7 @@ public sealed class SkillBundleBuildServiceTests
             serializer,
             reader);
         var generationService = SkillTestData.CreatePackageGenerationService();
-        var buildService = new SkillBundleBuildService(generationService, reader, writer, serializer);
+        var buildService = new SkillBundleBuildService(generationService, reader, writer);
         return new BuildServices(buildService, reader, serializer);
     }
 
@@ -315,13 +201,13 @@ public sealed class SkillBundleBuildServiceTests
         TestDirectoryScope scope,
         SkillBundleJsonSerializer serializer,
         int skillBundleVersion,
-        SkillCatalogId? catalogId = null)
+        AgentDistributionCatalogId? catalogId = null)
     {
         scope.WriteFile(
             "bundle.json",
             serializer.SerializeDefinition(new SkillBundleDefinition(
                 SkillBundleDefinition.CurrentSchemaVersion,
-                catalogId ?? new SkillCatalogId("com.mackysoft.agent-distribution.tests"),
+                catalogId ?? new AgentDistributionCatalogId("com.mackysoft.agent-distribution.tests"),
                 new SkillBundleVersion(skillBundleVersion))));
     }
 

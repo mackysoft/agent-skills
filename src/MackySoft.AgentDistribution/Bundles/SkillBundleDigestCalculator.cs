@@ -51,13 +51,13 @@ public sealed class SkillBundleDigestCalculator
         foreach (var entry in entries)
         {
             AppendLengthPrefixedUtf8(hash, entry.RelativePath.Value);
-            AppendLengthPrefixedUtf8(hash, SkillTextNormalizer.NormalizeToLf(entry.Content));
+            AppendLengthPrefixedUtf8(hash, AgentDistributionTextNormalizer.NormalizeToLf(entry.Content));
         }
 
         return Sha256Digest.GetHashAndReset(hash);
     }
 
-    private IEnumerable<SkillDigestInputFile> CreateEntries (IEnumerable<CanonicalSkillPackage> packages)
+    private IEnumerable<PackageContentDigestInputFile> CreateEntries (IEnumerable<CanonicalSkillPackage> packages)
     {
         foreach (var package in packages)
         {
@@ -69,7 +69,7 @@ public sealed class SkillBundleDigestCalculator
                 var content = file.RelativePath == ManifestPath
                     ? manifestSerializer.SerializeForBundleDigest(package.Manifest)
                     : file.Content;
-                yield return new SkillDigestInputFile(
+                yield return new PackageContentDigestInputFile(
                     PackageRelativePath.Parse($"{package.Manifest.SkillName.Value}/{file.RelativePath.Value}"),
                     content);
             }

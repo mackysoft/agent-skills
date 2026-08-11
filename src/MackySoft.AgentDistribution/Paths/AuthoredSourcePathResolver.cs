@@ -7,7 +7,7 @@ namespace MackySoft.AgentDistribution.Paths;
 internal static class AuthoredSourcePathResolver
 {
     /// <summary>Validates that a parsed source root is a regular directory.</summary>
-    internal static SkillOperationResult<AbsolutePath> ValidateDirectoryRoot (
+    internal static AgentDistributionOperationResult<AbsolutePath> ValidateDirectoryRoot (
         AbsolutePath root,
         string pathDescription)
     {
@@ -20,12 +20,12 @@ internal static class AuthoredSourcePathResolver
         }
 
         return observation.State == FileSystemEntryState.Directory
-            ? SkillOperationResult<AbsolutePath>.Success(root)
+            ? AgentDistributionOperationResult<AbsolutePath>.Success(root)
             : Failure<AbsolutePath>(pathDescription, "The entry must be a regular directory and must not be a reparse point.");
     }
 
     /// <summary>Resolves a regular directory at or below an established source root.</summary>
-    internal static SkillOperationResult<AbsolutePath> ResolveDirectory (
+    internal static AgentDistributionOperationResult<AbsolutePath> ResolveDirectory (
         AbsolutePath root,
         RootRelativePath relativePath,
         string pathDescription)
@@ -39,7 +39,7 @@ internal static class AuthoredSourcePathResolver
     }
 
     /// <summary>Resolves a regular file at or below an established source root.</summary>
-    internal static SkillOperationResult<AbsolutePath> ResolveRegularFile (
+    internal static AgentDistributionOperationResult<AbsolutePath> ResolveRegularFile (
         AbsolutePath root,
         RootRelativePath relativePath,
         string pathDescription)
@@ -60,7 +60,7 @@ internal static class AuthoredSourcePathResolver
             || observation.State != FileSystemEntryState.Missing;
     }
 
-    private static SkillOperationResult<AbsolutePath> ResolveEntry (
+    private static AgentDistributionOperationResult<AbsolutePath> ResolveEntry (
         AbsolutePath root,
         RootRelativePath relativePath,
         string pathDescription,
@@ -87,16 +87,16 @@ internal static class AuthoredSourcePathResolver
         }
 
         return resolution.TargetObservation.State == expectedEntryState
-            ? SkillOperationResult<AbsolutePath>.Success(resolution.RequestedPath.Target)
+            ? AgentDistributionOperationResult<AbsolutePath>.Success(resolution.RequestedPath.Target)
             : Failure<AbsolutePath>(pathDescription, $"The entry must be {expectedEntryKind} and must not be a reparse point.");
     }
 
-    private static SkillOperationResult<T> Failure<T> (
+    private static AgentDistributionOperationResult<T> Failure<T> (
         string pathDescription,
         string message)
     {
-        return SkillOperationResult<T>.FailureResult(
-            SkillFailureCodes.SourceInvalid,
+        return AgentDistributionOperationResult<T>.FailureResult(
+            AgentDistributionFailureCodes.SourceInvalid,
             $"{pathDescription} is invalid: {message}");
     }
 }

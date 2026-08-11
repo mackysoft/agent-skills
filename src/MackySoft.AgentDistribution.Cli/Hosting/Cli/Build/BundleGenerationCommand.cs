@@ -4,7 +4,7 @@ using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Cli.Hosting.Cli.Build;
 
-/// <summary> Provides public commands for canonical bundle generation and release preparation. </summary>
+/// <summary> Provides the public command for canonical bundle generation. </summary>
 internal sealed class BundleGenerationCommand
 {
     private readonly SkillBundleBuildService buildService;
@@ -29,32 +29,15 @@ internal sealed class BundleGenerationCommand
     /// <returns> The process exit code. </returns>
     [Command("build")]
     public Task<int> BuildAsync (
-        string root = "skills",
+        string root = "agent-distribution",
         bool check = false,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteAsync(root, releaseBundleVersion: null, check, cancellationToken);
-    }
-
-    /// <summary> Prepares an exact bundle release revision and its generated output. </summary>
-    /// <param name="bundleVersion"> The exact current or next bundle release revision. </param>
-    /// <param name="root"> The root containing <c>bundle.json</c>, <c>definitions</c>, and generated output. </param>
-    /// <param name="check"> Whether to fail without writing when release preparation requires changes. </param>
-    /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
-    /// <returns> The process exit code. </returns>
-    [Command("prepare-release")]
-    public Task<int> PrepareReleaseAsync (
-        int bundleVersion,
-        string root = "skills",
-        bool check = false,
-        CancellationToken cancellationToken = default)
-    {
-        return ExecuteAsync(root, bundleVersion, check, cancellationToken);
+        return ExecuteAsync(root, check, cancellationToken);
     }
 
     private async Task<int> ExecuteAsync (
         string root,
-        int? releaseBundleVersion,
         bool check,
         CancellationToken cancellationToken)
     {
@@ -79,9 +62,7 @@ internal sealed class BundleGenerationCommand
         }
         if (schemaResult.Value == SkillBundleDefinition.CurrentSchemaVersion)
         {
-            var result = releaseBundleVersion is null
-                ? await buildService.BuildAsync(root, check, cancellationToken).ConfigureAwait(false)
-                : await buildService.PrepareReleaseAsync(root, releaseBundleVersion.Value, check, cancellationToken).ConfigureAwait(false);
+            var result = await buildService.BuildAsync(root, check, cancellationToken).ConfigureAwait(false);
             if (!result.IsSuccess)
             {
                 Console.Error.WriteLine(result.Failure!.Message);
@@ -93,9 +74,7 @@ internal sealed class BundleGenerationCommand
         }
         if (schemaResult.Value == AgentDistributionBundleDefinition.CurrentSchemaVersion)
         {
-            var result = releaseBundleVersion is null
-                ? await agentDistributionBuildService.BuildAsync(root, check, cancellationToken).ConfigureAwait(false)
-                : await agentDistributionBuildService.PrepareReleaseAsync(root, releaseBundleVersion.Value, check, cancellationToken).ConfigureAwait(false);
+            var result = await agentDistributionBuildService.BuildAsync(root, check, cancellationToken).ConfigureAwait(false);
             if (!result.IsSuccess)
             {
                 Console.Error.WriteLine(result.Failure!.Message);

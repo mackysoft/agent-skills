@@ -27,7 +27,7 @@ public sealed class SkillNameLiteralParserTests
         var result = SkillNameLiteralParser.ParseSelectedSkillNames([literal]);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public sealed class SkillNameLiteralParserTests
         var result = SkillNameLiteralParser.ParseSelectedSkillNames([]);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
         Assert.Contains("At least one SKILL name", result.Failure.Message, StringComparison.Ordinal);
     }
 }

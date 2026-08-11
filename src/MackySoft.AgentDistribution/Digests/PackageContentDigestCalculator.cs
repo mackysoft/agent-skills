@@ -4,15 +4,15 @@ using MackySoft.AgentDistribution.Shared;
 
 namespace MackySoft.AgentDistribution.Digests;
 
-/// <summary> Computes deterministic SKILL content and host artifact digests. </summary>
-public sealed class SkillDigestCalculator
+/// <summary> Computes deterministic package content and host artifact digests. </summary>
+public sealed class PackageContentDigestCalculator
 {
     private static readonly byte[] Separator = [0];
 
     /// <summary> Computes one digest from normalized digest input files. </summary>
     /// <param name="files"> The files included in the digest input. </param>
     /// <returns> The lowercase hexadecimal SHA-256 digest. </returns>
-    public Sha256Digest ComputeDigest (IEnumerable<SkillDigestInputFile> files)
+    public Sha256Digest ComputeDigest (IEnumerable<PackageContentDigestInputFile> files)
     {
         ArgumentNullException.ThrowIfNull(files);
 
@@ -35,7 +35,7 @@ public sealed class SkillDigestCalculator
         PackageRelativePath relativePath,
         string content)
     {
-        return ComputeDigest([new SkillDigestInputFile(relativePath, content)]);
+        return ComputeDigest([new PackageContentDigestInputFile(relativePath, content)]);
     }
 
     private static void AppendUtf8 (
@@ -45,5 +45,4 @@ public sealed class SkillDigestCalculator
         var bytes = Encoding.UTF8.GetBytes(value);
         hash.AppendData(bytes);
     }
-
 }

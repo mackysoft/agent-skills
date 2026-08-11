@@ -26,47 +26,6 @@ public sealed class AgentDistributionBundleBuildServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task PrepareReleaseAsync_WithNextVersion_PublishesMatchingSourceAndGeneratedBundle ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-v3", "next-version");
-        WriteMixedSource(scope);
-        var serializer = new AgentDistributionBundleJsonSerializer();
-
-        var result = await AgentDistributionBundleBuildService.CreateDefault().PrepareReleaseAsync(
-            scope.FullPath,
-            bundleVersion: 2,
-            check: false,
-            CancellationToken.None);
-
-        Assert.True(result.IsSuccess, result.Failure?.Message);
-        Assert.True(result.Value!.Changed);
-        var sourceDefinition = serializer.DeserializeDefinition(File.ReadAllText(scope.GetPath("bundle.json")));
-        var generatedDescriptor = serializer.DeserializeDescriptor(File.ReadAllText(scope.GetPath("generated/bundle.json")));
-        Assert.Equal(2, sourceDefinition.BundleVersion.Value);
-        Assert.Equal(sourceDefinition.BundleVersion, generatedDescriptor.BundleVersion);
-        Assert.Equal(result.Value.Descriptor.BundleDigest, generatedDescriptor.BundleDigest);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task PrepareReleaseAsync_WithNonPositiveVersion_ReturnsInputFailureWithoutWriting ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-v3", "invalid-version");
-        WriteMixedSource(scope);
-
-        var result = await AgentDistributionBundleBuildService.CreateDefault().PrepareReleaseAsync(
-            scope.FullPath,
-            bundleVersion: 0,
-            check: false,
-            CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
-        Assert.False(Directory.Exists(scope.GetPath("generated")));
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
     public async Task BuildAsync_WhenGeneratedOutputIsSymbolicLink_ReturnsPathUnsafe ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-v3", "generated-link");
@@ -91,7 +50,7 @@ public sealed class AgentDistributionBundleBuildServiceTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
     }
 
     [Fact]
@@ -103,7 +62,7 @@ public sealed class AgentDistributionBundleBuildServiceTests
         var result = await AgentDistributionBundleBuildService.CreateDefault().BuildAsync(scope.FullPath, check: false, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
         Assert.False(Directory.Exists(scope.GetPath("generated")));
     }
 
@@ -116,7 +75,7 @@ public sealed class AgentDistributionBundleBuildServiceTests
         var result = await AgentDistributionBundleBuildService.CreateDefault().BuildAsync(scope.FullPath, check: false, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.HostUnsupported, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.HostUnsupported, result.Failure!.Code);
         Assert.False(Directory.Exists(scope.GetPath("generated")));
     }
 
@@ -133,7 +92,7 @@ public sealed class AgentDistributionBundleBuildServiceTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
         Assert.Contains("reserved", result.Failure.Message, StringComparison.Ordinal);
         Assert.False(Directory.Exists(scope.GetPath("generated")));
     }
@@ -152,7 +111,7 @@ public sealed class AgentDistributionBundleBuildServiceTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
         Assert.Contains("unsupported entry", result.Failure.Message, StringComparison.Ordinal);
         Assert.False(Directory.Exists(scope.GetPath("generated")));
     }

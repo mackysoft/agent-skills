@@ -185,7 +185,7 @@ public sealed class SkillUpdateServiceTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetUnmanaged, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetUnmanaged, result.Failure!.Code);
         Assert.Equal("# Existing\n", File.ReadAllText(unmanagedPath));
     }
 
@@ -208,7 +208,7 @@ public sealed class SkillUpdateServiceTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetNameCollision, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetNameCollision, result.Failure!.Code);
     }
 
     [Fact]
@@ -227,7 +227,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput(packages[0].Manifest.CatalogId, packages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
     }
 
     [Fact]
@@ -247,7 +247,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput(packages[0].Manifest.CatalogId, packages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetFrontmatterDigestMismatch, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetFrontmatterDigestMismatch, result.Failure!.Code);
     }
 
     [Fact]
@@ -266,7 +266,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput(packages[0].Manifest.CatalogId, packages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetHostArtifactDigestMismatch, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetHostArtifactDigestMismatch, result.Failure!.Code);
     }
 
     [Fact]
@@ -290,7 +290,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput(packages[0].Manifest.CatalogId, packages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetManifestDigestMismatch, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetManifestDigestMismatch, result.Failure!.Code);
     }
 
     [Fact]
@@ -310,7 +310,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput(packages[0].Manifest.CatalogId, packages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetManifestDigestMismatch, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetManifestDigestMismatch, result.Failure!.Code);
     }
 
     [Fact]
@@ -335,7 +335,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput(updatedPackages[0].Manifest.CatalogId, updatedPackages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetManifestDigestMismatch, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetManifestDigestMismatch, result.Failure!.Code);
     }
 
     [Fact]
@@ -381,7 +381,7 @@ public sealed class SkillUpdateServiceTests
         var action = result.Value!.Actions.Single();
         Assert.Equal(SkillUpdateActionKind.Updated, action.ActionKind);
         Assert.Equal(SkillTargetStateKind.CleanOutdated, action.TargetState!.Kind);
-        Assert.Equal(SkillFailureCodes.InstallTargetOutdated, action.TargetState.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetOutdated, action.TargetState.Code);
         Assert.NotEmpty(action.Diffs!);
         Assert.NotNull(action.FileChanges);
         Assert.Contains(PackageRelativePath.Parse("SKILL.md"), action.FileChanges!.ReplacedFiles);
@@ -411,7 +411,7 @@ public sealed class SkillUpdateServiceTests
         Assert.Equal(SkillUpdateActionKind.BlockedLocalModification, action.ActionKind);
         Assert.Equal(SkillBlockedReason.LocalModificationRequiresForce, action.BlockedReason);
         Assert.Equal(SkillTargetStateKind.CommonContentDrift, action.TargetState!.Kind);
-        Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, action.TargetState.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetContentDigestMismatch, action.TargetState.Code);
         Assert.NotEmpty(action.Diffs!);
         Assert.Equal(modifiedSkill, File.ReadAllText(skillPath));
     }
@@ -438,7 +438,7 @@ public sealed class SkillUpdateServiceTests
         Assert.Equal(SkillUpdateActionKind.BlockedVersionAhead, action.ActionKind);
         Assert.Equal(SkillBlockedReason.InstalledVersionAhead, action.BlockedReason);
         Assert.Equal(SkillTargetStateKind.VersionAhead, action.TargetState!.Kind);
-        Assert.Equal(SkillFailureCodes.InstallTargetVersionAhead, action.TargetState.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetVersionAhead, action.TargetState.Code);
         Assert.Equal(aheadPackage.Manifest.SkillBundleVersion.Value, action.TargetState.InstalledSkillBundleVersion);
         Assert.Equal(packages[0].Manifest.SkillBundleVersion.Value, action.TargetState.BundledSkillBundleVersion);
         Assert.NotEmpty(action.Diffs!);
@@ -616,7 +616,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput(updatedPackages[0].Manifest.CatalogId, updatedPackages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetWriteFailed, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetWriteFailed, result.Failure!.Code);
     }
 
     [Fact]
@@ -640,7 +640,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput(updatedPackage.Manifest.CatalogId, [updatedPackage, packages[1]], request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetUnmanaged, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetUnmanaged, result.Failure!.Code);
         Assert.Equal(originalManifest, File.ReadAllText(manifestPath));
         Assert.True(File.Exists(unmanagedPath));
     }
@@ -664,7 +664,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput(updatedPackage.Manifest.CatalogId, [updatedPackage, packages[1]], request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
         var skillText = File.ReadAllText(skillPath);
         Assert.Contains("Injected after planning.", skillText, StringComparison.Ordinal);
         Assert.DoesNotContain("Fixture update.", skillText, StringComparison.Ordinal);
@@ -691,7 +691,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput(packages[0].Manifest.CatalogId, packages, request, force: true), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetFileSetMismatch, result.Failure!.Code);
         Assert.Contains("Injected before planning.", File.ReadAllText(skillPath), StringComparison.Ordinal);
         Assert.True(File.Exists(lateFile));
     }
@@ -717,7 +717,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput(packages[0].Manifest.CatalogId, packages, request, force: true), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetFileSetMismatch, result.Failure!.Code);
         Assert.Contains("Injected before planning.", File.ReadAllText(skillPath), StringComparison.Ordinal);
         Assert.True(Directory.Exists(lateDirectory));
     }
@@ -740,7 +740,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput(updatedPackages[0].Manifest.CatalogId, updatedPackages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetFileSetMismatch, result.Failure!.Code);
         Assert.True(Directory.Exists(localDirectory));
     }
 
@@ -782,7 +782,7 @@ public sealed class SkillUpdateServiceTests
         var result = await updateService.UpdateAsync(new SkillUpdateInput(updatedPackages[0].Manifest.CatalogId, updatedPackages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
         Assert.True(Directory.Exists(localDirectoryLink));
     }
 
@@ -810,7 +810,7 @@ public sealed class SkillUpdateServiceTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetHostConflict, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetHostConflict, result.Failure!.Code);
     }
 
     [Fact]
@@ -841,16 +841,16 @@ public sealed class SkillUpdateServiceTests
 
     private sealed class FailingPackageWriter : ISkillMaterializedPackageWriter
     {
-        public ValueTask<SkillOperationResult<bool>> WriteAsync (
+        public ValueTask<AgentDistributionOperationResult<bool>> WriteAsync (
             AbsolutePath targetRoot,
             AbsolutePath skillDirectory,
             SkillMaterializedPackage materializedPackage,
             SkillMaterializedPackageWriteMode writeMode,
-            Func<AbsolutePath, CancellationToken, ValueTask<SkillOperationResult<bool>>>? precondition,
+            Func<AbsolutePath, CancellationToken, ValueTask<AgentDistributionOperationResult<bool>>>? precondition,
             CancellationToken cancellationToken = default)
         {
-            return ValueTask.FromResult(SkillOperationResult<bool>.FailureResult(
-                SkillFailureCodes.InstallTargetWriteFailed,
+            return ValueTask.FromResult(AgentDistributionOperationResult<bool>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetWriteFailed,
                 "Synthetic write failure."));
         }
     }

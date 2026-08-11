@@ -15,10 +15,10 @@ public sealed class AgentDistributionBundleDigestCalculator
 
     private readonly SkillManifestJsonSerializer skillManifestSerializer;
     private readonly AgentManifestJsonSerializer agentManifestSerializer;
-    private readonly SkillDigestCalculator digestCalculator;
+    private readonly PackageContentDigestCalculator digestCalculator;
 
     /// <summary> Initializes the calculator. </summary>
-    public AgentDistributionBundleDigestCalculator (SkillManifestJsonSerializer skillManifestSerializer, AgentManifestJsonSerializer agentManifestSerializer, SkillDigestCalculator digestCalculator)
+    public AgentDistributionBundleDigestCalculator (SkillManifestJsonSerializer skillManifestSerializer, AgentManifestJsonSerializer agentManifestSerializer, PackageContentDigestCalculator digestCalculator)
     {
         this.skillManifestSerializer = skillManifestSerializer ?? throw new ArgumentNullException(nameof(skillManifestSerializer));
         this.agentManifestSerializer = agentManifestSerializer ?? throw new ArgumentNullException(nameof(agentManifestSerializer));
@@ -30,8 +30,8 @@ public sealed class AgentDistributionBundleDigestCalculator
     {
         ArgumentNullException.ThrowIfNull(skills);
         ArgumentNullException.ThrowIfNull(agents);
-        var files = skills.SelectMany(package => package.Files.Select(file => new SkillDigestInputFile(PackageRelativePath.Parse($"skills/{package.Manifest.SkillName.Value}/{file.RelativePath.Value}"), file.RelativePath == SkillManifestPath ? skillManifestSerializer.SerializeForBundleDigest(package.Manifest) : file.Content)))
-            .Concat(agents.SelectMany(package => package.Files.Select(file => new SkillDigestInputFile(PackageRelativePath.Parse($"agents/{package.Manifest.AgentName.Value}/{file.RelativePath.Value}"), file.RelativePath == AgentManifestPath ? agentManifestSerializer.SerializeForBundleDigest(package.Manifest) : file.Content))))
+        var files = skills.SelectMany(package => package.Files.Select(file => new PackageContentDigestInputFile(PackageRelativePath.Parse($"skills/{package.Manifest.SkillName.Value}/{file.RelativePath.Value}"), file.RelativePath == SkillManifestPath ? skillManifestSerializer.SerializeForBundleDigest(package.Manifest) : file.Content)))
+            .Concat(agents.SelectMany(package => package.Files.Select(file => new PackageContentDigestInputFile(PackageRelativePath.Parse($"agents/{package.Manifest.AgentName.Value}/{file.RelativePath.Value}"), file.RelativePath == AgentManifestPath ? agentManifestSerializer.SerializeForBundleDigest(package.Manifest) : file.Content))))
             .ToArray();
         if (files.Length == 0 || files.GroupBy(static file => file.RelativePath).Any(static group => group.Count() != 1))
         {

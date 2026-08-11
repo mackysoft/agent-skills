@@ -31,7 +31,7 @@ public sealed class SkillPruneServiceTests
         var deleted = result.Value!.Actions.Single(action => action.Identity.SkillName == orphan.Manifest.SkillName);
         Assert.Equal(SkillPruneActionKind.Deleted, deleted.ActionKind);
         Assert.Equal(SkillTargetStateKind.RemovedFromCatalog, deleted.TargetState!.Kind);
-        Assert.Equal(SkillFailureCodes.InstallTargetRemovedFromCatalog, deleted.TargetState.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetRemovedFromCatalog, deleted.TargetState.Code);
         Assert.NotNull(deleted.FileChanges);
         Assert.Contains(PackageRelativePath.Parse("SKILL.md"), deleted.FileChanges!.RemovedFiles);
         Assert.False(Directory.Exists(Path.Combine(result.Value.TargetRoot.Value, orphan.Manifest.SkillName.Value)));
@@ -50,7 +50,7 @@ public sealed class SkillPruneServiceTests
         var orphan = packages[0];
         var foreignPackage = SkillTestData.CreatePackageWithCatalogId(
             packages[1],
-            new SkillCatalogId("com.example.foreign-skills"));
+            new AgentDistributionCatalogId("com.example.foreign-skills"));
         var installService = SkillTestData.CreateInstallService();
         var pruneService = SkillTestData.CreatePruneService();
         var flatTargetRoot = scope.GetPath(Path.Combine(".agents", "skills"));
@@ -231,7 +231,7 @@ public sealed class SkillPruneServiceTests
         var blocked = result.Value!.Actions.Single(action => action.Identity.SkillName == orphan.Manifest.SkillName);
         Assert.Equal(SkillPruneActionKind.BlockedLocalModification, blocked.ActionKind);
         Assert.Equal(SkillBlockedReason.LocalModificationRequiresForce, blocked.BlockedReason);
-        Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, blocked.TargetState!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetContentDigestMismatch, blocked.TargetState!.Code);
         Assert.True(Directory.Exists(skillDirectory));
     }
 
@@ -257,7 +257,7 @@ public sealed class SkillPruneServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var deleted = result.Value!.Actions.Single(action => action.Identity.SkillName == orphan.Manifest.SkillName);
         Assert.Equal(SkillPruneActionKind.Deleted, deleted.ActionKind);
-        Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, deleted.TargetState!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetContentDigestMismatch, deleted.TargetState!.Code);
         Assert.False(Directory.Exists(skillDirectory));
     }
 
@@ -269,7 +269,7 @@ public sealed class SkillPruneServiceTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "prune-skip-foreign-catalog");
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        var foreignPackage = SkillTestData.CreatePackageWithCatalogId(packages[0], new SkillCatalogId("com.example.foreign-skills"));
+        var foreignPackage = SkillTestData.CreatePackageWithCatalogId(packages[0], new AgentDistributionCatalogId("com.example.foreign-skills"));
         var installService = SkillTestData.CreateInstallService();
         var pruneService = SkillTestData.CreatePruneService();
         var request = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath, "shared-skills");
@@ -303,7 +303,7 @@ public sealed class SkillPruneServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
         Assert.Equal(SkillPruneActionKind.SkippedUnmanaged, action.ActionKind);
-        Assert.Equal(SkillFailureCodes.InstallTargetUnmanaged, action.TargetState!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetUnmanaged, action.TargetState!.Code);
         Assert.True(Directory.Exists(Path.Combine(targetRoot, "custom-skill")));
     }
 
@@ -326,7 +326,7 @@ public sealed class SkillPruneServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
         Assert.Equal(SkillPruneActionKind.BlockedManifestInvalid, action.ActionKind);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, action.TargetState!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, action.TargetState!.Code);
         Assert.True(Directory.Exists(Path.Combine(targetRoot, "invalid-skill")));
     }
 
@@ -348,7 +348,7 @@ public sealed class SkillPruneServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
         Assert.Equal(SkillPruneActionKind.BlockedNameCollision, action.ActionKind);
-        Assert.Equal(SkillFailureCodes.InstallTargetNameCollision, action.TargetState!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetNameCollision, action.TargetState!.Code);
         Assert.True(Directory.Exists(Path.Combine(targetRoot, packages[0].Manifest.SkillName.Value)));
     }
 
@@ -373,7 +373,7 @@ public sealed class SkillPruneServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
         Assert.Equal(SkillPruneActionKind.BlockedHostConflict, action.ActionKind);
-        Assert.Equal(SkillFailureCodes.InstallTargetHostConflict, action.TargetState!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetHostConflict, action.TargetState!.Code);
         Assert.True(Directory.Exists(Path.Combine(result.Value.TargetRoot.Value, orphan.Manifest.SkillName.Value)));
     }
 
@@ -401,7 +401,7 @@ public sealed class SkillPruneServiceTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         var action = result.Value!.Actions.Single();
         Assert.Equal(SkillPruneActionKind.BlockedManifestInvalid, action.ActionKind);
-        Assert.Equal(SkillFailureCodes.InstallTargetManifestDigestMismatch, action.TargetState!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetManifestDigestMismatch, action.TargetState!.Code);
         Assert.True(Directory.Exists(skillDirectory));
     }
 
@@ -422,7 +422,7 @@ public sealed class SkillPruneServiceTests
         var result = await pruneService.PruneAsync(new SkillPruneInput(packages[0].Manifest.CatalogId, packages, request, Force: force), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
         Assert.True(Directory.Exists(Path.Combine(targetRoot, "Invalid Skill")));
     }
 
@@ -465,7 +465,7 @@ public sealed class SkillPruneServiceTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
         Assert.True(Directory.Exists(linkPath));
         Assert.True(Directory.Exists(linkTarget));
     }
@@ -501,7 +501,7 @@ public sealed class SkillPruneServiceTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
         Assert.True(Directory.Exists(Path.Combine(targetRoot, orphan.Manifest.SkillName.Value)));
         Assert.True(File.Exists(manifestLink));
     }
@@ -528,12 +528,12 @@ public sealed class SkillPruneServiceTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetFileSetMismatch, result.Failure!.Code);
         Assert.True(Directory.Exists(skillDirectory));
         Assert.True(File.Exists(lateFile));
     }
 
-    private static string GetDefaultOpenAiBundleTargetRootRelativePath (SkillCatalogId catalogId)
+    private static string GetDefaultOpenAiBundleTargetRootRelativePath (AgentDistributionCatalogId catalogId)
     {
         return Path.Combine(".agents", "skills", catalogId.Value);
     }

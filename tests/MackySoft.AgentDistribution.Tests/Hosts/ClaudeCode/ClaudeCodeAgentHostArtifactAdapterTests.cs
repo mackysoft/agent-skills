@@ -52,7 +52,7 @@ public sealed class ClaudeCodeAgentHostArtifactAdapterTests
             """{"schemaVersion":1,"permissionMode":"unknown"}""");
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     [Fact]

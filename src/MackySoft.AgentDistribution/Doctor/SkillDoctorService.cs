@@ -44,7 +44,7 @@ public sealed class SkillDoctorService
         if (!Directory.Exists(fullTargetRoot.Value))
         {
             diagnostics.Add(SkillDoctorDiagnostic.Error(
-                SkillFailureCodes.InstallTargetUnmanaged,
+                AgentDistributionFailureCodes.InstallTargetUnmanaged,
                 $"Target root does not exist: {fullTargetRoot}"));
             return new SkillDoctorResult(host, fullTargetRoot, diagnostics);
         }
@@ -85,7 +85,7 @@ public sealed class SkillDoctorService
         var skillDirectory = skillDirectoryResult.Value!;
         if (!Directory.Exists(skillDirectory.Value))
         {
-            diagnostics.Add(SkillDoctorDiagnostic.Error(SkillFailureCodes.InstallTargetUnmanaged, "Skill directory is missing.", package.Manifest.SkillName));
+            diagnostics.Add(SkillDoctorDiagnostic.Error(AgentDistributionFailureCodes.InstallTargetUnmanaged, "Skill directory is missing.", package.Manifest.SkillName));
             return;
         }
 
@@ -104,7 +104,7 @@ public sealed class SkillDoctorService
 
         if (state.Kind == SkillTargetStateKind.Missing)
         {
-            diagnostics.Add(SkillDoctorDiagnostic.Error(SkillFailureCodes.InstallTargetUnmanaged, "Skill directory is missing.", package.Manifest.SkillName));
+            diagnostics.Add(SkillDoctorDiagnostic.Error(AgentDistributionFailureCodes.InstallTargetUnmanaged, "Skill directory is missing.", package.Manifest.SkillName));
             return;
         }
 

@@ -36,7 +36,7 @@ internal static class AgentDistributionTestData
         IReadOnlyList<SkillName>? skillDependencies = null)
     {
         var manifestSerializer = new AgentManifestJsonSerializer();
-        var digestCalculator = new SkillDigestCalculator();
+        var digestCalculator = new PackageContentDigestCalculator();
         var bundleVersion = new AgentDistributionBundleVersion(skills[0].Manifest.SkillBundleVersion.Value);
         var canonicalAgentName = new AgentName(agentName);
         const string instructions = "# Agent\n";

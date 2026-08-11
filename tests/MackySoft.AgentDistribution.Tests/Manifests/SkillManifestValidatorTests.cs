@@ -44,7 +44,7 @@ public sealed class SkillManifestFactoryTests
         var result = factory.CreateCanonical(manifest);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
         Assert.Contains("manifestDigest", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -59,7 +59,7 @@ public sealed class SkillManifestFactoryTests
         var result = factory.CreateCanonical(manifest);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
     }
 
     public static TheoryData<object> InvalidManifestCases ()
@@ -85,7 +85,7 @@ public sealed class SkillManifestFactoryTests
         return new SkillManifestCandidate(
             SkillManifest.CurrentSchemaVersion,
             new SkillBundleVersion(1),
-            new SkillCatalogId("com.mackysoft.agent-distribution"),
+            new AgentDistributionCatalogId("com.mackysoft.agent-distribution"),
             new SkillCategory("core"),
             new SkillName(skillName),
             "Sample Skill",

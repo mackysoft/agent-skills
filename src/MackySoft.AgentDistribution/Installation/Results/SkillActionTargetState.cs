@@ -8,7 +8,7 @@ public sealed class SkillActionTargetState
     /// <summary> Initializes one analyzed action target state. </summary>
     internal SkillActionTargetState (
         SkillTargetStateKind kind,
-        SkillFailureCode? code,
+        AgentDistributionFailureCode? code,
         string? message,
         SkillActionTargetFileSet? fileSet,
         int? installedSkillBundleVersion,
@@ -30,7 +30,7 @@ public sealed class SkillActionTargetState
     public SkillTargetStateKind Kind { get; }
 
     /// <summary> Gets the failure code represented by this state, when applicable. </summary>
-    public SkillFailureCode? Code { get; }
+    public AgentDistributionFailureCode? Code { get; }
 
     /// <summary> Gets the failure message represented by this state, when applicable. </summary>
     public string? Message { get; }
@@ -46,7 +46,7 @@ public sealed class SkillActionTargetState
 
     private static void ValidateFailure (
         SkillTargetStateKind kind,
-        SkillFailureCode? code,
+        AgentDistributionFailureCode? code,
         string? message)
     {
         if (kind is SkillTargetStateKind.Missing or SkillTargetStateKind.Current)
@@ -65,7 +65,7 @@ public sealed class SkillActionTargetState
         }
 
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
-        if (kind == SkillTargetStateKind.ManifestDrift && code == SkillFailureCodes.ManifestInvalid)
+        if (kind == SkillTargetStateKind.ManifestDrift && code == AgentDistributionFailureCodes.ManifestInvalid)
         {
             return;
         }

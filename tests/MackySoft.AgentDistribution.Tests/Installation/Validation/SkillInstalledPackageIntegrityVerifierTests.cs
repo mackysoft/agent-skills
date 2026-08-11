@@ -28,7 +28,7 @@ public sealed class SkillInstalledPackageIntegrityVerifierTests
         var result = await verifier.VerifyAsync(AbsolutePath.Parse(skillDirectory), HostKind.Codex, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public sealed class SkillInstalledPackageIntegrityVerifierTests
         var result = await verifier.VerifyAsync(AbsolutePath.Parse(skillDirectory), HostKind.Codex, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
         Assert.Contains("references/outside", result.Failure.Message, StringComparison.Ordinal);
         Assert.DoesNotContain(outsideFileName, result.Failure.Message, StringComparison.Ordinal);
     }

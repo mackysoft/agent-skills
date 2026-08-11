@@ -7,7 +7,7 @@ public sealed class SkillDoctorDiagnostic
 {
     private SkillDoctorDiagnostic (
         SkillDoctorSeverity severity,
-        SkillFailureCode code,
+        AgentDistributionFailureCode code,
         string message,
         SkillName? skillName)
     {
@@ -21,7 +21,7 @@ public sealed class SkillDoctorDiagnostic
     public SkillDoctorSeverity Severity { get; }
 
     /// <summary> Gets the diagnostic code. </summary>
-    public SkillFailureCode Code { get; }
+    public AgentDistributionFailureCode Code { get; }
 
     /// <summary> Gets the diagnostic message. </summary>
     public string Message { get; }
@@ -41,7 +41,7 @@ public sealed class SkillDoctorDiagnostic
     {
         return Create(
             SkillDoctorSeverity.Error,
-            new SkillFailureCode(code),
+            new AgentDistributionFailureCode(code),
             message,
             skillName is null ? null : new SkillName(skillName));
     }
@@ -52,7 +52,7 @@ public sealed class SkillDoctorDiagnostic
     /// <param name="skillName"> The related skill name, or <see langword="null" /> for target-level diagnostics. </param>
     /// <returns> The error diagnostic. </returns>
     public static SkillDoctorDiagnostic Error (
-        SkillFailureCode code,
+        AgentDistributionFailureCode code,
         string message,
         SkillName? skillName = null)
     {
@@ -71,14 +71,14 @@ public sealed class SkillDoctorDiagnostic
     {
         return Create(
             SkillDoctorSeverity.Info,
-            new SkillFailureCode(code),
+            new AgentDistributionFailureCode(code),
             message,
             skillName is null ? null : new SkillName(skillName));
     }
 
     private static SkillDoctorDiagnostic Create (
         SkillDoctorSeverity severity,
-        SkillFailureCode code,
+        AgentDistributionFailureCode code,
         string message,
         SkillName? skillName)
     {

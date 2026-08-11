@@ -14,7 +14,7 @@ public sealed class SkillBundleDefinition
     /// <param name="skillBundleVersion"> The positive release version stamped into every generated package. </param>
     public SkillBundleDefinition (
         int schemaVersion,
-        SkillCatalogId catalogId,
+        AgentDistributionCatalogId catalogId,
         SkillBundleVersion skillBundleVersion)
     {
         if (schemaVersion != CurrentSchemaVersion)
@@ -31,7 +31,7 @@ public sealed class SkillBundleDefinition
     public int SchemaVersion { get; }
 
     /// <summary> Gets the stable catalog ID stamped into every generated package. </summary>
-    public SkillCatalogId CatalogId { get; }
+    public AgentDistributionCatalogId CatalogId { get; }
 
     /// <summary> Gets the release version stamped into every generated package. </summary>
     public SkillBundleVersion SkillBundleVersion { get; }

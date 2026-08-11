@@ -34,9 +34,9 @@ public sealed class SkillCatalogTargetRootSelector
     /// catalog is not installed. Returns a structured failure when one safe root cannot be selected or a sibling
     /// catalog already contains a selected SKILL name.
     /// </returns>
-    public async ValueTask<SkillOperationResult<SkillResolvedInstallTarget>> SelectTargetAsync (
+    public async ValueTask<AgentDistributionOperationResult<SkillResolvedInstallTarget>> SelectTargetAsync (
         SkillInstallRequest request,
-        SkillCatalogId catalogId,
+        AgentDistributionCatalogId catalogId,
         IReadOnlyList<SkillName> selectedSkillNames,
         CancellationToken cancellationToken = default)
     {
@@ -59,7 +59,7 @@ public sealed class SkillCatalogTargetRootSelector
         var candidatesResult = targetResolver.ResolveTargetCandidates(request, catalogId);
         if (!candidatesResult.IsSuccess)
         {
-            return SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(
+            return AgentDistributionOperationResult<SkillResolvedInstallTarget>.FailureResult(
                 candidatesResult.Failure!.Code,
                 candidatesResult.Failure.Message);
         }
@@ -67,7 +67,7 @@ public sealed class SkillCatalogTargetRootSelector
         var candidates = candidatesResult.Value!;
         if (candidates.DefaultHostRoot is null)
         {
-            return SkillOperationResult<SkillResolvedInstallTarget>.Success(candidates.PreferredTarget);
+            return AgentDistributionOperationResult<SkillResolvedInstallTarget>.Success(candidates.PreferredTarget);
         }
 
         var candidateRoots = candidates.Targets
@@ -86,7 +86,7 @@ public sealed class SkillCatalogTargetRootSelector
                 .ConfigureAwait(false);
             if (!containsCatalogResult.IsSuccess)
             {
-                return SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(
+                return AgentDistributionOperationResult<SkillResolvedInstallTarget>.FailureResult(
                     containsCatalogResult.Failure!.Code,
                     containsCatalogResult.Failure.Message);
             }
@@ -99,8 +99,8 @@ public sealed class SkillCatalogTargetRootSelector
 
         if (matchingTargets.Count > 1)
         {
-            return SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(
-                SkillFailureCodes.InstallTargetRootConflict,
+            return AgentDistributionOperationResult<SkillResolvedInstallTarget>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetRootConflict,
                 $"SKILL catalog '{catalogId.Value}' is installed under multiple compatible target roots: {string.Join(", ", matchingTargets.Select(static target => target.TargetRoot.Value))}");
         }
 
@@ -113,7 +113,7 @@ public sealed class SkillCatalogTargetRootSelector
             activeTarget);
         if (!activeTargetShapeResult.IsSuccess)
         {
-            return SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(
+            return AgentDistributionOperationResult<SkillResolvedInstallTarget>.FailureResult(
                 activeTargetShapeResult.Failure!.Code,
                 activeTargetShapeResult.Failure.Message);
         }
@@ -125,17 +125,17 @@ public sealed class SkillCatalogTargetRootSelector
             cancellationToken);
         if (!siblingCollisionResult.IsSuccess)
         {
-            return SkillOperationResult<SkillResolvedInstallTarget>.FailureResult(
+            return AgentDistributionOperationResult<SkillResolvedInstallTarget>.FailureResult(
                 siblingCollisionResult.Failure!.Code,
                 siblingCollisionResult.Failure.Message);
         }
 
-        return SkillOperationResult<SkillResolvedInstallTarget>.Success(activeTarget);
+        return AgentDistributionOperationResult<SkillResolvedInstallTarget>.Success(activeTarget);
     }
 
-    private static SkillOperationResult<bool> ValidateActiveCatalogDirectoryRoot (
+    private static AgentDistributionOperationResult<bool> ValidateActiveCatalogDirectoryRoot (
         SkillInstallTargetCandidates candidates,
-        SkillCatalogId catalogId,
+        AgentDistributionCatalogId catalogId,
         SkillResolvedInstallTarget activeTarget)
     {
         var hostRoot = candidates.DefaultHostRoot;
@@ -144,19 +144,19 @@ public sealed class SkillCatalogTargetRootSelector
             || hostRoot.IsSameAs(activeTarget.TargetRoot)
             || !Directory.Exists(activeTarget.TargetRoot.Value))
         {
-            return SkillOperationResult<bool>.Success(false);
+            return AgentDistributionOperationResult<bool>.Success(false);
         }
 
         return ContainsSkillRootMarker(activeTarget.TargetRoot)
-            ? SkillOperationResult<bool>.FailureResult(
-                SkillFailureCodes.InstallTargetRootConflict,
+            ? AgentDistributionOperationResult<bool>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetRootConflict,
                 $"Preferred target root for catalog '{catalogId.Value}' is already occupied by a flat SKILL: {activeTarget.TargetRoot}")
-            : SkillOperationResult<bool>.Success(false);
+            : AgentDistributionOperationResult<bool>.Success(false);
     }
 
-    private static SkillOperationResult<bool> ValidateNoSiblingCatalogSkillNameCollision (
+    private static AgentDistributionOperationResult<bool> ValidateNoSiblingCatalogSkillNameCollision (
         SkillInstallTargetCandidates candidates,
-        SkillCatalogId catalogId,
+        AgentDistributionCatalogId catalogId,
         IReadOnlySet<SkillName> selectedSkillNames,
         CancellationToken cancellationToken)
     {
@@ -167,7 +167,7 @@ public sealed class SkillCatalogTargetRootSelector
             || selectedSkillNames.Count == 0
             || !Directory.Exists(hostRoot.Value))
         {
-            return SkillOperationResult<bool>.Success(false);
+            return AgentDistributionOperationResult<bool>.Success(false);
         }
 
         AbsolutePath[] siblingRoots;
@@ -179,8 +179,8 @@ public sealed class SkillCatalogTargetRootSelector
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return SkillOperationResult<bool>.FailureResult(
-                SkillFailureCodes.InstallTargetReadFailed,
+            return AgentDistributionOperationResult<bool>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetReadFailed,
                 $"Could not inspect sibling SKILL catalog roots: {hostRoot}. {ex.Message}");
         }
 
@@ -192,8 +192,8 @@ public sealed class SkillCatalogTargetRootSelector
         {
             if (!ContainedPath.TryCreate(hostRoot, candidateRoot, out var containedCandidateRoot, out var containmentFailure))
             {
-                return SkillOperationResult<bool>.FailureResult(
-                    SkillFailureCodes.PathUnsafe,
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.PathUnsafe,
                     $"SKILL target candidate is outside its host root: {containmentFailure.Message}");
             }
 
@@ -204,8 +204,8 @@ public sealed class SkillCatalogTargetRootSelector
                     out var candidateResolution,
                     out var candidateFailure))
             {
-                return SkillOperationResult<bool>.FailureResult(
-                    SkillFailureCodes.PathUnsafe,
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.PathUnsafe,
                     $"SKILL target candidate could not be resolved: {candidateFailure.Message}");
             }
 
@@ -231,7 +231,7 @@ public sealed class SkillCatalogTargetRootSelector
                         RootRelativePath.Parse(selectedSkillName.Value)).Target;
                     if (Directory.Exists(selectedSkillPath.Value))
                     {
-                        return SkillOperationResult<bool>.FailureResult(
+                        return AgentDistributionOperationResult<bool>.FailureResult(
                             siblingRootResult.Failure!.Code,
                             siblingRootResult.Failure.Message);
                     }
@@ -247,8 +247,8 @@ public sealed class SkillCatalogTargetRootSelector
                     out var containedSiblingRoot,
                     out var siblingContainmentFailure))
             {
-                return SkillOperationResult<bool>.FailureResult(
-                    SkillFailureCodes.PathUnsafe,
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.PathUnsafe,
                     $"Sibling SKILL catalog root escaped its host root: {siblingContainmentFailure.Message}");
             }
 
@@ -259,8 +259,8 @@ public sealed class SkillCatalogTargetRootSelector
                     out var siblingResolution,
                     out var siblingFailure))
             {
-                return SkillOperationResult<bool>.FailureResult(
-                    SkillFailureCodes.PathUnsafe,
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.PathUnsafe,
                     $"Sibling SKILL catalog root could not be resolved: {siblingFailure.Message}");
             }
 
@@ -285,7 +285,7 @@ public sealed class SkillCatalogTargetRootSelector
                     skillDirectoryPath);
                 if (!skillDirectoryResult.IsSuccess)
                 {
-                    return SkillOperationResult<bool>.FailureResult(
+                    return AgentDistributionOperationResult<bool>.FailureResult(
                         skillDirectoryResult.Failure!.Code,
                         skillDirectoryResult.Failure.Message);
                 }
@@ -295,13 +295,13 @@ public sealed class SkillCatalogTargetRootSelector
                     continue;
                 }
 
-                return SkillOperationResult<bool>.FailureResult(
-                    SkillFailureCodes.InstallTargetNameCollision,
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.InstallTargetNameCollision,
                     $"SKILL name '{selectedSkillName.Value}' is already present under another catalog directory while selecting catalog '{catalogId.Value}': {skillDirectoryResult.Value}");
             }
         }
 
-        return SkillOperationResult<bool>.Success(false);
+        return AgentDistributionOperationResult<bool>.Success(false);
     }
 
     private static bool ContainsSkillRootMarker (AbsolutePath candidateRoot)
@@ -312,16 +312,16 @@ public sealed class SkillCatalogTargetRootSelector
             || File.Exists(skillBodyPath.Value);
     }
 
-    private async ValueTask<SkillOperationResult<bool>> ContainsCatalogOrSelectedTargetAsync (
+    private async ValueTask<AgentDistributionOperationResult<bool>> ContainsCatalogOrSelectedTargetAsync (
         AbsolutePath targetRoot,
-        SkillCatalogId catalogId,
+        AgentDistributionCatalogId catalogId,
         IReadOnlySet<SkillName> selectedSkillNames,
         IReadOnlyList<AbsolutePath> candidateRoots,
         CancellationToken cancellationToken)
     {
         if (!Directory.Exists(targetRoot.Value))
         {
-            return SkillOperationResult<bool>.Success(false);
+            return AgentDistributionOperationResult<bool>.Success(false);
         }
 
         AbsolutePath[] skillDirectories;
@@ -333,8 +333,8 @@ public sealed class SkillCatalogTargetRootSelector
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return SkillOperationResult<bool>.FailureResult(
-                SkillFailureCodes.InstallTargetReadFailed,
+            return AgentDistributionOperationResult<bool>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetReadFailed,
                 $"Could not inspect compatible SKILL target root: {targetRoot}. {ex.Message}");
         }
 
@@ -353,7 +353,7 @@ public sealed class SkillCatalogTargetRootSelector
             {
                 if (isSelectedName && !isAnotherCandidateRoot)
                 {
-                    return SkillOperationResult<bool>.Success(true);
+                    return AgentDistributionOperationResult<bool>.Success(true);
                 }
 
                 continue;
@@ -373,22 +373,22 @@ public sealed class SkillCatalogTargetRootSelector
                     .ConfigureAwait(false);
                 if (manifestResult.IsSuccess && manifestResult.Value!.Manifest.CatalogId == catalogId)
                 {
-                    return SkillOperationResult<bool>.Success(true);
+                    return AgentDistributionOperationResult<bool>.Success(true);
                 }
 
                 if (isSelectedName)
                 {
-                    return SkillOperationResult<bool>.Success(true);
+                    return AgentDistributionOperationResult<bool>.Success(true);
                 }
             }
 
             if (isSelectedName && !isAnotherCandidateRoot)
             {
-                return SkillOperationResult<bool>.Success(true);
+                return AgentDistributionOperationResult<bool>.Success(true);
             }
         }
 
-        return SkillOperationResult<bool>.Success(false);
+        return AgentDistributionOperationResult<bool>.Success(false);
     }
 
 }

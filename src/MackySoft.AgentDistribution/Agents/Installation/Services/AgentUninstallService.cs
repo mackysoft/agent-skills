@@ -31,7 +31,7 @@ public sealed class AgentUninstallService
     }
 
     /// <summary> Removes the selected managed agents without invoking any SKILL removal service. </summary>
-    public async ValueTask<SkillOperationResult<AgentUninstallResult>> UninstallAsync (
+    public async ValueTask<AgentDistributionOperationResult<AgentUninstallResult>> UninstallAsync (
         AgentUninstallInput input,
         CancellationToken cancellationToken = default)
     {
@@ -56,7 +56,7 @@ public sealed class AgentUninstallService
             var blocked = plans.FirstOrDefault(static plan => plan.Action.IsBlocked);
             if (blocked is not null)
             {
-                return SkillOperationResult<AgentUninstallResult>.FailureResult(
+                return AgentDistributionOperationResult<AgentUninstallResult>.FailureResult(
                     ResolveFailureCode(blocked.TargetState.Kind),
                     $"Custom agent '{blocked.Action.AgentName.Value}' cannot be uninstalled from target state '{blocked.TargetState.Kind}'.");
             }
@@ -83,7 +83,7 @@ public sealed class AgentUninstallService
             }
         }
 
-        return SkillOperationResult<AgentUninstallResult>.Success(new AgentUninstallResult(
+        return AgentDistributionOperationResult<AgentUninstallResult>.Success(new AgentUninstallResult(
             target.ArtifactRoot,
             target.StateRoot,
             plans.Select(static plan => plan.Action).ToArray(),
@@ -91,7 +91,7 @@ public sealed class AgentUninstallService
             input.Force));
     }
 
-    private async ValueTask<SkillOperationResult<IReadOnlyList<AgentRemovalPlan>>> CreatePlansAsync (
+    private async ValueTask<AgentDistributionOperationResult<IReadOnlyList<AgentRemovalPlan>>> CreatePlansAsync (
         IReadOnlyList<CanonicalAgentPackage> packages,
         AgentResolvedTarget target,
         bool force,
@@ -105,19 +105,19 @@ public sealed class AgentUninstallService
             var inspectedResult = await targetInspector.InspectAsync(package.Manifest, target, cancellationToken).ConfigureAwait(false);
             if (!inspectedResult.IsSuccess)
             {
-                return SkillOperationResult<IReadOnlyList<AgentRemovalPlan>>.FailureResult(inspectedResult.Failure!.Code, inspectedResult.Failure.Message);
+                return AgentDistributionOperationResult<IReadOnlyList<AgentRemovalPlan>>.FailureResult(inspectedResult.Failure!.Code, inspectedResult.Failure.Message);
             }
 
             var statePathResult = statePathResolver.Resolve(target, package.Manifest.CatalogId, package.Manifest.AgentName);
             if (!statePathResult.IsSuccess)
             {
-                return SkillOperationResult<IReadOnlyList<AgentRemovalPlan>>.FailureResult(statePathResult.Failure!.Code, statePathResult.Failure.Message);
+                return AgentDistributionOperationResult<IReadOnlyList<AgentRemovalPlan>>.FailureResult(statePathResult.Failure!.Code, statePathResult.Failure.Message);
             }
 
             var stateReadResult = await stateStore.ReadAsync(statePathResult.Value!, cancellationToken).ConfigureAwait(false);
             if (!stateReadResult.IsSuccess)
             {
-                return SkillOperationResult<IReadOnlyList<AgentRemovalPlan>>.FailureResult(stateReadResult.Failure!.Code, stateReadResult.Failure.Message);
+                return AgentDistributionOperationResult<IReadOnlyList<AgentRemovalPlan>>.FailureResult(stateReadResult.Failure!.Code, stateReadResult.Failure.Message);
             }
 
             var state = stateReadResult.Value!.State;
@@ -127,8 +127,8 @@ public sealed class AgentUninstallService
                 {
                     if (managedPaths.TryGetValue(artifact.Path, out var owner))
                     {
-                        return SkillOperationResult<IReadOnlyList<AgentRemovalPlan>>.FailureResult(
-                            SkillFailureCodes.ManifestInvalid,
+                        return AgentDistributionOperationResult<IReadOnlyList<AgentRemovalPlan>>.FailureResult(
+                            AgentDistributionFailureCodes.ManifestInvalid,
                             $"Managed agent states for '{owner.Value}' and '{state.AgentName.Value}' own the same artifact: {artifact.Path}.");
                     }
 
@@ -154,10 +154,10 @@ public sealed class AgentUninstallService
                 new AgentRemovalAction(package.Manifest.AgentName, actionKind, targetState.Kind, targetState.Detail)));
         }
 
-        return SkillOperationResult<IReadOnlyList<AgentRemovalPlan>>.Success(Array.AsReadOnly(plans.ToArray()));
+        return AgentDistributionOperationResult<IReadOnlyList<AgentRemovalPlan>>.Success(Array.AsReadOnly(plans.ToArray()));
     }
 
-    private async ValueTask<SkillOperationResult<bool>> ValidatePreconditionsAsync (
+    private async ValueTask<AgentDistributionOperationResult<bool>> ValidatePreconditionsAsync (
         IReadOnlyList<AgentRemovalPlan> plans,
         AgentResolvedTarget target,
         CancellationToken cancellationToken)
@@ -167,7 +167,7 @@ public sealed class AgentUninstallService
             var result = await targetInspector.InspectOwnedStateAsync(plan.State!, target, cancellationToken).ConfigureAwait(false);
             if (!result.IsSuccess)
             {
-                return SkillOperationResult<bool>.FailureResult(result.Failure!.Code, result.Failure.Message);
+                return AgentDistributionOperationResult<bool>.FailureResult(result.Failure!.Code, result.Failure.Message);
             }
 
             var expectedKind = plan.TargetState.Kind == AgentInstalledTargetStateKind.CleanOutdated
@@ -175,27 +175,27 @@ public sealed class AgentUninstallService
                 : plan.TargetState.Kind;
             if (result.Value!.Kind != expectedKind || !string.Equals(result.Value.Detail, plan.TargetState.Detail, StringComparison.Ordinal))
             {
-                return SkillOperationResult<bool>.FailureResult(
-                    SkillFailureCodes.InstallTargetWriteFailed,
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.InstallTargetWriteFailed,
                     $"Custom-agent target changed after planning: {plan.Action.AgentName.Value}.");
             }
         }
 
-        return SkillOperationResult<bool>.Success(true);
+        return AgentDistributionOperationResult<bool>.Success(true);
     }
 
-    private static SkillFailureCode ResolveFailureCode (AgentInstalledTargetStateKind kind)
+    private static AgentDistributionFailureCode ResolveFailureCode (AgentInstalledTargetStateKind kind)
     {
         return kind switch
         {
-            AgentInstalledTargetStateKind.LocallyModified => SkillFailureCodes.InstallTargetLocalModification,
-            AgentInstalledTargetStateKind.Unmanaged or AgentInstalledTargetStateKind.OtherCatalog => SkillFailureCodes.InstallTargetUnmanaged,
-            _ => SkillFailureCodes.ManifestInvalid,
+            AgentInstalledTargetStateKind.LocallyModified => AgentDistributionFailureCodes.InstallTargetLocalModification,
+            AgentInstalledTargetStateKind.Unmanaged or AgentInstalledTargetStateKind.OtherCatalog => AgentDistributionFailureCodes.InstallTargetUnmanaged,
+            _ => AgentDistributionFailureCodes.ManifestInvalid,
         };
     }
 
-    private static SkillOperationResult<AgentUninstallResult> Failure (SkillFailure failure)
+    private static AgentDistributionOperationResult<AgentUninstallResult> Failure (AgentDistributionFailure failure)
     {
-        return SkillOperationResult<AgentUninstallResult>.FailureResult(failure.Code, failure.Message);
+        return AgentDistributionOperationResult<AgentUninstallResult>.FailureResult(failure.Code, failure.Message);
     }
 }

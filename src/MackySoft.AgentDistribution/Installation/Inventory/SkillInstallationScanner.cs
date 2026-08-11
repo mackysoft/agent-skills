@@ -32,7 +32,7 @@ public sealed class SkillInstallationScanner
     /// <param name="scope"> The install scope used for install identity. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The installed skill list, or a structured failure for invalid input, unsupported host, unsafe path use, manifest problems, or installed target drift. </returns>
-    public async ValueTask<SkillOperationResult<IReadOnlyList<SkillInstalledSkill>>> ScanAsync (
+    public async ValueTask<AgentDistributionOperationResult<IReadOnlyList<SkillInstalledSkill>>> ScanAsync (
         IReadOnlyList<CanonicalSkillPackage> packages,
         string targetRoot,
         HostKind host,
@@ -45,15 +45,15 @@ public sealed class SkillInstallationScanner
 
         if (scope is not SkillScopeKind.Project and not SkillScopeKind.User)
         {
-            return SkillOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
-                SkillFailureCodes.InputInvalid,
+            return AgentDistributionOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
+                AgentDistributionFailureCodes.InputInvalid,
                 $"Unsupported SKILL install scope: {scope}");
         }
 
         var registrationResult = HostRegistration.Get(host);
         if (!registrationResult.IsSuccess)
         {
-            return SkillOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
+            return AgentDistributionOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
                 registrationResult.Failure!.Code,
                 registrationResult.Failure.Message);
         }
@@ -62,7 +62,7 @@ public sealed class SkillInstallationScanner
         var fullTargetRoot = AbsolutePath.Parse(Path.GetFullPath(targetRoot));
         if (!Directory.Exists(fullTargetRoot.Value))
         {
-            return SkillOperationResult<IReadOnlyList<SkillInstalledSkill>>.Success(Array.Empty<SkillInstalledSkill>());
+            return AgentDistributionOperationResult<IReadOnlyList<SkillInstalledSkill>>.Success(Array.Empty<SkillInstalledSkill>());
         }
 
         var packageByName = packages.ToDictionary(static package => package.Manifest.SkillName);
@@ -75,7 +75,7 @@ public sealed class SkillInstallationScanner
             var skillDirectoryResult = PackagePathResolver.ResolveUnderRoot(fullTargetRoot, skillDirectory);
             if (!skillDirectoryResult.IsSuccess)
             {
-                return SkillOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
+                return AgentDistributionOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
                     skillDirectoryResult.Failure!.Code,
                     skillDirectoryResult.Failure.Message);
             }
@@ -86,7 +86,7 @@ public sealed class SkillInstallationScanner
                 PackageRelativePath.Parse("agent-skill.json"));
             if (!manifestPathResult.IsSuccess)
             {
-                return SkillOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
+                return AgentDistributionOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
                     manifestPathResult.Failure!.Code,
                     manifestPathResult.Failure.Message);
             }
@@ -99,7 +99,7 @@ public sealed class SkillInstallationScanner
             var installedManifestResult = await installedManifestReader.ReadRequiredAsync(resolvedSkillDirectory, cancellationToken).ConfigureAwait(false);
             if (!installedManifestResult.IsSuccess)
             {
-                return SkillOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
+                return AgentDistributionOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
                     installedManifestResult.Failure!.Code,
                     installedManifestResult.Failure.Message);
             }
@@ -107,15 +107,15 @@ public sealed class SkillInstallationScanner
             var manifest = installedManifestResult.Value!.Manifest;
             if (!packageByName.TryGetValue(manifest.SkillName, out var package))
             {
-                return SkillOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
-                    SkillFailureCodes.InstallTargetUnmanaged,
+                return AgentDistributionOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
+                    AgentDistributionFailureCodes.InstallTargetUnmanaged,
                     $"Installed SKILL is not part of the canonical package set: {manifest.SkillName}");
             }
 
             var validationResult = await installedPackageValidator.ValidateAsync(package, resolvedSkillDirectory, registeredHost, cancellationToken).ConfigureAwait(false);
             if (!validationResult.IsSuccess)
             {
-                return SkillOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
+                return AgentDistributionOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
                     validationResult.Failure!.Code,
                     validationResult.Failure.Message);
             }
@@ -126,6 +126,6 @@ public sealed class SkillInstallationScanner
                 validationResult.Value!));
         }
 
-        return SkillOperationResult<IReadOnlyList<SkillInstalledSkill>>.Success(installedSkills);
+        return AgentDistributionOperationResult<IReadOnlyList<SkillInstalledSkill>>.Success(installedSkills);
     }
 }

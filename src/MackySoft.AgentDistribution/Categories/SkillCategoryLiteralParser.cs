@@ -8,15 +8,15 @@ public static class SkillCategoryLiteralParser
     /// <summary> Parses selected category literals without requiring them to exist in the current bundle. </summary>
     /// <param name="selectedCategoryLiterals"> The selected category literals. </param>
     /// <returns> An immutable snapshot of the validated, deduplicated categories, or an input failure. </returns>
-    public static SkillOperationResult<IReadOnlyList<SkillCategory>> ParseSelectedCategories (
+    public static AgentDistributionOperationResult<IReadOnlyList<SkillCategory>> ParseSelectedCategories (
         IReadOnlyList<string> selectedCategoryLiterals)
     {
         ArgumentNullException.ThrowIfNull(selectedCategoryLiterals);
 
         if (selectedCategoryLiterals.Count == 0)
         {
-            return SkillOperationResult<IReadOnlyList<SkillCategory>>.FailureResult(
-                SkillFailureCodes.InputInvalid,
+            return AgentDistributionOperationResult<IReadOnlyList<SkillCategory>>.FailureResult(
+                AgentDistributionFailureCodes.InputInvalid,
                 "At least one SKILL category must be selected.");
         }
 
@@ -26,8 +26,8 @@ public static class SkillCategoryLiteralParser
         {
             if (!SkillCategory.TryCreate(literal, out var category) || category is null)
             {
-                return SkillOperationResult<IReadOnlyList<SkillCategory>>.FailureResult(
-                    SkillFailureCodes.InputInvalid,
+                return AgentDistributionOperationResult<IReadOnlyList<SkillCategory>>.FailureResult(
+                    AgentDistributionFailureCodes.InputInvalid,
                     $"SKILL category literal is invalid: {literal ?? "<null>"}.");
             }
 
@@ -37,7 +37,7 @@ public static class SkillCategoryLiteralParser
             }
         }
 
-        return SkillOperationResult<IReadOnlyList<SkillCategory>>.Success(
+        return AgentDistributionOperationResult<IReadOnlyList<SkillCategory>>.Success(
             Array.AsReadOnly(selectedCategories.ToArray()));
     }
 
@@ -45,7 +45,7 @@ public static class SkillCategoryLiteralParser
     /// <param name="availableCategories"> The complete available category set. </param>
     /// <param name="selectedCategoryLiterals"> The selected category literals. </param>
     /// <returns> An immutable snapshot of the normalized selected categories, or an input failure. </returns>
-    public static SkillOperationResult<IReadOnlyList<SkillCategory>> ParseSelectedCategories (
+    public static AgentDistributionOperationResult<IReadOnlyList<SkillCategory>> ParseSelectedCategories (
         IReadOnlyList<SkillCategory> availableCategories,
         IReadOnlyList<string> selectedCategoryLiterals)
     {
@@ -54,8 +54,8 @@ public static class SkillCategoryLiteralParser
 
         if (selectedCategoryLiterals.Count == 0)
         {
-            return SkillOperationResult<IReadOnlyList<SkillCategory>>.FailureResult(
-                SkillFailureCodes.InputInvalid,
+            return AgentDistributionOperationResult<IReadOnlyList<SkillCategory>>.FailureResult(
+                AgentDistributionFailureCodes.InputInvalid,
                 "At least one SKILL category must be selected.");
         }
 
@@ -74,8 +74,8 @@ public static class SkillCategoryLiteralParser
                 || category is null
                 || !availableCategorySet.Contains(category))
             {
-                return SkillOperationResult<IReadOnlyList<SkillCategory>>.FailureResult(
-                    SkillFailureCodes.InputInvalid,
+                return AgentDistributionOperationResult<IReadOnlyList<SkillCategory>>.FailureResult(
+                    AgentDistributionFailureCodes.InputInvalid,
                     $"Unsupported SKILL category: {literal ?? "<null>"}. Supported categories: {string.Join(", ", availableCategories.Select(static item => item.Value))}.");
             }
 
@@ -85,7 +85,7 @@ public static class SkillCategoryLiteralParser
             }
         }
 
-        return SkillOperationResult<IReadOnlyList<SkillCategory>>.Success(
+        return AgentDistributionOperationResult<IReadOnlyList<SkillCategory>>.Success(
             Array.AsReadOnly(selectedCategories.ToArray()));
     }
 }

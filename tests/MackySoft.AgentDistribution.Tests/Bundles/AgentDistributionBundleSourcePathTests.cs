@@ -24,9 +24,9 @@ public sealed class AgentDistributionBundleSourcePathTests
             .ReadAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(schemaResult.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, schemaResult.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, schemaResult.Failure!.Code);
         Assert.False(definitionResult.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, definitionResult.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, definitionResult.Failure!.Code);
     }
 
     [Fact]
@@ -49,9 +49,9 @@ public sealed class AgentDistributionBundleSourcePathTests
             .ReadAsync(AbsolutePath.Parse(rootLink), CancellationToken.None);
 
         Assert.False(schemaResult.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, schemaResult.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, schemaResult.Failure!.Code);
         Assert.False(definitionResult.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, definitionResult.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, definitionResult.Failure!.Code);
     }
 
     private static string CreateBundleJson ()

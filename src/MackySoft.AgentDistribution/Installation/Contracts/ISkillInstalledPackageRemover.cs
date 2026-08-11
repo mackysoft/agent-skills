@@ -12,9 +12,9 @@ public interface ISkillInstalledPackageRemover
     /// <param name="precondition"> The optional validation invoked for the target path immediately before move and for the moved tree before commit. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> Success when the directory is deleted or already absent; otherwise a failure. </returns>
-    ValueTask<SkillOperationResult<bool>> DeleteAsync (
+    ValueTask<AgentDistributionOperationResult<bool>> DeleteAsync (
         AbsolutePath targetRoot,
         AbsolutePath skillDirectory,
-        Func<AbsolutePath, CancellationToken, ValueTask<SkillOperationResult<bool>>>? precondition,
+        Func<AbsolutePath, CancellationToken, ValueTask<AgentDistributionOperationResult<bool>>>? precondition,
         CancellationToken cancellationToken = default);
 }

@@ -25,12 +25,12 @@ public sealed class SkillExportServiceTests
             [],
             HostKind.Codex,
             AbsolutePath.Parse(scope.GetPath("exported")),
-            (SkillExportFormat)42,
+            (PackageExportFormat)42,
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
-        Assert.Equal(SkillFailureCategory.InvalidInput, SkillFailureClassifier.Classify(result.Failure));
+        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCategory.InvalidInput, AgentDistributionFailureClassifier.Classify(result.Failure));
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public sealed class SkillExportServiceTests
         var outputRoot = scope.GetPath("exported");
         var service = SkillTestData.CreateExportService();
 
-        var result = await service.ExportAsync([], HostKind.Codex, AbsolutePath.Parse(outputRoot), SkillExportFormat.Directory, CancellationToken.None);
+        var result = await service.ExportAsync([], HostKind.Codex, AbsolutePath.Parse(outputRoot), PackageExportFormat.Directory, CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.True(result.Value!.IsSameAs(AbsolutePath.Parse(outputRoot)));
@@ -80,7 +80,7 @@ public sealed class SkillExportServiceTests
         var result = await service.ExportAsync(packages, HostKind.Codex, AbsolutePath.Parse(outputScope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
     }
 
     [Fact]
@@ -92,10 +92,10 @@ public sealed class SkillExportServiceTests
         var service = SkillTestData.CreateExportService();
         var destinationDirectory = scope.CreateDirectory("release.zip");
 
-        var result = await service.ExportAsync(packages, HostKind.Codex, AbsolutePath.Parse(destinationDirectory), SkillExportFormat.Zip, CancellationToken.None);
+        var result = await service.ExportAsync(packages, HostKind.Codex, AbsolutePath.Parse(destinationDirectory), PackageExportFormat.Zip, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetWriteFailed, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetWriteFailed, result.Failure!.Code);
         Assert.Empty(Directory.EnumerateFiles(scope.FullPath, $".{Path.GetFileName(destinationDirectory)}.*.tmp"));
     }
 
@@ -113,8 +113,8 @@ public sealed class SkillExportServiceTests
             var firstZip = scope.GetPath($"{host}-first.zip");
             var secondZip = scope.GetPath($"{host}-second.zip");
 
-            var first = await service.ExportAsync(packages, host, AbsolutePath.Parse(firstZip), SkillExportFormat.Zip, CancellationToken.None);
-            var second = await service.ExportAsync(packages, host, AbsolutePath.Parse(secondZip), SkillExportFormat.Zip, CancellationToken.None);
+            var first = await service.ExportAsync(packages, host, AbsolutePath.Parse(firstZip), PackageExportFormat.Zip, CancellationToken.None);
+            var second = await service.ExportAsync(packages, host, AbsolutePath.Parse(secondZip), PackageExportFormat.Zip, CancellationToken.None);
 
             Assert.True(first.IsSuccess, first.Failure?.Message);
             Assert.True(second.IsSuccess, second.Failure?.Message);
@@ -139,7 +139,7 @@ public sealed class SkillExportServiceTests
             {
                 var zipPath = scope.GetPath($"{registration.Host}.zip");
 
-                var result = await service.ExportAsync([package], registration.Host, AbsolutePath.Parse(zipPath), SkillExportFormat.Zip, CancellationToken.None);
+                var result = await service.ExportAsync([package], registration.Host, AbsolutePath.Parse(zipPath), PackageExportFormat.Zip, CancellationToken.None);
 
                 Assert.True(result.IsSuccess, result.Failure?.Message);
                 var entryNames = GetZipEntryNames(zipPath);
@@ -170,9 +170,9 @@ public sealed class SkillExportServiceTests
             var zipPath = scope.GetPath($"{host}.zip");
             var expectedMap = CreateExpectedExportMap(packages, host);
 
-            var firstDirectory = await service.ExportAsync(packages, host, AbsolutePath.Parse(firstDirectoryRoot), SkillExportFormat.Directory, CancellationToken.None);
-            var secondDirectory = await service.ExportAsync(packages, host, AbsolutePath.Parse(secondDirectoryRoot), SkillExportFormat.Directory, CancellationToken.None);
-            var zip = await service.ExportAsync(packages, host, AbsolutePath.Parse(zipPath), SkillExportFormat.Zip, CancellationToken.None);
+            var firstDirectory = await service.ExportAsync(packages, host, AbsolutePath.Parse(firstDirectoryRoot), PackageExportFormat.Directory, CancellationToken.None);
+            var secondDirectory = await service.ExportAsync(packages, host, AbsolutePath.Parse(secondDirectoryRoot), PackageExportFormat.Directory, CancellationToken.None);
+            var zip = await service.ExportAsync(packages, host, AbsolutePath.Parse(zipPath), PackageExportFormat.Zip, CancellationToken.None);
 
             Assert.True(firstDirectory.IsSuccess, firstDirectory.Failure?.Message);
             Assert.True(secondDirectory.IsSuccess, secondDirectory.Failure?.Message);

@@ -2,14 +2,14 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace MackySoft.AgentDistribution.Shared;
 
-/// <summary> Represents a non-empty machine-readable SKILL failure code from an open code set. </summary>
-/// <remarks> Unknown values are preserved so new SKILL failure codes can be introduced without closed enum changes. </remarks>
-public sealed record SkillFailureCode
+/// <summary> Represents a non-empty machine-readable Agent Distribution failure code from an open code set. </summary>
+/// <remarks> Unknown values are preserved so new Agent Distribution failure codes can be introduced without closed enum changes. </remarks>
+public sealed record AgentDistributionFailureCode
 {
-    /// <summary> Initializes a new instance of the <see cref="SkillFailureCode" /> type. </summary>
+    /// <summary> Initializes a new instance of the <see cref="AgentDistributionFailureCode" /> type. </summary>
     /// <param name="value"> The raw failure code value. </param>
     /// <exception cref="ArgumentException"> Thrown when <paramref name="value" /> is null, empty, or whitespace. </exception>
-    public SkillFailureCode (string value)
+    public AgentDistributionFailureCode (string value)
     {
         if (!IsValidValue(value))
         {
@@ -28,7 +28,7 @@ public sealed record SkillFailureCode
     /// <returns> <see langword="true" /> when the input is valid; otherwise <see langword="false" />. </returns>
     public static bool TryCreate (
         string? value,
-        [NotNullWhen(true)] out SkillFailureCode? code)
+        [NotNullWhen(true)] out AgentDistributionFailureCode? code)
     {
         if (!IsValidValue(value))
         {
@@ -36,13 +36,13 @@ public sealed record SkillFailureCode
             return false;
         }
 
-        code = new SkillFailureCode(value!);
+        code = new AgentDistributionFailureCode(value!);
         return true;
     }
 
     /// <summary> Converts the failure code to its raw string value. </summary>
     /// <param name="code"> The failure code to convert. </param>
-    public static implicit operator string (SkillFailureCode code)
+    public static implicit operator string (AgentDistributionFailureCode code)
     {
         ArgumentNullException.ThrowIfNull(code);
         return code.ToString();

@@ -214,8 +214,8 @@ grep -Fxq 'lib/net8.0/MackySoft.AgentDistribution.ConsoleAppFramework.dll' <<< "
 grep -Fxq 'buildTransitive/MackySoft.AgentDistribution.ConsoleAppFramework.props' <<< "$consoleappframework_package_files"
 
 cli_package_files="$(unzip -Z1 "$cli_package")"
-grep -Fxq 'tools/net8.0/any/skills/bundle.json' <<< "$cli_package_files"
-grep -Fxq 'tools/net8.0/any/skills/skills/agent-distribution-packaging/agent-skill.json' <<< "$cli_package_files"
+grep -Fxq 'tools/net8.0/any/agent-distribution/bundle.json' <<< "$cli_package_files"
+grep -Fxq 'tools/net8.0/any/agent-distribution/skills/agent-distribution-packaging/agent-skill.json' <<< "$cli_package_files"
 
 if [ -n "$repository_commit" ]; then
   bash "$script_dir/validate-nuget-package-repository-commit.sh" \
@@ -248,7 +248,7 @@ dotnet build "$consumer_dir/consumer.csproj" --configuration "$configuration" --
 
 console_consumer_dir="$work_root/console-consumer"
 dotnet new console --output "$console_consumer_dir" --no-restore >/dev/null
-cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/AgentDistributionBundle/generated" "$console_consumer_dir/skills"
+cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/AgentDistributionBundle/generated" "$console_consumer_dir/agent-distribution"
 dotnet add "$console_consumer_dir/console-consumer.csproj" package MackySoft.AgentDistribution.ConsoleAppFramework \
   --version "$package_version" \
   --source "$package_dir" >/dev/null
@@ -396,7 +396,10 @@ mkdir -p "$tool_dir"
 
   dotnet tool run agent-distribution -- --help > "$work_root/tool-help.txt"
   grep -Eq '^  build[[:space:]]' "$work_root/tool-help.txt"
-  grep -Eq '^  prepare-release[[:space:]]' "$work_root/tool-help.txt"
+  if grep -Eq '^  prepare-release[[:space:]]' "$work_root/tool-help.txt"; then
+    printf 'The standalone CLI exposed release-owned bundle version mutation.\n' >&2
+    exit 1
+  fi
   grep -Eq '^  skills list[[:space:]]' "$work_root/tool-help.txt"
   grep -Eq '^  agents list[[:space:]]' "$work_root/tool-help.txt"
   if grep -Eq '^  (list|export|install|update|uninstall|prune|doctor)[[:space:]]' "$work_root/tool-help.txt"; then
@@ -416,10 +419,9 @@ mkdir -p "$tool_dir"
     exit 1
   fi
 
-  dotnet tool run agent-distribution -- prepare-release --bundle-version 2 --root "$bundle_root" >/dev/null
-  grep -Eq '^[[:space:]]*"skillBundleVersion":[[:space:]]*2[,]?$' "$bundle_root/bundle.json"
-  grep -Eq '^[[:space:]]*"skillBundleVersion":[[:space:]]*2[,]?$' "$bundle_root/generated/bundle.json"
-  dotnet tool run agent-distribution -- prepare-release --bundle-version 2 --root "$bundle_root" --check >/dev/null
+  dotnet tool run agent-distribution -- prepare-release --bundle-version 2 --root "$bundle_root" >/dev/null 2>&1 || true
+  grep -Eq '^[[:space:]]*"skillBundleVersion":[[:space:]]*1[,]?$' "$bundle_root/bundle.json"
+  grep -Eq '^[[:space:]]*"skillBundleVersion":[[:space:]]*1[,]?$' "$bundle_root/generated/bundle.json"
 
   agent_bundle_root="$work_root/agent-bundle"
   cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/AgentDistributionBundle" "$agent_bundle_root"
@@ -428,11 +430,6 @@ mkdir -p "$tool_dir"
 
   diff -ruN "$DOTNET_REPO_ROOT/tests/Fixtures/AgentDistributionBundle/generated" "$agent_bundle_root/generated"
   grep -Eq '^[[:space:]]*"bundleVersion":[[:space:]]*1[,]?$' "$agent_bundle_root/bundle.json"
-
-  dotnet tool run agent-distribution -- prepare-release --bundle-version 2 --root "$agent_bundle_root" >/dev/null
-  grep -Eq '^[[:space:]]*"bundleVersion":[[:space:]]*2[,]?$' "$agent_bundle_root/bundle.json"
-  grep -Eq '^[[:space:]]*"bundleVersion":[[:space:]]*2[,]?$' "$agent_bundle_root/generated/bundle.json"
-  dotnet tool run agent-distribution -- prepare-release --bundle-version 2 --root "$agent_bundle_root" --check >/dev/null
 
   dotnet tool run agent-distribution -- skills list --pretty > "$work_root/agent-distribution-own-list.json"
   grep -q '"Command": "skills.list"' "$work_root/agent-distribution-own-list.json"

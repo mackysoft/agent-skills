@@ -15,7 +15,7 @@ public sealed class SkillBundleDefinitionReaderTests
         var serializer = new SkillBundleJsonSerializer();
         var definition = new SkillBundleDefinition(
             SkillBundleDefinition.CurrentSchemaVersion,
-            new SkillCatalogId("com.mackysoft.agent-distribution"),
+            new AgentDistributionCatalogId("com.mackysoft.agent-distribution"),
             new SkillBundleVersion(3));
         scope.WriteFile("bundle.json", serializer.SerializeDefinition(definition));
         var reader = CreateReader(serializer);
@@ -37,7 +37,7 @@ public sealed class SkillBundleDefinitionReaderTests
         var serializer = new SkillBundleJsonSerializer();
         var definition = new SkillBundleDefinition(
             SkillBundleDefinition.CurrentSchemaVersion,
-            new SkillCatalogId("com.mackysoft.agent-distribution"),
+            new AgentDistributionCatalogId("com.mackysoft.agent-distribution"),
             new SkillBundleVersion(3));
         scope.WriteFile(
             "bundle.json",
@@ -51,7 +51,7 @@ public sealed class SkillBundleDefinitionReaderTests
         var result = await reader.ReadAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
         Assert.Contains("canonical", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -69,7 +69,7 @@ public sealed class SkillBundleDefinitionReaderTests
         var serializer = new SkillBundleJsonSerializer();
         var definition = new SkillBundleDefinition(
             SkillBundleDefinition.CurrentSchemaVersion,
-            new SkillCatalogId("com.mackysoft.agent-distribution"),
+            new AgentDistributionCatalogId("com.mackysoft.agent-distribution"),
             new SkillBundleVersion(3));
         var outsideBundlePath = outsideScope.WriteFile("bundle.json", serializer.SerializeDefinition(definition));
         File.CreateSymbolicLink(scope.GetPath("bundle.json"), outsideBundlePath);
@@ -79,7 +79,7 @@ public sealed class SkillBundleDefinitionReaderTests
         var result = await reader.ReadAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     private static SkillBundleDefinitionReader CreateReader (SkillBundleJsonSerializer serializer)

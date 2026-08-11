@@ -60,7 +60,7 @@ public sealed class CanonicalSkillBundleReaderWriterTests
         var readResult = await services.Reader.ReadAsync(outputRoot, CancellationToken.None);
 
         Assert.False(readResult.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, readResult.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, readResult.Failure!.Code);
         Assert.Contains("bundleDigest", readResult.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -81,7 +81,7 @@ public sealed class CanonicalSkillBundleReaderWriterTests
         var readResult = await services.Reader.ReadAsync(outputRoot, CancellationToken.None);
 
         Assert.False(readResult.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, readResult.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, readResult.Failure!.Code);
         Assert.Contains("non-regular package directory", readResult.Failure.Message, StringComparison.Ordinal);
     }
 

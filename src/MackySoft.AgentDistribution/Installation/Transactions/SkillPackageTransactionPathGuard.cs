@@ -10,7 +10,7 @@ internal static class SkillPackageTransactionPathGuard
     /// <param name="targetRoot"> The resolved bundle target root. </param>
     /// <param name="directoryPath"> The transaction directory path. </param>
     /// <returns> Success when the directory is not a link and resolves under the bundle target root. </returns>
-    public static SkillOperationResult<bool> ValidateCreatedDirectory (
+    public static AgentDistributionOperationResult<bool> ValidateCreatedDirectory (
         AbsolutePath targetRoot,
         AbsolutePath directoryPath)
     {
@@ -19,8 +19,8 @@ internal static class SkillPackageTransactionPathGuard
 
         if (!ContainedPath.TryCreate(targetRoot, directoryPath, out var containedPath, out var pathFailure))
         {
-            return SkillOperationResult<bool>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
+            return AgentDistributionOperationResult<bool>.FailureResult(
+                AgentDistributionFailureCodes.PathUnsafe,
                 $"SKILL package transaction directory is unsafe: {pathFailure.Message}");
         }
 
@@ -31,20 +31,20 @@ internal static class SkillPackageTransactionPathGuard
                 out var resolution,
                 out var physicalFailure))
         {
-            return SkillOperationResult<bool>.FailureResult(
+            return AgentDistributionOperationResult<bool>.FailureResult(
                 physicalFailure.Kind == FileSystemOperationFailureKind.EntryNotFound
-                    ? SkillFailureCodes.InstallTargetWriteFailed
-                    : SkillFailureCodes.PathUnsafe,
+                    ? AgentDistributionFailureCodes.InstallTargetWriteFailed
+                    : AgentDistributionFailureCodes.PathUnsafe,
                 $"SKILL package transaction directory is invalid: {physicalFailure.Message}");
         }
 
         if (resolution.TargetObservation.State != FileSystemEntryState.Directory)
         {
-            return SkillOperationResult<bool>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
+            return AgentDistributionOperationResult<bool>.FailureResult(
+                AgentDistributionFailureCodes.PathUnsafe,
                 $"SKILL package transaction directory must be a regular directory: {directoryPath.Value}");
         }
 
-        return SkillOperationResult<bool>.Success(true);
+        return AgentDistributionOperationResult<bool>.Success(true);
     }
 }

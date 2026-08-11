@@ -8,7 +8,7 @@ namespace MackySoft.AgentDistribution.Tests.Installation.Targeting;
 
 public sealed class SkillCatalogTargetRootSelectorTests
 {
-    private static readonly SkillCatalogId CatalogId = new("com.mackysoft.agent-distribution.tests");
+    private static readonly AgentDistributionCatalogId CatalogId = new("com.mackysoft.agent-distribution.tests");
 
     [Theory]
     [Trait("Size", "Small")]
@@ -118,7 +118,7 @@ public sealed class SkillCatalogTargetRootSelectorTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.UserTargetUnavailable, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.UserTargetUnavailable, result.Failure!.Code);
     }
 
     [Fact]
@@ -206,7 +206,7 @@ public sealed class SkillCatalogTargetRootSelectorTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetRootConflict, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetRootConflict, result.Failure!.Code);
     }
 
     [Theory]
@@ -238,7 +238,7 @@ public sealed class SkillCatalogTargetRootSelectorTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetNameCollision, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetNameCollision, result.Failure!.Code);
         Assert.False(Directory.Exists(Path.Combine(hostRoot, CatalogId.Value)));
     }
 
@@ -247,7 +247,7 @@ public sealed class SkillCatalogTargetRootSelectorTests
     public async Task SelectTargetAsync_DefaultTarget_RejectsCatalogDirectoryOccupiedByFlatSkill ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "target-catalog-root-occupied-by-flat-skill");
-        var catalogId = new SkillCatalogId("occupied-skill");
+        var catalogId = new AgentDistributionCatalogId("occupied-skill");
         var occupiedRoot = scope.CreateDirectory(Path.Combine(".agents", "skills", catalogId.Value));
         File.WriteAllText(Path.Combine(occupiedRoot, "SKILL.md"), "# Existing flat skill\n");
         var selector = CreateSelector(scope.GetPath("home"));
@@ -259,7 +259,7 @@ public sealed class SkillCatalogTargetRootSelectorTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetRootConflict, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetRootConflict, result.Failure!.Code);
         Assert.False(Directory.Exists(Path.Combine(occupiedRoot, "new-skill")));
     }
 
@@ -304,7 +304,7 @@ public sealed class SkillCatalogTargetRootSelectorTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
         Assert.False(Directory.Exists(Path.Combine(hostRoot, CatalogId.Value)));
     }
 
@@ -315,7 +315,7 @@ public sealed class SkillCatalogTargetRootSelectorTests
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "target-in-root-catalog-alias");
         var hostRoot = scope.CreateDirectory(Path.Combine(".agents", "skills"));
         var realCatalogRoot = scope.CreateDirectory(Path.Combine(".agents", "skills", "real-catalog"));
-        var catalogId = new SkillCatalogId("shared-name");
+        var catalogId = new AgentDistributionCatalogId("shared-name");
         var skillName = new SkillName(catalogId.Value);
         Directory.CreateDirectory(Path.Combine(realCatalogRoot, skillName.Value));
         Directory.CreateSymbolicLink(

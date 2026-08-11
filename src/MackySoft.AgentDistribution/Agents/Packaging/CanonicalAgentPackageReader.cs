@@ -13,7 +13,7 @@ internal sealed class CanonicalAgentPackageReader
     private static readonly PackageRelativePath ManifestPath = PackageRelativePath.Parse("agent-manifest.json");
 
     private readonly AgentManifestJsonSerializer serializer;
-    private readonly SkillDigestCalculator digestCalculator;
+    private readonly PackageContentDigestCalculator digestCalculator;
     private readonly AgentManifestDigestCalculator manifestDigestCalculator;
 
     /// <summary> Initializes the reader. </summary>
@@ -21,7 +21,7 @@ internal sealed class CanonicalAgentPackageReader
     /// <param name="digestCalculator"> The file digest calculator used to validate package content. </param>
     internal CanonicalAgentPackageReader (
         AgentManifestJsonSerializer serializer,
-        SkillDigestCalculator digestCalculator,
+        PackageContentDigestCalculator digestCalculator,
         AgentManifestDigestCalculator manifestDigestCalculator)
     {
         this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
@@ -33,7 +33,7 @@ internal sealed class CanonicalAgentPackageReader
     /// <param name="agentsRoot"> The generated v3 agent package root. </param>
     /// <param name="cancellationToken"> The cancellation token propagated through file access. </param>
     /// <returns>The canonical agent packages, or a manifest failure.</returns>
-    internal async ValueTask<SkillOperationResult<IReadOnlyList<CanonicalAgentPackage>>> ReadAllAsync (
+    internal async ValueTask<AgentDistributionOperationResult<IReadOnlyList<CanonicalAgentPackage>>> ReadAllAsync (
         AbsolutePath agentsRoot,
         CancellationToken cancellationToken = default)
     {
@@ -45,14 +45,14 @@ internal sealed class CanonicalAgentPackageReader
                 out var agentsRootObservation,
                 out _))
         {
-            return SkillOperationResult<IReadOnlyList<CanonicalAgentPackage>>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
+            return AgentDistributionOperationResult<IReadOnlyList<CanonicalAgentPackage>>.FailureResult(
+                AgentDistributionFailureCodes.PathUnsafe,
                 $"Generated agents root could not be inspected: {fullAgentsRoot.Value}");
         }
 
         if (agentsRootObservation.State == FileSystemEntryState.Missing)
         {
-            return SkillOperationResult<IReadOnlyList<CanonicalAgentPackage>>.Success([]);
+            return AgentDistributionOperationResult<IReadOnlyList<CanonicalAgentPackage>>.Success([]);
         }
 
         if (agentsRootObservation.State != FileSystemEntryState.Directory)
@@ -85,10 +85,10 @@ internal sealed class CanonicalAgentPackageReader
             packages.Add(packageResult.Value!);
         }
 
-        return SkillOperationResult<IReadOnlyList<CanonicalAgentPackage>>.Success(Array.AsReadOnly(packages.OrderBy(static package => package.Manifest.AgentName.Value, StringComparer.Ordinal).ToArray()));
+        return AgentDistributionOperationResult<IReadOnlyList<CanonicalAgentPackage>>.Success(Array.AsReadOnly(packages.OrderBy(static package => package.Manifest.AgentName.Value, StringComparer.Ordinal).ToArray()));
     }
 
-    private async ValueTask<SkillOperationResult<CanonicalAgentPackage>> ReadOneAsync (
+    private async ValueTask<AgentDistributionOperationResult<CanonicalAgentPackage>> ReadOneAsync (
         AbsolutePath agentsRoot,
         AbsolutePath agentDirectory,
         CancellationToken cancellationToken)
@@ -110,41 +110,41 @@ internal sealed class CanonicalAgentPackageReader
             var manifestFile = filesResult.Value!.SingleOrDefault(static file => file.RelativePath == ManifestPath);
             if (manifestFile is null)
             {
-                return PackageFailure(SkillFailureCodes.ManifestInvalid, "Generated agent package is missing agent-manifest.json.");
+                return PackageFailure(AgentDistributionFailureCodes.ManifestInvalid, "Generated agent package is missing agent-manifest.json.");
             }
 
             var manifest = serializer.Deserialize(manifestFile.Content);
             if (!string.Equals(manifestFile.Content, serializer.Serialize(manifest), StringComparison.Ordinal)
                 || manifest.ManifestDigest != manifestDigestCalculator.ComputeManifestDigest(manifest))
             {
-                return PackageFailure(SkillFailureCodes.ManifestInvalid, "agent-manifest.json is not canonical or its digest does not match manifest content.");
+                return PackageFailure(AgentDistributionFailureCodes.ManifestInvalid, "agent-manifest.json is not canonical or its digest does not match manifest content.");
             }
 
             if (!string.Equals(Path.GetFileName(directoryResult.Value!.Value), manifest.AgentName.Value, StringComparison.Ordinal))
             {
-                return PackageFailure(SkillFailureCodes.ManifestInvalid, "agent-manifest.json agentName must match generated package directory name.");
+                return PackageFailure(AgentDistributionFailureCodes.ManifestInvalid, "agent-manifest.json agentName must match generated package directory name.");
             }
 
-            return SkillOperationResult<CanonicalAgentPackage>.Success(new CanonicalAgentPackage(manifest, filesResult.Value!, serializer, digestCalculator));
+            return AgentDistributionOperationResult<CanonicalAgentPackage>.Success(new CanonicalAgentPackage(manifest, filesResult.Value!, serializer, digestCalculator));
         }
         catch (Exception exception) when (exception is System.Text.Json.JsonException or ArgumentException or InvalidOperationException or FormatException)
         {
-            return PackageFailure(SkillFailureCodes.ManifestInvalid, "Generated agent package is invalid.");
+            return PackageFailure(AgentDistributionFailureCodes.ManifestInvalid, "Generated agent package is invalid.");
         }
     }
 
-    private async ValueTask<SkillOperationResult<IReadOnlyList<PackageTextFile>>> ReadFilesAsync (
+    private async ValueTask<AgentDistributionOperationResult<IReadOnlyList<PackageTextFile>>> ReadFilesAsync (
         AbsolutePath agentDirectory,
         CancellationToken cancellationToken)
     {
         var files = new List<PackageTextFile>();
         var result = await ReadDirectoryEntriesAsync(agentDirectory, agentDirectory, files, cancellationToken).ConfigureAwait(false);
         return result.IsSuccess
-            ? SkillOperationResult<IReadOnlyList<PackageTextFile>>.Success(files.OrderBy(static file => file.RelativePath.Value, StringComparer.Ordinal).ToArray())
-            : SkillOperationResult<IReadOnlyList<PackageTextFile>>.FailureResult(result.Failure!.Code, result.Failure.Message);
+            ? AgentDistributionOperationResult<IReadOnlyList<PackageTextFile>>.Success(files.OrderBy(static file => file.RelativePath.Value, StringComparer.Ordinal).ToArray())
+            : AgentDistributionOperationResult<IReadOnlyList<PackageTextFile>>.FailureResult(result.Failure!.Code, result.Failure.Message);
     }
 
-    private async ValueTask<SkillOperationResult<bool>> ReadDirectoryEntriesAsync (
+    private async ValueTask<AgentDistributionOperationResult<bool>> ReadDirectoryEntriesAsync (
         AbsolutePath agentDirectory,
         AbsolutePath directoryPath,
         List<PackageTextFile> files,
@@ -157,7 +157,7 @@ internal sealed class CanonicalAgentPackageReader
             var relativePath = Path.GetRelativePath(agentDirectory.Value, entryPath.Value).Replace(Path.DirectorySeparatorChar, '/');
             if (!PackageRelativePath.TryParse(relativePath, out _))
             {
-                return BoolFailure(SkillFailureCodes.PathUnsafe, $"Generated agent package contains an unsafe path: {relativePath}");
+                return BoolFailure(AgentDistributionFailureCodes.PathUnsafe, $"Generated agent package contains an unsafe path: {relativePath}");
             }
 
             if (!FileSystemEntryInspector.TryInspect(
@@ -165,7 +165,7 @@ internal sealed class CanonicalAgentPackageReader
                     out var entryObservation,
                     out _))
             {
-                return BoolFailure(SkillFailureCodes.PathUnsafe, $"Generated agent package contains an unsupported non-regular path: {relativePath}");
+                return BoolFailure(AgentDistributionFailureCodes.PathUnsafe, $"Generated agent package contains an unsupported non-regular path: {relativePath}");
             }
 
             if (entryObservation.State == FileSystemEntryState.Directory)
@@ -187,7 +187,7 @@ internal sealed class CanonicalAgentPackageReader
 
             if (entryObservation.State != FileSystemEntryState.RegularFile)
             {
-                return BoolFailure(SkillFailureCodes.PathUnsafe, $"Generated agent package contains an unsupported non-regular path: {relativePath}");
+                return BoolFailure(AgentDistributionFailureCodes.PathUnsafe, $"Generated agent package contains an unsupported non-regular path: {relativePath}");
             }
 
             var fileResult = PackagePathResolver.ResolveUnderRoot(agentDirectory, entryPath);
@@ -205,12 +205,12 @@ internal sealed class CanonicalAgentPackageReader
             files.Add(new PackageTextFile(PackageRelativePath.Parse(relativePath), textResult.Value!));
         }
 
-        return SkillOperationResult<bool>.Success(true);
+        return AgentDistributionOperationResult<bool>.Success(true);
     }
 
-    private static SkillOperationResult<IReadOnlyList<CanonicalAgentPackage>> Failure (string message) => SkillOperationResult<IReadOnlyList<CanonicalAgentPackage>>.FailureResult(SkillFailureCodes.ManifestInvalid, message);
+    private static AgentDistributionOperationResult<IReadOnlyList<CanonicalAgentPackage>> Failure (string message) => AgentDistributionOperationResult<IReadOnlyList<CanonicalAgentPackage>>.FailureResult(AgentDistributionFailureCodes.ManifestInvalid, message);
 
-    private static SkillOperationResult<CanonicalAgentPackage> PackageFailure (SkillFailureCode code, string message) => SkillOperationResult<CanonicalAgentPackage>.FailureResult(code, message);
+    private static AgentDistributionOperationResult<CanonicalAgentPackage> PackageFailure (AgentDistributionFailureCode code, string message) => AgentDistributionOperationResult<CanonicalAgentPackage>.FailureResult(code, message);
 
-    private static SkillOperationResult<bool> BoolFailure (SkillFailureCode code, string message) => SkillOperationResult<bool>.FailureResult(code, message);
+    private static AgentDistributionOperationResult<bool> BoolFailure (AgentDistributionFailureCode code, string message) => AgentDistributionOperationResult<bool>.FailureResult(code, message);
 }

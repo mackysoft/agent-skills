@@ -149,7 +149,7 @@ public sealed class SkillPackageProviderTests
         var result = await provider.GetPackageCatalogAsync(["internal"], [], CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
         Assert.Contains("Unsupported SKILL category: internal", result.Failure.Message, StringComparison.Ordinal);
         Assert.Contains("core", result.Failure.Message, StringComparison.Ordinal);
     }
@@ -170,7 +170,7 @@ public sealed class SkillPackageProviderTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
         Assert.Contains("does not match selected categories", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -185,7 +185,7 @@ public sealed class SkillPackageProviderTests
         var result = await provider.GetPackageCatalogBySkillNamesAsync(["missing-skill"], CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
         Assert.Contains("Selected SKILL name was not found: missing-skill", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -199,7 +199,7 @@ public sealed class SkillPackageProviderTests
         var result = await provider.GetPackagesAsync(CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
         Assert.Contains("package root", result.Failure.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -208,13 +208,13 @@ public sealed class SkillPackageProviderTests
     public async Task GetPackagesAsync_WhenBundleDescriptorIsMissing_ReturnsManifestFailure ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-package-provider", "missing-descriptor");
-        Directory.CreateDirectory(Path.Combine(scope.FullPath, "skills"));
+        Directory.CreateDirectory(Path.Combine(scope.FullPath, "agent-distribution"));
         var provider = CreateProvider(scope.FullPath);
 
         var result = await provider.GetPackagesAsync(CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
         Assert.Contains("bundle.json", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -224,7 +224,7 @@ public sealed class SkillPackageProviderTests
         var bundleSerializer = new SkillBundleJsonSerializer();
         var bundleFactory = new CanonicalSkillBundle.Factory(new SkillBundleDigestCalculator(manifestSerializer));
         return new SkillPackageProvider(
-            new BundledSkillPackageRootResolver(AbsolutePath.Parse(baseDirectory)),
+            new BundledAgentDistributionPackageRootResolver(AbsolutePath.Parse(baseDirectory)),
             new CanonicalSkillBundleReader(
                 SkillTestData.CreatePackageReader(),
                 bundleSerializer,
@@ -237,7 +237,7 @@ public sealed class SkillPackageProviderTests
         var bundleSerializer = new SkillBundleJsonSerializer();
         var bundleDigestCalculator = new SkillBundleDigestCalculator(manifestSerializer);
         return new SkillPackageProvider(
-            new BundledSkillPackageRootResolver(AbsolutePath.Parse(baseDirectory)),
+            new BundledAgentDistributionPackageRootResolver(AbsolutePath.Parse(baseDirectory)),
             new CanonicalSkillBundleReader(
                 SkillTestData.CreatePackageReader(),
                 bundleSerializer,
@@ -260,7 +260,7 @@ public sealed class SkillPackageProviderTests
                 SkillTestData.CreatePackageReader(),
                 bundleSerializer,
                 bundleFactory));
-        var result = await writer.WriteAsync(bundle, AbsolutePath.Parse(Path.Combine(baseDirectory, "skills")), CancellationToken.None);
+        var result = await writer.WriteAsync(bundle, AbsolutePath.Parse(Path.Combine(baseDirectory, "agent-distribution")), CancellationToken.None);
         Assert.True(result.IsSuccess, result.Failure?.Message);
     }
 
@@ -270,7 +270,7 @@ public sealed class SkillPackageProviderTests
     {
         var skillManifestSerializer = new SkillManifestJsonSerializer();
         var agentManifestSerializer = new AgentManifestJsonSerializer();
-        var digestCalculator = new SkillDigestCalculator();
+        var digestCalculator = new PackageContentDigestCalculator();
         var descriptor = new AgentDistributionBundleDescriptor(
             AgentDistributionBundleDefinition.CurrentSchemaVersion,
             packages[0].Manifest.CatalogId,
@@ -289,7 +289,7 @@ public sealed class SkillPackageProviderTests
 
         var result = await writer.WriteAsync(
             bundle,
-            AbsolutePath.Parse(Path.Combine(baseDirectory, "skills")),
+            AbsolutePath.Parse(Path.Combine(baseDirectory, "agent-distribution")),
             CancellationToken.None);
         Assert.True(result.IsSuccess, result.Failure?.Message);
     }

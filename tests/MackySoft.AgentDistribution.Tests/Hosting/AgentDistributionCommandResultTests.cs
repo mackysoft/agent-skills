@@ -24,7 +24,7 @@ public sealed class AgentDistributionCommandResultTests
     [Trait("Size", "Small")]
     public void FailureResult_CreatesFailureResult ()
     {
-        var failure = SkillFailure.Create(SkillFailureCodes.InputInvalid, "Invalid input.");
+        var failure = AgentDistributionFailure.Create(AgentDistributionFailureCodes.InputInvalid, "Invalid input.");
 
         var result = AgentDistributionCommandResult.FailureResult("test.command", failure);
 

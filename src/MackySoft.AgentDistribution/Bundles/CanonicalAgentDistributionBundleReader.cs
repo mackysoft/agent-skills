@@ -40,7 +40,7 @@ public sealed class CanonicalAgentDistributionBundleReader
     {
         var skillManifestSerializer = new SkillManifestJsonSerializer();
         var agentManifestSerializer = new AgentManifestJsonSerializer();
-        var digestCalculator = new SkillDigestCalculator();
+        var digestCalculator = new PackageContentDigestCalculator();
         var skillReader = new CanonicalSkillPackageReader(
             skillManifestSerializer,
             new SkillManifest.Factory(new SkillManifestDigestCalculator(skillManifestSerializer)),
@@ -60,7 +60,7 @@ public sealed class CanonicalAgentDistributionBundleReader
     /// <param name="generatedRoot"> The root containing v3 <c>bundle.json</c>, <c>skills</c>, and <c>agents</c>. </param>
     /// <param name="cancellationToken"> The cancellation token propagated through file access. </param>
     /// <returns>The canonical mixed bundle, or a manifest failure.</returns>
-    internal async ValueTask<SkillOperationResult<CanonicalAgentDistributionBundle>> ReadAsync (
+    internal async ValueTask<AgentDistributionOperationResult<CanonicalAgentDistributionBundle>> ReadAsync (
         AbsolutePath generatedRoot,
         CancellationToken cancellationToken = default)
     {
@@ -74,17 +74,17 @@ public sealed class CanonicalAgentDistributionBundleReader
                     out var rootObservation,
                     out _))
             {
-                return Failure(SkillFailureCodes.PathUnsafe, $"Generated v3 bundle root could not be inspected: {root}");
+                return Failure(AgentDistributionFailureCodes.PathUnsafe, $"Generated v3 bundle root could not be inspected: {root}");
             }
 
             if (rootObservation.State == FileSystemEntryState.Missing)
             {
-                return Failure(SkillFailureCodes.ManifestInvalid, $"Generated v3 bundle directory does not exist: {generatedRoot}");
+                return Failure(AgentDistributionFailureCodes.ManifestInvalid, $"Generated v3 bundle directory does not exist: {generatedRoot}");
             }
 
             if (rootObservation.State != FileSystemEntryState.Directory)
             {
-                return Failure(SkillFailureCodes.PathUnsafe, $"Generated v3 bundle root must be a regular directory: {root}");
+                return Failure(AgentDistributionFailureCodes.PathUnsafe, $"Generated v3 bundle root must be a regular directory: {root}");
             }
 
             var rootValidationResult = ValidateRootEntries(root);
@@ -109,13 +109,13 @@ public sealed class CanonicalAgentDistributionBundleReader
             var descriptor = serializer.DeserializeDescriptor(descriptorText);
             if (!string.Equals(descriptorText, serializer.SerializeDescriptor(descriptor), StringComparison.Ordinal))
             {
-                return Failure(SkillFailureCodes.ManifestInvalid, "Generated v3 bundle.json is not canonical.");
+                return Failure(AgentDistributionFailureCodes.ManifestInvalid, "Generated v3 bundle.json is not canonical.");
             }
 
             var skillsRoot = ContainedPath.Create(root, RootRelativePath.Parse("skills")).Target;
             var skillsResult = Directory.Exists(skillsRoot.Value)
                 ? await skillReader.ReadAllAsync(skillsRoot, cancellationToken).ConfigureAwait(false)
-                : SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.Success([]);
+                : AgentDistributionOperationResult<IReadOnlyList<CanonicalSkillPackage>>.Success([]);
             if (!skillsResult.IsSuccess)
             {
                 return Failure(skillsResult.Failure!.Code, skillsResult.Failure.Message);
@@ -133,7 +133,7 @@ public sealed class CanonicalAgentDistributionBundleReader
             {
                 if (skill.Manifest.CatalogId != descriptor.CatalogId || skill.Manifest.SkillBundleVersion.Value != descriptor.BundleVersion.Value)
                 {
-                    return Failure(SkillFailureCodes.ManifestInvalid, "Generated v3 skill package identity does not match bundle.json.");
+                    return Failure(AgentDistributionFailureCodes.ManifestInvalid, "Generated v3 skill package identity does not match bundle.json.");
                 }
             }
 
@@ -141,7 +141,7 @@ public sealed class CanonicalAgentDistributionBundleReader
             {
                 if (agent.Manifest.CatalogId != descriptor.CatalogId || agent.Manifest.BundleVersion != descriptor.BundleVersion)
                 {
-                    return Failure(SkillFailureCodes.ManifestInvalid, "Generated v3 agent package identity does not match bundle.json.");
+                    return Failure(AgentDistributionFailureCodes.ManifestInvalid, "Generated v3 agent package identity does not match bundle.json.");
                 }
             }
 
@@ -158,25 +158,25 @@ public sealed class CanonicalAgentDistributionBundleReader
                 if (missingDependencies.Length != 0)
                 {
                     return Failure(
-                        SkillFailureCodes.ManifestInvalid,
+                        AgentDistributionFailureCodes.ManifestInvalid,
                         $"Generated v3 agent package references missing skill dependencies for '{agent.Manifest.AgentName.Value}': {string.Join(", ", missingDependencies)}.");
                 }
             }
 
             if ((skillsResult.Value!.Count == 0 && agentsResult.Value!.Count == 0) || digestCalculator.ComputeDigest(skillsResult.Value!, agentsResult.Value!) != descriptor.BundleDigest)
             {
-                return Failure(SkillFailureCodes.ManifestInvalid, "Generated v3 bundle digest does not match package files.");
+                return Failure(AgentDistributionFailureCodes.ManifestInvalid, "Generated v3 bundle digest does not match package files.");
             }
 
-            return SkillOperationResult<CanonicalAgentDistributionBundle>.Success(new CanonicalAgentDistributionBundle(descriptor, skillsResult.Value!, agentsResult.Value!));
+            return AgentDistributionOperationResult<CanonicalAgentDistributionBundle>.Success(new CanonicalAgentDistributionBundle(descriptor, skillsResult.Value!, agentsResult.Value!));
         }
         catch (Exception exception) when (exception is IOException or JsonException or ArgumentException or InvalidOperationException or FormatException)
         {
-            return Failure(SkillFailureCodes.ManifestInvalid, "Generated v3 bundle is invalid.");
+            return Failure(AgentDistributionFailureCodes.ManifestInvalid, "Generated v3 bundle is invalid.");
         }
     }
 
-    private static SkillOperationResult<bool> ValidateRootEntries (AbsolutePath root)
+    private static AgentDistributionOperationResult<bool> ValidateRootEntries (AbsolutePath root)
     {
         foreach (var entryPath in Directory.EnumerateFileSystemEntries(root.Value).Order(StringComparer.Ordinal))
         {
@@ -189,7 +189,7 @@ public sealed class CanonicalAgentDistributionBundleReader
                         out _)
                     || descriptorObservation.State != FileSystemEntryState.RegularFile)
                 {
-                    return SkillOperationResult<bool>.FailureResult(SkillFailureCodes.PathUnsafe, "Generated v3 bundle.json must be a regular file.");
+                    return AgentDistributionOperationResult<bool>.FailureResult(AgentDistributionFailureCodes.PathUnsafe, "Generated v3 bundle.json must be a regular file.");
                 }
 
                 continue;
@@ -205,11 +205,11 @@ public sealed class CanonicalAgentDistributionBundleReader
                 continue;
             }
 
-            return SkillOperationResult<bool>.FailureResult(SkillFailureCodes.ManifestInvalid, $"Generated v3 bundle contains an unsupported root entry: {name}");
+            return AgentDistributionOperationResult<bool>.FailureResult(AgentDistributionFailureCodes.ManifestInvalid, $"Generated v3 bundle contains an unsupported root entry: {name}");
         }
 
-        return SkillOperationResult<bool>.Success(true);
+        return AgentDistributionOperationResult<bool>.Success(true);
     }
 
-    private static SkillOperationResult<CanonicalAgentDistributionBundle> Failure (SkillFailureCode code, string message) => SkillOperationResult<CanonicalAgentDistributionBundle>.FailureResult(code, message);
+    private static AgentDistributionOperationResult<CanonicalAgentDistributionBundle> Failure (AgentDistributionFailureCode code, string message) => AgentDistributionOperationResult<CanonicalAgentDistributionBundle>.FailureResult(code, message);
 }

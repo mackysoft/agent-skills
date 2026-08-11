@@ -12,7 +12,7 @@ public sealed class SkillInstalledFileSetVerifier
     /// <param name="expectedFiles"> The host-materialized file set expected for this directory. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The structured file-set verification result, or a hard path-safety failure. </returns>
-    public ValueTask<SkillOperationResult<SkillInstalledFileSetVerificationResult>> VerifyAsync (
+    public ValueTask<AgentDistributionOperationResult<SkillInstalledFileSetVerificationResult>> VerifyAsync (
         AbsolutePath skillDirectory,
         IReadOnlyCollection<PackageTextFile> expectedFiles,
         CancellationToken cancellationToken = default)
@@ -40,7 +40,7 @@ public sealed class SkillInstalledFileSetVerifier
         return ValueTask.FromResult(result);
     }
 
-    internal static SkillOperationResult<SkillInstalledFileSetVerificationResult> VerifyInstalledEntries (
+    internal static AgentDistributionOperationResult<SkillInstalledFileSetVerificationResult> VerifyInstalledEntries (
         AbsolutePath skillDirectory,
         IReadOnlyCollection<PackageRelativePath> requiredRelativePaths,
         IReadOnlyCollection<PackageRelativePath> managedDirectoryPaths,
@@ -66,7 +66,7 @@ public sealed class SkillInstalledFileSetVerifier
             var requiredPathResult = PackagePathResolver.ResolveRegularFile(skillDirectory, requiredPath);
             if (!requiredPathResult.IsSuccess)
             {
-                return SkillOperationResult<SkillInstalledFileSetVerificationResult>.FailureResult(
+                return AgentDistributionOperationResult<SkillInstalledFileSetVerificationResult>.FailureResult(
                     requiredPathResult.Failure!.Code,
                     requiredPathResult.Failure.Message);
             }
@@ -90,13 +90,13 @@ public sealed class SkillInstalledFileSetVerifier
 
         var extraDirectories = GetExtraDirectories(installedEntries.Directories, explainedDirectoryPaths);
 
-        return SkillOperationResult<SkillInstalledFileSetVerificationResult>.Success(new SkillInstalledFileSetVerificationResult(
+        return AgentDistributionOperationResult<SkillInstalledFileSetVerificationResult>.Success(new SkillInstalledFileSetVerificationResult(
             missingFiles.OrderBy(static path => path.Value, StringComparer.Ordinal).ToArray(),
             extraFiles.OrderBy(static path => path.Value, StringComparer.Ordinal).ToArray(),
             extraDirectories));
     }
 
-    internal static SkillOperationResult<SkillInstalledFileSetEntries> ReadInstalledEntries (
+    internal static AgentDistributionOperationResult<SkillInstalledFileSetEntries> ReadInstalledEntries (
         AbsolutePath skillDirectory,
         CancellationToken cancellationToken = default)
     {
@@ -106,7 +106,7 @@ public sealed class SkillInstalledFileSetVerifier
         var skillDirectoryResult = PackagePathResolver.ResolveUnderRoot(skillDirectory, skillDirectory);
         if (!skillDirectoryResult.IsSuccess)
         {
-            return SkillOperationResult<SkillInstalledFileSetEntries>.FailureResult(
+            return AgentDistributionOperationResult<SkillInstalledFileSetEntries>.FailureResult(
                 skillDirectoryResult.Failure!.Code,
                 skillDirectoryResult.Failure.Message);
         }
@@ -116,10 +116,10 @@ public sealed class SkillInstalledFileSetVerifier
         var directories = new List<PackageRelativePath>();
         var result = ReadInstalledEntriesRecursive(resolvedSkillDirectory, resolvedSkillDirectory, files, directories, cancellationToken);
         return result.IsSuccess
-            ? SkillOperationResult<SkillInstalledFileSetEntries>.Success(new SkillInstalledFileSetEntries(
+            ? AgentDistributionOperationResult<SkillInstalledFileSetEntries>.Success(new SkillInstalledFileSetEntries(
                 files.OrderBy(static path => path.Value, StringComparer.Ordinal).ToArray(),
                 directories.OrderBy(static path => path.Value, StringComparer.Ordinal).ToArray()))
-            : SkillOperationResult<SkillInstalledFileSetEntries>.FailureResult(result.Failure!.Code, result.Failure.Message);
+            : AgentDistributionOperationResult<SkillInstalledFileSetEntries>.FailureResult(result.Failure!.Code, result.Failure.Message);
     }
 
     internal static IReadOnlyList<PackageRelativePath> GetExtraDirectories (
@@ -135,7 +135,7 @@ public sealed class SkillInstalledFileSetVerifier
             .ToArray();
     }
 
-    private static SkillOperationResult<bool> ReadInstalledEntriesRecursive (
+    private static AgentDistributionOperationResult<bool> ReadInstalledEntriesRecursive (
         AbsolutePath skillDirectory,
         AbsolutePath directoryPath,
         List<PackageRelativePath> files,
@@ -150,8 +150,8 @@ public sealed class SkillInstalledFileSetVerifier
             var relativePathValue = Path.GetRelativePath(skillDirectory.Value, entryPath.Value).Replace(Path.DirectorySeparatorChar, '/');
             if (!PackageRelativePath.TryParse(relativePathValue, out var relativePath))
             {
-                return SkillOperationResult<bool>.FailureResult(
-                    SkillFailureCodes.PathUnsafe,
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.PathUnsafe,
                     $"Package path must be a canonical package-relative path: {relativePathValue}");
             }
 
@@ -160,8 +160,8 @@ public sealed class SkillInstalledFileSetVerifier
                     out var entryObservation,
                     out _))
             {
-                return SkillOperationResult<bool>.FailureResult(
-                    SkillFailureCodes.PathUnsafe,
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.PathUnsafe,
                     $"Package path must be a regular file or directory: {relativePath}");
             }
 
@@ -170,7 +170,7 @@ public sealed class SkillInstalledFileSetVerifier
                 var resolvedPathResult = PackagePathResolver.ResolveUnderRoot(skillDirectory, entryPath);
                 if (!resolvedPathResult.IsSuccess)
                 {
-                    return SkillOperationResult<bool>.FailureResult(
+                    return AgentDistributionOperationResult<bool>.FailureResult(
                         resolvedPathResult.Failure!.Code,
                         $"Package path escaped skill directory: {relativePath}");
                 }
@@ -195,7 +195,7 @@ public sealed class SkillInstalledFileSetVerifier
                 var resolvedPathResult = PackagePathResolver.ResolveUnderRoot(skillDirectory, entryPath);
                 if (!resolvedPathResult.IsSuccess)
                 {
-                    return SkillOperationResult<bool>.FailureResult(
+                    return AgentDistributionOperationResult<bool>.FailureResult(
                         resolvedPathResult.Failure!.Code,
                         $"Package path escaped skill directory: {relativePath}");
                 }
@@ -204,12 +204,12 @@ public sealed class SkillInstalledFileSetVerifier
                 continue;
             }
 
-            return SkillOperationResult<bool>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
+            return AgentDistributionOperationResult<bool>.FailureResult(
+                AgentDistributionFailureCodes.PathUnsafe,
                 $"Package path must be a regular file or directory: {relativePath}");
         }
 
-        return SkillOperationResult<bool>.Success(true);
+        return AgentDistributionOperationResult<bool>.Success(true);
     }
 
     private static bool IsBelowAny (
@@ -227,11 +227,11 @@ public sealed class SkillInstalledFileSetVerifier
         return false;
     }
 
-    private static ValueTask<SkillOperationResult<SkillInstalledFileSetVerificationResult>> FailureValueTask (
-        SkillFailureCode code,
+    private static ValueTask<AgentDistributionOperationResult<SkillInstalledFileSetVerificationResult>> FailureValueTask (
+        AgentDistributionFailureCode code,
         string message)
     {
-        return ValueTask.FromResult(SkillOperationResult<SkillInstalledFileSetVerificationResult>.FailureResult(code, message));
+        return ValueTask.FromResult(AgentDistributionOperationResult<SkillInstalledFileSetVerificationResult>.FailureResult(code, message));
     }
 
     internal sealed class SkillInstalledFileSetEntries

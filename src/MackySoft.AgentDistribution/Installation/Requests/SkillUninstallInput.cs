@@ -20,7 +20,7 @@ public sealed class SkillUninstallInput
     /// <exception cref="ArgumentNullException"> Thrown when <paramref name="catalogId" />, <paramref name="packages" />, or <paramref name="targetRequest" /> is <see langword="null" />. </exception>
     /// <exception cref="ArgumentException"> Thrown when <paramref name="packages" /> contains <see langword="null" />, a foreign catalog, or duplicate SKILL names. </exception>
     public SkillUninstallInput (
-        SkillCatalogId catalogId,
+        AgentDistributionCatalogId catalogId,
         IReadOnlyList<CanonicalSkillPackage> packages,
         SkillInstallRequest targetRequest,
         bool dryRun = false,
@@ -34,7 +34,7 @@ public sealed class SkillUninstallInput
     }
 
     /// <summary> Gets the product-owned catalog being uninstalled. </summary>
-    public SkillCatalogId CatalogId { get; }
+    public AgentDistributionCatalogId CatalogId { get; }
 
     /// <summary> Gets an immutable snapshot of the canonical packages to remove. </summary>
     public IReadOnlyList<CanonicalSkillPackage> Packages { get; }

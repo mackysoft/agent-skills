@@ -37,7 +37,7 @@ public sealed class SkillOperationReportBuilderTests
                     SkillInstallActionKind.BlockedLocalModification,
                     new SkillActionTargetState(
                         SkillTargetStateKind.FileSetDrift,
-                        SkillFailureCodes.InstallTargetFileSetMismatch,
+                        AgentDistributionFailureCodes.InstallTargetFileSetMismatch,
                         "File set drift.",
                         new SkillActionTargetFileSet(
                             [PackageRelativePath.Parse("missing.md")],
@@ -53,7 +53,7 @@ public sealed class SkillOperationReportBuilderTests
                     SkillInstallActionKind.Updated,
                     new SkillActionTargetState(
                         SkillTargetStateKind.CommonContentDrift,
-                        SkillFailureCodes.InstallTargetContentDigestMismatch,
+                        AgentDistributionFailureCodes.InstallTargetContentDigestMismatch,
                         "Content drift.",
                         fileSet: null,
                         installedSkillBundleVersion: null,
@@ -92,7 +92,7 @@ public sealed class SkillOperationReportBuilderTests
         Assert.Equal(OperationActionStatus.Changed, updated.Status);
         Assert.Null(updated.BlockedReason);
         Assert.Equal(SkillTargetStateKind.CommonContentDrift, updated.TargetState!.Kind);
-        Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch.Value, updated.TargetState.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetContentDigestMismatch.Value, updated.TargetState.Code);
         Assert.Null(updated.TargetState.InstalledSkillBundleVersion);
         Assert.Equal(2, updated.TargetState.BundledSkillBundleVersion);
         Assert.Equal(["a.txt", "z.txt"], updated.FileChanges!.ReplacedFiles);
@@ -240,7 +240,7 @@ public sealed class SkillOperationReportBuilderTests
                     SkillPruneActionKind.Deleted,
                     new SkillActionTargetState(
                         SkillTargetStateKind.RemovedFromCatalog,
-                        SkillFailureCodes.InstallTargetRemovedFromCatalog,
+                        AgentDistributionFailureCodes.InstallTargetRemovedFromCatalog,
                         "Removed from catalog.",
                         fileSet: null,
                         installedSkillBundleVersion: 1,
@@ -256,7 +256,7 @@ public sealed class SkillOperationReportBuilderTests
                     SkillPruneActionKind.SkippedUnmanaged,
                     new SkillActionTargetState(
                         SkillTargetStateKind.Unmanaged,
-                        SkillFailureCodes.InstallTargetUnmanaged,
+                        AgentDistributionFailureCodes.InstallTargetUnmanaged,
                         "Unmanaged.",
                         fileSet: null,
                         installedSkillBundleVersion: null,
@@ -268,7 +268,7 @@ public sealed class SkillOperationReportBuilderTests
                     SkillPruneActionKind.BlockedLocalModification,
                     new SkillActionTargetState(
                         SkillTargetStateKind.CommonContentDrift,
-                        SkillFailureCodes.InstallTargetContentDigestMismatch,
+                        AgentDistributionFailureCodes.InstallTargetContentDigestMismatch,
                         "Content drift.",
                         fileSet: null,
                         installedSkillBundleVersion: 1,
@@ -280,7 +280,7 @@ public sealed class SkillOperationReportBuilderTests
                     SkillPruneActionKind.BlockedManifestInvalid,
                     new SkillActionTargetState(
                         SkillTargetStateKind.ManifestDrift,
-                        SkillFailureCodes.ManifestInvalid,
+                        AgentDistributionFailureCodes.ManifestInvalid,
                         "Invalid manifest.",
                         fileSet: null,
                         installedSkillBundleVersion: null,
@@ -292,7 +292,7 @@ public sealed class SkillOperationReportBuilderTests
                     SkillPruneActionKind.BlockedNameCollision,
                     new SkillActionTargetState(
                         SkillTargetStateKind.NameCollision,
-                        SkillFailureCodes.InstallTargetNameCollision,
+                        AgentDistributionFailureCodes.InstallTargetNameCollision,
                         "Name collision.",
                         fileSet: null,
                         installedSkillBundleVersion: null,
@@ -304,7 +304,7 @@ public sealed class SkillOperationReportBuilderTests
                     SkillPruneActionKind.BlockedHostConflict,
                     new SkillActionTargetState(
                         SkillTargetStateKind.HostConflict,
-                        SkillFailureCodes.InstallTargetHostConflict,
+                        AgentDistributionFailureCodes.InstallTargetHostConflict,
                         "Host conflict.",
                         fileSet: null,
                         installedSkillBundleVersion: null,
@@ -339,7 +339,7 @@ public sealed class SkillOperationReportBuilderTests
             report.Actions.Select(static action => action.Status).ToArray());
         var deletedTargetState = report.Actions[0].TargetState!;
         Assert.Equal(SkillTargetStateKind.RemovedFromCatalog, deletedTargetState.Kind);
-        Assert.Equal(SkillFailureCodes.InstallTargetRemovedFromCatalog.Value, deletedTargetState.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetRemovedFromCatalog.Value, deletedTargetState.Code);
         Assert.Equal(["SKILL.md", "agent-skill.json"], report.Actions[0].FileChanges!.RemovedFiles);
         Assert.Equal(SkillBlockedReason.LocalModificationRequiresForce, report.Actions[4].BlockedReason);
         Assert.Equal(
@@ -448,14 +448,14 @@ public sealed class SkillOperationReportBuilderTests
             AbsolutePath.Parse(Path.GetFullPath(outputPath)),
             packages,
             HostKind.Codex,
-            SkillExportFormat.Zip,
+            PackageExportFormat.Zip,
             [new SkillCategory("basic"), new SkillCategory("advanced")],
             [packages[0].Manifest.SkillName]);
 
         Assert.Equal(HostKind.Codex, report.Host);
         Assert.Equal(["basic", "advanced"], report.Categories);
         Assert.Equal([packages[0].Manifest.SkillName.Value], report.SkillNames);
-        Assert.Equal(SkillExportFormat.Zip, report.Format);
+        Assert.Equal(PackageExportFormat.Zip, report.Format);
         Assert.Equal(Path.GetFullPath(outputPath), report.OutputPath);
         Assert.Equal(SkillTestData.ExpectedSkillNames, report.Skills);
         Assert.Equal(SkillTestData.ExpectedSkillNames.Length, report.SkillCount);
@@ -472,22 +472,22 @@ public sealed class SkillOperationReportBuilderTests
             AbsolutePath.Parse(targetRoot),
             [
                 SkillDoctorDiagnostic.Error(
-                    SkillFailureCodes.InstallTargetHostArtifactDigestMismatch,
+                    AgentDistributionFailureCodes.InstallTargetHostArtifactDigestMismatch,
                     "Host artifact drift.",
                     "skill-b"),
                 SkillDoctorDiagnostic.Error(
-                    SkillFailureCodes.InstallTargetUnmanaged,
+                    AgentDistributionFailureCodes.InstallTargetUnmanaged,
                     "Target root is missing."),
                 SkillDoctorDiagnostic.Error(
-                    SkillFailureCodes.InstallTargetVersionAhead,
+                    AgentDistributionFailureCodes.InstallTargetVersionAhead,
                     "Version ahead.",
                     "skill-c"),
                 SkillDoctorDiagnostic.Error(
-                    SkillFailureCodes.InstallTargetOutdated,
+                    AgentDistributionFailureCodes.InstallTargetOutdated,
                     "Clean outdated.",
                     "skill-d"),
                 SkillDoctorDiagnostic.Error(
-                    SkillFailureCodes.InstallTargetRemovedFromCatalog,
+                    AgentDistributionFailureCodes.InstallTargetRemovedFromCatalog,
                     "Removed from catalog.",
                     "skill-e"),
                 SkillDoctorDiagnostic.Error(
@@ -689,7 +689,7 @@ public sealed class SkillOperationReportBuilderTests
     {
         return new SkillActionTargetState(
             SkillTargetStateKind.Unmanaged,
-            SkillFailureCodes.InstallTargetUnmanaged,
+            AgentDistributionFailureCodes.InstallTargetUnmanaged,
             "Unmanaged.",
             fileSet: null,
             installedSkillBundleVersion: null,
@@ -805,7 +805,7 @@ public sealed class SkillOperationReportBuilderTests
     {
         return type == typeof(HostKind)
             || type == typeof(SkillScopeKind)
-            || type == typeof(SkillExportFormat)
+            || type == typeof(PackageExportFormat)
             || type == typeof(SkillDoctorSeverity)
             || type == typeof(OperationActionStatus)
             || type == typeof(OperationScopeKind)

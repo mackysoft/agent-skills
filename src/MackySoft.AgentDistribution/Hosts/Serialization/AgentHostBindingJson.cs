@@ -14,7 +14,7 @@ internal static class AgentHostBindingJson
     };
 
     /// <summary>Deserializes one JSON object or returns a source-validation failure.</summary>
-    public static SkillOperationResult<TBinding> Deserialize<TBinding> (string bindingJson, string hostName)
+    public static AgentDistributionOperationResult<TBinding> Deserialize<TBinding> (string bindingJson, string hostName)
         where TBinding : class
     {
         if (string.IsNullOrWhiteSpace(bindingJson))
@@ -47,7 +47,7 @@ internal static class AgentHostBindingJson
             var binding = document.RootElement.Deserialize<TBinding>(SerializerOptions);
             return binding is null
                 ? Failure<TBinding>($"{hostName} agent binding must be a JSON object.")
-                : SkillOperationResult<TBinding>.Success(binding);
+                : AgentDistributionOperationResult<TBinding>.Success(binding);
         }
         catch (JsonException)
         {
@@ -59,8 +59,8 @@ internal static class AgentHostBindingJson
         }
     }
 
-    private static SkillOperationResult<TBinding> Failure<TBinding> (string message)
+    private static AgentDistributionOperationResult<TBinding> Failure<TBinding> (string message)
     {
-        return SkillOperationResult<TBinding>.FailureResult(SkillFailureCodes.SourceInvalid, message);
+        return AgentDistributionOperationResult<TBinding>.FailureResult(AgentDistributionFailureCodes.SourceInvalid, message);
     }
 }

@@ -23,7 +23,7 @@ public sealed class AgentExportServiceTests
             catalog,
             HostKind.Codex,
             AbsolutePath.Parse(outputPath),
-            SkillExportFormat.Directory,
+            PackageExportFormat.Directory,
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
@@ -57,8 +57,8 @@ public sealed class AgentExportServiceTests
         var firstPath = scope.GetPath("first.zip");
         var secondPath = scope.GetPath("second.zip");
 
-        var firstResult = await service.ExportAsync(catalog, HostKind.Codex, AbsolutePath.Parse(firstPath), SkillExportFormat.Zip, CancellationToken.None);
-        var secondResult = await service.ExportAsync(catalog, HostKind.Codex, AbsolutePath.Parse(secondPath), SkillExportFormat.Zip, CancellationToken.None);
+        var firstResult = await service.ExportAsync(catalog, HostKind.Codex, AbsolutePath.Parse(firstPath), PackageExportFormat.Zip, CancellationToken.None);
+        var secondResult = await service.ExportAsync(catalog, HostKind.Codex, AbsolutePath.Parse(secondPath), PackageExportFormat.Zip, CancellationToken.None);
 
         Assert.True(firstResult.IsSuccess, firstResult.Failure?.Message);
         Assert.True(secondResult.IsSuccess, secondResult.Failure?.Message);
@@ -83,10 +83,10 @@ public sealed class AgentExportServiceTests
         var outputPath = scope.GetPath("exported");
         var service = new AgentExportService(SkillTestData.CreateMaterializationService());
 
-        var result = await service.ExportAsync(catalog, HostKind.Codex, AbsolutePath.Parse(outputPath), SkillExportFormat.Directory, CancellationToken.None);
+        var result = await service.ExportAsync(catalog, HostKind.Codex, AbsolutePath.Parse(outputPath), PackageExportFormat.Directory, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
         Assert.False(Directory.Exists(outputPath));
     }
 
@@ -123,11 +123,11 @@ public sealed class AgentExportServiceTests
             AgentDistributionTestData.CreateCatalog(skills, [agent]),
             HostKind.Codex,
             AbsolutePath.Parse(outputPath),
-            SkillExportFormat.Directory,
+            PackageExportFormat.Directory,
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
         Assert.Empty(Directory.EnumerateFileSystemEntries(outsideScope.FullPath));
     }
 }

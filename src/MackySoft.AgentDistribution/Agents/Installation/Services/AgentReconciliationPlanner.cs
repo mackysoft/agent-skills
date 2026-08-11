@@ -11,15 +11,15 @@ namespace MackySoft.AgentDistribution.Agents.Installation.Services;
 internal sealed class AgentReconciliationPlanner
 {
     private readonly AgentInstalledTargetInspector targetInspector;
-    private readonly SkillDigestCalculator digestCalculator;
+    private readonly PackageContentDigestCalculator digestCalculator;
 
-    public AgentReconciliationPlanner (AgentInstalledTargetInspector targetInspector, SkillDigestCalculator digestCalculator)
+    public AgentReconciliationPlanner (AgentInstalledTargetInspector targetInspector, PackageContentDigestCalculator digestCalculator)
     {
         this.targetInspector = targetInspector ?? throw new ArgumentNullException(nameof(targetInspector));
         this.digestCalculator = digestCalculator ?? throw new ArgumentNullException(nameof(digestCalculator));
     }
 
-    public async ValueTask<SkillOperationResult<IReadOnlyList<AgentReconciliationPlan>>> CreatePlansAsync (
+    public async ValueTask<AgentDistributionOperationResult<IReadOnlyList<AgentReconciliationPlan>>> CreatePlansAsync (
         IReadOnlyList<CanonicalAgentPackage> packages,
         AgentResolvedTarget target,
         AgentReconciliationMode mode,
@@ -39,7 +39,7 @@ internal sealed class AgentReconciliationPlanner
             var artifactsResult = CreateArtifacts(package, target.HostId);
             if (!artifactsResult.IsSuccess)
             {
-                return SkillOperationResult<IReadOnlyList<AgentReconciliationPlan>>.FailureResult(
+                return AgentDistributionOperationResult<IReadOnlyList<AgentReconciliationPlan>>.FailureResult(
                     artifactsResult.Failure!.Code,
                     artifactsResult.Failure.Message);
             }
@@ -48,8 +48,8 @@ internal sealed class AgentReconciliationPlanner
             {
                 if (artifactOwners.TryGetValue(artifact.RelativePath, out var owner))
                 {
-                    return SkillOperationResult<IReadOnlyList<AgentReconciliationPlan>>.FailureResult(
-                        SkillFailureCodes.InputInvalid,
+                    return AgentDistributionOperationResult<IReadOnlyList<AgentReconciliationPlan>>.FailureResult(
+                        AgentDistributionFailureCodes.InputInvalid,
                         $"Selected agents '{owner.Value}' and '{package.Manifest.AgentName.Value}' produce the same host artifact path: {artifact.RelativePath}.");
                 }
 
@@ -59,7 +59,7 @@ internal sealed class AgentReconciliationPlanner
             var stateResult = await targetInspector.InspectAsync(package.Manifest, target, cancellationToken).ConfigureAwait(false);
             if (!stateResult.IsSuccess)
             {
-                return SkillOperationResult<IReadOnlyList<AgentReconciliationPlan>>.FailureResult(
+                return AgentDistributionOperationResult<IReadOnlyList<AgentReconciliationPlan>>.FailureResult(
                     stateResult.Failure!.Code,
                     stateResult.Failure.Message);
             }
@@ -69,7 +69,7 @@ internal sealed class AgentReconciliationPlanner
             var diffsResult = await CreateDiffsAsync(target, artifactsResult.Value!, actionKind, printDiff, cancellationToken).ConfigureAwait(false);
             if (!diffsResult.IsSuccess)
             {
-                return SkillOperationResult<IReadOnlyList<AgentReconciliationPlan>>.FailureResult(
+                return AgentDistributionOperationResult<IReadOnlyList<AgentReconciliationPlan>>.FailureResult(
                     diffsResult.Failure!.Code,
                     diffsResult.Failure.Message);
             }
@@ -93,10 +93,10 @@ internal sealed class AgentReconciliationPlanner
             plans.Add(new AgentReconciliationPlan(package, targetState, action, artifactsResult.Value!, desiredState));
         }
 
-        return SkillOperationResult<IReadOnlyList<AgentReconciliationPlan>>.Success(Array.AsReadOnly(plans.ToArray()));
+        return AgentDistributionOperationResult<IReadOnlyList<AgentReconciliationPlan>>.Success(Array.AsReadOnly(plans.ToArray()));
     }
 
-    private SkillOperationResult<IReadOnlyList<AgentPlannedArtifact>> CreateArtifacts (CanonicalAgentPackage package, HostKind hostId)
+    private AgentDistributionOperationResult<IReadOnlyList<AgentPlannedArtifact>> CreateArtifacts (CanonicalAgentPackage package, HostKind hostId)
     {
         var packageFiles = package.Files.ToDictionary(static file => file.RelativePath);
         var artifacts = new List<AgentPlannedArtifact>();
@@ -104,8 +104,8 @@ internal sealed class AgentReconciliationPlanner
         {
             if (!packageFiles.TryGetValue(manifestArtifact.Path, out var packageFile))
             {
-                return SkillOperationResult<IReadOnlyList<AgentPlannedArtifact>>.FailureResult(
-                    SkillFailureCodes.ManifestInvalid,
+                return AgentDistributionOperationResult<IReadOnlyList<AgentPlannedArtifact>>.FailureResult(
+                    AgentDistributionFailureCodes.ManifestInvalid,
                     $"Agent host artifact is missing or has an unsafe target-relative path: {manifestArtifact.Path}.");
             }
 
@@ -117,12 +117,12 @@ internal sealed class AgentReconciliationPlanner
 
         if (artifacts.Count == 0)
         {
-            return SkillOperationResult<IReadOnlyList<AgentPlannedArtifact>>.FailureResult(
-                SkillFailureCodes.HostUnsupported,
+            return AgentDistributionOperationResult<IReadOnlyList<AgentPlannedArtifact>>.FailureResult(
+                AgentDistributionFailureCodes.HostUnsupported,
                 $"Agent '{package.Manifest.AgentName.Value}' has no artifacts for host '{Vocabulary.GetText(hostId)}'.");
         }
 
-        return SkillOperationResult<IReadOnlyList<AgentPlannedArtifact>>.Success(
+        return AgentDistributionOperationResult<IReadOnlyList<AgentPlannedArtifact>>.Success(
             Array.AsReadOnly(artifacts.OrderBy(static artifact => artifact.RelativePath.Value, StringComparer.Ordinal).ToArray()));
     }
 
@@ -145,7 +145,7 @@ internal sealed class AgentReconciliationPlanner
         };
     }
 
-    private static async ValueTask<SkillOperationResult<IReadOnlyList<AgentArtifactDiff>>> CreateDiffsAsync (
+    private static async ValueTask<AgentDistributionOperationResult<IReadOnlyList<AgentArtifactDiff>>> CreateDiffsAsync (
         AgentResolvedTarget target,
         IReadOnlyList<AgentPlannedArtifact> artifacts,
         AgentReconcileActionKind actionKind,
@@ -154,12 +154,12 @@ internal sealed class AgentReconciliationPlanner
     {
         if (!printDiff)
         {
-            return SkillOperationResult<IReadOnlyList<AgentArtifactDiff>>.Success(Array.Empty<AgentArtifactDiff>());
+            return AgentDistributionOperationResult<IReadOnlyList<AgentArtifactDiff>>.Success(Array.Empty<AgentArtifactDiff>());
         }
 
         if (actionKind == AgentReconcileActionKind.NoOp)
         {
-            return SkillOperationResult<IReadOnlyList<AgentArtifactDiff>>.Success(Array.Empty<AgentArtifactDiff>());
+            return AgentDistributionOperationResult<IReadOnlyList<AgentArtifactDiff>>.Success(Array.Empty<AgentArtifactDiff>());
         }
 
         var diffs = new List<AgentArtifactDiff>(artifacts.Count);
@@ -169,7 +169,7 @@ internal sealed class AgentReconciliationPlanner
             var pathResult = AgentPathGuard.Validate(ContainedPath.Create(target.ArtifactRoot, artifact.RelativePath.RootRelativePath));
             if (!pathResult.IsSuccess)
             {
-                return SkillOperationResult<IReadOnlyList<AgentArtifactDiff>>.FailureResult(pathResult.Failure!.Code, pathResult.Failure.Message);
+                return AgentDistributionOperationResult<IReadOnlyList<AgentArtifactDiff>>.FailureResult(pathResult.Failure!.Code, pathResult.Failure.Message);
             }
 
             string? beforeContent = null;
@@ -181,8 +181,8 @@ internal sealed class AgentReconciliationPlanner
                 }
                 catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
                 {
-                    return SkillOperationResult<IReadOnlyList<AgentArtifactDiff>>.FailureResult(
-                        SkillFailureCodes.InstallTargetReadFailed,
+                    return AgentDistributionOperationResult<IReadOnlyList<AgentArtifactDiff>>.FailureResult(
+                        AgentDistributionFailureCodes.InstallTargetReadFailed,
                         $"Could not read agent artifact for diff: {exception.Message}");
                 }
             }
@@ -190,6 +190,6 @@ internal sealed class AgentReconciliationPlanner
             diffs.Add(new AgentArtifactDiff(artifact.RelativePath, beforeContent, artifact.Content));
         }
 
-        return SkillOperationResult<IReadOnlyList<AgentArtifactDiff>>.Success(Array.AsReadOnly(diffs.ToArray()));
+        return AgentDistributionOperationResult<IReadOnlyList<AgentArtifactDiff>>.Success(Array.AsReadOnly(diffs.ToArray()));
     }
 }

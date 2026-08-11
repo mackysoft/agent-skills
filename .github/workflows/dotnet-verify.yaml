@@ -52,4 +52,4 @@ jobs:
       - name: Verify repository bundle through the Action
         uses: ./actions/verify
         with:
-          root: skills
+          root: agent-distribution

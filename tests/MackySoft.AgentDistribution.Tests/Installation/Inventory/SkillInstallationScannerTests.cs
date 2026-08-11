@@ -58,7 +58,7 @@ public sealed class SkillInstallationScannerTests
         var scanResult = await scanner.ScanAsync(packages, installResult.Value.TargetRoot.Value, HostKind.Codex, cancellationToken: CancellationToken.None);
 
         Assert.False(scanResult.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, scanResult.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, scanResult.Failure!.Code);
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public sealed class SkillInstallationScannerTests
         var result = await scanner.ScanAsync(Array.Empty<CanonicalSkillPackage>(), scope.FullPath, (HostKind)42, cancellationToken: CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.HostUnsupported, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.HostUnsupported, result.Failure!.Code);
     }
 
     [Fact]
@@ -115,8 +115,8 @@ public sealed class SkillInstallationScannerTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
-        Assert.Equal(SkillFailureCategory.InvalidInput, SkillFailureClassifier.Classify(result.Failure));
+        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCategory.InvalidInput, AgentDistributionFailureClassifier.Classify(result.Failure));
     }
 
     [Fact]
@@ -132,7 +132,7 @@ public sealed class SkillInstallationScannerTests
         var result = await scanner.ScanAsync(packages, targetRoot, HostKind.Codex, cancellationToken: CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -150,7 +150,7 @@ public sealed class SkillInstallationScannerTests
         var result = await scanner.ScanAsync(packages, targetRoot, HostKind.Codex, cancellationToken: CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetNameCollision, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetNameCollision, result.Failure!.Code);
     }
 
     [Fact]
@@ -171,7 +171,7 @@ public sealed class SkillInstallationScannerTests
         var scanResult = await scanner.ScanAsync(packages, installResult.Value!.TargetRoot.Value, HostKind.Codex, cancellationToken: CancellationToken.None);
 
         Assert.False(scanResult.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetHostConflict, scanResult.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetHostConflict, scanResult.Failure!.Code);
     }
 
     [Fact]
@@ -193,7 +193,7 @@ public sealed class SkillInstallationScannerTests
         var scanResult = await scanner.ScanAsync(packages, installResult.Value.TargetRoot.Value, HostKind.Codex, cancellationToken: CancellationToken.None);
 
         Assert.False(scanResult.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, scanResult.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetContentDigestMismatch, scanResult.Failure!.Code);
     }
 
     [Fact]
@@ -215,7 +215,7 @@ public sealed class SkillInstallationScannerTests
         var scanResult = await scanner.ScanAsync(packages, installResult.Value.TargetRoot.Value, HostKind.Codex, cancellationToken: CancellationToken.None);
 
         Assert.False(scanResult.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, scanResult.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetFileSetMismatch, scanResult.Failure!.Code);
     }
 
     [Fact]
@@ -236,7 +236,7 @@ public sealed class SkillInstallationScannerTests
         var scanResult = await scanner.ScanAsync(packages, targetRoot, HostKind.Codex, cancellationToken: CancellationToken.None);
 
         Assert.False(scanResult.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetUnmanaged, scanResult.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetUnmanaged, scanResult.Failure!.Code);
     }
 
     [Fact]
@@ -249,7 +249,7 @@ public sealed class SkillInstallationScannerTests
         var serializer = new SkillManifestJsonSerializer();
         var externalManifestCandidate = SkillTestData.CopyManifest(
             packages[0].Manifest,
-            catalogId: new SkillCatalogId("com.example.foreign-skills"),
+            catalogId: new AgentDistributionCatalogId("com.example.foreign-skills"),
             skillName: new SkillName("external-skill"));
         var externalManifest = SkillTestData.WithComputedManifestDigest(externalManifestCandidate);
         scope.WriteFile(".agents/skills/external-skill/agent-skill.json", serializer.Serialize(externalManifest));
@@ -258,7 +258,7 @@ public sealed class SkillInstallationScannerTests
         var scanResult = await scanner.ScanAsync(packages, targetRoot, HostKind.Codex, cancellationToken: CancellationToken.None);
 
         Assert.False(scanResult.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetUnmanaged, scanResult.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetUnmanaged, scanResult.Failure!.Code);
     }
 
     [Fact]
@@ -281,7 +281,7 @@ public sealed class SkillInstallationScannerTests
         var scanResult = await scanner.ScanAsync(packages, targetRoot, HostKind.Codex, cancellationToken: CancellationToken.None);
 
         Assert.False(scanResult.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, scanResult.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, scanResult.Failure!.Code);
     }
 
     [Fact]
