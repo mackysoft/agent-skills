@@ -86,9 +86,27 @@ if ! base_commit="$(git rev-parse --verify --end-of-options "${base_ref}^{commit
   exit 1
 fi
 
-if ! base_bundle="$(git show "${base_commit}:${bundle_path}")"; then
-  echo "The base ref does not contain ${bundle_path}: ${base_ref}" >&2
-  exit 1
+if ! base_bundle="$(git show "${base_commit}:${bundle_path}" 2>/dev/null)"; then
+  previous_bundle_path=""
+  while IFS=$'\t' read -r status old_path new_path; do
+    if [[ "${status}" == "R100" && "${new_path}" == "${bundle_path}" ]]; then
+      if [[ -n "${previous_bundle_path}" ]]; then
+        echo "The current bundle descriptor has more than one exact rename source relative to ${base_ref}: ${bundle_path}" >&2
+        exit 1
+      fi
+      previous_bundle_path="${old_path}"
+    fi
+  done < <(git diff --find-renames=100% --name-status "${base_commit}" HEAD --)
+
+  if [[ -z "${previous_bundle_path}" ]]; then
+    echo "The base ref does not contain ${bundle_path}, and no exact Git rename to that path was found: ${base_ref}" >&2
+    exit 1
+  fi
+
+  if ! base_bundle="$(git show "${base_commit}:${previous_bundle_path}")"; then
+    echo "The exact rename source could not be read from the base ref: ${previous_bundle_path}" >&2
+    exit 1
+  fi
 fi
 
 read_bundle_version() {

@@ -11,7 +11,7 @@ public sealed class BundleApiContractTests
 {
     [Fact]
     [Trait("Size", "Small")]
-    public void ExternalMutationEntry_IsLimitedToBundleBuildService ()
+    public void ExternalMutationEntry_ExposesOnlyVersionPreservingBuildService ()
     {
         Assert.Null(typeof(SkillPackageGenerationService).GetMethod(nameof(SkillPackageGenerationService.GenerateAllAsync)));
         Assert.Null(typeof(SkillPackageGenerationService).GetMethod(nameof(SkillPackageGenerationService.Generate)));
@@ -19,8 +19,8 @@ public sealed class BundleApiContractTests
         Assert.Null(typeof(SkillSourceDefinitionReader).GetMethod(nameof(SkillSourceDefinitionReader.ReadOneAsync)));
         Assert.Null(typeof(CanonicalSkillPackageWriter).GetMethod(nameof(CanonicalSkillPackageWriter.WriteToStagingAsync)));
         Assert.Null(typeof(CanonicalSkillBundleWriter).GetMethod(nameof(CanonicalSkillBundleWriter.WriteAsync)));
-        AssertBuildAndReleaseMethods(typeof(SkillBundleBuildService));
-        AssertBuildAndReleaseMethods(typeof(AgentDistributionBundleBuildService));
+        AssertBuildMethod(typeof(SkillBundleBuildService));
+        AssertBuildMethod(typeof(AgentDistributionBundleBuildService));
     }
 
     [Fact]
@@ -37,22 +37,16 @@ public sealed class BundleApiContractTests
         Assert.False(typeof(SkillSourceReference).IsPublic);
     }
 
-    private static void AssertBuildAndReleaseMethods (Type serviceType)
+    private static void AssertBuildMethod (Type serviceType)
     {
         var serviceMethods = serviceType.GetMethods(
                 BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .OrderBy(static method => method.Name, StringComparer.Ordinal)
             .ToArray();
-        Assert.Equal(2, serviceMethods.Length);
-        var buildServiceMethod = serviceMethods[0];
+        var buildServiceMethod = Assert.Single(serviceMethods);
         Assert.Equal(nameof(SkillBundleBuildService.BuildAsync), buildServiceMethod.Name);
         Assert.Equal(
             [typeof(string), typeof(bool), typeof(CancellationToken)],
             buildServiceMethod.GetParameters().Select(static parameter => parameter.ParameterType));
-        var releaseServiceMethod = serviceMethods[1];
-        Assert.Equal(nameof(SkillBundleBuildService.PrepareReleaseAsync), releaseServiceMethod.Name);
-        Assert.Equal(
-            [typeof(string), typeof(int), typeof(bool), typeof(CancellationToken)],
-            releaseServiceMethod.GetParameters().Select(static parameter => parameter.ParameterType));
     }
 }

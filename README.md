@@ -171,12 +171,11 @@ Build the source bundle:
 ```bash
 dotnet tool run agent-distribution -- build --root agent-distribution
 dotnet tool run agent-distribution -- build --root agent-distribution --check
-dotnet tool run agent-distribution -- prepare-release --root agent-distribution --bundle-version 2
 ```
 
 The command reads `bundle.json` and `definitions`, then publishes `generated` as one canonical bundle. Do not edit generated files manually. When packaging a product CLI, ship `generated` as `<PackageBaseDirectory>/agent-distribution`.
 
-`build` always preserves the version authored in `bundle.json`, so local generation and ordinary CI synchronization cannot advance a release revision. `prepare-release` accepts an exact current or next revision and updates `bundle.json` and generated output together. Repeating release preparation with the same exact revision is a no-op.
+`build` always preserves the version authored in `bundle.json`; the CLI and build services do not expose a bundle-version update operation. The release Action owns the version transition, updates `bundle.json` to the exact next revision inside release CI, and then invokes the same version-preserving `build` command.
 
 The generated layout preserves the two artifact namespaces:
 
@@ -223,7 +222,7 @@ Use `verify` for pull requests and other read-only checks. It runs `build --chec
     root: agent-distribution
 ```
 
-Use `sync` only from a branch workflow with `contents: write`. When reconciliation is required, it requires a clean Git index, preserves the authored bundle version, synchronizes generated output, stages only `<root>/bundle.json` and `<root>/generated`, creates a `github-actions[bot]` commit, and pushes that commit to the current branch. Its `changed` output is `true` only after that push succeeds.
+Use `sync` only from a branch workflow with `contents: write`. When reconciliation is required, it requires a clean Git index, preserves the authored bundle version, synchronizes generated output, stages only `<root>/generated`, creates a `github-actions[bot]` commit, and pushes that commit to the current branch. Its `changed` output is `true` only after that push succeeds.
 
 ```yaml
 permissions:
@@ -240,7 +239,7 @@ steps:
       root: agent-distribution
 ```
 
-Use `release` only from a release branch workflow. The caller must resolve one exact release revision from an authoritative base before invoking the Action. The Action runs `prepare-release`, commits the matching source descriptor and generated output, and pushes the release commit to the current branch.
+Use `release` only from a release branch workflow. The caller must resolve one exact release revision from an authoritative base before invoking the Action. The Action requires a tracked, unmodified source descriptor, accepts only its current or next revision, updates `bundle.json` when the next revision is requested, runs `build`, commits the matching source descriptor and generated output, and pushes the release commit to the current branch. Ordinary pull requests must preserve the base bundle version; the repository CI guard rejects manual version changes even on release branches.
 
 ```yaml
 permissions:
@@ -258,7 +257,7 @@ steps:
       bundle-version: 2
 ```
 
-Pushes made with the default `GITHUB_TOKEN` do not trigger another workflow run. If the caller supplies credentials that do trigger workflows, synchronization and release preparation converge because their respective `--check` commands pass. Branch protection still applies; use `verify` when direct bot pushes are not permitted.
+Pushes made with the default `GITHUB_TOKEN` do not trigger another workflow run. If the caller supplies credentials that do trigger workflows, synchronization and release preparation converge because `build --check` passes after the release commit. Branch protection still applies; use `verify` when direct bot pushes are not permitted.
 
 ## Add Agent Distribution to a Product CLI
 

@@ -116,22 +116,43 @@ public sealed class ActionDefinitionTests
                 "git",
                 ["--git-dir", remotePath, "log", "-1", "--format=%s", "refs/heads/main"],
                 scope.FullPath));
+        Assert.NotEqual(
+            0,
+            await RunProcessAsync(
+                "git",
+                ["--git-dir", remotePath, "cat-file", "-e", "refs/heads/main:agent-distribution/bundle.json"],
+                scope.FullPath,
+                requireSuccess: false));
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("bundleVersion")]
+    [InlineData("skillBundleVersion")]
     [Trait("Size", "Small")]
-    public async Task ReleaseAction_WhenBundleRequiresReleasePreparation_CommitsExactVersion ()
+    public async Task ReleaseAction_WhenBundleRequiresReleasePreparation_CommitsExactVersion (string versionProperty)
     {
         if (OperatingSystem.IsWindows())
         {
             return;
         }
 
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "action-release-changed");
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", $"action-release-changed-{versionProperty}");
         scope.CreateDirectory("agent-distribution");
-        scope.WriteFile("agent-distribution/bundle.json", "{}\n");
+        scope.WriteFile(
+            "agent-distribution/bundle.json",
+            $$"""
+            {
+              "schemaVersion": {{(versionProperty == "bundleVersion" ? 3 : 1)}},
+              "catalogId": "com.mackysoft.agent-distribution.tests",
+              "{{versionProperty}}": 1
+            }
+            """ + "\n");
         await RunProcessAsync("git", ["init", "--quiet"], scope.FullPath);
         await RunProcessAsync("git", ["switch", "-c", "release/4.1.0"], scope.FullPath);
+        await RunProcessAsync("git", ["config", "user.name", "Test User"], scope.FullPath);
+        await RunProcessAsync("git", ["config", "user.email", "test@example.com"], scope.FullPath);
+        await RunProcessAsync("git", ["add", "agent-distribution/bundle.json"], scope.FullPath);
+        await RunProcessAsync("git", ["commit", "--quiet", "-m", "base bundle"], scope.FullPath);
         var remotePath = scope.CreateDirectory("remote.git");
         await RunProcessAsync("git", ["init", "--bare", "--quiet", remotePath], scope.FullPath);
         await RunProcessAsync("git", ["remote", "add", "origin", remotePath], scope.FullPath);
@@ -151,7 +172,7 @@ public sealed class ActionDefinitionTests
               exit 1
             fi
             mkdir -p "${ACTION_BUNDLE_ROOT}/generated"
-            printf 'generated release\n' > "${ACTION_BUNDLE_ROOT}/generated/result.txt"
+            cp "${ACTION_BUNDLE_ROOT}/bundle.json" "${ACTION_BUNDLE_ROOT}/generated/bundle.json"
             """);
         File.SetUnixFileMode(
             fakeDotnet,
@@ -168,16 +189,82 @@ public sealed class ActionDefinitionTests
         Assert.Equal(
             [
                 "tool restore",
-                "tool run agent-distribution -- prepare-release --bundle-version 2 --root ./agent-distribution --check",
-                "tool run agent-distribution -- prepare-release --bundle-version 2 --root ./agent-distribution",
+                "tool run agent-distribution -- build --root ./agent-distribution",
             ],
             File.ReadAllLines(dotnetLog));
+        Assert.Contains($"\"{versionProperty}\": 2", File.ReadAllText(scope.GetPath("agent-distribution/bundle.json")), StringComparison.Ordinal);
+        Assert.Contains($"\"{versionProperty}\": 2", File.ReadAllText(scope.GetPath("agent-distribution/generated/bundle.json")), StringComparison.Ordinal);
         Assert.Equal(
             "chore(release): prepare bundle version 2\n",
             await RunProcessForOutputAsync(
                 "git",
                 ["--git-dir", remotePath, "log", "-1", "--format=%s", "refs/heads/release/4.1.0"],
                 scope.FullPath));
+        Assert.Contains(
+            $"\"{versionProperty}\": 2",
+            await RunProcessForOutputAsync(
+                "git",
+                ["--git-dir", remotePath, "show", "refs/heads/release/4.1.0:agent-distribution/bundle.json"],
+                scope.FullPath),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task ReleaseAction_WhenRequestedVersionSkipsARevision_DoesNotWrite ()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "action-release-skipped-version");
+        scope.WriteFile(
+            "agent-distribution/bundle.json",
+            """
+            {
+              "schemaVersion": 3,
+              "catalogId": "com.mackysoft.agent-distribution.tests",
+              "bundleVersion": 1
+            }
+            """ + "\n");
+        await RunProcessAsync("git", ["init", "--quiet"], scope.FullPath);
+        await RunProcessAsync("git", ["switch", "-c", "release/4.1.0"], scope.FullPath);
+        await RunProcessAsync("git", ["config", "user.name", "Test User"], scope.FullPath);
+        await RunProcessAsync("git", ["config", "user.email", "test@example.com"], scope.FullPath);
+        await RunProcessAsync("git", ["add", "agent-distribution/bundle.json"], scope.FullPath);
+        await RunProcessAsync("git", ["commit", "--quiet", "-m", "base bundle"], scope.FullPath);
+
+        var fakeBin = scope.CreateDirectory("fake-bin");
+        var dotnetLog = scope.GetPath("dotnet.log");
+        var fakeDotnet = scope.WriteFile(
+            "fake-bin/dotnet",
+            """
+            #!/usr/bin/env bash
+            set -euo pipefail
+            printf '%s\n' "$*" >> "${DOTNET_LOG}"
+            """);
+        File.SetUnixFileMode(
+            fakeDotnet,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+        var outputPath = scope.GetPath("github-output.txt");
+        var environment = CreateActionEnvironment(scope, fakeBin, dotnetLog, outputPath);
+        environment["GITHUB_REF"] = "refs/heads/release/4.1.0";
+        environment["AGENT_DISTRIBUTION_RELEASE_BUNDLE_VERSION"] = "3";
+
+        var exitCode = await RunProcessAsync(
+            "bash",
+            [GetRunnerPath(), "release"],
+            scope.FullPath,
+            environment,
+            requireSuccess: false);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal(["tool restore"], File.ReadAllLines(dotnetLog));
+        Assert.Contains("\"bundleVersion\": 1", File.ReadAllText(scope.GetPath("agent-distribution/bundle.json")), StringComparison.Ordinal);
+        Assert.False(Directory.Exists(scope.GetPath("agent-distribution/generated")));
+        Assert.False(File.Exists(outputPath));
     }
 
     [Fact]

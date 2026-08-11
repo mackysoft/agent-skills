@@ -92,6 +92,35 @@ public sealed class BundleOperationVersionScriptTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task ResolveSync_WhenBundleRootWasExactlyRenamed_UsesBaseDescriptorFromRenameSource ()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-release", "resolve-sync-renamed-root");
+        await RunProcessAsync("git", ["init", "--quiet"], scope.FullPath);
+        await RunProcessAsync("git", ["config", "user.name", "Test User"], scope.FullPath);
+        await RunProcessAsync("git", ["config", "user.email", "test@example.com"], scope.FullPath);
+        WriteBundle(scope, 3, "skills");
+        await RunProcessAsync("git", ["add", "skills/bundle.json"], scope.FullPath);
+        await RunProcessAsync("git", ["commit", "--quiet", "-m", "base"], scope.FullPath);
+        var baseRef = (await RunProcessAsync("git", ["rev-parse", "HEAD"], scope.FullPath)).StandardOutput.Trim();
+        Directory.Move(scope.GetPath("skills"), scope.GetPath("agent-distribution"));
+        await RunProcessAsync("git", ["add", "--all"], scope.FullPath);
+        await RunProcessAsync("git", ["commit", "--quiet", "-m", "rename bundle root"], scope.FullPath);
+
+        var result = await RunProcessAsync(
+            "bash",
+            [GetScriptPath(), "--operation", "sync", "--root", "agent-distribution", "--base-ref", baseRef],
+            scope.FullPath);
+
+        Assert.Equal("3", result.StandardOutput.Trim());
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task ResolveSync_WhenCurrentVersionChanges_Fails ()
     {
         if (OperatingSystem.IsWindows())
@@ -119,10 +148,10 @@ public sealed class BundleOperationVersionScriptTests
         Assert.Contains("must preserve the base bundle version 3", result.StandardError, StringComparison.Ordinal);
     }
 
-    private static void WriteBundle (TestDirectoryScope scope, int bundleVersion)
+    private static void WriteBundle (TestDirectoryScope scope, int bundleVersion, string root = "agent-distribution")
     {
         scope.WriteFile(
-            "agent-distribution/bundle.json",
+            $"{root}/bundle.json",
             $$"""
             {
               "schemaVersion": 3,

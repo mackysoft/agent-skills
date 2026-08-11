@@ -54,6 +54,8 @@ fi
 
 cd -- "${repository_root}"
 dotnet tool restore
+bundle_arguments=(tool run agent-distribution -- build --root "${cli_root}")
+release_updates_source=false
 
 if [[ "${operation}" == "release" ]]; then
   if [[ ! "${AGENT_DISTRIBUTION_RELEASE_BUNDLE_VERSION:-}" =~ ^[1-9][0-9]*$ ]]; then
@@ -61,13 +63,43 @@ if [[ "${operation}" == "release" ]]; then
     exit 1
   fi
 
-  bundle_arguments=(
-    tool run agent-distribution -- prepare-release
-    --bundle-version "${AGENT_DISTRIBUTION_RELEASE_BUNDLE_VERSION}"
-    --root "${cli_root}"
-  )
-else
-  bundle_arguments=(tool run agent-distribution -- build --root "${cli_root}")
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "The release action requires jq to update the source bundle version." >&2
+    exit 1
+  fi
+
+  source_bundle="${bundle_root}/bundle.json"
+  current_bundle_version="$(jq -er '
+    if has("bundleVersion") == has("skillBundleVersion") then
+      error("bundle.json must define exactly one supported bundle version property")
+    else
+      (.bundleVersion // .skillBundleVersion) as $version
+      | if ($version | type) == "number"
+          and ($version | floor) == $version
+          and $version > 0
+          and $version <= 2147483647
+        then $version
+        else error("bundle.json must contain a positive 32-bit integer bundle version")
+        end
+    end
+  ' "${source_bundle}")"
+
+  if ! git ls-files --error-unmatch -- "${cli_root}/bundle.json" >/dev/null 2>&1 \
+    || ! git diff --quiet -- "${cli_root}/bundle.json" \
+    || ! git diff --cached --quiet -- "${cli_root}/bundle.json"; then
+    echo "The release action requires a tracked, unmodified source bundle descriptor." >&2
+    exit 1
+  fi
+
+  if [[ "${AGENT_DISTRIBUTION_RELEASE_BUNDLE_VERSION}" -eq "${current_bundle_version}" ]]; then
+    release_updates_source=false
+  elif [[ "${current_bundle_version}" -lt 2147483647 \
+    && "${AGENT_DISTRIBUTION_RELEASE_BUNDLE_VERSION}" -eq $((current_bundle_version + 1)) ]]; then
+    release_updates_source=true
+  else
+    echo "The release bundle version must equal the authored version ${current_bundle_version} or its next revision." >&2
+    exit 1
+  fi
 fi
 
 if [[ "${operation}" == "verify" ]]; then
@@ -76,7 +108,7 @@ if [[ "${operation}" == "verify" ]]; then
 fi
 
 : "${GITHUB_OUTPUT:?The sync and release actions require GITHUB_OUTPUT.}"
-if dotnet "${bundle_arguments[@]}" --check; then
+if [[ "${release_updates_source}" == "false" ]] && dotnet "${bundle_arguments[@]}" --check; then
   echo "changed=false" >> "${GITHUB_OUTPUT}"
   exit 0
 fi
@@ -92,9 +124,29 @@ if [[ "${GITHUB_REF:-}" != refs/heads/* ]]; then
 fi
 branch_name="${GITHUB_REF#refs/heads/}"
 
+if [[ "${release_updates_source}" == "true" ]]; then
+  temporary_bundle="$(mktemp "${bundle_root}/.bundle.json.release.XXXXXX")"
+  trap 'rm -f -- "${temporary_bundle}"' EXIT
+  jq --argjson version "${AGENT_DISTRIBUTION_RELEASE_BUNDLE_VERSION}" '
+    if has("bundleVersion") and (has("skillBundleVersion") | not) then
+      .bundleVersion = $version
+    elif has("skillBundleVersion") and (has("bundleVersion") | not) then
+      .skillBundleVersion = $version
+    else
+      error("bundle.json must define exactly one supported bundle version property")
+    end
+  ' "${source_bundle}" > "${temporary_bundle}"
+  mv -- "${temporary_bundle}" "${source_bundle}"
+  trap - EXIT
+fi
+
 dotnet "${bundle_arguments[@]}"
 
-git add --all --force -- "${cli_root}/bundle.json" "${cli_root}/generated"
+if [[ "${operation}" == "release" ]]; then
+  git add --all --force -- "${cli_root}/bundle.json" "${cli_root}/generated"
+else
+  git add --all --force -- "${cli_root}/generated"
+fi
 if git diff --cached --quiet; then
   echo "The Agent Distribution CLI reported changes, but no bundle changes were staged." >&2
   exit 1

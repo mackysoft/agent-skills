@@ -44,15 +44,10 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_BRANCH: ${{ github.head_ref }}
         run: |
           set -euo pipefail
-          operation="sync"
-          if [[ "${HEAD_BRANCH}" == release/* ]]; then
-            operation="release"
-          fi
           bash scripts/resolve-bundle-operation-version.sh \
-            --operation "${operation}" \
+            --operation sync \
             --root agent-distribution \
             --base-ref "${BASE_SHA}" \
             >/dev/null
