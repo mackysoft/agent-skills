@@ -163,7 +163,7 @@ Install the build tool in the product repository:
 
 ```bash
 dotnet new tool-manifest
-dotnet tool install MackySoft.AgentDistribution.Cli --version 4.0.0
+dotnet tool install MackySoft.AgentDistribution.Cli --version 5.0.0
 ```
 
 Build the source bundle:
@@ -217,7 +217,7 @@ Use `verify` for pull requests and other read-only checks. It runs `build --chec
   uses: actions/checkout@v5
 
 - name: Verify Agent Distribution
-  uses: mackysoft/agent-distribution/actions/verify@4.0.0
+  uses: mackysoft/agent-distribution/actions/verify@5.0.0
   with:
     root: agent-distribution
 ```
@@ -234,7 +234,7 @@ steps:
 
   - name: Sync Agent Distribution
     id: agent-distribution
-    uses: mackysoft/agent-distribution/actions/sync@4.0.0
+    uses: mackysoft/agent-distribution/actions/sync@5.0.0
     with:
       root: agent-distribution
 ```
@@ -251,7 +251,7 @@ steps:
 
   - name: Prepare Agent Distribution release
     id: agent-distribution-release
-    uses: mackysoft/agent-distribution/actions/release@4.0.0
+    uses: mackysoft/agent-distribution/actions/release@5.0.0
     with:
       root: agent-distribution
       bundle-version: 2
@@ -268,7 +268,7 @@ Use the hosting package when the product CLI wants standard Agent Distribution c
 Add the hosting package to the product CLI.
 
 ```bash
-dotnet add <PROJECT>.csproj package MackySoft.AgentDistribution.Hosting --version 4.0.0
+dotnet add <PROJECT>.csproj package MackySoft.AgentDistribution.Hosting --version 5.0.0
 ```
 
 Register the runtime in the product's DI container.
@@ -314,7 +314,7 @@ Use the ConsoleAppFramework integration when the product CLI already uses Consol
 Add the integration package to the product CLI.
 
 ```bash
-dotnet add <PROJECT>.csproj package MackySoft.AgentDistribution.ConsoleAppFramework --version 4.0.0
+dotnet add <PROJECT>.csproj package MackySoft.AgentDistribution.ConsoleAppFramework --version 5.0.0
 dotnet add <PROJECT>.csproj package Microsoft.Extensions.Hosting
 ```
 
