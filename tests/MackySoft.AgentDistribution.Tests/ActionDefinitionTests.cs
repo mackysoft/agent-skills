@@ -129,7 +129,7 @@ public sealed class ActionDefinitionTests
     [InlineData("bundleVersion")]
     [InlineData("skillBundleVersion")]
     [Trait("Size", "Small")]
-    public async Task ReleaseAction_WhenBundleRequiresReleasePreparation_CommitsExactVersion (string versionProperty)
+    public async Task ReleaseAction_WhenCheckedOutBranchDiffersFromWorkflowRef_CommitsExactVersion (string versionProperty)
     {
         if (OperatingSystem.IsWindows())
         {
@@ -180,7 +180,7 @@ public sealed class ActionDefinitionTests
 
         var outputPath = scope.GetPath("github-output.txt");
         var environment = CreateActionEnvironment(scope, fakeBin, dotnetLog, outputPath);
-        environment["GITHUB_REF"] = "refs/heads/release/4.1.0";
+        environment["GITHUB_REF"] = "refs/heads/master";
         environment["AGENT_DISTRIBUTION_RELEASE_BUNDLE_VERSION"] = "2";
 
         await RunProcessAsync("bash", [GetRunnerPath(), "release"], scope.FullPath, environment);
@@ -365,7 +365,7 @@ public sealed class ActionDefinitionTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task SyncAction_WhenRunFromPullRequestRef_DoesNotGenerateOrPush ()
+    public async Task SyncAction_WhenRunFromDetachedHead_DoesNotGenerateOrPush ()
     {
         if (OperatingSystem.IsWindows())
         {
@@ -375,6 +375,10 @@ public sealed class ActionDefinitionTests
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "action-sync-pull-request");
         scope.CreateDirectory("agent-distribution");
         await RunProcessAsync("git", ["init", "--quiet"], scope.FullPath);
+        await RunProcessAsync("git", ["config", "user.name", "Test User"], scope.FullPath);
+        await RunProcessAsync("git", ["config", "user.email", "test@example.com"], scope.FullPath);
+        await RunProcessAsync("git", ["commit", "--allow-empty", "--quiet", "-m", "base"], scope.FullPath);
+        await RunProcessAsync("git", ["switch", "--detach", "--quiet"], scope.FullPath);
 
         var fakeBin = scope.CreateDirectory("fake-bin");
         var dotnetLog = scope.GetPath("dotnet.log");
@@ -398,7 +402,7 @@ public sealed class ActionDefinitionTests
 
         var outputPath = scope.GetPath("github-output.txt");
         var environment = CreateActionEnvironment(scope, fakeBin, dotnetLog, outputPath);
-        environment["GITHUB_REF"] = "refs/pull/17/merge";
+        environment["GITHUB_REF"] = "refs/heads/main";
 
         var exitCode = await RunProcessAsync(
             "bash",
