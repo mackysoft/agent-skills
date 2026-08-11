@@ -118,11 +118,10 @@ if ! git diff --cached --quiet; then
   exit 1
 fi
 
-if [[ "${GITHUB_REF:-}" != refs/heads/* ]]; then
-  echo "The mutating bundle action can commit only from a branch ref." >&2
+if ! branch_name="$(git symbolic-ref --quiet --short HEAD)"; then
+  echo "The mutating bundle action requires the checked-out Git worktree to be on a branch." >&2
   exit 1
 fi
-branch_name="${GITHUB_REF#refs/heads/}"
 
 if [[ "${release_updates_source}" == "true" ]]; then
   temporary_bundle="$(mktemp "${bundle_root}/.bundle.json.release.XXXXXX")"
