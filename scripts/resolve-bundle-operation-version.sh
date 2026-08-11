@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  echo "usage: bash scripts/resolve-bundle-operation-version.sh --operation <sync|release> --root <bundle-root> --base-ref <git-ref>" >&2
+  echo "usage: bash scripts/resolve-bundle-operation-version.sh --operation <sync|release|verify-release> --root <bundle-root> --base-ref <git-ref>" >&2
 }
 
 operation=""
@@ -41,7 +41,7 @@ while [[ "$#" -gt 0 ]]; do
   esac
 done
 
-if [[ "${operation}" != "sync" && "${operation}" != "release" ]]; then
+if [[ "${operation}" != "sync" && "${operation}" != "release" && "${operation}" != "verify-release" ]]; then
   usage
   exit 2
 fi
@@ -142,6 +142,16 @@ if [[ "${base_version}" -eq 2147483647 ]]; then
 fi
 
 target_version="$((base_version + 1))"
+if [[ "${operation}" == "verify-release" ]]; then
+  if [[ "${current_version}" -ne "${target_version}" ]]; then
+    echo "Current bundle version ${current_version} must equal release target ${target_version}." >&2
+    exit 1
+  fi
+
+  printf '%s\n' "${target_version}"
+  exit 0
+fi
+
 if [[ "${current_version}" -ne "${base_version}" && "${current_version}" -ne "${target_version}" ]]; then
   echo "Current bundle version ${current_version} must equal the base version ${base_version} or release target ${target_version}." >&2
   exit 1
