@@ -66,6 +66,61 @@ public sealed class BundleOperationVersionScriptTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task VerifyRelease_WhenCurrentVersionIsTarget_ReturnsTargetVersion ()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-release", "verify-release-target");
+        await RunProcessAsync("git", ["init", "--quiet"], scope.FullPath);
+        await RunProcessAsync("git", ["config", "user.name", "Test User"], scope.FullPath);
+        await RunProcessAsync("git", ["config", "user.email", "test@example.com"], scope.FullPath);
+        WriteBundle(scope, 3);
+        await RunProcessAsync("git", ["add", "agent-distribution/bundle.json"], scope.FullPath);
+        await RunProcessAsync("git", ["commit", "--quiet", "-m", "base"], scope.FullPath);
+        var baseRef = (await RunProcessAsync("git", ["rev-parse", "HEAD"], scope.FullPath)).StandardOutput.Trim();
+        WriteBundle(scope, 4);
+
+        var result = await RunProcessAsync(
+            "bash",
+            [GetScriptPath(), "--operation", "verify-release", "--root", "agent-distribution", "--base-ref", baseRef],
+            scope.FullPath);
+
+        Assert.Equal("4", result.StandardOutput.Trim());
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task VerifyRelease_WhenCurrentVersionIsStillBase_Fails ()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-release", "verify-release-base");
+        await RunProcessAsync("git", ["init", "--quiet"], scope.FullPath);
+        await RunProcessAsync("git", ["config", "user.name", "Test User"], scope.FullPath);
+        await RunProcessAsync("git", ["config", "user.email", "test@example.com"], scope.FullPath);
+        WriteBundle(scope, 3);
+        await RunProcessAsync("git", ["add", "agent-distribution/bundle.json"], scope.FullPath);
+        await RunProcessAsync("git", ["commit", "--quiet", "-m", "base"], scope.FullPath);
+        var baseRef = (await RunProcessAsync("git", ["rev-parse", "HEAD"], scope.FullPath)).StandardOutput.Trim();
+
+        var result = await RunProcessAsync(
+            "bash",
+            [GetScriptPath(), "--operation", "verify-release", "--root", "agent-distribution", "--base-ref", baseRef],
+            scope.FullPath,
+            requireSuccess: false);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("must equal release target 4", result.StandardError, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task ResolveSync_WhenCurrentVersionMatchesBase_ReturnsPreservedVersion ()
     {
         if (OperatingSystem.IsWindows())
