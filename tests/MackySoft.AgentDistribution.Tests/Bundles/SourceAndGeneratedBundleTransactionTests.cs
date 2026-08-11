@@ -111,19 +111,19 @@ public sealed class SourceAndGeneratedBundleTransactionTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
         Assert.False(generatedPublicationAttempted);
         Assert.Equal("original source\n", File.ReadAllText(scope.GetPath("bundle.json")));
     }
 
-    private static ValueTask<SkillOperationResult<AbsolutePath>> PublishGeneratedAsync (
+    private static ValueTask<AgentDistributionOperationResult<AbsolutePath>> PublishGeneratedAsync (
         AbsolutePath outputRoot,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         Directory.CreateDirectory(outputRoot.Value);
         File.WriteAllText(Path.Combine(outputRoot.Value, "bundle.json"), "updated generated\n");
-        return ValueTask.FromResult(SkillOperationResult<AbsolutePath>.Success(outputRoot));
+        return ValueTask.FromResult(AgentDistributionOperationResult<AbsolutePath>.Success(outputRoot));
     }
 
     private static void AssertNoBackup (TestDirectoryScope scope)

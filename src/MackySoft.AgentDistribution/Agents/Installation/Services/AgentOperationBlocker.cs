@@ -5,72 +5,72 @@ namespace MackySoft.AgentDistribution.Agents.Installation.Services;
 
 internal static class AgentOperationBlocker
 {
-    public static SkillOperationResult<bool> ValidateAgents (IReadOnlyList<AgentReconciliationPlan> plans)
+    public static AgentDistributionOperationResult<bool> ValidateAgents (IReadOnlyList<AgentReconciliationPlan> plans)
     {
         var blocked = plans.FirstOrDefault(static plan => plan.Action.IsBlocked);
         return blocked is null
-            ? SkillOperationResult<bool>.Success(true)
+            ? AgentDistributionOperationResult<bool>.Success(true)
             : Failure(blocked.Action.AgentName, blocked.Action.TargetStateKind, blocked.Action.Detail);
     }
 
-    public static SkillOperationResult<bool> ValidateSkills (SkillInstallResult result)
+    public static AgentDistributionOperationResult<bool> ValidateSkills (SkillInstallResult result)
     {
         var blocked = result.Actions.FirstOrDefault(static action => action.ActionKind is
             SkillInstallActionKind.BlockedManagedOverwrite
             or SkillInstallActionKind.BlockedLocalModification
             or SkillInstallActionKind.BlockedUnmanaged);
         return blocked is null
-            ? SkillOperationResult<bool>.Success(true)
-            : SkillOperationResult<bool>.FailureResult(
-                ResolveSkillFailureCode(blocked.ActionKind),
+            ? AgentDistributionOperationResult<bool>.Success(true)
+            : AgentDistributionOperationResult<bool>.FailureResult(
+                ResolveAgentDistributionFailureCode(blocked.ActionKind),
                 $"Resolved SKILL dependency cannot be installed: {blocked.Identity.SkillName.Value} ({blocked.ActionKind}).");
     }
 
-    public static SkillOperationResult<bool> ValidateSkills (SkillUpdateResult result)
+    public static AgentDistributionOperationResult<bool> ValidateSkills (SkillUpdateResult result)
     {
         var blocked = result.Actions.FirstOrDefault(static action => action.ActionKind is
             SkillUpdateActionKind.BlockedLocalModification
             or SkillUpdateActionKind.BlockedUnmanaged
             or SkillUpdateActionKind.BlockedVersionAhead);
         return blocked is null
-            ? SkillOperationResult<bool>.Success(true)
-            : SkillOperationResult<bool>.FailureResult(
-                ResolveSkillFailureCode(blocked.ActionKind),
+            ? AgentDistributionOperationResult<bool>.Success(true)
+            : AgentDistributionOperationResult<bool>.FailureResult(
+                ResolveAgentDistributionFailureCode(blocked.ActionKind),
                 $"Resolved SKILL dependency cannot be updated: {blocked.Identity.SkillName.Value} ({blocked.ActionKind}).");
     }
 
-    private static SkillOperationResult<bool> Failure (AgentName agentName, State.AgentInstalledTargetStateKind kind, string? detail)
+    private static AgentDistributionOperationResult<bool> Failure (AgentName agentName, State.AgentInstalledTargetStateKind kind, string? detail)
     {
         var code = kind switch
         {
-            State.AgentInstalledTargetStateKind.LocallyModified => SkillFailureCodes.InstallTargetLocalModification,
-            State.AgentInstalledTargetStateKind.Unmanaged => SkillFailureCodes.InstallTargetUnmanaged,
-            State.AgentInstalledTargetStateKind.CleanOutdated => SkillFailureCodes.InstallTargetOutdated,
-            State.AgentInstalledTargetStateKind.OtherCatalog => SkillFailureCodes.InstallTargetUnmanaged,
-            _ => SkillFailureCodes.ManifestInvalid,
+            State.AgentInstalledTargetStateKind.LocallyModified => AgentDistributionFailureCodes.InstallTargetLocalModification,
+            State.AgentInstalledTargetStateKind.Unmanaged => AgentDistributionFailureCodes.InstallTargetUnmanaged,
+            State.AgentInstalledTargetStateKind.CleanOutdated => AgentDistributionFailureCodes.InstallTargetOutdated,
+            State.AgentInstalledTargetStateKind.OtherCatalog => AgentDistributionFailureCodes.InstallTargetUnmanaged,
+            _ => AgentDistributionFailureCodes.ManifestInvalid,
         };
-        return SkillOperationResult<bool>.FailureResult(
+        return AgentDistributionOperationResult<bool>.FailureResult(
             code,
             $"Custom agent '{agentName.Value}' cannot be reconciled from target state '{kind}'.{(string.IsNullOrWhiteSpace(detail) ? string.Empty : $" {detail}")}");
     }
 
-    private static SkillFailureCode ResolveSkillFailureCode (SkillInstallActionKind kind)
+    private static AgentDistributionFailureCode ResolveAgentDistributionFailureCode (SkillInstallActionKind kind)
     {
         return kind switch
         {
-            SkillInstallActionKind.BlockedLocalModification => SkillFailureCodes.InstallTargetLocalModification,
-            SkillInstallActionKind.BlockedUnmanaged => SkillFailureCodes.InstallTargetUnmanaged,
-            _ => SkillFailureCodes.InstallTargetOutdated,
+            SkillInstallActionKind.BlockedLocalModification => AgentDistributionFailureCodes.InstallTargetLocalModification,
+            SkillInstallActionKind.BlockedUnmanaged => AgentDistributionFailureCodes.InstallTargetUnmanaged,
+            _ => AgentDistributionFailureCodes.InstallTargetOutdated,
         };
     }
 
-    private static SkillFailureCode ResolveSkillFailureCode (SkillUpdateActionKind kind)
+    private static AgentDistributionFailureCode ResolveAgentDistributionFailureCode (SkillUpdateActionKind kind)
     {
         return kind switch
         {
-            SkillUpdateActionKind.BlockedLocalModification => SkillFailureCodes.InstallTargetLocalModification,
-            SkillUpdateActionKind.BlockedUnmanaged => SkillFailureCodes.InstallTargetUnmanaged,
-            _ => SkillFailureCodes.InstallTargetVersionAhead,
+            SkillUpdateActionKind.BlockedLocalModification => AgentDistributionFailureCodes.InstallTargetLocalModification,
+            SkillUpdateActionKind.BlockedUnmanaged => AgentDistributionFailureCodes.InstallTargetUnmanaged,
+            _ => AgentDistributionFailureCodes.InstallTargetVersionAhead,
         };
     }
 }

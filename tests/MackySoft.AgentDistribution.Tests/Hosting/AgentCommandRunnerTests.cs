@@ -23,7 +23,7 @@ public sealed class AgentCommandRunnerTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
         Assert.Contains("--agent", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -44,7 +44,7 @@ public sealed class AgentCommandRunnerTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public sealed class AgentCommandRunnerTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
         Assert.Contains("--agent", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -84,7 +84,7 @@ public sealed class AgentCommandRunnerTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.HostUnsupported, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.HostUnsupported, result.Failure!.Code);
     }
 
     private static ServiceProvider CreateProvider (string packageBaseDirectory)

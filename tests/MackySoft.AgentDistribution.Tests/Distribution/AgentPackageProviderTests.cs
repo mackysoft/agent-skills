@@ -70,7 +70,7 @@ public sealed class AgentPackageProviderTests
         var result = await provider.GetPackageCatalogAsync(["unknown-agent"], CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -94,7 +94,7 @@ public sealed class AgentPackageProviderTests
     {
         var skillManifestSerializer = new SkillManifestJsonSerializer();
         var agentManifestSerializer = new AgentManifestJsonSerializer();
-        var digestCalculator = new SkillDigestCalculator();
+        var digestCalculator = new PackageContentDigestCalculator();
         var skillReader = new CanonicalSkillPackageReader(
             skillManifestSerializer,
             new SkillManifest.Factory(new SkillManifestDigestCalculator(skillManifestSerializer)),
@@ -121,7 +121,7 @@ public sealed class AgentPackageProviderTests
     {
         var skillManifestSerializer = new SkillManifestJsonSerializer();
         var agentManifestSerializer = new AgentManifestJsonSerializer();
-        var digestCalculator = new SkillDigestCalculator();
+        var digestCalculator = new PackageContentDigestCalculator();
         var descriptor = new AgentDistributionBundleDescriptor(
             AgentDistributionBundleDefinition.CurrentSchemaVersion,
             skills[0].Manifest.CatalogId,
@@ -147,7 +147,7 @@ public sealed class AgentPackageProviderTests
             new AgentDistributionBundleJsonSerializer(),
             bundleReader);
 
-        var result = await writer.WriteAsync(bundle, AbsolutePath.Parse(Path.Combine(packageBaseDirectory, "skills")), CancellationToken.None);
+        var result = await writer.WriteAsync(bundle, AbsolutePath.Parse(Path.Combine(packageBaseDirectory, "agent-distribution")), CancellationToken.None);
         Assert.True(result.IsSuccess, result.Failure?.Message);
     }
 
@@ -157,7 +157,7 @@ public sealed class AgentPackageProviderTests
         IReadOnlyList<SkillName> skillDependencies)
     {
         var agentManifestSerializer = new AgentManifestJsonSerializer();
-        var digestCalculator = new SkillDigestCalculator();
+        var digestCalculator = new PackageContentDigestCalculator();
         var bundleVersion = new AgentDistributionBundleVersion(skills[0].Manifest.SkillBundleVersion.Value);
         const string instructions = "# Agent\n";
         var artifactPath = PackageRelativePath.Parse("hosts/codex/agent.toml");

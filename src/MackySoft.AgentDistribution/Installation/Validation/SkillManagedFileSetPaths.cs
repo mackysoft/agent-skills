@@ -21,7 +21,7 @@ internal static class SkillManagedFileSetPaths
     /// <param name="host"> The requested host. </param>
     /// <returns> A success result containing package-relative paths from <paramref name="package" /> that are managed for <paramref name="host" />; otherwise a failure when the manifest has no artifact for <paramref name="host" />. </returns>
     /// <exception cref="ArgumentNullException"> Thrown when <paramref name="package" /> is <see langword="null" />. </exception>
-    public static SkillOperationResult<IReadOnlyCollection<PackageRelativePath>> CreateMaterializedRequiredPaths (
+    public static AgentDistributionOperationResult<IReadOnlyCollection<PackageRelativePath>> CreateMaterializedRequiredPaths (
         CanonicalSkillPackage package,
         HostKind host)
     {
@@ -30,7 +30,7 @@ internal static class SkillManagedFileSetPaths
         var hostArtifactResult = GetHostArtifact(package.Manifest, host);
         if (!hostArtifactResult.IsSuccess)
         {
-            return SkillOperationResult<IReadOnlyCollection<PackageRelativePath>>.FailureResult(
+            return AgentDistributionOperationResult<IReadOnlyCollection<PackageRelativePath>>.FailureResult(
                 hostArtifactResult.Failure!.Code,
                 hostArtifactResult.Failure.Message);
         }
@@ -44,7 +44,7 @@ internal static class SkillManagedFileSetPaths
                 || (hostArtifactPath is not null && path.Equals(hostArtifactPath)))
             .ToArray();
 
-        return SkillOperationResult<IReadOnlyCollection<PackageRelativePath>>.Success(paths);
+        return AgentDistributionOperationResult<IReadOnlyCollection<PackageRelativePath>>.Success(paths);
     }
 
     /// <summary> Creates the managed file set that can be derived from an installed manifest for one host. </summary>
@@ -52,7 +52,7 @@ internal static class SkillManagedFileSetPaths
     /// <param name="host"> The requested host. </param>
     /// <returns> A success result containing the manifest, SKILL body, and requested host artifact paths; otherwise a failure when <paramref name="manifest" /> has no artifact for <paramref name="host" />. </returns>
     /// <exception cref="ArgumentNullException"> Thrown when <paramref name="manifest" /> is <see langword="null" />. </exception>
-    public static SkillOperationResult<IReadOnlyCollection<PackageRelativePath>> CreateInstalledManifestRequiredPaths (
+    public static AgentDistributionOperationResult<IReadOnlyCollection<PackageRelativePath>> CreateInstalledManifestRequiredPaths (
         SkillManifest manifest,
         HostKind host)
     {
@@ -61,7 +61,7 @@ internal static class SkillManagedFileSetPaths
         var hostArtifactResult = GetHostArtifact(manifest, host);
         if (!hostArtifactResult.IsSuccess)
         {
-            return SkillOperationResult<IReadOnlyCollection<PackageRelativePath>>.FailureResult(
+            return AgentDistributionOperationResult<IReadOnlyCollection<PackageRelativePath>>.FailureResult(
                 hostArtifactResult.Failure!.Code,
                 hostArtifactResult.Failure.Message);
         }
@@ -78,18 +78,18 @@ internal static class SkillManagedFileSetPaths
             paths.Add(hostArtifactPath);
         }
 
-        return SkillOperationResult<IReadOnlyCollection<PackageRelativePath>>.Success(paths);
+        return AgentDistributionOperationResult<IReadOnlyCollection<PackageRelativePath>>.Success(paths);
     }
 
-    private static SkillOperationResult<SkillHostArtifactManifest> GetHostArtifact (
+    private static AgentDistributionOperationResult<SkillHostArtifactManifest> GetHostArtifact (
         SkillManifest manifest,
         HostKind host)
     {
         var hostArtifact = manifest.HostArtifacts.SingleOrDefault(artifact => artifact.Host == host);
         return hostArtifact is null
-            ? SkillOperationResult<SkillHostArtifactManifest>.FailureResult(
-                SkillFailureCodes.ManifestInvalid,
+            ? AgentDistributionOperationResult<SkillHostArtifactManifest>.FailureResult(
+                AgentDistributionFailureCodes.ManifestInvalid,
                 $"Manifest does not contain host artifact '{Vocabulary.GetText(host)}'.")
-            : SkillOperationResult<SkillHostArtifactManifest>.Success(hostArtifact);
+            : AgentDistributionOperationResult<SkillHostArtifactManifest>.Success(hostArtifact);
     }
 }

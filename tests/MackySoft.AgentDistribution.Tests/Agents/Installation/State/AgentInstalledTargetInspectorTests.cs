@@ -147,7 +147,7 @@ public sealed class AgentInstalledTargetInspectorTests
         return new AgentInstalledTargetInspector(
             new AgentInstallationStatePathResolver(),
             new AgentInstallationStateStore(serializer),
-            new SkillDigestCalculator());
+            new PackageContentDigestCalculator());
     }
 
     private static AgentResolvedTarget ResolveProjectTarget (string repositoryRoot)
@@ -161,7 +161,7 @@ public sealed class AgentInstalledTargetInspectorTests
 
     private static async Task WriteStateAsync (AgentResolvedTarget target, AgentManifest manifest, string content)
     {
-        var digestCalculator = new SkillDigestCalculator();
+        var digestCalculator = new PackageContentDigestCalculator();
         var state = new AgentInstallationState(
             AgentInstallationState.CurrentSchemaVersion,
             manifest.BundleVersion,
@@ -184,7 +184,7 @@ public sealed class AgentInstalledTargetInspectorTests
         return new AgentManifest(
             AgentManifest.CurrentSchemaVersion,
             new AgentDistributionBundleVersion(1),
-            new SkillCatalogId(catalogId),
+            new AgentDistributionCatalogId(catalogId),
             new AgentName("architect"),
             "Architect",
             "Creates a design.",

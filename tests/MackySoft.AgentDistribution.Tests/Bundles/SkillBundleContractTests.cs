@@ -8,7 +8,7 @@ namespace MackySoft.AgentDistribution.Tests.Bundles;
 
 public sealed class SkillBundleContractTests
 {
-    private static readonly SkillCatalogId CatalogId = new("com.mackysoft.agent-distribution");
+    private static readonly AgentDistributionCatalogId CatalogId = new("com.mackysoft.agent-distribution");
     private static readonly Sha256Digest Digest = Sha256Digest.Parse(new string('a', 64));
 
     [Theory]
@@ -78,6 +78,6 @@ public sealed class SkillBundleContractTests
                 [package, package]));
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
     }
 }

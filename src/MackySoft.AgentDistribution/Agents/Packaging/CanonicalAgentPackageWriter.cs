@@ -9,7 +9,7 @@ namespace MackySoft.AgentDistribution.Agents.Packaging;
 internal sealed class CanonicalAgentPackageWriter
 {
     /// <summary> Writes one agent package. </summary>
-    public async ValueTask<SkillOperationResult<AbsolutePath>> WriteToStagingAsync (CanonicalAgentPackage package, AbsolutePath agentsStagingRoot, CancellationToken cancellationToken)
+    public async ValueTask<AgentDistributionOperationResult<AbsolutePath>> WriteToStagingAsync (CanonicalAgentPackage package, AbsolutePath agentsStagingRoot, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(package);
         ArgumentNullException.ThrowIfNull(agentsStagingRoot);
@@ -21,7 +21,7 @@ internal sealed class CanonicalAgentPackageWriter
             ContainedPath.Create(agentsStagingRoot, RootRelativePath.Parse(package.Manifest.AgentName.Value)).Target);
         if (!directoryResult.IsSuccess)
         {
-            return SkillOperationResult<AbsolutePath>.FailureResult(directoryResult.Failure!.Code, directoryResult.Failure.Message);
+            return AgentDistributionOperationResult<AbsolutePath>.FailureResult(directoryResult.Failure!.Code, directoryResult.Failure.Message);
         }
 
         var directory = directoryResult.Value!;
@@ -33,12 +33,12 @@ internal sealed class CanonicalAgentPackageWriter
                 ContainedPath.Create(directory, file.RelativePath.RootRelativePath).Target);
             if (!pathResult.IsSuccess)
             {
-                return SkillOperationResult<AbsolutePath>.FailureResult(pathResult.Failure!.Code, pathResult.Failure.Message);
+                return AgentDistributionOperationResult<AbsolutePath>.FailureResult(pathResult.Failure!.Code, pathResult.Failure.Message);
             }
 
             await CanonicalTextFilePublisher.PublishAsync(pathResult.Value!, file.Content, cancellationToken).ConfigureAwait(false);
         }
 
-        return SkillOperationResult<AbsolutePath>.Success(directory);
+        return AgentDistributionOperationResult<AbsolutePath>.Success(directory);
     }
 }

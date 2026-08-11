@@ -12,7 +12,7 @@ internal static class CanonicalPackageTextReader
         throwOnInvalidBytes: true);
 
     /// <summary>Reads one canonical package file without normalizing or replacing bytes.</summary>
-    internal static async ValueTask<SkillOperationResult<string>> ReadAsync (
+    internal static async ValueTask<AgentDistributionOperationResult<string>> ReadAsync (
         AbsolutePath path,
         CancellationToken cancellationToken)
     {
@@ -31,12 +31,12 @@ internal static class CanonicalPackageTextReader
         try
         {
             var content = StrictUtf8.GetString(bytes);
-            if (!string.Equals(content, SkillTextNormalizer.NormalizeToLf(content), StringComparison.Ordinal))
+            if (!string.Equals(content, AgentDistributionTextNormalizer.NormalizeToLf(content), StringComparison.Ordinal))
             {
                 return Failure($"Canonical package file must use LF line endings: {path}");
             }
 
-            return SkillOperationResult<string>.Success(content);
+            return AgentDistributionOperationResult<string>.Success(content);
         }
         catch (DecoderFallbackException)
         {
@@ -44,8 +44,8 @@ internal static class CanonicalPackageTextReader
         }
     }
 
-    private static SkillOperationResult<string> Failure (string message)
+    private static AgentDistributionOperationResult<string> Failure (string message)
     {
-        return SkillOperationResult<string>.FailureResult(SkillFailureCodes.ManifestInvalid, message);
+        return AgentDistributionOperationResult<string>.FailureResult(AgentDistributionFailureCodes.ManifestInvalid, message);
     }
 }

@@ -6,7 +6,7 @@ namespace MackySoft.AgentDistribution.Agents.Doctor;
 public sealed class AgentDoctorDiagnostic
 {
     /// <summary> Initializes one immutable diagnostic. </summary>
-    internal AgentDoctorDiagnostic (AgentName agentName, AgentDoctorDiagnosticArea area, bool isError, SkillFailureCode code, string message)
+    internal AgentDoctorDiagnostic (AgentName agentName, AgentDoctorDiagnosticArea area, bool isError, AgentDistributionFailureCode code, string message)
     {
         AgentName = agentName ?? throw new ArgumentNullException(nameof(agentName));
         Area = area;
@@ -26,7 +26,7 @@ public sealed class AgentDoctorDiagnostic
     public bool IsError { get; }
 
     /// <summary> Gets the machine-readable diagnostic code. </summary>
-    public SkillFailureCode Code { get; }
+    public AgentDistributionFailureCode Code { get; }
 
     /// <summary> Gets the diagnostic message. </summary>
     public string Message { get; }

@@ -10,22 +10,22 @@ internal static class SkillDiagnosticTargetStateResolver
     /// <param name="kind"> The resolved target state kind when this method returns <see langword="true" />. </param>
     /// <returns> <see langword="true" /> when <paramref name="code" /> has a target state representation; otherwise <see langword="false" />. </returns>
     public static bool TryResolve (
-        SkillFailureCode code,
+        AgentDistributionFailureCode code,
         out SkillTargetStateKind kind)
     {
-        if (code == SkillFailureCodes.InstallTargetOutdated)
+        if (code == AgentDistributionFailureCodes.InstallTargetOutdated)
         {
             kind = SkillTargetStateKind.CleanOutdated;
             return true;
         }
 
-        if (code == SkillFailureCodes.InstallTargetVersionAhead)
+        if (code == AgentDistributionFailureCodes.InstallTargetVersionAhead)
         {
             kind = SkillTargetStateKind.VersionAhead;
             return true;
         }
 
-        if (code == SkillFailureCodes.InstallTargetRemovedFromCatalog)
+        if (code == AgentDistributionFailureCodes.InstallTargetRemovedFromCatalog)
         {
             kind = SkillTargetStateKind.RemovedFromCatalog;
             return true;

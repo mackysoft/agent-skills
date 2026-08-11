@@ -11,7 +11,7 @@ public sealed record SkillName
     /// <exception cref="ArgumentException"> Thrown when <paramref name="value" /> is not a safe SKILL name. </exception>
     public SkillName (string value)
     {
-        if (!SkillIdentifierValidator.IsSafeLowercaseHyphenLiteral(value))
+        if (!AgentDistributionIdentifierValidator.IsSafeLowercaseHyphenLiteral(value))
         {
             throw new ArgumentException($"SKILL name literal is invalid: {value}", nameof(value));
         }
@@ -30,7 +30,7 @@ public sealed record SkillName
         string? value,
         [NotNullWhen(true)] out SkillName? skillName)
     {
-        if (SkillIdentifierValidator.IsSafeLowercaseHyphenLiteral(value))
+        if (AgentDistributionIdentifierValidator.IsSafeLowercaseHyphenLiteral(value))
         {
             skillName = new SkillName(value!);
             return true;

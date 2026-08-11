@@ -89,7 +89,7 @@ public sealed class AgentCommandRunner
         }
 
         var format = string.IsNullOrWhiteSpace(request.Format)
-            ? SkillOperationResult<SkillExportFormat>.Success(SkillExportFormat.Directory)
+            ? AgentDistributionOperationResult<PackageExportFormat>.Success(PackageExportFormat.Directory)
             : SkillCommandValueParser.ParseExportFormatLiteral(request.Format);
         if (!format.IsSuccess)
         {
@@ -316,7 +316,7 @@ public sealed class AgentCommandRunner
         return AgentDistributionCommandResult.Success(commandName, report, report.IsHealthy ? 0 : 1);
     }
 
-    private async ValueTask<SkillOperationResult<PreparedAgentTargetOperation>> PrepareSelectedTargetOperationAsync (
+    private async ValueTask<AgentDistributionOperationResult<PreparedAgentTargetOperation>> PrepareSelectedTargetOperationAsync (
         string? host,
         string? scope,
         string? repositoryRoot,
@@ -339,18 +339,18 @@ public sealed class AgentCommandRunner
 
         var catalog = await GetCatalogAsync(selection.Value!, cancellationToken).ConfigureAwait(false);
         return catalog.IsSuccess
-            ? SkillOperationResult<PreparedAgentTargetOperation>.Success(new PreparedAgentTargetOperation(target.Value!, catalog.Value!))
+            ? AgentDistributionOperationResult<PreparedAgentTargetOperation>.Success(new PreparedAgentTargetOperation(target.Value!, catalog.Value!))
             : Failure<PreparedAgentTargetOperation>(catalog.Failure!);
     }
 
-    private ValueTask<SkillOperationResult<AgentPackageCatalog>> GetCatalogAsync (
+    private ValueTask<AgentDistributionOperationResult<AgentPackageCatalog>> GetCatalogAsync (
         IReadOnlyList<string> selectedAgentNames,
         CancellationToken cancellationToken)
     {
         return packageProvider.GetPackageCatalogAsync(selectedAgentNames, cancellationToken);
     }
 
-    private SkillOperationResult<AgentTargetPair> NormalizeTarget (
+    private AgentDistributionOperationResult<AgentTargetPair> NormalizeTarget (
         string? host,
         string? scope,
         string? repositoryRoot,
@@ -405,7 +405,7 @@ public sealed class AgentCommandRunner
             : AgentInstallScopeKind.User;
         var hostKind = hostResult.Value;
 
-        return SkillOperationResult<AgentTargetPair>.Success(new AgentTargetPair(
+        return AgentDistributionOperationResult<AgentTargetPair>.Success(new AgentTargetPair(
             new AgentTargetRequest(hostKind, agentScope, repositoryContext.RepositoryRoot, agentTargetRoot),
             new SkillInstallRequest(hostKind, repositoryContext.Scope, repositoryContext.RepositoryRoot, skillTargetRoot),
             hostKind));
@@ -416,27 +416,27 @@ public sealed class AgentCommandRunner
         return CommandOptionValues.Expand(agent);
     }
 
-    private static SkillOperationResult<IReadOnlyList<string>> NormalizeRequiredAgentNames (IReadOnlyList<string>? agent)
+    private static AgentDistributionOperationResult<IReadOnlyList<string>> NormalizeRequiredAgentNames (IReadOnlyList<string>? agent)
     {
         var selection = NormalizeOptionalAgentNames(agent);
         if (selection.Count == 0)
         {
-            return SkillOperationResult<IReadOnlyList<string>>.FailureResult(
-                SkillFailureCodes.InputInvalid,
+            return AgentDistributionOperationResult<IReadOnlyList<string>>.FailureResult(
+                AgentDistributionFailureCodes.InputInvalid,
                 "Option '--agent' is required.");
         }
 
-        return SkillOperationResult<IReadOnlyList<string>>.Success(selection);
+        return AgentDistributionOperationResult<IReadOnlyList<string>>.Success(selection);
     }
 
-    private static AgentDistributionCommandResult Failure (string command, SkillFailure failure)
+    private static AgentDistributionCommandResult Failure (string command, AgentDistributionFailure failure)
     {
         return AgentDistributionCommandResult.FailureResult(command, failure);
     }
 
-    private static SkillOperationResult<T> Failure<T> (SkillFailure failure)
+    private static AgentDistributionOperationResult<T> Failure<T> (AgentDistributionFailure failure)
     {
-        return SkillOperationResult<T>.FailureResult(failure.Code, failure.Message);
+        return AgentDistributionOperationResult<T>.FailureResult(failure.Code, failure.Message);
     }
 
     private static AgentOperationReportContext CreateReportContext (PreparedAgentTargetOperation prepared)

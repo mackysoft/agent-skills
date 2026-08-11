@@ -48,7 +48,7 @@ public sealed class GitHubCopilotAgentHostArtifactAdapterTests
             """{"schemaVersion":1,"target":"unknown"}""");
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     private static AgentSourceMetadata CreateMetadata ()

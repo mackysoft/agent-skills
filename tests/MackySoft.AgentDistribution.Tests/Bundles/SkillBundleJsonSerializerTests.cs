@@ -14,7 +14,7 @@ public sealed class SkillBundleJsonSerializerTests
         var serializer = new SkillBundleJsonSerializer();
         var definition = new SkillBundleDefinition(
             SkillBundleDefinition.CurrentSchemaVersion,
-            new SkillCatalogId("com.mackysoft.agent-distribution"),
+            new AgentDistributionCatalogId("com.mackysoft.agent-distribution"),
             new SkillBundleVersion(7));
         var descriptor = new SkillBundleDescriptor(
             definition.SchemaVersion,

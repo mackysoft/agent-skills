@@ -6,7 +6,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$script_dir/dotnet-common.sh"
 
 usage() {
-  echo "usage: bash scripts/verify-repository-skills.sh [--no-restore]" >&2
+  echo "usage: bash scripts/sync-repository-bundle.sh [--no-restore]" >&2
 }
 
 restore=true
@@ -31,4 +31,4 @@ if [ "$restore" = false ]; then
   run_options+=(--no-restore)
 fi
 
-dotnet run "${run_options[@]}" -- build --root "$DOTNET_REPO_ROOT/skills" --check
+dotnet run "${run_options[@]}" -- build --root "$DOTNET_REPO_ROOT/agent-distribution"

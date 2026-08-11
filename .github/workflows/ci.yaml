@@ -53,7 +53,7 @@ jobs:
           fi
           bash scripts/resolve-bundle-operation-version.sh \
             --operation "${operation}" \
-            --root skills \
+            --root agent-distribution \
             --base-ref "${BASE_SHA}" \
             >/dev/null
 

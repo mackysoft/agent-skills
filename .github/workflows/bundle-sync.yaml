@@ -3,8 +3,8 @@ name: bundle-sync
 on:
   push:
     paths:
-      - skills/bundle.json
-      - skills/definitions/**
+      - agent-distribution/bundle.json
+      - agent-distribution/definitions/**
       - .config/dotnet-tools.json
       - .github/workflows/bundle-sync.yaml
       - Directory.Build.props
@@ -72,7 +72,7 @@ jobs:
               "refs/heads/${DEFAULT_BRANCH}:refs/remotes/origin/${DEFAULT_BRANCH}"
             bundle_version="$(bash scripts/resolve-bundle-operation-version.sh \
               --operation release \
-              --root skills \
+              --root agent-distribution \
               --base-ref "origin/${DEFAULT_BRANCH}")"
             echo "kind=release" >> "${GITHUB_OUTPUT}"
             echo "bundle-version=${bundle_version}" >> "${GITHUB_OUTPUT}"
@@ -85,14 +85,14 @@ jobs:
         if: steps.bundle_operation.outputs.kind == 'sync'
         uses: ./actions/sync
         with:
-          root: skills
+          root: agent-distribution
 
       - name: Prepare repository bundle release
         id: release_bundle
         if: steps.bundle_operation.outputs.kind == 'release'
         uses: ./actions/release
         with:
-          root: skills
+          root: agent-distribution
           bundle-version: ${{ steps.bundle_operation.outputs.bundle-version }}
 
       - name: Capture bundle operation result

@@ -37,7 +37,7 @@ public sealed class CodexAgentHostArtifactAdapterTests
         var result = new CodexAgentHostArtifactAdapter().ValidateBinding(bindingJson);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     [Fact]

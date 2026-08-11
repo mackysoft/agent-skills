@@ -139,7 +139,7 @@ public sealed class SkillMaterializationServiceTests
         var result = service.Materialize(package, (HostKind)42);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.HostUnsupported, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.HostUnsupported, result.Failure!.Code);
     }
 
     private static IReadOnlyList<HostRegistration> GetSupportedHosts ()

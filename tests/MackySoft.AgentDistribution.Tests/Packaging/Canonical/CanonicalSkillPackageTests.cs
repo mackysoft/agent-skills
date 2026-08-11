@@ -56,7 +56,7 @@ public sealed class CanonicalSkillPackageTests
         var generated = (await SkillTestData.GenerateFixturePackagesAsync())[0];
 
         var factory = new CanonicalSkillPackage.Factory(
-            new SkillDigestCalculator(),
+            new PackageContentDigestCalculator(),
             new SkillManifestJsonSerializer());
         var result = factory.CreateCanonical(new CanonicalSkillPackageCandidate(
             generated.Manifest,
@@ -66,6 +66,6 @@ public sealed class CanonicalSkillPackageTests
             ]));
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
     }
 }

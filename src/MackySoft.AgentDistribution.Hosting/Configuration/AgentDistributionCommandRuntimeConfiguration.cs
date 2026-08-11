@@ -7,7 +7,7 @@ public sealed class AgentDistributionCommandRuntimeConfiguration
 {
     /// <summary> Initializes validated configuration for one Agent Distribution command runtime. </summary>
     /// <param name="productName"> The product name written by the default command result emitter. </param>
-    /// <param name="packageBaseDirectory"> The application base directory that contains the bundled <c>skills</c> directory. </param>
+    /// <param name="packageBaseDirectory"> The application base directory that contains the bundled <c>agent-distribution</c> directory. </param>
     /// <param name="repositoryRootResolver"> The resolver used when a project-scope command omits its repository root. </param>
     /// <exception cref="ArgumentException"> Thrown when <paramref name="productName" /> is empty or whitespace. </exception>
     /// <exception cref="ArgumentNullException"> Thrown when <paramref name="packageBaseDirectory" /> or <paramref name="repositoryRootResolver" /> is <see langword="null" />. </exception>
@@ -28,7 +28,7 @@ public sealed class AgentDistributionCommandRuntimeConfiguration
     /// <summary> Gets the product name written by the default command result emitter. </summary>
     public string ProductName { get; }
 
-    /// <summary> Gets the absolute application base directory that contains the bundled <c>skills</c> directory. </summary>
+    /// <summary> Gets the absolute application base directory that contains the bundled <c>agent-distribution</c> directory. </summary>
     public AbsolutePath PackageBaseDirectory { get; }
 
     /// <summary> Gets the resolver used when a project-scope command omits its repository root. </summary>

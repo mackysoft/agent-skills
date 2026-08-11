@@ -11,7 +11,7 @@ public sealed class SkillMaterializationService
     /// <param name="package"> The canonical package. </param>
     /// <param name="host"> The target host. </param>
     /// <returns> The materialized package or unsupported-host failure. </returns>
-    public SkillOperationResult<SkillMaterializedPackage> Materialize (
+    public AgentDistributionOperationResult<SkillMaterializedPackage> Materialize (
         CanonicalSkillPackage package,
         HostKind host)
     {
@@ -20,7 +20,7 @@ public sealed class SkillMaterializationService
         var registrationResult = HostRegistration.Get(host);
         if (!registrationResult.IsSuccess)
         {
-            return SkillOperationResult<SkillMaterializedPackage>.FailureResult(
+            return AgentDistributionOperationResult<SkillMaterializedPackage>.FailureResult(
                 registrationResult.Failure!.Code,
                 registrationResult.Failure.Message);
         }
@@ -73,7 +73,7 @@ public sealed class SkillMaterializationService
             files.Add(new PackageTextFile(metadataArtifactPath, artifacts.MetadataContent));
         }
 
-        return SkillOperationResult<SkillMaterializedPackage>.Success(new SkillMaterializedPackage(
+        return AgentDistributionOperationResult<SkillMaterializedPackage>.Success(new SkillMaterializedPackage(
             package.Manifest.SkillName,
             registration.Host,
             files.OrderBy(static file => file.RelativePath.Value, StringComparer.Ordinal).ToArray()));

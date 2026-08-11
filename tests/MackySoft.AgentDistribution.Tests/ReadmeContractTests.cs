@@ -43,7 +43,7 @@ public sealed class ReadmeContractTests
     {
         var contractPath = Path.Combine(
             SkillTestData.GetRepositoryRoot(),
-            "skills",
+            "agent-distribution",
             "definitions",
             "skills",
             "basic",

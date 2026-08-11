@@ -214,8 +214,8 @@ grep -Fxq 'lib/net8.0/MackySoft.AgentDistribution.ConsoleAppFramework.dll' <<< "
 grep -Fxq 'buildTransitive/MackySoft.AgentDistribution.ConsoleAppFramework.props' <<< "$consoleappframework_package_files"
 
 cli_package_files="$(unzip -Z1 "$cli_package")"
-grep -Fxq 'tools/net8.0/any/skills/bundle.json' <<< "$cli_package_files"
-grep -Fxq 'tools/net8.0/any/skills/skills/agent-distribution-packaging/agent-skill.json' <<< "$cli_package_files"
+grep -Fxq 'tools/net8.0/any/agent-distribution/bundle.json' <<< "$cli_package_files"
+grep -Fxq 'tools/net8.0/any/agent-distribution/skills/agent-distribution-packaging/agent-skill.json' <<< "$cli_package_files"
 
 if [ -n "$repository_commit" ]; then
   bash "$script_dir/validate-nuget-package-repository-commit.sh" \
@@ -248,7 +248,7 @@ dotnet build "$consumer_dir/consumer.csproj" --configuration "$configuration" --
 
 console_consumer_dir="$work_root/console-consumer"
 dotnet new console --output "$console_consumer_dir" --no-restore >/dev/null
-cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/AgentDistributionBundle/generated" "$console_consumer_dir/skills"
+cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/AgentDistributionBundle/generated" "$console_consumer_dir/agent-distribution"
 dotnet add "$console_consumer_dir/console-consumer.csproj" package MackySoft.AgentDistribution.ConsoleAppFramework \
   --version "$package_version" \
   --source "$package_dir" >/dev/null

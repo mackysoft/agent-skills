@@ -1,10 +1,10 @@
 namespace MackySoft.AgentDistribution.Shared;
 
-/// <summary> Represents one machine-readable SKILL operation failure. </summary>
-public sealed class SkillFailure
+/// <summary> Represents one machine-readable Agent Distribution operation failure. </summary>
+public sealed class AgentDistributionFailure
 {
-    private SkillFailure (
-        SkillFailureCode code,
+    private AgentDistributionFailure (
+        AgentDistributionFailureCode code,
         string message)
     {
         Code = code;
@@ -12,21 +12,21 @@ public sealed class SkillFailure
     }
 
     /// <summary> Gets the machine-readable failure code. </summary>
-    public SkillFailureCode Code { get; }
+    public AgentDistributionFailureCode Code { get; }
 
     /// <summary> Gets the user-facing failure message. </summary>
     public string Message { get; }
 
-    /// <summary> Creates one SKILL failure. </summary>
+    /// <summary> Creates one Agent Distribution failure. </summary>
     /// <param name="code"> The failure code. </param>
     /// <param name="message"> The user-facing failure message. </param>
     /// <returns> The created failure. </returns>
-    public static SkillFailure Create (
-        SkillFailureCode code,
+    public static AgentDistributionFailure Create (
+        AgentDistributionFailureCode code,
         string message)
     {
         ArgumentNullException.ThrowIfNull(code);
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
-        return new SkillFailure(code, message);
+        return new AgentDistributionFailure(code, message);
     }
 }

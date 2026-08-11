@@ -11,7 +11,7 @@ internal sealed class AgentHostArtifactFile
         ArgumentNullException.ThrowIfNull(relativePath);
         ArgumentNullException.ThrowIfNull(content);
         RelativePath = relativePath;
-        Content = SkillTextNormalizer.NormalizeToLf(content);
+        Content = AgentDistributionTextNormalizer.NormalizeToLf(content);
     }
 
     /// <summary> Gets the host-relative path. </summary>

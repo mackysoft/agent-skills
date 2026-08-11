@@ -37,7 +37,7 @@ public sealed class SkillBundleBuildService
     /// <param name="check"> Whether to fail without writing when reconciliation would change files. </param>
     /// <param name="cancellationToken"> The cancellation token propagated through source access and publication. </param>
     /// <returns> The resulting descriptor and whether files changed, or a structured source or generated failure. </returns>
-    public ValueTask<SkillOperationResult<SkillBundleBuildResult>> BuildAsync (
+    public ValueTask<AgentDistributionOperationResult<SkillBundleBuildResult>> BuildAsync (
         string bundleRoot,
         bool check = false,
         CancellationToken cancellationToken = default)
@@ -51,7 +51,7 @@ public sealed class SkillBundleBuildService
     /// <param name="check"> Whether to fail without writing when release preparation would change files. </param>
     /// <param name="cancellationToken"> The cancellation token propagated through source access and publication. </param>
     /// <returns> The resulting descriptor and whether files changed, or a structured source, generated, or version failure. </returns>
-    public ValueTask<SkillOperationResult<SkillBundleBuildResult>> PrepareReleaseAsync (
+    public ValueTask<AgentDistributionOperationResult<SkillBundleBuildResult>> PrepareReleaseAsync (
         string bundleRoot,
         int bundleVersion,
         bool check = false,
@@ -60,7 +60,7 @@ public sealed class SkillBundleBuildService
         return ReconcileAsync(bundleRoot, bundleVersion, check, cancellationToken);
     }
 
-    private async ValueTask<SkillOperationResult<SkillBundleBuildResult>> ReconcileAsync (
+    private async ValueTask<AgentDistributionOperationResult<SkillBundleBuildResult>> ReconcileAsync (
         string bundleRoot,
         int? targetBundleVersion,
         bool check,
@@ -85,8 +85,8 @@ public sealed class SkillBundleBuildService
         }
         else if (!SkillBundleVersion.TryCreate(targetBundleVersion.Value, out var requestedVersion))
         {
-            return SkillOperationResult<SkillBundleBuildResult>.FailureResult(
-                SkillFailureCodes.InputInvalid,
+            return AgentDistributionOperationResult<SkillBundleBuildResult>.FailureResult(
+                AgentDistributionFailureCodes.InputInvalid,
                 $"skillBundleVersion must be a positive integer: {targetBundleVersion.Value}");
         }
         else
@@ -109,8 +109,8 @@ public sealed class SkillBundleBuildService
                 out var generatedRootObservation,
                 out _))
         {
-            return SkillOperationResult<SkillBundleBuildResult>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
+            return AgentDistributionOperationResult<SkillBundleBuildResult>.FailureResult(
+                AgentDistributionFailureCodes.PathUnsafe,
                 $"Generated SKILL bundle output could not be inspected: {generatedRoot}");
         }
 
@@ -126,8 +126,8 @@ public sealed class SkillBundleBuildService
         }
         else if (generatedRootObservation.State != FileSystemEntryState.Missing)
         {
-            return SkillOperationResult<SkillBundleBuildResult>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
+            return AgentDistributionOperationResult<SkillBundleBuildResult>.FailureResult(
+                AgentDistributionFailureCodes.PathUnsafe,
                 $"Generated SKILL bundle output must be a regular directory: {generatedRoot}");
         }
 
@@ -137,18 +137,18 @@ public sealed class SkillBundleBuildService
             && generatedBundle.Descriptor.BundleDigest == candidate.Descriptor.BundleDigest;
         if (!updatesSourceDefinition && generatedIsCurrent)
         {
-            return SkillOperationResult<SkillBundleBuildResult>.Success(
+            return AgentDistributionOperationResult<SkillBundleBuildResult>.Success(
                 new SkillBundleBuildResult(changed: false, candidate.Descriptor));
         }
 
         if (check)
         {
-            return SkillOperationResult<SkillBundleBuildResult>.FailureResult(
-                SkillFailureCodes.BundleUpdateRequired,
+            return AgentDistributionOperationResult<SkillBundleBuildResult>.FailureResult(
+                AgentDistributionFailureCodes.BundleUpdateRequired,
                 $"Canonical SKILL bundle requires generation at version {targetVersion}: {fullBundleRoot}");
         }
 
-        SkillOperationResult<AbsolutePath> publicationResult;
+        AgentDistributionOperationResult<AbsolutePath> publicationResult;
         if (updatesSourceDefinition)
         {
             var authoredBundle = source.BundleDefinition;
@@ -178,35 +178,35 @@ public sealed class SkillBundleBuildService
             return BuildFailure(publicationResult.Failure!);
         }
 
-        return SkillOperationResult<SkillBundleBuildResult>.Success(
+        return AgentDistributionOperationResult<SkillBundleBuildResult>.Success(
             new SkillBundleBuildResult(changed: true, candidate.Descriptor));
     }
 
-    private static SkillFailure? ValidateTargetVersion (
+    private static AgentDistributionFailure? ValidateTargetVersion (
         SkillBundleVersion authoredVersion,
         SkillBundleVersion targetVersion)
     {
         if (targetVersion.CompareTo(authoredVersion) < 0)
         {
-            return SkillFailure.Create(
-                SkillFailureCodes.InputInvalid,
+            return AgentDistributionFailure.Create(
+                AgentDistributionFailureCodes.InputInvalid,
                 $"Requested skillBundleVersion {targetVersion} cannot be lower than the authored version {authoredVersion}.");
         }
 
         if (targetVersion != authoredVersion
             && targetVersion != authoredVersion.Next())
         {
-            return SkillFailure.Create(
-                SkillFailureCodes.InputInvalid,
+            return AgentDistributionFailure.Create(
+                AgentDistributionFailureCodes.InputInvalid,
                 $"Requested skillBundleVersion must equal the authored version {authoredVersion} or its next revision.");
         }
 
         return null;
     }
 
-    private static SkillOperationResult<SkillBundleBuildResult> BuildFailure (SkillFailure failure)
+    private static AgentDistributionOperationResult<SkillBundleBuildResult> BuildFailure (AgentDistributionFailure failure)
     {
-        return SkillOperationResult<SkillBundleBuildResult>.FailureResult(failure.Code, failure.Message);
+        return AgentDistributionOperationResult<SkillBundleBuildResult>.FailureResult(failure.Code, failure.Message);
     }
 
     private static void ValidatePublicationIdentity (

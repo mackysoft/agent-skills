@@ -9,7 +9,7 @@ public sealed class AgentDistributionBundleDefinition
     public const int CurrentSchemaVersion = 3;
 
     /// <summary> Initializes a v3 source bundle definition. </summary>
-    public AgentDistributionBundleDefinition (int schemaVersion, SkillCatalogId catalogId, AgentDistributionBundleVersion bundleVersion)
+    public AgentDistributionBundleDefinition (int schemaVersion, AgentDistributionCatalogId catalogId, AgentDistributionBundleVersion bundleVersion)
     {
         if (schemaVersion != CurrentSchemaVersion)
         {
@@ -25,7 +25,7 @@ public sealed class AgentDistributionBundleDefinition
     public int SchemaVersion { get; }
 
     /// <summary> Gets the stable catalog identity. </summary>
-    public SkillCatalogId CatalogId { get; }
+    public AgentDistributionCatalogId CatalogId { get; }
 
     /// <summary> Gets the mixed-bundle release version. </summary>
     public AgentDistributionBundleVersion BundleVersion { get; }

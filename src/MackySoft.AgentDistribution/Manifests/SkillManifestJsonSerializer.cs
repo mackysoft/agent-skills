@@ -51,7 +51,7 @@ public sealed class SkillManifestJsonSerializer
             WriteManifest(writer, manifest, includeSkillBundleVersion, includeManifestDigest);
         }
 
-        var json = SkillTextNormalizer.NormalizeToLf(Encoding.UTF8.GetString(stream.ToArray()));
+        var json = AgentDistributionTextNormalizer.NormalizeToLf(Encoding.UTF8.GetString(stream.ToArray()));
         return json.EndsWith('\n') ? json : json + "\n";
     }
 
@@ -81,7 +81,7 @@ public sealed class SkillManifestJsonSerializer
         return new SkillManifestCandidate(
             root.GetProperty("schemaVersion").GetInt32(),
             new SkillBundleVersion(root.GetProperty("skillBundleVersion").GetInt32()),
-            new SkillCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty),
+            new AgentDistributionCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty),
             new SkillCategory(root.GetProperty("category").GetString() ?? string.Empty),
             new SkillName(root.GetProperty("skillName").GetString() ?? string.Empty),
             root.GetProperty("displayName").GetString() ?? string.Empty,
@@ -95,16 +95,16 @@ public sealed class SkillManifestJsonSerializer
     /// <summary> Reads one manifest from JSON text without leaking parse exceptions. </summary>
     /// <param name="json"> The JSON text. </param>
     /// <returns> The parsed manifest candidate or manifest-invalid failure. </returns>
-    internal SkillOperationResult<SkillManifestCandidate> TryDeserialize (string json)
+    internal AgentDistributionOperationResult<SkillManifestCandidate> TryDeserialize (string json)
     {
         try
         {
-            return SkillOperationResult<SkillManifestCandidate>.Success(Deserialize(json));
+            return AgentDistributionOperationResult<SkillManifestCandidate>.Success(Deserialize(json));
         }
         catch (Exception ex) when (ex is JsonException or InvalidOperationException or ArgumentException or KeyNotFoundException or FormatException)
         {
-            return SkillOperationResult<SkillManifestCandidate>.FailureResult(
-                SkillFailureCodes.ManifestInvalid,
+            return AgentDistributionOperationResult<SkillManifestCandidate>.FailureResult(
+                AgentDistributionFailureCodes.ManifestInvalid,
                 "agent-skill.json is invalid.");
         }
     }
@@ -156,7 +156,7 @@ public sealed class SkillManifestJsonSerializer
                 includeManifestDigest: false);
         }
 
-        var json = SkillTextNormalizer.NormalizeToLf(Encoding.UTF8.GetString(stream.ToArray()));
+        var json = AgentDistributionTextNormalizer.NormalizeToLf(Encoding.UTF8.GetString(stream.ToArray()));
         return json.EndsWith('\n') ? json : json + "\n";
     }
 
@@ -164,7 +164,7 @@ public sealed class SkillManifestJsonSerializer
         Utf8JsonWriter writer,
         int schemaVersion,
         SkillBundleVersion skillBundleVersion,
-        SkillCatalogId catalogId,
+        AgentDistributionCatalogId catalogId,
         SkillCategory category,
         SkillName skillName,
         string displayName,

@@ -11,7 +11,7 @@ internal static class SkillPackageTransactionLock
     /// <param name="targetRoot"> The resolved bundle target root. </param>
     /// <param name="transactionRoot"> The transaction directory under the target root. </param>
     /// <returns> A disposable lock handle or a write failure. </returns>
-    public static SkillOperationResult<IDisposable> Acquire (
+    public static AgentDistributionOperationResult<IDisposable> Acquire (
         AbsolutePath targetRoot,
         AbsolutePath transactionRoot)
     {
@@ -20,12 +20,12 @@ internal static class SkillPackageTransactionLock
             ContainedPath.Create(transactionRoot, RootRelativePath.Parse(".lock")).Target);
         if (!lockPathResult.IsSuccess)
         {
-            return SkillOperationResult<IDisposable>.FailureResult(lockPathResult.Failure!.Code, lockPathResult.Failure.Message);
+            return AgentDistributionOperationResult<IDisposable>.FailureResult(lockPathResult.Failure!.Code, lockPathResult.Failure.Message);
         }
 
         try
         {
-            return SkillOperationResult<IDisposable>.Success(new FileStream(
+            return AgentDistributionOperationResult<IDisposable>.Success(new FileStream(
                 lockPathResult.Value!.Value,
                 FileMode.OpenOrCreate,
                 FileAccess.ReadWrite,
@@ -33,8 +33,8 @@ internal static class SkillPackageTransactionLock
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return SkillOperationResult<IDisposable>.FailureResult(
-                SkillFailureCodes.InstallTargetWriteFailed,
+            return AgentDistributionOperationResult<IDisposable>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetWriteFailed,
                 $"Failed to acquire SKILL package transaction lock: {lockPathResult.Value}. {ex.Message}");
         }
     }

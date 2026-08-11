@@ -17,12 +17,12 @@ internal sealed class CodexAgentHostArtifactAdapter : IAgentHostArtifactAdapter
         StringComparer.Ordinal);
 
     /// <inheritdoc />
-    public SkillOperationResult<bool> ValidateBinding (string bindingJson)
+    public AgentDistributionOperationResult<bool> ValidateBinding (string bindingJson)
     {
         var binding = ParseBinding(bindingJson);
         return binding.IsSuccess
-            ? SkillOperationResult<bool>.Success(true)
-            : SkillOperationResult<bool>.FailureResult(binding.Failure!.Code, binding.Failure.Message);
+            ? AgentDistributionOperationResult<bool>.Success(true)
+            : AgentDistributionOperationResult<bool>.FailureResult(binding.Failure!.Code, binding.Failure.Message);
     }
 
     /// <inheritdoc />
@@ -48,13 +48,13 @@ internal sealed class CodexAgentHostArtifactAdapter : IAgentHostArtifactAdapter
         AppendOptionalString(builder, "model", binding.Model);
         AppendOptionalString(builder, "model_reasoning_effort", binding.ReasoningEffort);
         AppendOptionalString(builder, "sandbox_mode", binding.SandboxMode);
-        AppendString(builder, "developer_instructions", SkillTextNormalizer.NormalizeToLf(agentInstructions));
+        AppendString(builder, "developer_instructions", AgentDistributionTextNormalizer.NormalizeToLf(agentInstructions));
 
         return new AgentHostArtifactSet(
             [new AgentHostArtifactFile(PackageRelativePath.Parse($"{metadata.AgentName.Value}.toml"), builder.ToString())]);
     }
 
-    private static SkillOperationResult<CodexBinding> ParseBinding (string bindingJson)
+    private static AgentDistributionOperationResult<CodexBinding> ParseBinding (string bindingJson)
     {
         var deserialized = AgentHostBindingJson.Deserialize<CodexBinding>(bindingJson, "Codex");
         if (!deserialized.IsSuccess)
@@ -83,7 +83,7 @@ internal sealed class CodexAgentHostArtifactAdapter : IAgentHostArtifactAdapter
             return Failure("Codex agent binding sandboxMode is not supported.");
         }
 
-        return SkillOperationResult<CodexBinding>.Success(binding);
+        return AgentDistributionOperationResult<CodexBinding>.Success(binding);
     }
 
     private static bool IsOptionalTextValid (string? value)
@@ -161,9 +161,9 @@ internal sealed class CodexAgentHostArtifactAdapter : IAgentHostArtifactAdapter
         builder.Append("\"\n");
     }
 
-    private static SkillOperationResult<CodexBinding> Failure (string message)
+    private static AgentDistributionOperationResult<CodexBinding> Failure (string message)
     {
-        return SkillOperationResult<CodexBinding>.FailureResult(SkillFailureCodes.SourceInvalid, message);
+        return AgentDistributionOperationResult<CodexBinding>.FailureResult(AgentDistributionFailureCodes.SourceInvalid, message);
     }
 
     private sealed class CodexBinding

@@ -29,7 +29,7 @@ internal sealed class BundleGenerationCommand
     /// <returns> The process exit code. </returns>
     [Command("build")]
     public Task<int> BuildAsync (
-        string root = "skills",
+        string root = "agent-distribution",
         bool check = false,
         CancellationToken cancellationToken = default)
     {
@@ -45,7 +45,7 @@ internal sealed class BundleGenerationCommand
     [Command("prepare-release")]
     public Task<int> PrepareReleaseAsync (
         int bundleVersion,
-        string root = "skills",
+        string root = "agent-distribution",
         bool check = false,
         CancellationToken cancellationToken = default)
     {

@@ -56,7 +56,7 @@ public sealed class SkillBundleJsonSerializer
         var root = document.RootElement;
         return new SkillBundleDefinition(
             root.GetProperty("schemaVersion").GetInt32(),
-            new SkillCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty),
+            new AgentDistributionCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty),
             new SkillBundleVersion(root.GetProperty("skillBundleVersion").GetInt32()));
     }
 
@@ -74,7 +74,7 @@ public sealed class SkillBundleJsonSerializer
         var root = document.RootElement;
         return new SkillBundleDescriptor(
             root.GetProperty("schemaVersion").GetInt32(),
-            new SkillCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty),
+            new AgentDistributionCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty),
             new SkillBundleVersion(root.GetProperty("skillBundleVersion").GetInt32()),
             Sha256Digest.Parse(root.GetProperty("bundleDigest").GetString() ?? string.Empty));
     }
@@ -89,14 +89,14 @@ public sealed class SkillBundleJsonSerializer
             writer.WriteEndObject();
         }
 
-        var json = SkillTextNormalizer.NormalizeToLf(Encoding.UTF8.GetString(stream.ToArray()));
+        var json = AgentDistributionTextNormalizer.NormalizeToLf(Encoding.UTF8.GetString(stream.ToArray()));
         return json.EndsWith('\n') ? json : json + "\n";
     }
 
     private static void WriteSharedProperties (
         Utf8JsonWriter writer,
         int schemaVersion,
-        SkillCatalogId catalogId,
+        AgentDistributionCatalogId catalogId,
         SkillBundleVersion skillBundleVersion)
     {
         writer.WriteNumber("schemaVersion", schemaVersion);

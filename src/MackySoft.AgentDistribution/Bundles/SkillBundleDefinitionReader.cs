@@ -21,7 +21,7 @@ public sealed class SkillBundleDefinitionReader
     /// <param name="bundleRoot"> The root containing <c>bundle.json</c> and <c>definitions</c>. </param>
     /// <param name="cancellationToken"> The cancellation token propagated through file access. </param>
     /// <returns> The authored definition, or a source-invalid failure when it is missing, unsafe, malformed, or non-canonical. </returns>
-    public async ValueTask<SkillOperationResult<SkillBundleDefinition>> ReadAsync (
+    public async ValueTask<AgentDistributionOperationResult<SkillBundleDefinition>> ReadAsync (
         AbsolutePath bundleRoot,
         CancellationToken cancellationToken = default)
     {
@@ -45,7 +45,7 @@ public sealed class SkillBundleDefinitionReader
 
         var textResult = await SkillBundleFileReader.ReadUtf8WithoutByteOrderMarkAsync(
                 pathResult.Value!,
-                SkillFailureCodes.SourceInvalid,
+                AgentDistributionFailureCodes.SourceInvalid,
                 cancellationToken)
             .ConfigureAwait(false);
         if (!textResult.IsSuccess)
@@ -68,11 +68,11 @@ public sealed class SkillBundleDefinitionReader
             return Failure("Source bundle.json is not canonical.");
         }
 
-        return SkillOperationResult<SkillBundleDefinition>.Success(definition);
+        return AgentDistributionOperationResult<SkillBundleDefinition>.Success(definition);
     }
 
-    private static SkillOperationResult<SkillBundleDefinition> Failure (string message)
+    private static AgentDistributionOperationResult<SkillBundleDefinition> Failure (string message)
     {
-        return SkillOperationResult<SkillBundleDefinition>.FailureResult(SkillFailureCodes.SourceInvalid, message);
+        return AgentDistributionOperationResult<SkillBundleDefinition>.FailureResult(AgentDistributionFailureCodes.SourceInvalid, message);
     }
 }

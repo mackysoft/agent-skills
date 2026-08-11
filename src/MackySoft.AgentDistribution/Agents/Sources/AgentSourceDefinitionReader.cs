@@ -12,7 +12,7 @@ internal sealed class AgentSourceDefinitionReader
     private static readonly string[] ExpectedAgentEntries = ["AGENT.md.template", "agent.json", "hosts"];
     private static readonly string[] ExpectedJsonProperties = ["schemaVersion", "displayName", "description", "skillDependencies"];
     /// <summary> Reads all agent definitions below the v3 agent namespace root. </summary>
-    public async ValueTask<SkillOperationResult<IReadOnlyList<AgentSourceDefinition>>> ReadAllAsync (
+    public async ValueTask<AgentDistributionOperationResult<IReadOnlyList<AgentSourceDefinition>>> ReadAllAsync (
         AbsolutePath agentsRoot,
         CancellationToken cancellationToken)
     {
@@ -24,7 +24,7 @@ internal sealed class AgentSourceDefinitionReader
         {
             if (!AuthoredSourcePathResolver.EntryExists(root))
             {
-                return SkillOperationResult<IReadOnlyList<AgentSourceDefinition>>.Success([]);
+                return AgentDistributionOperationResult<IReadOnlyList<AgentSourceDefinition>>.Success([]);
             }
 
             var validatedRootResult = AuthoredSourcePathResolver.ValidateDirectoryRoot(root, "Agent definitions root");
@@ -54,7 +54,7 @@ internal sealed class AgentSourceDefinitionReader
                 var definitionResult = await ReadOneAsync(agentDirectoryResult.Value!, cancellationToken).ConfigureAwait(false);
                 if (!definitionResult.IsSuccess)
                 {
-                    return SkillOperationResult<IReadOnlyList<AgentSourceDefinition>>.FailureResult(
+                    return AgentDistributionOperationResult<IReadOnlyList<AgentSourceDefinition>>.FailureResult(
                         definitionResult.Failure!.Code,
                         definitionResult.Failure.Message);
                 }
@@ -62,7 +62,7 @@ internal sealed class AgentSourceDefinitionReader
                 definitions.Add(definitionResult.Value!);
             }
 
-            return SkillOperationResult<IReadOnlyList<AgentSourceDefinition>>.Success(Array.AsReadOnly(definitions.ToArray()));
+            return AgentDistributionOperationResult<IReadOnlyList<AgentSourceDefinition>>.Success(Array.AsReadOnly(definitions.ToArray()));
         }
         catch (Exception exception) when (IsSourceFileSystemException(exception))
         {
@@ -70,7 +70,7 @@ internal sealed class AgentSourceDefinitionReader
         }
     }
 
-    private async ValueTask<SkillOperationResult<AgentSourceDefinition>> ReadOneAsync (
+    private async ValueTask<AgentDistributionOperationResult<AgentSourceDefinition>> ReadOneAsync (
         AbsolutePath agentDirectory,
         CancellationToken cancellationToken)
     {
@@ -138,16 +138,16 @@ internal sealed class AgentSourceDefinitionReader
         var hostBindingsResult = await ReadHostBindingsAsync(agentDirectory, cancellationToken).ConfigureAwait(false);
         if (!hostBindingsResult.IsSuccess)
         {
-            return SkillOperationResult<AgentSourceDefinition>.FailureResult(
+            return AgentDistributionOperationResult<AgentSourceDefinition>.FailureResult(
                 hostBindingsResult.Failure!.Code,
                 hostBindingsResult.Failure.Message);
         }
 
-        var instructions = SkillTextNormalizer.NormalizeToLf(
+        var instructions = AgentDistributionTextNormalizer.NormalizeToLf(
             await File.ReadAllTextAsync(instructionsPathResult.Value!.Value, cancellationToken).ConfigureAwait(false));
         try
         {
-            return SkillOperationResult<AgentSourceDefinition>.Success(
+            return AgentDistributionOperationResult<AgentSourceDefinition>.Success(
                 new AgentSourceDefinition(metadata, instructions, hostBindingsResult.Value!));
         }
         catch (ArgumentException exception)
@@ -156,7 +156,7 @@ internal sealed class AgentSourceDefinitionReader
         }
     }
 
-    private async ValueTask<SkillOperationResult<IReadOnlyList<AgentHostBindingSource>>> ReadHostBindingsAsync (
+    private async ValueTask<AgentDistributionOperationResult<IReadOnlyList<AgentHostBindingSource>>> ReadHostBindingsAsync (
         AbsolutePath agentDirectory,
         CancellationToken cancellationToken)
     {
@@ -196,20 +196,20 @@ internal sealed class AgentSourceDefinitionReader
 
             if (!Vocabulary.TryGetValue(hostName.Value, out HostKind host))
             {
-                return SkillOperationResult<IReadOnlyList<AgentHostBindingSource>>.FailureResult(
-                    SkillFailureCodes.HostUnsupported,
+                return AgentDistributionOperationResult<IReadOnlyList<AgentHostBindingSource>>.FailureResult(
+                    AgentDistributionFailureCodes.HostUnsupported,
                     $"Unsupported agent host binding: {hostName.Value}");
             }
 
             var registrationResult = HostRegistration.Get(host);
             if (!registrationResult.IsSuccess)
             {
-                return SkillOperationResult<IReadOnlyList<AgentHostBindingSource>>.FailureResult(
+                return AgentDistributionOperationResult<IReadOnlyList<AgentHostBindingSource>>.FailureResult(
                     registrationResult.Failure!.Code,
                     registrationResult.Failure.Message);
             }
 
-            var json = SkillTextNormalizer.NormalizeToLf(
+            var json = AgentDistributionTextNormalizer.NormalizeToLf(
                 await File.ReadAllTextAsync(bindingPathResult.Value!.Value, cancellationToken).ConfigureAwait(false));
             var validationResult = registrationResult.Value!.AgentArtifactAdapter.ValidateBinding(json);
             if (!validationResult.IsSuccess)
@@ -220,7 +220,7 @@ internal sealed class AgentSourceDefinitionReader
             bindings.Add(new AgentHostBindingSource(host, json));
         }
 
-        return SkillOperationResult<IReadOnlyList<AgentHostBindingSource>>.Success(
+        return AgentDistributionOperationResult<IReadOnlyList<AgentHostBindingSource>>.Success(
             Array.AsReadOnly(bindings.ToArray()));
     }
 
@@ -232,18 +232,18 @@ internal sealed class AgentSourceDefinitionReader
             or PathTooLongException;
     }
 
-    private static SkillOperationResult<IReadOnlyList<AgentSourceDefinition>> Failure (string message)
+    private static AgentDistributionOperationResult<IReadOnlyList<AgentSourceDefinition>> Failure (string message)
     {
-        return SkillOperationResult<IReadOnlyList<AgentSourceDefinition>>.FailureResult(SkillFailureCodes.SourceInvalid, message);
+        return AgentDistributionOperationResult<IReadOnlyList<AgentSourceDefinition>>.FailureResult(AgentDistributionFailureCodes.SourceInvalid, message);
     }
 
-    private static SkillOperationResult<AgentSourceDefinition> SingleFailure (string message)
+    private static AgentDistributionOperationResult<AgentSourceDefinition> SingleFailure (string message)
     {
-        return SkillOperationResult<AgentSourceDefinition>.FailureResult(SkillFailureCodes.SourceInvalid, message);
+        return AgentDistributionOperationResult<AgentSourceDefinition>.FailureResult(AgentDistributionFailureCodes.SourceInvalid, message);
     }
 
-    private static SkillOperationResult<IReadOnlyList<AgentHostBindingSource>> BindingsFailure (string message)
+    private static AgentDistributionOperationResult<IReadOnlyList<AgentHostBindingSource>> BindingsFailure (string message)
     {
-        return SkillOperationResult<IReadOnlyList<AgentHostBindingSource>>.FailureResult(SkillFailureCodes.SourceInvalid, message);
+        return AgentDistributionOperationResult<IReadOnlyList<AgentHostBindingSource>>.FailureResult(AgentDistributionFailureCodes.SourceInvalid, message);
     }
 }

@@ -14,12 +14,12 @@ internal sealed class ClaudeCodeAgentHostArtifactAdapter : IAgentHostArtifactAda
         StringComparer.Ordinal);
 
     /// <inheritdoc />
-    public SkillOperationResult<bool> ValidateBinding (string bindingJson)
+    public AgentDistributionOperationResult<bool> ValidateBinding (string bindingJson)
     {
         var binding = ParseBinding(bindingJson);
         return binding.IsSuccess
-            ? SkillOperationResult<bool>.Success(true)
-            : SkillOperationResult<bool>.FailureResult(binding.Failure!.Code, binding.Failure.Message);
+            ? AgentDistributionOperationResult<bool>.Success(true)
+            : AgentDistributionOperationResult<bool>.FailureResult(binding.Failure!.Code, binding.Failure.Message);
     }
 
     /// <inheritdoc />
@@ -78,7 +78,7 @@ internal sealed class ClaudeCodeAgentHostArtifactAdapter : IAgentHostArtifactAda
             [new AgentHostArtifactFile(PackageRelativePath.Parse($"{metadata.AgentName.Value}.md"), content)]);
     }
 
-    private static SkillOperationResult<ClaudeCodeBinding> ParseBinding (string bindingJson)
+    private static AgentDistributionOperationResult<ClaudeCodeBinding> ParseBinding (string bindingJson)
     {
         var deserialized = AgentHostBindingJson.Deserialize<ClaudeCodeBinding>(bindingJson, "Claude Code");
         if (!deserialized.IsSuccess)
@@ -117,7 +117,7 @@ internal sealed class ClaudeCodeAgentHostArtifactAdapter : IAgentHostArtifactAda
             return Failure("Claude Code agent binding maxTurns must be greater than zero.");
         }
 
-        return SkillOperationResult<ClaudeCodeBinding>.Success(binding);
+        return AgentDistributionOperationResult<ClaudeCodeBinding>.Success(binding);
     }
 
     private static bool IsOptionalTextValid (string? value)
@@ -145,13 +145,13 @@ internal sealed class ClaudeCodeAgentHostArtifactAdapter : IAgentHostArtifactAda
 
     private static string EnsureTrailingLineFeed (string instructions)
     {
-        var normalized = SkillTextNormalizer.NormalizeToLf(instructions);
+        var normalized = AgentDistributionTextNormalizer.NormalizeToLf(instructions);
         return normalized.EndsWith('\n') ? normalized : normalized + '\n';
     }
 
-    private static SkillOperationResult<ClaudeCodeBinding> Failure (string message)
+    private static AgentDistributionOperationResult<ClaudeCodeBinding> Failure (string message)
     {
-        return SkillOperationResult<ClaudeCodeBinding>.FailureResult(SkillFailureCodes.SourceInvalid, message);
+        return AgentDistributionOperationResult<ClaudeCodeBinding>.FailureResult(AgentDistributionFailureCodes.SourceInvalid, message);
     }
 
     private sealed class ClaudeCodeBinding

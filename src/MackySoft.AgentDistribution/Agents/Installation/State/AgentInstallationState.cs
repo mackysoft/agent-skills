@@ -15,7 +15,7 @@ public sealed class AgentInstallationState
     public AgentInstallationState (
         int schemaVersion,
         AgentDistributionBundleVersion bundleVersion,
-        SkillCatalogId catalogId,
+        AgentDistributionCatalogId catalogId,
         HostKind hostId,
         AgentName agentName,
         Sha256Digest agentManifestDigest,
@@ -60,7 +60,7 @@ public sealed class AgentInstallationState
     public AgentDistributionBundleVersion BundleVersion { get; }
 
     /// <summary> Gets the owning catalog identity. </summary>
-    public SkillCatalogId CatalogId { get; }
+    public AgentDistributionCatalogId CatalogId { get; }
 
     /// <summary> Gets the host that owns the managed artifacts. </summary>
     public HostKind HostId { get; }

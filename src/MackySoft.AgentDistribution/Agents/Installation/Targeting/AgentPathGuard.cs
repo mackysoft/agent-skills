@@ -7,7 +7,7 @@ namespace MackySoft.AgentDistribution.Agents.Installation.Targeting;
 internal static class AgentPathGuard
 {
     /// <summary> Validates the physical segments of an already established lexical containment relationship. </summary>
-    internal static SkillOperationResult<AbsolutePath> Validate (ContainedPath path)
+    internal static AgentDistributionOperationResult<AbsolutePath> Validate (ContainedPath path)
     {
         ArgumentNullException.ThrowIfNull(path);
         try
@@ -23,7 +23,7 @@ internal static class AgentPathGuard
             }
 
             // NOTE: The physical resolution is a snapshot. Agent contracts retain their guarded lexical path.
-            return SkillOperationResult<AbsolutePath>.Success(resolution.RequestedPath.Target);
+            return AgentDistributionOperationResult<AbsolutePath>.Success(resolution.RequestedPath.Target);
         }
         catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException or IOException or UnauthorizedAccessException)
         {
@@ -31,12 +31,12 @@ internal static class AgentPathGuard
         }
     }
 
-    private static SkillOperationResult<T> Failure<T> (string message)
+    private static AgentDistributionOperationResult<T> Failure<T> (string message)
     {
-        return SkillOperationResult<T>.FailureResult(SkillFailureCodes.PathUnsafe, message);
+        return AgentDistributionOperationResult<T>.FailureResult(AgentDistributionFailureCodes.PathUnsafe, message);
     }
 
-    private static SkillOperationResult<AbsolutePath> Failure (string message)
+    private static AgentDistributionOperationResult<AbsolutePath> Failure (string message)
     {
         return Failure<AbsolutePath>(message);
     }

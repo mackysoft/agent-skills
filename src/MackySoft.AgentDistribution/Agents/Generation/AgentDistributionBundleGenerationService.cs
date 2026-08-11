@@ -30,7 +30,7 @@ internal sealed class AgentDistributionBundleGenerationService
     }
 
     /// <summary> Reads a complete v3 source snapshot. </summary>
-    public async ValueTask<SkillOperationResult<AgentDistributionGenerationSource>> ReadSourceAsync (AbsolutePath bundleRoot, CancellationToken cancellationToken)
+    public async ValueTask<AgentDistributionOperationResult<AgentDistributionGenerationSource>> ReadSourceAsync (AbsolutePath bundleRoot, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(bundleRoot);
         var bundleResult = await bundleReader.ReadAsync(bundleRoot, cancellationToken).ConfigureAwait(false);
@@ -59,13 +59,13 @@ internal sealed class AgentDistributionBundleGenerationService
         var unsupportedNamespace = namespaceNames.FirstOrDefault(static name => name is not "agents" and not "skills");
         if (unsupportedNamespace is not null)
         {
-            return SkillOperationResult<AgentDistributionGenerationSource>.FailureResult(
-                SkillFailureCodes.SourceInvalid,
+            return AgentDistributionOperationResult<AgentDistributionGenerationSource>.FailureResult(
+                AgentDistributionFailureCodes.SourceInvalid,
                 $"v3 definitions root contains an unsupported entry: {unsupportedNamespace}");
         }
 
         var hasSkillsNamespace = namespaceNames.Contains("skills", StringComparer.Ordinal);
-        SkillOperationResult<IReadOnlyList<SkillSourceDefinition>> skillsResult;
+        AgentDistributionOperationResult<IReadOnlyList<SkillSourceDefinition>> skillsResult;
         if (hasSkillsNamespace)
         {
             var namespaceResult = ResolveNamespace(definitionsRoot, "skills");
@@ -78,7 +78,7 @@ internal sealed class AgentDistributionBundleGenerationService
         }
         else
         {
-            skillsResult = SkillOperationResult<IReadOnlyList<SkillSourceDefinition>>.Success([]);
+            skillsResult = AgentDistributionOperationResult<IReadOnlyList<SkillSourceDefinition>>.Success([]);
         }
 
         if (!skillsResult.IsSuccess)
@@ -87,7 +87,7 @@ internal sealed class AgentDistributionBundleGenerationService
         }
 
         var hasAgentsNamespace = namespaceNames.Contains("agents", StringComparer.Ordinal);
-        SkillOperationResult<IReadOnlyList<AgentSourceDefinition>> agentsResult;
+        AgentDistributionOperationResult<IReadOnlyList<AgentSourceDefinition>> agentsResult;
         if (hasAgentsNamespace)
         {
             var namespaceResult = ResolveNamespace(definitionsRoot, "agents");
@@ -100,7 +100,7 @@ internal sealed class AgentDistributionBundleGenerationService
         }
         else
         {
-            agentsResult = SkillOperationResult<IReadOnlyList<AgentSourceDefinition>>.Success([]);
+            agentsResult = AgentDistributionOperationResult<IReadOnlyList<AgentSourceDefinition>>.Success([]);
         }
 
         if (!agentsResult.IsSuccess)
@@ -110,21 +110,21 @@ internal sealed class AgentDistributionBundleGenerationService
 
         if (hasSkillsNamespace && skillsResult.Value!.Count == 0)
         {
-            return SkillOperationResult<AgentDistributionGenerationSource>.FailureResult(
-                SkillFailureCodes.SourceInvalid,
+            return AgentDistributionOperationResult<AgentDistributionGenerationSource>.FailureResult(
+                AgentDistributionFailureCodes.SourceInvalid,
                 "The v3 skills namespace must not be empty when it is present.");
         }
 
         if (hasAgentsNamespace && agentsResult.Value!.Count == 0)
         {
-            return SkillOperationResult<AgentDistributionGenerationSource>.FailureResult(
-                SkillFailureCodes.SourceInvalid,
+            return AgentDistributionOperationResult<AgentDistributionGenerationSource>.FailureResult(
+                AgentDistributionFailureCodes.SourceInvalid,
                 "The v3 agents namespace must not be empty when it is present.");
         }
 
         if (skillsResult.Value!.Count == 0 && agentsResult.Value!.Count == 0)
         {
-            return SkillOperationResult<AgentDistributionGenerationSource>.FailureResult(SkillFailureCodes.SourceInvalid, "A v3 bundle must contain at least one skill or agent definition.");
+            return AgentDistributionOperationResult<AgentDistributionGenerationSource>.FailureResult(AgentDistributionFailureCodes.SourceInvalid, "A v3 bundle must contain at least one skill or agent definition.");
         }
 
         var skillReferences = SkillSourceDependencyReferenceValidator.Validate(skillsResult.Value!);
@@ -135,7 +135,7 @@ internal sealed class AgentDistributionBundleGenerationService
 
         var agentDependencies = ValidateAgentSkillDependencies(agentsResult.Value!, skillsResult.Value!);
         return agentDependencies.IsSuccess
-            ? SkillOperationResult<AgentDistributionGenerationSource>.Success(new AgentDistributionGenerationSource(bundleResult.Value!, skillsResult.Value!, agentsResult.Value!))
+            ? AgentDistributionOperationResult<AgentDistributionGenerationSource>.Success(new AgentDistributionGenerationSource(bundleResult.Value!, skillsResult.Value!, agentsResult.Value!))
             : Failure(agentDependencies.Failure!);
     }
 
@@ -151,9 +151,9 @@ internal sealed class AgentDistributionBundleGenerationService
         return new CanonicalAgentDistributionBundle(descriptor, skills, agents);
     }
 
-    private static SkillOperationResult<AgentDistributionGenerationSource> Failure (SkillFailure failure) => SkillOperationResult<AgentDistributionGenerationSource>.FailureResult(failure.Code, failure.Message);
+    private static AgentDistributionOperationResult<AgentDistributionGenerationSource> Failure (AgentDistributionFailure failure) => AgentDistributionOperationResult<AgentDistributionGenerationSource>.FailureResult(failure.Code, failure.Message);
 
-    private static SkillOperationResult<bool> ValidateAgentSkillDependencies (
+    private static AgentDistributionOperationResult<bool> ValidateAgentSkillDependencies (
         IReadOnlyList<AgentSourceDefinition> agents,
         IReadOnlyList<SkillSourceDefinition> skills)
     {
@@ -167,16 +167,16 @@ internal sealed class AgentDistributionBundleGenerationService
                 .ToArray();
             if (missingSkills.Length != 0)
             {
-                return SkillOperationResult<bool>.FailureResult(
-                    SkillFailureCodes.SourceInvalid,
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.SourceInvalid,
                     $"agent.json references missing skills for '{agent.Metadata.AgentName.Value}': {string.Join(", ", missingSkills)}.");
             }
         }
 
-        return SkillOperationResult<bool>.Success(true);
+        return AgentDistributionOperationResult<bool>.Success(true);
     }
 
-    private static SkillOperationResult<AbsolutePath> ResolveNamespace (
+    private static AgentDistributionOperationResult<AbsolutePath> ResolveNamespace (
         AbsolutePath definitionsRoot,
         string namespaceName)
     {
@@ -186,7 +186,7 @@ internal sealed class AgentDistributionBundleGenerationService
             $"v3 {namespaceName} namespace");
     }
 
-    private static SkillOperationResult<IReadOnlyList<string>> ReadDefinitionNamespaceNames (
+    private static AgentDistributionOperationResult<IReadOnlyList<string>> ReadDefinitionNamespaceNames (
         AbsolutePath definitionsRoot,
         CancellationToken cancellationToken)
     {
@@ -200,12 +200,12 @@ internal sealed class AgentDistributionBundleGenerationService
             }
 
             names.Sort(StringComparer.Ordinal);
-            return SkillOperationResult<IReadOnlyList<string>>.Success(Array.AsReadOnly(names.ToArray()));
+            return AgentDistributionOperationResult<IReadOnlyList<string>>.Success(Array.AsReadOnly(names.ToArray()));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException or PathTooLongException)
         {
-            return SkillOperationResult<IReadOnlyList<string>>.FailureResult(
-                SkillFailureCodes.SourceInvalid,
+            return AgentDistributionOperationResult<IReadOnlyList<string>>.FailureResult(
+                AgentDistributionFailureCodes.SourceInvalid,
                 $"The v3 definitions root could not be read: {exception.Message}");
         }
     }

@@ -12,6 +12,6 @@ public sealed class HostRegistrationTests
         var result = HostRegistration.Get((HostKind)42);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.HostUnsupported, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.HostUnsupported, result.Failure!.Code);
     }
 }

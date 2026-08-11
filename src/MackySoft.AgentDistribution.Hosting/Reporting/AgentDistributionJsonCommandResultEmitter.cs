@@ -86,7 +86,7 @@ public sealed class AgentDistributionJsonCommandResultEmitter : IAgentDistributi
         public static AgentDistributionCommandEnvelope Failure (
             string product,
             string command,
-            SkillFailure failure)
+            AgentDistributionFailure failure)
         {
             return new AgentDistributionCommandEnvelope(
                 product,

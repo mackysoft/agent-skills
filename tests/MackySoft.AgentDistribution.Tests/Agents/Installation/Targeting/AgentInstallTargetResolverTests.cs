@@ -46,7 +46,7 @@ public sealed class AgentInstallTargetResolverTests
             SkillTestData.CreateAgentTargetRequest(HostKind.ClaudeCode, AgentInstallScopeKind.User, null));
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public sealed class AgentInstallTargetResolverTests
         var result = resolver.ResolveTarget(SkillTestData.CreateAgentTargetRequest(HostKind.Codex, AgentInstallScopeKind.Project, repository.FullPath, outside.FullPath));
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("SKILL_PATH_UNSAFE", result.Failure!.Code.Value);
+        Assert.Equal("AGENT_DISTRIBUTION_PATH_UNSAFE", result.Failure!.Code.Value);
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public sealed class AgentInstallTargetResolverTests
             Path.Combine(link, "agents")));
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
     }
 
     private static AgentInstallTargetResolver CreateResolver (string homeDirectory, Func<string, string?>? environment = null)

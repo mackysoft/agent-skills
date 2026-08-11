@@ -24,7 +24,7 @@ public sealed class SkillCommandValueParserTests
         var result = SkillCommandValueParser.ParseHostLiteral("generic");
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.HostUnsupported, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.HostUnsupported, result.Failure!.Code);
     }
 
     [Theory]
@@ -37,7 +37,7 @@ public sealed class SkillCommandValueParserTests
         var result = SkillCommandValueParser.ParseHostLiteral(host);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
     }
 
     [Theory]
@@ -61,16 +61,16 @@ public sealed class SkillCommandValueParserTests
         var result = SkillCommandValueParser.ParseScopeLiteral("global");
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
     }
 
     [Theory]
     [Trait("Size", "Small")]
-    [InlineData("directory", SkillExportFormat.Directory)]
-    [InlineData("ZIP", SkillExportFormat.Zip)]
+    [InlineData("directory", PackageExportFormat.Directory)]
+    [InlineData("ZIP", PackageExportFormat.Zip)]
     public void ParseExportFormatLiteral_ReturnsStableExportFormat (
         string literal,
-        SkillExportFormat expected)
+        PackageExportFormat expected)
     {
         var result = SkillCommandValueParser.ParseExportFormatLiteral(literal);
 
@@ -89,7 +89,7 @@ public sealed class SkillCommandValueParserTests
         var result = SkillCommandValueParser.ParseExportFormatLiteral(format);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
     }
 
     [Theory]

@@ -125,7 +125,7 @@ public sealed class SkillUninstallServiceTests
         var action = result.Value!.Actions.Single();
         Assert.Equal(SkillUninstallActionKind.Deleted, action.ActionKind);
         Assert.Equal(SkillTargetStateKind.VersionAhead, action.TargetState!.Kind);
-        Assert.Equal(SkillFailureCodes.InstallTargetVersionAhead, action.TargetState.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetVersionAhead, action.TargetState.Code);
         Assert.Equal(aheadPackage.Manifest.SkillBundleVersion.Value, action.TargetState.InstalledSkillBundleVersion);
         Assert.Equal(packages[0].Manifest.SkillBundleVersion.Value, action.TargetState.BundledSkillBundleVersion);
         Assert.True(Directory.Exists(skillDirectory));
@@ -270,7 +270,7 @@ public sealed class SkillUninstallServiceTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetNameCollision, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetNameCollision, result.Failure!.Code);
     }
 
     [Fact]
@@ -289,7 +289,7 @@ public sealed class SkillUninstallServiceTests
         var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages[0].Manifest.CatalogId, packages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
     }
 
     [Fact]
@@ -310,7 +310,7 @@ public sealed class SkillUninstallServiceTests
         var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages[0].Manifest.CatalogId, [packages[0], packages[1]], request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
         Assert.True(Directory.Exists(firstSkillDirectory));
         Assert.True(Directory.Exists(modifiedSkillDirectory));
     }
@@ -334,7 +334,7 @@ public sealed class SkillUninstallServiceTests
         var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages[0].Manifest.CatalogId, packages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetContentDigestMismatch, result.Failure!.Code);
         Assert.True(Directory.Exists(skillDirectory));
         Assert.Contains("Injected after planning.", File.ReadAllText(skillPath), StringComparison.Ordinal);
     }
@@ -360,7 +360,7 @@ public sealed class SkillUninstallServiceTests
         Assert.Equal(SkillUninstallActionKind.BlockedLocalModification, action.ActionKind);
         Assert.Equal(SkillBlockedReason.LocalModificationRequiresForce, action.BlockedReason);
         Assert.Equal(SkillTargetStateKind.CommonContentDrift, action.TargetState!.Kind);
-        Assert.Equal(SkillFailureCodes.InstallTargetContentDigestMismatch, action.TargetState.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetContentDigestMismatch, action.TargetState.Code);
         Assert.True(Directory.Exists(skillDirectory));
     }
 
@@ -438,7 +438,7 @@ public sealed class SkillUninstallServiceTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetFileSetMismatch, result.Failure!.Code);
         Assert.True(Directory.Exists(skillDirectory));
         Assert.Contains("Injected before planning.", File.ReadAllText(skillPath), StringComparison.Ordinal);
         Assert.True(File.Exists(lateFile));
@@ -467,7 +467,7 @@ public sealed class SkillUninstallServiceTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetFileSetMismatch, result.Failure!.Code);
         Assert.True(Directory.Exists(skillDirectory));
         Assert.Contains("Injected before planning.", File.ReadAllText(skillPath), StringComparison.Ordinal);
         Assert.True(Directory.Exists(lateDirectory));
@@ -490,7 +490,7 @@ public sealed class SkillUninstallServiceTests
         var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages[0].Manifest.CatalogId, packages, request), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetFileSetMismatch, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetFileSetMismatch, result.Failure!.Code);
         Assert.True(Directory.Exists(localDirectory));
     }
 
@@ -530,7 +530,7 @@ public sealed class SkillUninstallServiceTests
         var result = await uninstallService.UninstallAsync(new SkillUninstallInput(packages[0].Manifest.CatalogId, packages, request, force: true), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
         Assert.True(Directory.Exists(localDirectoryLink));
     }
 
@@ -558,7 +558,7 @@ public sealed class SkillUninstallServiceTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetHostConflict, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetHostConflict, result.Failure!.Code);
     }
 
     [Fact]
@@ -641,7 +641,7 @@ public sealed class SkillUninstallServiceTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
     }
 
     [Fact]
@@ -655,7 +655,7 @@ public sealed class SkillUninstallServiceTests
         var result = await remover.DeleteAsync(targetRoot, targetRoot, null, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
         Assert.True(Directory.Exists(scope.FullPath));
     }
 }

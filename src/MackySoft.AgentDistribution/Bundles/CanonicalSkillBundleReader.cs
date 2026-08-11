@@ -31,7 +31,7 @@ public sealed class CanonicalSkillBundleReader
     /// <param name="packageRoot"> The directory containing <c>bundle.json</c> and package directories. </param>
     /// <param name="cancellationToken"> The cancellation token propagated through file access. </param>
     /// <returns> The canonical bundle, or a manifest/path failure. </returns>
-    public async ValueTask<SkillOperationResult<CanonicalSkillBundle>> ReadAsync (
+    public async ValueTask<AgentDistributionOperationResult<CanonicalSkillBundle>> ReadAsync (
         AbsolutePath packageRoot,
         CancellationToken cancellationToken = default)
     {
@@ -44,8 +44,8 @@ public sealed class CanonicalSkillBundleReader
                 out var packageRootObservation,
                 out _))
         {
-            return SkillOperationResult<CanonicalSkillBundle>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
+            return AgentDistributionOperationResult<CanonicalSkillBundle>.FailureResult(
+                AgentDistributionFailureCodes.PathUnsafe,
                 $"Generated SKILL bundle root could not be inspected: {fullPackageRoot}");
         }
 
@@ -56,15 +56,15 @@ public sealed class CanonicalSkillBundleReader
 
         if (packageRootObservation.State != FileSystemEntryState.Directory)
         {
-            return SkillOperationResult<CanonicalSkillBundle>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
+            return AgentDistributionOperationResult<CanonicalSkillBundle>.FailureResult(
+                AgentDistributionFailureCodes.PathUnsafe,
                 $"Generated SKILL bundle root must be a regular directory: {fullPackageRoot}");
         }
 
         var rootFileResult = ValidateRootFiles(fullPackageRoot);
         if (!rootFileResult.IsSuccess)
         {
-            return SkillOperationResult<CanonicalSkillBundle>.FailureResult(
+            return AgentDistributionOperationResult<CanonicalSkillBundle>.FailureResult(
                 rootFileResult.Failure!.Code,
                 rootFileResult.Failure.Message);
         }
@@ -72,7 +72,7 @@ public sealed class CanonicalSkillBundleReader
         var descriptorPathResult = PackagePathResolver.ResolveRegularFile(fullPackageRoot, PackageRelativePath.Parse("bundle.json"));
         if (!descriptorPathResult.IsSuccess)
         {
-            return SkillOperationResult<CanonicalSkillBundle>.FailureResult(
+            return AgentDistributionOperationResult<CanonicalSkillBundle>.FailureResult(
                 descriptorPathResult.Failure!.Code,
                 descriptorPathResult.Failure.Message);
         }
@@ -84,7 +84,7 @@ public sealed class CanonicalSkillBundleReader
 
         var textResult = await SkillBundleFileReader.ReadUtf8WithoutByteOrderMarkAsync(
                 descriptorPathResult.Value!,
-                SkillFailureCodes.ManifestInvalid,
+                AgentDistributionFailureCodes.ManifestInvalid,
                 cancellationToken)
             .ConfigureAwait(false);
         if (!textResult.IsSuccess)
@@ -110,7 +110,7 @@ public sealed class CanonicalSkillBundleReader
         var packagesResult = await packageReader.ReadAllAsync(fullPackageRoot, cancellationToken).ConfigureAwait(false);
         if (!packagesResult.IsSuccess)
         {
-            return SkillOperationResult<CanonicalSkillBundle>.FailureResult(
+            return AgentDistributionOperationResult<CanonicalSkillBundle>.FailureResult(
                 packagesResult.Failure!.Code,
                 packagesResult.Failure.Message);
         }
@@ -118,24 +118,24 @@ public sealed class CanonicalSkillBundleReader
         return bundleFactory.CreateCanonical(new CanonicalSkillBundleCandidate(descriptor, packagesResult.Value!));
     }
 
-    private static SkillOperationResult<bool> ValidateRootFiles (AbsolutePath packageRoot)
+    private static AgentDistributionOperationResult<bool> ValidateRootFiles (AbsolutePath packageRoot)
     {
         foreach (var path in Directory.EnumerateFiles(packageRoot.Value).Order(StringComparer.Ordinal))
         {
             var fileName = Path.GetFileName(path);
             if (!string.Equals(fileName, "bundle.json", StringComparison.Ordinal))
             {
-                return SkillOperationResult<bool>.FailureResult(
-                    SkillFailureCodes.ManifestInvalid,
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.ManifestInvalid,
                     $"Generated SKILL bundle contains an unsupported root file: {fileName}");
             }
         }
 
-        return SkillOperationResult<bool>.Success(true);
+        return AgentDistributionOperationResult<bool>.Success(true);
     }
 
-    private static SkillOperationResult<CanonicalSkillBundle> Failure (string message)
+    private static AgentDistributionOperationResult<CanonicalSkillBundle> Failure (string message)
     {
-        return SkillOperationResult<CanonicalSkillBundle>.FailureResult(SkillFailureCodes.ManifestInvalid, message);
+        return AgentDistributionOperationResult<CanonicalSkillBundle>.FailureResult(AgentDistributionFailureCodes.ManifestInvalid, message);
     }
 }

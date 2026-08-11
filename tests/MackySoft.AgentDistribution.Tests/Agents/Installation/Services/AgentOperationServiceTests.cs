@@ -54,7 +54,7 @@ public sealed class AgentOperationServiceTests
             new AgentInstallInput(catalog, targets.Agent, targets.Skill));
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetUnmanaged, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetUnmanaged, result.Failure!.Code);
         Assert.False(Directory.Exists(Path.Combine(scope.FullPath, "skill-target")));
         Assert.Equal("unmanaged\n", await File.ReadAllTextAsync(Path.Combine(artifactRoot, "architect.toml")));
     }
@@ -74,7 +74,7 @@ public sealed class AgentOperationServiceTests
             new AgentInstallInput(catalog, targets.Agent, targets.Skill));
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
         Assert.False(Directory.Exists(Path.Combine(scope.FullPath, "agent-target")));
     }
 
@@ -101,7 +101,7 @@ public sealed class AgentOperationServiceTests
             new AgentUpdateInput(updatedCatalog, targets.Agent, targets.Skill, force: true));
 
         Assert.False(blocked.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetLocalModification, blocked.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetLocalModification, blocked.Failure!.Code);
         Assert.True(forced.IsSuccess, forced.Failure?.Message);
         Assert.Equal("updated\n", await File.ReadAllTextAsync(artifactPath));
     }
@@ -211,7 +211,7 @@ public sealed class AgentOperationServiceTests
             new AgentPruneInput(currentCatalog, targets.Agent));
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
         Assert.True(File.Exists(Path.Combine(install.Value!.ArtifactRoot.Value, "architect.toml")));
     }
 

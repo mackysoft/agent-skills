@@ -10,7 +10,7 @@ internal sealed class SkillManifestCandidate
     internal SkillManifestCandidate (
         int schemaVersion,
         SkillBundleVersion skillBundleVersion,
-        SkillCatalogId catalogId,
+        AgentDistributionCatalogId catalogId,
         SkillCategory category,
         SkillName skillName,
         string displayName,
@@ -85,7 +85,7 @@ internal sealed class SkillManifestCandidate
 
     internal SkillBundleVersion SkillBundleVersion { get; }
 
-    internal SkillCatalogId CatalogId { get; }
+    internal AgentDistributionCatalogId CatalogId { get; }
 
     internal SkillCategory Category { get; }
 

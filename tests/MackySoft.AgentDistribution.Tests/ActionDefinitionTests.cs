@@ -14,7 +14,7 @@ public sealed class ActionDefinitionTests
         }
 
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "action-verify");
-        scope.CreateDirectory("skills");
+        scope.CreateDirectory("agent-distribution");
         await RunProcessAsync("git", ["init", "--quiet"], scope.FullPath);
 
         var fakeBin = scope.CreateDirectory("fake-bin");
@@ -49,10 +49,10 @@ public sealed class ActionDefinitionTests
         Assert.Equal(
             [
                 "tool restore",
-                "tool run agent-distribution -- build --root ./skills --check",
+                "tool run agent-distribution -- build --root ./agent-distribution --check",
             ],
             File.ReadAllLines(dotnetLog));
-        Assert.False(Directory.Exists(scope.GetPath("skills/generated")));
+        Assert.False(Directory.Exists(scope.GetPath("agent-distribution/generated")));
     }
 
     [Fact]
@@ -65,9 +65,9 @@ public sealed class ActionDefinitionTests
         }
 
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "action-sync-changed");
-        var bundleRoot = scope.CreateDirectory("skills");
-        scope.WriteFile("skills/bundle.json", "{}\n");
-        scope.WriteFile(".gitignore", "skills/generated/\n");
+        var bundleRoot = scope.CreateDirectory("agent-distribution");
+        scope.WriteFile("agent-distribution/bundle.json", "{}\n");
+        scope.WriteFile(".gitignore", "agent-distribution/generated/\n");
         await RunProcessAsync("git", ["init", "--quiet"], scope.FullPath);
         await RunProcessAsync("git", ["switch", "-c", "main"], scope.FullPath);
         var remotePath = scope.CreateDirectory("remote.git");
@@ -104,12 +104,12 @@ public sealed class ActionDefinitionTests
         Assert.Equal(
             [
                 "tool restore",
-                "tool run agent-distribution -- build --root ./skills --check",
-                "tool run agent-distribution -- build --root ./skills",
+                "tool run agent-distribution -- build --root ./agent-distribution --check",
+                "tool run agent-distribution -- build --root ./agent-distribution",
             ],
             File.ReadAllLines(dotnetLog));
-        Assert.True(File.Exists(scope.GetPath("skills/generated/result.txt")));
-        await RunProcessAsync("git", ["check-ignore", "--no-index", "--quiet", "skills/generated/result.txt"], scope.FullPath);
+        Assert.True(File.Exists(scope.GetPath("agent-distribution/generated/result.txt")));
+        await RunProcessAsync("git", ["check-ignore", "--no-index", "--quiet", "agent-distribution/generated/result.txt"], scope.FullPath);
         Assert.Equal(
             "chore(agent-distribution): sync generated bundle\n",
             await RunProcessForOutputAsync(
@@ -128,8 +128,8 @@ public sealed class ActionDefinitionTests
         }
 
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "action-release-changed");
-        scope.CreateDirectory("skills");
-        scope.WriteFile("skills/bundle.json", "{}\n");
+        scope.CreateDirectory("agent-distribution");
+        scope.WriteFile("agent-distribution/bundle.json", "{}\n");
         await RunProcessAsync("git", ["init", "--quiet"], scope.FullPath);
         await RunProcessAsync("git", ["switch", "-c", "release/4.1.0"], scope.FullPath);
         var remotePath = scope.CreateDirectory("remote.git");
@@ -168,8 +168,8 @@ public sealed class ActionDefinitionTests
         Assert.Equal(
             [
                 "tool restore",
-                "tool run agent-distribution -- prepare-release --bundle-version 2 --root ./skills --check",
-                "tool run agent-distribution -- prepare-release --bundle-version 2 --root ./skills",
+                "tool run agent-distribution -- prepare-release --bundle-version 2 --root ./agent-distribution --check",
+                "tool run agent-distribution -- prepare-release --bundle-version 2 --root ./agent-distribution",
             ],
             File.ReadAllLines(dotnetLog));
         Assert.Equal(
@@ -190,7 +190,7 @@ public sealed class ActionDefinitionTests
         }
 
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "action-sync-current");
-        scope.CreateDirectory("skills");
+        scope.CreateDirectory("agent-distribution");
         await RunProcessAsync("git", ["init", "--quiet"], scope.FullPath);
 
         var fakeBin = scope.CreateDirectory("fake-bin");
@@ -215,7 +215,7 @@ public sealed class ActionDefinitionTests
         Assert.Equal(
             [
                 "tool restore",
-                "tool run agent-distribution -- build --root ./skills --check",
+                "tool run agent-distribution -- build --root ./agent-distribution --check",
             ],
             File.ReadAllLines(dotnetLog));
     }
@@ -230,7 +230,7 @@ public sealed class ActionDefinitionTests
         }
 
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "action-sync-staged");
-        scope.CreateDirectory("skills");
+        scope.CreateDirectory("agent-distribution");
         scope.WriteFile("notes.txt", "staged user change\n");
         await RunProcessAsync("git", ["init", "--quiet"], scope.FullPath);
         await RunProcessAsync("git", ["add", "notes.txt"], scope.FullPath);
@@ -269,10 +269,10 @@ public sealed class ActionDefinitionTests
         Assert.Equal(
             [
                 "tool restore",
-                "tool run agent-distribution -- build --root ./skills --check",
+                "tool run agent-distribution -- build --root ./agent-distribution --check",
             ],
             File.ReadAllLines(dotnetLog));
-        Assert.False(Directory.Exists(scope.GetPath("skills/generated")));
+        Assert.False(Directory.Exists(scope.GetPath("agent-distribution/generated")));
         Assert.Equal("notes.txt\n", await RunProcessForOutputAsync("git", ["diff", "--cached", "--name-only"], scope.FullPath));
     }
 
@@ -286,7 +286,7 @@ public sealed class ActionDefinitionTests
         }
 
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "action-sync-pull-request");
-        scope.CreateDirectory("skills");
+        scope.CreateDirectory("agent-distribution");
         await RunProcessAsync("git", ["init", "--quiet"], scope.FullPath);
 
         var fakeBin = scope.CreateDirectory("fake-bin");
@@ -324,10 +324,10 @@ public sealed class ActionDefinitionTests
         Assert.Equal(
             [
                 "tool restore",
-                "tool run agent-distribution -- build --root ./skills --check",
+                "tool run agent-distribution -- build --root ./agent-distribution --check",
             ],
             File.ReadAllLines(dotnetLog));
-        Assert.False(Directory.Exists(scope.GetPath("skills/generated")));
+        Assert.False(Directory.Exists(scope.GetPath("agent-distribution/generated")));
         Assert.False(File.Exists(outputPath));
     }
 
@@ -347,8 +347,8 @@ public sealed class ActionDefinitionTests
     {
         var environment = new Dictionary<string, string>
         {
-            ["ACTION_BUNDLE_ROOT"] = scope.GetPath("skills"),
-            ["AGENT_DISTRIBUTION_ROOT"] = "skills",
+            ["ACTION_BUNDLE_ROOT"] = scope.GetPath("agent-distribution"),
+            ["AGENT_DISTRIBUTION_ROOT"] = "agent-distribution",
             ["DOTNET_LOG"] = dotnetLog,
             ["PATH"] = fakeBin + Path.PathSeparator + (Environment.GetEnvironmentVariable("PATH") ?? string.Empty),
         };

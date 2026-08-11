@@ -6,7 +6,7 @@ namespace MackySoft.AgentDistribution.Installation.Requests;
 internal static class SkillPackageInputSnapshot
 {
     internal static IReadOnlyList<CanonicalSkillPackage> Create (
-        SkillCatalogId catalogId,
+        AgentDistributionCatalogId catalogId,
         IReadOnlyList<CanonicalSkillPackage> packages,
         string parameterName)
     {

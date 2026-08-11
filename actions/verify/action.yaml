@@ -5,7 +5,7 @@ inputs:
   root:
     description: Bundle root relative to the GitHub workspace. It must resolve inside a checked-out Git worktree.
     required: false
-    default: skills
+    default: agent-distribution
 
 runs:
   using: composite

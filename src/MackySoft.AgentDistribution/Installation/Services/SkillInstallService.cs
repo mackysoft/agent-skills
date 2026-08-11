@@ -49,8 +49,8 @@ public sealed class SkillInstallService
     /// <param name="request"> The install request. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The install result or failure. </returns>
-    public ValueTask<SkillOperationResult<SkillInstallResult>> InstallAsync (
-        SkillCatalogId catalogId,
+    public ValueTask<AgentDistributionOperationResult<SkillInstallResult>> InstallAsync (
+        AgentDistributionCatalogId catalogId,
         IReadOnlyList<CanonicalSkillPackage> packages,
         SkillInstallRequest request,
         CancellationToken cancellationToken = default)
@@ -62,7 +62,7 @@ public sealed class SkillInstallService
     /// <param name="input"> The install input. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The install result or failure. </returns>
-    public async ValueTask<SkillOperationResult<SkillInstallResult>> InstallAsync (
+    public async ValueTask<AgentDistributionOperationResult<SkillInstallResult>> InstallAsync (
         SkillInstallInput input,
         CancellationToken cancellationToken = default)
     {
@@ -72,16 +72,16 @@ public sealed class SkillInstallService
         var planResult = await PlanAsync(input, cancellationToken).ConfigureAwait(false);
         if (!planResult.IsSuccess)
         {
-            return SkillOperationResult<SkillInstallResult>.FailureResult(planResult.Failure!.Code, planResult.Failure.Message);
+            return AgentDistributionOperationResult<SkillInstallResult>.FailureResult(planResult.Failure!.Code, planResult.Failure.Message);
         }
 
         return input.DryRun
-            ? SkillOperationResult<SkillInstallResult>.Success(planResult.Value!.CreateResult(dryRun: true))
+            ? AgentDistributionOperationResult<SkillInstallResult>.Success(planResult.Value!.CreateResult(dryRun: true))
             : await ApplyAsync(planResult.Value!, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary> Creates the complete SKILL install plan without writing package files. </summary>
-    internal async ValueTask<SkillOperationResult<SkillInstallPlan>> PlanAsync (
+    internal async ValueTask<AgentDistributionOperationResult<SkillInstallPlan>> PlanAsync (
         SkillInstallInput input,
         CancellationToken cancellationToken)
     {
@@ -96,7 +96,7 @@ public sealed class SkillInstallService
             .ConfigureAwait(false);
         if (!targetResult.IsSuccess)
         {
-            return SkillOperationResult<SkillInstallPlan>.FailureResult(targetResult.Failure!.Code, targetResult.Failure.Message);
+            return AgentDistributionOperationResult<SkillInstallPlan>.FailureResult(targetResult.Failure!.Code, targetResult.Failure.Message);
         }
 
         var target = targetResult.Value!;
@@ -112,7 +112,7 @@ public sealed class SkillInstallService
             var skillDirectoryResult = PackagePathResolver.ResolveUnderRoot(targetRoot, skillDirectoryPath);
             if (!skillDirectoryResult.IsSuccess)
             {
-                return SkillOperationResult<SkillInstallPlan>.FailureResult(skillDirectoryResult.Failure!.Code, skillDirectoryResult.Failure.Message);
+                return AgentDistributionOperationResult<SkillInstallPlan>.FailureResult(skillDirectoryResult.Failure!.Code, skillDirectoryResult.Failure.Message);
             }
 
             var skillDirectory = skillDirectoryResult.Value!;
@@ -120,7 +120,7 @@ public sealed class SkillInstallService
             var stateResult = await targetStateAnalyzer.AnalyzeAsync(package, skillDirectory, target.Host, cancellationToken).ConfigureAwait(false);
             if (!stateResult.IsSuccess)
             {
-                return SkillOperationResult<SkillInstallPlan>.FailureResult(stateResult.Failure!.Code, stateResult.Failure.Message);
+                return AgentDistributionOperationResult<SkillInstallPlan>.FailureResult(stateResult.Failure!.Code, stateResult.Failure.Message);
             }
 
             var actionPlanResult = await CreateActionPlanAsync(
@@ -134,17 +134,17 @@ public sealed class SkillInstallService
                 .ConfigureAwait(false);
             if (!actionPlanResult.IsSuccess)
             {
-                return SkillOperationResult<SkillInstallPlan>.FailureResult(actionPlanResult.Failure!.Code, actionPlanResult.Failure.Message);
+                return AgentDistributionOperationResult<SkillInstallPlan>.FailureResult(actionPlanResult.Failure!.Code, actionPlanResult.Failure.Message);
             }
 
             actionPlans.Add(actionPlanResult.Value!);
         }
 
-        return SkillOperationResult<SkillInstallPlan>.Success(new SkillInstallPlan(input, target, actionPlans));
+        return AgentDistributionOperationResult<SkillInstallPlan>.Success(new SkillInstallPlan(input, target, actionPlans));
     }
 
     /// <summary> Applies a previously created SKILL install plan without resolving the target or rebuilding actions. </summary>
-    internal async ValueTask<SkillOperationResult<SkillInstallResult>> ApplyAsync (
+    internal async ValueTask<AgentDistributionOperationResult<SkillInstallResult>> ApplyAsync (
         SkillInstallPlan plan,
         CancellationToken cancellationToken)
     {
@@ -173,7 +173,7 @@ public sealed class SkillInstallService
                 .ConfigureAwait(false);
             if (!preconditionResult.IsSuccess)
             {
-                return SkillOperationResult<SkillInstallResult>.FailureResult(preconditionResult.Failure!.Code, preconditionResult.Failure.Message);
+                return AgentDistributionOperationResult<SkillInstallResult>.FailureResult(preconditionResult.Failure!.Code, preconditionResult.Failure.Message);
             }
         }
 
@@ -202,14 +202,14 @@ public sealed class SkillInstallService
                 .ConfigureAwait(false);
             if (!writeResult.IsSuccess)
             {
-                return SkillOperationResult<SkillInstallResult>.FailureResult(writeResult.Failure!.Code, writeResult.Failure.Message);
+                return AgentDistributionOperationResult<SkillInstallResult>.FailureResult(writeResult.Failure!.Code, writeResult.Failure.Message);
             }
         }
 
-        return SkillOperationResult<SkillInstallResult>.Success(plan.CreateResult(dryRun: false));
+        return AgentDistributionOperationResult<SkillInstallResult>.Success(plan.CreateResult(dryRun: false));
     }
 
-    private async ValueTask<SkillOperationResult<SkillInstallActionPlan>> CreateActionPlanAsync (
+    private async ValueTask<AgentDistributionOperationResult<SkillInstallActionPlan>> CreateActionPlanAsync (
         CanonicalSkillPackage package,
         HostKind host,
         AbsolutePath skillDirectory,
@@ -232,7 +232,7 @@ public sealed class SkillInstallService
                         cancellationToken)
                     .ConfigureAwait(false);
             case SkillTargetStateKind.Current:
-                return SkillOperationResult<SkillInstallActionPlan>.Success(new SkillInstallActionPlan(
+                return AgentDistributionOperationResult<SkillInstallActionPlan>.Success(new SkillInstallActionPlan(
                     new SkillInstallAction(
                         identity,
                         SkillInstallActionKind.NoOp,
@@ -283,8 +283,8 @@ public sealed class SkillInstallService
             case SkillTargetStateKind.Unmanaged:
                 if (!input.DryRun)
                 {
-                    return SkillOperationResult<SkillInstallActionPlan>.FailureResult(
-                        SkillFailureCodes.InstallTargetUnmanaged,
+                    return AgentDistributionOperationResult<SkillInstallActionPlan>.FailureResult(
+                        AgentDistributionFailureCodes.InstallTargetUnmanaged,
                         $"Target skill directory is not managed by Agent Distribution: {skillDirectory}");
                 }
 
@@ -301,7 +301,7 @@ public sealed class SkillInstallService
                     .ConfigureAwait(false);
             case SkillTargetStateKind.NameCollision:
             case SkillTargetStateKind.HostConflict:
-                return SkillOperationResult<SkillInstallActionPlan>.FailureResult(
+                return AgentDistributionOperationResult<SkillInstallActionPlan>.FailureResult(
                     ResolveStateFailureCode(state),
                     state.Failure?.Message ?? $"Target skill directory cannot be overwritten: {skillDirectory}");
             default:
@@ -309,7 +309,7 @@ public sealed class SkillInstallService
         }
     }
 
-    private async ValueTask<SkillOperationResult<SkillInstallActionPlan>> CreateManagedMismatchActionPlanAsync (
+    private async ValueTask<AgentDistributionOperationResult<SkillInstallActionPlan>> CreateManagedMismatchActionPlanAsync (
         CanonicalSkillPackage package,
         HostKind host,
         AbsolutePath skillDirectory,
@@ -352,12 +352,12 @@ public sealed class SkillInstallService
         var message = state.Kind == SkillTargetStateKind.VersionAhead
             ? $"Target skill directory was generated from a newer SKILL bundle. Use --force to overwrite: {skillDirectory}"
             : $"Target skill directory differs from the canonical package. Use --force to overwrite: {skillDirectory}";
-        return SkillOperationResult<SkillInstallActionPlan>.FailureResult(
+        return AgentDistributionOperationResult<SkillInstallActionPlan>.FailureResult(
             ResolveStateFailureCode(state),
             message);
     }
 
-    private async ValueTask<SkillOperationResult<SkillInstallActionPlan>> CreateWriteActionPlanAsync (
+    private async ValueTask<AgentDistributionOperationResult<SkillInstallActionPlan>> CreateWriteActionPlanAsync (
         CanonicalSkillPackage package,
         HostKind host,
         AbsolutePath skillDirectory,
@@ -370,11 +370,11 @@ public sealed class SkillInstallService
         var packagePlanResult = await CreateMaterializedPackageWritePlanAsync(package, host, skillDirectory, input.PrintDiff, cancellationToken).ConfigureAwait(false);
         if (!packagePlanResult.IsSuccess)
         {
-            return SkillOperationResult<SkillInstallActionPlan>.FailureResult(packagePlanResult.Failure!.Code, packagePlanResult.Failure.Message);
+            return AgentDistributionOperationResult<SkillInstallActionPlan>.FailureResult(packagePlanResult.Failure!.Code, packagePlanResult.Failure.Message);
         }
 
         var packagePlan = packagePlanResult.Value!;
-        return SkillOperationResult<SkillInstallActionPlan>.Success(new SkillInstallActionPlan(
+        return AgentDistributionOperationResult<SkillInstallActionPlan>.Success(new SkillInstallActionPlan(
                 new SkillInstallAction(
                     identity,
                     actionKind,
@@ -388,7 +388,7 @@ public sealed class SkillInstallService
             packagePlan.TargetSnapshot));
     }
 
-    private async ValueTask<SkillOperationResult<SkillInstallActionPlan>> CreateBlockedActionPlanAsync (
+    private async ValueTask<AgentDistributionOperationResult<SkillInstallActionPlan>> CreateBlockedActionPlanAsync (
         CanonicalSkillPackage package,
         HostKind host,
         AbsolutePath skillDirectory,
@@ -401,7 +401,7 @@ public sealed class SkillInstallService
     {
         var packagePlanResult = await CreateMaterializedPackagePlanAsync(package, host, skillDirectory, printDiff, cancellationToken).ConfigureAwait(false);
         return packagePlanResult.IsSuccess
-            ? SkillOperationResult<SkillInstallActionPlan>.Success(new SkillInstallActionPlan(
+            ? AgentDistributionOperationResult<SkillInstallActionPlan>.Success(new SkillInstallActionPlan(
                 new SkillInstallAction(
                     identity,
                     actionKind,
@@ -413,10 +413,10 @@ public sealed class SkillInstallService
                 package,
                 null,
                 null))
-            : SkillOperationResult<SkillInstallActionPlan>.FailureResult(packagePlanResult.Failure!.Code, packagePlanResult.Failure.Message);
+            : AgentDistributionOperationResult<SkillInstallActionPlan>.FailureResult(packagePlanResult.Failure!.Code, packagePlanResult.Failure.Message);
     }
 
-    private async ValueTask<SkillOperationResult<bool>> ValidateWritePreconditionAsync (
+    private async ValueTask<AgentDistributionOperationResult<bool>> ValidateWritePreconditionAsync (
         CanonicalSkillPackage package,
         HostKind host,
         AbsolutePath skillDirectory,
@@ -428,7 +428,7 @@ public sealed class SkillInstallService
         var stateResult = await targetStateAnalyzer.AnalyzeAsync(package, skillDirectory, host, cancellationToken).ConfigureAwait(false);
         if (!stateResult.IsSuccess)
         {
-            return SkillOperationResult<bool>.FailureResult(stateResult.Failure!.Code, stateResult.Failure.Message);
+            return AgentDistributionOperationResult<bool>.FailureResult(stateResult.Failure!.Code, stateResult.Failure.Message);
         }
 
         var state = stateResult.Value!;
@@ -441,11 +441,11 @@ public sealed class SkillInstallService
         if (isValid)
         {
             return targetSnapshot is null
-                ? SkillOperationResult<bool>.Success(true)
+                ? AgentDistributionOperationResult<bool>.Success(true)
                 : await ValidateTargetSnapshotAsync(skillDirectory, targetSnapshot, state, cancellationToken).ConfigureAwait(false);
         }
 
-        return SkillOperationResult<bool>.FailureResult(
+        return AgentDistributionOperationResult<bool>.FailureResult(
             ResolveChangedTargetFailureCode(state),
             $"Target skill directory changed after planning; refusing to write: {skillDirectory}");
     }
@@ -460,19 +460,19 @@ public sealed class SkillInstallService
         };
     }
 
-    private static SkillFailureCode ResolveChangedTargetFailureCode (SkillInstalledTargetState state)
+    private static AgentDistributionFailureCode ResolveChangedTargetFailureCode (SkillInstalledTargetState state)
     {
         return state.Kind == SkillTargetStateKind.Unmanaged
-            ? SkillFailureCodes.InstallTargetUnmanaged
+            ? AgentDistributionFailureCodes.InstallTargetUnmanaged
             : ResolveStateFailureCode(state);
     }
 
-    private static SkillFailureCode ResolveStateFailureCode (SkillInstalledTargetState state)
+    private static AgentDistributionFailureCode ResolveStateFailureCode (SkillInstalledTargetState state)
     {
-        return state.Failure?.Code ?? SkillFailureCodes.InstallTargetDigestMismatch;
+        return state.Failure?.Code ?? AgentDistributionFailureCodes.InstallTargetDigestMismatch;
     }
 
-    private async ValueTask<SkillOperationResult<bool>> ValidateTargetSnapshotAsync (
+    private async ValueTask<AgentDistributionOperationResult<bool>> ValidateTargetSnapshotAsync (
         AbsolutePath skillDirectory,
         SkillActionTargetSnapshot expectedSnapshot,
         SkillInstalledTargetState state,
@@ -481,20 +481,20 @@ public sealed class SkillInstallService
         var snapshotResult = await diffBuilder.BuildTargetSnapshotAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
         if (!snapshotResult.IsSuccess)
         {
-            return SkillOperationResult<bool>.FailureResult(snapshotResult.Failure!.Code, snapshotResult.Failure.Message);
+            return AgentDistributionOperationResult<bool>.FailureResult(snapshotResult.Failure!.Code, snapshotResult.Failure.Message);
         }
 
         if (snapshotResult.Value == expectedSnapshot)
         {
-            return SkillOperationResult<bool>.Success(true);
+            return AgentDistributionOperationResult<bool>.Success(true);
         }
 
-        return SkillOperationResult<bool>.FailureResult(
+        return AgentDistributionOperationResult<bool>.FailureResult(
             ResolveChangedTargetFailureCode(state),
             $"Target skill directory changed after planning; refusing to write: {skillDirectory}");
     }
 
-    private async ValueTask<SkillOperationResult<SkillMaterializedPackagePlan>> CreateMaterializedPackagePlanAsync (
+    private async ValueTask<AgentDistributionOperationResult<SkillMaterializedPackagePlan>> CreateMaterializedPackagePlanAsync (
         CanonicalSkillPackage package,
         HostKind host,
         AbsolutePath skillDirectory,
@@ -504,16 +504,16 @@ public sealed class SkillInstallService
         var materializedResult = materializationService.Materialize(package, host);
         if (!materializedResult.IsSuccess)
         {
-            return SkillOperationResult<SkillMaterializedPackagePlan>.FailureResult(materializedResult.Failure!.Code, materializedResult.Failure.Message);
+            return AgentDistributionOperationResult<SkillMaterializedPackagePlan>.FailureResult(materializedResult.Failure!.Code, materializedResult.Failure.Message);
         }
 
         var diffResult = await diffBuilder.BuildOptionalAsync(skillDirectory, materializedResult.Value!, printDiff, cancellationToken).ConfigureAwait(false);
         return diffResult.IsSuccess
-            ? SkillOperationResult<SkillMaterializedPackagePlan>.Success(new SkillMaterializedPackagePlan(materializedResult.Value!, diffResult.Value!))
-            : SkillOperationResult<SkillMaterializedPackagePlan>.FailureResult(diffResult.Failure!.Code, diffResult.Failure.Message);
+            ? AgentDistributionOperationResult<SkillMaterializedPackagePlan>.Success(new SkillMaterializedPackagePlan(materializedResult.Value!, diffResult.Value!))
+            : AgentDistributionOperationResult<SkillMaterializedPackagePlan>.FailureResult(diffResult.Failure!.Code, diffResult.Failure.Message);
     }
 
-    private async ValueTask<SkillOperationResult<SkillMaterializedPackageWritePlan>> CreateMaterializedPackageWritePlanAsync (
+    private async ValueTask<AgentDistributionOperationResult<SkillMaterializedPackageWritePlan>> CreateMaterializedPackageWritePlanAsync (
         CanonicalSkillPackage package,
         HostKind host,
         AbsolutePath skillDirectory,
@@ -523,17 +523,17 @@ public sealed class SkillInstallService
         var materializedResult = materializationService.Materialize(package, host);
         if (!materializedResult.IsSuccess)
         {
-            return SkillOperationResult<SkillMaterializedPackageWritePlan>.FailureResult(materializedResult.Failure!.Code, materializedResult.Failure.Message);
+            return AgentDistributionOperationResult<SkillMaterializedPackageWritePlan>.FailureResult(materializedResult.Failure!.Code, materializedResult.Failure.Message);
         }
 
         var changePlanResult = await diffBuilder.BuildReplacementPlanAsync(skillDirectory, materializedResult.Value!, printDiff, cancellationToken).ConfigureAwait(false);
         if (!changePlanResult.IsSuccess)
         {
-            return SkillOperationResult<SkillMaterializedPackageWritePlan>.FailureResult(changePlanResult.Failure!.Code, changePlanResult.Failure.Message);
+            return AgentDistributionOperationResult<SkillMaterializedPackageWritePlan>.FailureResult(changePlanResult.Failure!.Code, changePlanResult.Failure.Message);
         }
 
         var changePlan = changePlanResult.Value!;
-        return SkillOperationResult<SkillMaterializedPackageWritePlan>.Success(new SkillMaterializedPackageWritePlan(
+        return AgentDistributionOperationResult<SkillMaterializedPackageWritePlan>.Success(new SkillMaterializedPackageWritePlan(
             materializedResult.Value!,
             changePlan.Diffs,
             changePlan.FileChanges.FileChanges,

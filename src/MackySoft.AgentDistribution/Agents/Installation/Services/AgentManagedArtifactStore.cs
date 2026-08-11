@@ -17,7 +17,7 @@ internal sealed class AgentManagedArtifactStore
         this.stateStore = stateStore ?? throw new ArgumentNullException(nameof(stateStore));
     }
 
-    public async ValueTask<SkillOperationResult<bool>> WriteAsync (
+    public async ValueTask<AgentDistributionOperationResult<bool>> WriteAsync (
         AgentReconciliationPlan plan,
         AgentResolvedTarget target,
         CancellationToken cancellationToken)
@@ -26,7 +26,7 @@ internal sealed class AgentManagedArtifactStore
         var statePathResult = statePathResolver.Resolve(target, plan.Package.Manifest.CatalogId, plan.Package.Manifest.AgentName);
         if (!statePathResult.IsSuccess)
         {
-            return SkillOperationResult<bool>.FailureResult(statePathResult.Failure!.Code, statePathResult.Failure.Message);
+            return AgentDistributionOperationResult<bool>.FailureResult(statePathResult.Failure!.Code, statePathResult.Failure.Message);
         }
 
         // NOTE: A new install records ownership first so an interrupted first write remains recoverable as managed drift.
@@ -53,10 +53,10 @@ internal sealed class AgentManagedArtifactStore
             return await stateStore.WriteAsync(statePathResult.Value!, plan.DesiredState, cancellationToken).ConfigureAwait(false);
         }
 
-        return SkillOperationResult<bool>.Success(true);
+        return AgentDistributionOperationResult<bool>.Success(true);
     }
 
-    public async ValueTask<SkillOperationResult<bool>> DeleteAsync (
+    public async ValueTask<AgentDistributionOperationResult<bool>> DeleteAsync (
         AgentInstallationState state,
         AbsolutePath statePath,
         AgentResolvedTarget target,
@@ -71,13 +71,13 @@ internal sealed class AgentManagedArtifactStore
                 var pathResult = AgentPathGuard.Validate(ContainedPath.Create(target.ArtifactRoot, artifact.Path.RootRelativePath));
                 if (!pathResult.IsSuccess)
                 {
-                    return SkillOperationResult<bool>.FailureResult(pathResult.Failure!.Code, pathResult.Failure.Message);
+                    return AgentDistributionOperationResult<bool>.FailureResult(pathResult.Failure!.Code, pathResult.Failure.Message);
                 }
 
                 if (Directory.Exists(pathResult.Value!.Value))
                 {
-                    return SkillOperationResult<bool>.FailureResult(
-                        SkillFailureCodes.InstallTargetUnmanaged,
+                    return AgentDistributionOperationResult<bool>.FailureResult(
+                        AgentDistributionFailureCodes.InstallTargetUnmanaged,
                         $"Managed agent artifact path is occupied by a directory: {artifact.Path}.");
                 }
 
@@ -85,17 +85,17 @@ internal sealed class AgentManagedArtifactStore
             }
 
             File.Delete(statePath.Value);
-            return SkillOperationResult<bool>.Success(true);
+            return AgentDistributionOperationResult<bool>.Success(true);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return SkillOperationResult<bool>.FailureResult(
-                SkillFailureCodes.InstallTargetWriteFailed,
+            return AgentDistributionOperationResult<bool>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetWriteFailed,
                 $"Could not delete managed agent installation: {exception.Message}");
         }
     }
 
-    private static async ValueTask<SkillOperationResult<bool>> WriteArtifactAsync (
+    private static async ValueTask<AgentDistributionOperationResult<bool>> WriteArtifactAsync (
         AgentResolvedTarget target,
         AgentPlannedArtifact artifact,
         CancellationToken cancellationToken)
@@ -103,19 +103,19 @@ internal sealed class AgentManagedArtifactStore
         var pathResult = AgentPathGuard.Validate(ContainedPath.Create(target.ArtifactRoot, artifact.RelativePath.RootRelativePath));
         if (!pathResult.IsSuccess)
         {
-            return SkillOperationResult<bool>.FailureResult(pathResult.Failure!.Code, pathResult.Failure.Message);
+            return AgentDistributionOperationResult<bool>.FailureResult(pathResult.Failure!.Code, pathResult.Failure.Message);
         }
 
         var targetPath = pathResult.Value!;
         try
         {
             await CanonicalTextFilePublisher.PublishAsync(targetPath, artifact.Content, cancellationToken).ConfigureAwait(false);
-            return SkillOperationResult<bool>.Success(true);
+            return AgentDistributionOperationResult<bool>.Success(true);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return SkillOperationResult<bool>.FailureResult(
-                SkillFailureCodes.InstallTargetWriteFailed,
+            return AgentDistributionOperationResult<bool>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetWriteFailed,
                 $"Could not write managed agent artifact '{artifact.RelativePath}': {exception.Message}");
         }
     }

@@ -19,7 +19,7 @@ public sealed class SkillPruneInput
     /// <param name="SelectedCategories"> Optional category filter for installed managed targets. Empty or <see langword="null" /> means every category. </param>
     /// <param name="SelectedSkillNames"> Optional exact skill-name filter for installed target directories. Empty or <see langword="null" /> means every skill name. </param>
     public SkillPruneInput (
-        SkillCatalogId CatalogId,
+        AgentDistributionCatalogId CatalogId,
         IReadOnlyList<CanonicalSkillPackage> CurrentCatalogPackages,
         SkillInstallRequest TargetRequest,
         bool DryRun = false,
@@ -60,7 +60,7 @@ public sealed class SkillPruneInput
     }
 
     /// <summary> Gets the product-owned catalog whose removed managed installs may be pruned. </summary>
-    public SkillCatalogId CatalogId { get; }
+    public AgentDistributionCatalogId CatalogId { get; }
 
     /// <summary> Gets an immutable snapshot of the complete current canonical package set. </summary>
     public IReadOnlyList<CanonicalSkillPackage> CurrentCatalogPackages { get; }

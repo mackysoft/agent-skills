@@ -61,7 +61,7 @@ public sealed class AgentDistributionBundleBuildServiceTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
         Assert.False(Directory.Exists(scope.GetPath("generated")));
     }
 
@@ -91,7 +91,7 @@ public sealed class AgentDistributionBundleBuildServiceTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public sealed class AgentDistributionBundleBuildServiceTests
         var result = await AgentDistributionBundleBuildService.CreateDefault().BuildAsync(scope.FullPath, check: false, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
         Assert.False(Directory.Exists(scope.GetPath("generated")));
     }
 
@@ -116,7 +116,7 @@ public sealed class AgentDistributionBundleBuildServiceTests
         var result = await AgentDistributionBundleBuildService.CreateDefault().BuildAsync(scope.FullPath, check: false, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.HostUnsupported, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.HostUnsupported, result.Failure!.Code);
         Assert.False(Directory.Exists(scope.GetPath("generated")));
     }
 
@@ -133,7 +133,7 @@ public sealed class AgentDistributionBundleBuildServiceTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
         Assert.Contains("reserved", result.Failure.Message, StringComparison.Ordinal);
         Assert.False(Directory.Exists(scope.GetPath("generated")));
     }
@@ -152,7 +152,7 @@ public sealed class AgentDistributionBundleBuildServiceTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
         Assert.Contains("unsupported entry", result.Failure.Message, StringComparison.Ordinal);
         Assert.False(Directory.Exists(scope.GetPath("generated")));
     }

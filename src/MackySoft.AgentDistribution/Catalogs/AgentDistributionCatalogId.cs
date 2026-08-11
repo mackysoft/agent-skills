@@ -3,17 +3,17 @@ using MackySoft.AgentDistribution.Shared;
 
 namespace MackySoft.AgentDistribution.Catalogs;
 
-/// <summary> Represents a stable SKILL catalog ID. </summary>
-public sealed record SkillCatalogId
+/// <summary> Represents a stable Agent Distribution catalog ID. </summary>
+public sealed record AgentDistributionCatalogId
 {
-    /// <summary> Initializes a new instance of the <see cref="SkillCatalogId" /> class. </summary>
+    /// <summary> Initializes a new instance of the <see cref="AgentDistributionCatalogId" /> class. </summary>
     /// <param name="value"> The stable catalog ID.</param>
     /// <exception cref="ArgumentException"> Thrown when <paramref name="value" /> is not a safe catalog ID. </exception>
-    public SkillCatalogId (string value)
+    public AgentDistributionCatalogId (string value)
     {
         if (!IsSafeLiteral(value))
         {
-            throw new ArgumentException($"SKILL catalog ID is invalid: {value}", nameof(value));
+            throw new ArgumentException($"Agent Distribution catalog ID is invalid: {value}", nameof(value));
         }
 
         Value = value;
@@ -28,11 +28,11 @@ public sealed record SkillCatalogId
     /// <returns> <see langword="true" /> when <paramref name="value" /> is safe; otherwise <see langword="false" />. </returns>
     public static bool TryCreate (
         string? value,
-        [NotNullWhen(true)] out SkillCatalogId? catalogId)
+        [NotNullWhen(true)] out AgentDistributionCatalogId? catalogId)
     {
         if (value is not null && IsSafeLiteral(value))
         {
-            catalogId = new SkillCatalogId(value);
+            catalogId = new AgentDistributionCatalogId(value);
             return true;
         }
 
@@ -71,7 +71,7 @@ public sealed record SkillCatalogId
 
             if (segmentStart)
             {
-                if (!SkillIdentifierValidator.IsAsciiLowercaseLetterOrDigit(character))
+                if (!AgentDistributionIdentifierValidator.IsAsciiLowercaseLetterOrDigit(character))
                 {
                     return false;
                 }
@@ -81,7 +81,7 @@ public sealed record SkillCatalogId
                 continue;
             }
 
-            if (character != '-' && !SkillIdentifierValidator.IsAsciiLowercaseLetterOrDigit(character))
+            if (character != '-' && !AgentDistributionIdentifierValidator.IsAsciiLowercaseLetterOrDigit(character))
             {
                 return false;
             }

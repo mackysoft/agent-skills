@@ -1,7 +1,7 @@
 namespace MackySoft.AgentDistribution.Shared;
 
-/// <summary> Normalizes SKILL text content for deterministic generation and digest input. </summary>
-internal static class SkillTextNormalizer
+/// <summary> Normalizes package text content for deterministic generation and digest input. </summary>
+internal static class AgentDistributionTextNormalizer
 {
     /// <summary> Converts CRLF and CR line endings to LF. </summary>
     /// <param name="text"> The text to normalize. </param>

@@ -79,7 +79,7 @@ public sealed class SkillManifestCandidateTests
         Assert.Throws<ArgumentNullException>(() => new SkillManifestCandidate(
             SkillManifest.CurrentSchemaVersion,
             new SkillBundleVersion(1),
-            new SkillCatalogId("com.mackysoft.agent-distribution"),
+            new AgentDistributionCatalogId("com.mackysoft.agent-distribution"),
             new SkillCategory("core"),
             new SkillName("sample-skill"),
             "Sample Skill",
@@ -131,7 +131,7 @@ public sealed class SkillManifestCandidateTests
         return new SkillManifestCandidate(
             schemaVersion,
             new SkillBundleVersion(1),
-            new SkillCatalogId("com.mackysoft.agent-distribution"),
+            new AgentDistributionCatalogId("com.mackysoft.agent-distribution"),
             new SkillCategory("core"),
             skillName,
             displayName,

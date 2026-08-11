@@ -71,7 +71,7 @@ public sealed class SkillManifestJsonSerializerTests
         var result = serializer.TryDeserialize(json);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public sealed class SkillManifestJsonSerializerTests
             """);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
     }
 
     private static SkillManifest CreateManifest ()
@@ -109,7 +109,7 @@ public sealed class SkillManifestJsonSerializerTests
         var manifest = new SkillManifestCandidate(
             SkillManifest.CurrentSchemaVersion,
             new SkillBundleVersion(1),
-            new SkillCatalogId("com.mackysoft.agent-distribution"),
+            new AgentDistributionCatalogId("com.mackysoft.agent-distribution"),
             new SkillCategory("core"),
             new SkillName("sample-skill"),
             "Sample Skill",

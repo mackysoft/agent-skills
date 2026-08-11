@@ -58,9 +58,8 @@ public static class AgentDistributionCommandRuntimeServiceCollectionExtensions
         this IServiceCollection services,
         AgentDistributionCommandRuntimeConfiguration configuration)
     {
-        services.AddSingleton(_ => new BundledSkillPackageRootResolver(configuration.PackageBaseDirectory));
         services.AddSingleton(_ => new BundledAgentDistributionPackageRootResolver(configuration.PackageBaseDirectory));
-        services.AddSingleton<SkillDigestCalculator>();
+        services.AddSingleton<PackageContentDigestCalculator>();
         services.AddSingleton<SkillManifestJsonSerializer>();
         services.AddSingleton<SkillManifestDigestCalculator>();
         services.AddSingleton<SkillManifest.Factory>();

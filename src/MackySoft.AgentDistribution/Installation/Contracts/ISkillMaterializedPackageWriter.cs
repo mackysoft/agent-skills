@@ -15,11 +15,11 @@ public interface ISkillMaterializedPackageWriter
     /// <param name="precondition"> The optional validation invoked for the target path immediately before move and for the moved tree before commit. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> Success when the directory is atomically replaced; otherwise a failure. </returns>
-    ValueTask<SkillOperationResult<bool>> WriteAsync (
+    ValueTask<AgentDistributionOperationResult<bool>> WriteAsync (
         AbsolutePath targetRoot,
         AbsolutePath skillDirectory,
         SkillMaterializedPackage materializedPackage,
         SkillMaterializedPackageWriteMode writeMode,
-        Func<AbsolutePath, CancellationToken, ValueTask<SkillOperationResult<bool>>>? precondition,
+        Func<AbsolutePath, CancellationToken, ValueTask<AgentDistributionOperationResult<bool>>>? precondition,
         CancellationToken cancellationToken = default);
 }

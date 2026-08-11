@@ -13,7 +13,7 @@ public sealed class SkillBundleDescriptor
     /// <param name="bundleDigest"> The SHA-256 digest of the version-independent canonical package set. </param>
     public SkillBundleDescriptor (
         int schemaVersion,
-        SkillCatalogId catalogId,
+        AgentDistributionCatalogId catalogId,
         SkillBundleVersion skillBundleVersion,
         Sha256Digest bundleDigest)
     {
@@ -32,7 +32,7 @@ public sealed class SkillBundleDescriptor
     public int SchemaVersion { get; }
 
     /// <summary> Gets the catalog ID shared by every package in the bundle. </summary>
-    public SkillCatalogId CatalogId { get; }
+    public AgentDistributionCatalogId CatalogId { get; }
 
     /// <summary> Gets the release version shared by every package in the bundle. </summary>
     public SkillBundleVersion SkillBundleVersion { get; }

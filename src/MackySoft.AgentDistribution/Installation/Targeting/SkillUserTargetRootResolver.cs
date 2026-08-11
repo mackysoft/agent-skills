@@ -23,7 +23,7 @@ public sealed class SkillUserTargetRootResolver
     /// <summary> Resolves the default user-scope SKILL root for one host. </summary>
     /// <param name="descriptor"> The host descriptor that owns the user-root policy. </param>
     /// <returns> The full host SKILL root or an environment failure. </returns>
-    public SkillOperationResult<AbsolutePath> ResolveDefaultTargetRoot (SkillHostDescriptor descriptor)
+    public AgentDistributionOperationResult<AbsolutePath> ResolveDefaultTargetRoot (SkillHostDescriptor descriptor)
     {
         ArgumentNullException.ThrowIfNull(descriptor);
 
@@ -35,13 +35,13 @@ public sealed class SkillUserTargetRootResolver
             {
                 if (!AbsolutePath.TryParse(environmentRoot, out var absoluteEnvironmentRoot, out _))
                 {
-                    return SkillOperationResult<AbsolutePath>.FailureResult(
-                        SkillFailureCodes.UserTargetUnavailable,
+                    return AgentDistributionOperationResult<AbsolutePath>.FailureResult(
+                        AgentDistributionFailureCodes.UserTargetUnavailable,
                         $"Environment variable '{policy.EnvironmentVariableName}' must contain an absolute path for SKILL user scope.");
                 }
 
                 return policy.EnvironmentVariableChildDirectory is null
-                    ? SkillOperationResult<AbsolutePath>.Success(absoluteEnvironmentRoot)
+                    ? AgentDistributionOperationResult<AbsolutePath>.Success(absoluteEnvironmentRoot)
                     : ResolveUnderRoot(absoluteEnvironmentRoot, policy.EnvironmentVariableChildDirectory);
             }
         }
@@ -49,28 +49,28 @@ public sealed class SkillUserTargetRootResolver
         return ResolveUnderHome(policy.HomeRelativeDirectory);
     }
 
-    private SkillOperationResult<AbsolutePath> ResolveUnderHome (RootRelativePath homeRelativeDirectory)
+    private AgentDistributionOperationResult<AbsolutePath> ResolveUnderHome (RootRelativePath homeRelativeDirectory)
     {
         var homeDirectory = homeDirectoryProvider();
         if (string.IsNullOrWhiteSpace(homeDirectory))
         {
-            return SkillOperationResult<AbsolutePath>.FailureResult(
-                SkillFailureCodes.UserTargetUnavailable,
+            return AgentDistributionOperationResult<AbsolutePath>.FailureResult(
+                AgentDistributionFailureCodes.UserTargetUnavailable,
                 "Could not resolve the current user's home directory for SKILL user scope.");
         }
 
         if (!AbsolutePath.TryParse(homeDirectory, out var absoluteHomeDirectory, out _))
         {
-            return SkillOperationResult<AbsolutePath>.FailureResult(
-                SkillFailureCodes.UserTargetUnavailable,
+            return AgentDistributionOperationResult<AbsolutePath>.FailureResult(
+                AgentDistributionFailureCodes.UserTargetUnavailable,
                 "Current user's home directory must be an absolute path for SKILL user scope.");
         }
 
         return ResolveUnderRoot(absoluteHomeDirectory, homeRelativeDirectory);
     }
 
-    private static SkillOperationResult<AbsolutePath> ResolveUnderRoot (AbsolutePath root, RootRelativePath relativePath)
+    private static AgentDistributionOperationResult<AbsolutePath> ResolveUnderRoot (AbsolutePath root, RootRelativePath relativePath)
     {
-        return SkillOperationResult<AbsolutePath>.Success(ContainedPath.Create(root, relativePath).Target);
+        return AgentDistributionOperationResult<AbsolutePath>.Success(ContainedPath.Create(root, relativePath).Target);
     }
 }

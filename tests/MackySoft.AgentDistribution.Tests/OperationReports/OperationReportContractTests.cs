@@ -206,7 +206,7 @@ public sealed class OperationReportContractTests
                     SkillBlockedReason.LocalModificationRequiresForce,
                     new SkillTargetStateReport(new SkillActionTargetState(
                         SkillTargetStateKind.CommonContentDrift,
-                        SkillFailureCodes.InstallTargetContentDigestMismatch,
+                        AgentDistributionFailureCodes.InstallTargetContentDigestMismatch,
                         "Content drift.",
                         fileSet: null,
                         installedSkillBundleVersion: null,
@@ -236,7 +236,7 @@ public sealed class OperationReportContractTests
             HostKind.Codex,
             [],
             [],
-            SkillExportFormat.Zip,
+            PackageExportFormat.Zip,
             AbsolutePath.Parse(Path.Combine(TargetRoot, "skills.zip")),
             [],
             0,
@@ -293,7 +293,7 @@ public sealed class OperationReportContractTests
             HostKind.Codex,
             [],
             [],
-            (SkillExportFormat)42,
+            (PackageExportFormat)42,
             AbsolutePath.Parse(Path.GetFullPath("target")),
             [],
             0,
@@ -346,7 +346,7 @@ public sealed class OperationReportContractTests
     {
         var state = new SkillActionTargetState(
             SkillTargetStateKind.FileSetDrift,
-            SkillFailureCodes.InstallTargetFileSetMismatch,
+            AgentDistributionFailureCodes.InstallTargetFileSetMismatch,
             "File-set drift.",
             new SkillActionTargetFileSet([PackageRelativePath.Parse("missing.md")], [], []),
             installedSkillBundleVersion: null,

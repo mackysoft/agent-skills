@@ -8,7 +8,7 @@ public sealed class AgentDistributionCommandResult
     private AgentDistributionCommandResult (
         string command,
         object? payload,
-        SkillFailure? failure,
+        AgentDistributionFailure? failure,
         int exitCode)
     {
         Command = command;
@@ -24,7 +24,7 @@ public sealed class AgentDistributionCommandResult
     public object? Payload { get; }
 
     /// <summary> Gets the structured failure when the command could not produce a payload. </summary>
-    public SkillFailure? Failure { get; }
+    public AgentDistributionFailure? Failure { get; }
 
     /// <summary> Gets the process exit code recommended by the standard command runtime. </summary>
     public int ExitCode { get; }
@@ -54,7 +54,7 @@ public sealed class AgentDistributionCommandResult
     /// <returns> The failed command result. </returns>
     public static AgentDistributionCommandResult FailureResult (
         string command,
-        SkillFailure failure)
+        AgentDistributionFailure failure)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(command);
         ArgumentNullException.ThrowIfNull(failure);

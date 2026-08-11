@@ -31,7 +31,7 @@ public sealed class AgentPruneService
     }
 
     /// <summary> Deletes only same-catalog orphan agents whose managed artifacts are clean, unless force allows local drift. </summary>
-    public async ValueTask<SkillOperationResult<AgentPruneResult>> PruneAsync (
+    public async ValueTask<AgentDistributionOperationResult<AgentPruneResult>> PruneAsync (
         AgentPruneInput input,
         CancellationToken cancellationToken = default)
     {
@@ -54,7 +54,7 @@ public sealed class AgentPruneService
 
         if (!Directory.Exists(catalogDirectoryResult.Value!.Value))
         {
-            return SkillOperationResult<AgentPruneResult>.Success(new AgentPruneResult(
+            return AgentDistributionOperationResult<AgentPruneResult>.Success(new AgentPruneResult(
                 target.ArtifactRoot,
                 target.StateRoot,
                 [],
@@ -82,8 +82,8 @@ public sealed class AgentPruneService
 
                 if (preconditionResult.Value!.Kind != plan.TargetState.Kind || !string.Equals(preconditionResult.Value.Detail, plan.TargetState.Detail, StringComparison.Ordinal))
                 {
-                    return SkillOperationResult<AgentPruneResult>.FailureResult(
-                        SkillFailureCodes.InstallTargetWriteFailed,
+                    return AgentDistributionOperationResult<AgentPruneResult>.FailureResult(
+                        AgentDistributionFailureCodes.InstallTargetWriteFailed,
                         $"Custom-agent target changed after prune planning: {plan.Action.AgentName.Value}.");
                 }
             }
@@ -98,7 +98,7 @@ public sealed class AgentPruneService
             }
         }
 
-        return SkillOperationResult<AgentPruneResult>.Success(new AgentPruneResult(
+        return AgentDistributionOperationResult<AgentPruneResult>.Success(new AgentPruneResult(
             target.ArtifactRoot,
             target.StateRoot,
             plans.Select(static plan => plan.Action).ToArray(),
@@ -106,7 +106,7 @@ public sealed class AgentPruneService
             input.Force));
     }
 
-    private async ValueTask<SkillOperationResult<IReadOnlyList<AgentRemovalPlan>>> CreatePlansAsync (
+    private async ValueTask<AgentDistributionOperationResult<IReadOnlyList<AgentRemovalPlan>>> CreatePlansAsync (
         AgentPruneInput input,
         AgentResolvedTarget target,
         AbsolutePath catalogDirectory,
@@ -125,8 +125,8 @@ public sealed class AgentPruneService
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return SkillOperationResult<IReadOnlyList<AgentRemovalPlan>>.FailureResult(
-                SkillFailureCodes.InstallTargetReadFailed,
+            return AgentDistributionOperationResult<IReadOnlyList<AgentRemovalPlan>>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetReadFailed,
                 $"Could not enumerate installed agent state: {exception.Message}");
         }
 
@@ -136,7 +136,7 @@ public sealed class AgentPruneService
             var readResult = await stateStore.ReadAsync(statePath, cancellationToken).ConfigureAwait(false);
             if (!readResult.IsSuccess)
             {
-                return SkillOperationResult<IReadOnlyList<AgentRemovalPlan>>.FailureResult(readResult.Failure!.Code, readResult.Failure.Message);
+                return AgentDistributionOperationResult<IReadOnlyList<AgentRemovalPlan>>.FailureResult(readResult.Failure!.Code, readResult.Failure.Message);
             }
 
             var state = readResult.Value!.State;
@@ -149,8 +149,8 @@ public sealed class AgentPruneService
             {
                 if (managedPaths.TryGetValue(artifact.Path, out var owner))
                 {
-                    return SkillOperationResult<IReadOnlyList<AgentRemovalPlan>>.FailureResult(
-                        SkillFailureCodes.ManifestInvalid,
+                    return AgentDistributionOperationResult<IReadOnlyList<AgentRemovalPlan>>.FailureResult(
+                        AgentDistributionFailureCodes.ManifestInvalid,
                         $"Managed agent states for '{owner.Value}' and '{state.AgentName.Value}' own the same artifact: {artifact.Path}.");
                 }
 
@@ -197,7 +197,7 @@ public sealed class AgentPruneService
                 var inspectResult = await targetInspector.InspectOwnedStateAsync(state, target, cancellationToken).ConfigureAwait(false);
                 if (!inspectResult.IsSuccess)
                 {
-                    return SkillOperationResult<IReadOnlyList<AgentRemovalPlan>>.FailureResult(inspectResult.Failure!.Code, inspectResult.Failure.Message);
+                    return AgentDistributionOperationResult<IReadOnlyList<AgentRemovalPlan>>.FailureResult(inspectResult.Failure!.Code, inspectResult.Failure.Message);
                 }
 
                 targetState = inspectResult.Value!;
@@ -219,7 +219,7 @@ public sealed class AgentPruneService
                 new AgentRemovalAction(state.AgentName, actionKind, targetState.Kind, targetState.Detail)));
         }
 
-        return SkillOperationResult<IReadOnlyList<AgentRemovalPlan>>.Success(Array.AsReadOnly(plans.ToArray()));
+        return AgentDistributionOperationResult<IReadOnlyList<AgentRemovalPlan>>.Success(Array.AsReadOnly(plans.ToArray()));
     }
 
     private static bool MatchesSelection (AgentInstallationState state, AgentPruneInput input)
@@ -227,8 +227,8 @@ public sealed class AgentPruneService
         return input.SelectedAgentNames.Count == 0 || input.SelectedAgentNames.Contains(state.AgentName);
     }
 
-    private static SkillOperationResult<AgentPruneResult> Failure (SkillFailure failure)
+    private static AgentDistributionOperationResult<AgentPruneResult> Failure (AgentDistributionFailure failure)
     {
-        return SkillOperationResult<AgentPruneResult>.FailureResult(failure.Code, failure.Message);
+        return AgentDistributionOperationResult<AgentPruneResult>.FailureResult(failure.Code, failure.Message);
     }
 }

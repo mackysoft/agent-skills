@@ -21,12 +21,12 @@ public sealed class SkillMaterializedPackageWriter : ISkillMaterializedPackageWr
     }
 
     /// <inheritdoc />
-    public async ValueTask<SkillOperationResult<bool>> WriteAsync (
+    public async ValueTask<AgentDistributionOperationResult<bool>> WriteAsync (
         AbsolutePath targetRoot,
         AbsolutePath skillDirectory,
         SkillMaterializedPackage materializedPackage,
         SkillMaterializedPackageWriteMode writeMode,
-        Func<AbsolutePath, CancellationToken, ValueTask<SkillOperationResult<bool>>>? precondition,
+        Func<AbsolutePath, CancellationToken, ValueTask<AgentDistributionOperationResult<bool>>>? precondition,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(targetRoot);
@@ -37,14 +37,14 @@ public sealed class SkillMaterializedPackageWriter : ISkillMaterializedPackageWr
         var skillDirectoryResult = PackagePathResolver.ResolveUnderRoot(targetRoot, skillDirectory);
         if (!skillDirectoryResult.IsSuccess)
         {
-            return SkillOperationResult<bool>.FailureResult(skillDirectoryResult.Failure!.Code, skillDirectoryResult.Failure.Message);
+            return AgentDistributionOperationResult<bool>.FailureResult(skillDirectoryResult.Failure!.Code, skillDirectoryResult.Failure.Message);
         }
 
         var resolvedSkillDirectory = skillDirectoryResult.Value!;
         if (!resolvedSkillDirectory.TryGetParent(out var parentDirectory))
         {
-            return SkillOperationResult<bool>.FailureResult(
-                SkillFailureCodes.InstallTargetWriteFailed,
+            return AgentDistributionOperationResult<bool>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetWriteFailed,
                 $"Skill directory parent could not be resolved: {resolvedSkillDirectory}");
         }
 
@@ -53,7 +53,7 @@ public sealed class SkillMaterializedPackageWriter : ISkillMaterializedPackageWr
             ContainedPath.Create(parentDirectory, RootRelativePath.Parse(".agent-distribution-skill-transactions")).Target);
         if (!transactionRootResult.IsSuccess)
         {
-            return SkillOperationResult<bool>.FailureResult(transactionRootResult.Failure!.Code, transactionRootResult.Failure.Message);
+            return AgentDistributionOperationResult<bool>.FailureResult(transactionRootResult.Failure!.Code, transactionRootResult.Failure.Message);
         }
 
         var transactionRoot = transactionRootResult.Value!;
@@ -64,7 +64,7 @@ public sealed class SkillMaterializedPackageWriter : ISkillMaterializedPackageWr
                 RootRelativePath.Parse($"{Path.GetFileName(resolvedSkillDirectory.Value)}.staging.{Guid.NewGuid():N}")).Target);
         if (!stagingDirectoryResult.IsSuccess)
         {
-            return SkillOperationResult<bool>.FailureResult(stagingDirectoryResult.Failure!.Code, stagingDirectoryResult.Failure.Message);
+            return AgentDistributionOperationResult<bool>.FailureResult(stagingDirectoryResult.Failure!.Code, stagingDirectoryResult.Failure.Message);
         }
 
         var backupContainerResult = PackagePathResolver.ResolveUnderRoot(
@@ -74,7 +74,7 @@ public sealed class SkillMaterializedPackageWriter : ISkillMaterializedPackageWr
                 RootRelativePath.Parse($"{Path.GetFileName(resolvedSkillDirectory.Value)}.backup.{Guid.NewGuid():N}")).Target);
         if (!backupContainerResult.IsSuccess)
         {
-            return SkillOperationResult<bool>.FailureResult(backupContainerResult.Failure!.Code, backupContainerResult.Failure.Message);
+            return AgentDistributionOperationResult<bool>.FailureResult(backupContainerResult.Failure!.Code, backupContainerResult.Failure.Message);
         }
 
         var backupDirectoryResult = PackagePathResolver.ResolveUnderRoot(
@@ -84,7 +84,7 @@ public sealed class SkillMaterializedPackageWriter : ISkillMaterializedPackageWr
                 RootRelativePath.Parse(Path.GetFileName(resolvedSkillDirectory.Value))).Target);
         if (!backupDirectoryResult.IsSuccess)
         {
-            return SkillOperationResult<bool>.FailureResult(backupDirectoryResult.Failure!.Code, backupDirectoryResult.Failure.Message);
+            return AgentDistributionOperationResult<bool>.FailureResult(backupDirectoryResult.Failure!.Code, backupDirectoryResult.Failure.Message);
         }
 
         var stagingDirectory = stagingDirectoryResult.Value!;
@@ -99,13 +99,13 @@ public sealed class SkillMaterializedPackageWriter : ISkillMaterializedPackageWr
             var transactionRootGuard = SkillPackageTransactionPathGuard.ValidateCreatedDirectory(targetRoot, transactionRoot);
             if (!transactionRootGuard.IsSuccess)
             {
-                return SkillOperationResult<bool>.FailureResult(transactionRootGuard.Failure!.Code, transactionRootGuard.Failure.Message);
+                return AgentDistributionOperationResult<bool>.FailureResult(transactionRootGuard.Failure!.Code, transactionRootGuard.Failure.Message);
             }
 
             var lockResult = SkillPackageTransactionLock.Acquire(targetRoot, transactionRoot);
             if (!lockResult.IsSuccess)
             {
-                return SkillOperationResult<bool>.FailureResult(lockResult.Failure!.Code, lockResult.Failure.Message);
+                return AgentDistributionOperationResult<bool>.FailureResult(lockResult.Failure!.Code, lockResult.Failure.Message);
             }
 
             using var transactionLock = lockResult.Value!;
@@ -113,7 +113,7 @@ public sealed class SkillMaterializedPackageWriter : ISkillMaterializedPackageWr
             var stagingDirectoryGuard = SkillPackageTransactionPathGuard.ValidateCreatedDirectory(targetRoot, stagingDirectory);
             if (!stagingDirectoryGuard.IsSuccess)
             {
-                return SkillOperationResult<bool>.FailureResult(stagingDirectoryGuard.Failure!.Code, stagingDirectoryGuard.Failure.Message);
+                return AgentDistributionOperationResult<bool>.FailureResult(stagingDirectoryGuard.Failure!.Code, stagingDirectoryGuard.Failure.Message);
             }
 
             foreach (var file in materializedPackage.Files)
@@ -125,7 +125,7 @@ public sealed class SkillMaterializedPackageWriter : ISkillMaterializedPackageWr
                     ContainedPath.Create(resolvedSkillDirectory, file.RelativePath.RootRelativePath).Target);
                 if (!finalPathResult.IsSuccess)
                 {
-                    return SkillOperationResult<bool>.FailureResult(finalPathResult.Failure!.Code, finalPathResult.Failure.Message);
+                    return AgentDistributionOperationResult<bool>.FailureResult(finalPathResult.Failure!.Code, finalPathResult.Failure.Message);
                 }
 
                 var stagingPathResult = PackagePathResolver.ResolveUnderRoot(
@@ -133,7 +133,7 @@ public sealed class SkillMaterializedPackageWriter : ISkillMaterializedPackageWr
                     ContainedPath.Create(stagingDirectory, file.RelativePath.RootRelativePath).Target);
                 if (!stagingPathResult.IsSuccess)
                 {
-                    return SkillOperationResult<bool>.FailureResult(stagingPathResult.Failure!.Code, stagingPathResult.Failure.Message);
+                    return AgentDistributionOperationResult<bool>.FailureResult(stagingPathResult.Failure!.Code, stagingPathResult.Failure.Message);
                 }
 
                 await CanonicalTextFilePublisher.PublishAsync(stagingPathResult.Value!, file.Content, cancellationToken).ConfigureAwait(false);
@@ -145,22 +145,22 @@ public sealed class SkillMaterializedPackageWriter : ISkillMaterializedPackageWr
                 var preconditionResult = await precondition(resolvedSkillDirectory, cancellationToken).ConfigureAwait(false);
                 if (!preconditionResult.IsSuccess)
                 {
-                    return SkillOperationResult<bool>.FailureResult(preconditionResult.Failure!.Code, preconditionResult.Failure.Message);
+                    return AgentDistributionOperationResult<bool>.FailureResult(preconditionResult.Failure!.Code, preconditionResult.Failure.Message);
                 }
             }
 
             var targetExists = directoryOperations.Exists(resolvedSkillDirectory);
             if (writeMode == SkillMaterializedPackageWriteMode.CreateNew && targetExists)
             {
-                return SkillOperationResult<bool>.FailureResult(
-                    SkillFailureCodes.InstallTargetDigestMismatch,
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.InstallTargetDigestMismatch,
                     $"Target skill directory changed after planning; refusing to write: {resolvedSkillDirectory}");
             }
 
             if (writeMode == SkillMaterializedPackageWriteMode.ReplaceExisting && !targetExists)
             {
-                return SkillOperationResult<bool>.FailureResult(
-                    SkillFailureCodes.InstallTargetDigestMismatch,
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.InstallTargetDigestMismatch,
                     $"Target skill directory changed after planning; refusing to write: {resolvedSkillDirectory}");
             }
 
@@ -170,7 +170,7 @@ public sealed class SkillMaterializedPackageWriter : ISkillMaterializedPackageWr
                 var backupContainerGuard = SkillPackageTransactionPathGuard.ValidateCreatedDirectory(targetRoot, backupContainer);
                 if (!backupContainerGuard.IsSuccess)
                 {
-                    return SkillOperationResult<bool>.FailureResult(backupContainerGuard.Failure!.Code, backupContainerGuard.Failure.Message);
+                    return AgentDistributionOperationResult<bool>.FailureResult(backupContainerGuard.Failure!.Code, backupContainerGuard.Failure.Message);
                 }
 
                 directoryOperations.Move(resolvedSkillDirectory, backupDirectory);
@@ -187,12 +187,12 @@ public sealed class SkillMaterializedPackageWriter : ISkillMaterializedPackageWr
                         }
                         catch (Exception restoreException) when (restoreException is IOException or UnauthorizedAccessException)
                         {
-                            return SkillOperationResult<bool>.FailureResult(
-                                SkillFailureCodes.InstallTargetWriteFailed,
+                            return AgentDistributionOperationResult<bool>.FailureResult(
+                                AgentDistributionFailureCodes.InstallTargetWriteFailed,
                                 $"Failed to write SKILL package atomically and restore backup: {resolvedSkillDirectory}. Backup remains at: {backupDirectory}. {restoreException.Message}");
                         }
 
-                        return SkillOperationResult<bool>.FailureResult(movedTargetResult.Failure!.Code, movedTargetResult.Failure.Message);
+                        return AgentDistributionOperationResult<bool>.FailureResult(movedTargetResult.Failure!.Code, movedTargetResult.Failure.Message);
                     }
                 }
             }
@@ -201,7 +201,7 @@ public sealed class SkillMaterializedPackageWriter : ISkillMaterializedPackageWr
             committed = true;
             DeleteDirectoryBestEffort(backupDirectory);
 
-            return SkillOperationResult<bool>.Success(true);
+            return AgentDistributionOperationResult<bool>.Success(true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -213,8 +213,8 @@ public sealed class SkillMaterializedPackageWriter : ISkillMaterializedPackageWr
                 }
                 catch (Exception restoreException) when (restoreException is IOException or UnauthorizedAccessException)
                 {
-                    return SkillOperationResult<bool>.FailureResult(
-                        SkillFailureCodes.InstallTargetWriteFailed,
+                    return AgentDistributionOperationResult<bool>.FailureResult(
+                        AgentDistributionFailureCodes.InstallTargetWriteFailed,
                         $"Failed to write SKILL package atomically and restore backup: {resolvedSkillDirectory}. Backup remains at: {backupDirectory}. {restoreException.Message}");
                 }
             }
@@ -222,8 +222,8 @@ public sealed class SkillMaterializedPackageWriter : ISkillMaterializedPackageWr
             var backupMessage = !committed && movedExistingToBackup && directoryOperations.Exists(backupDirectory)
                 ? $" Backup remains at: {backupDirectory}."
                 : string.Empty;
-            return SkillOperationResult<bool>.FailureResult(
-                SkillFailureCodes.InstallTargetWriteFailed,
+            return AgentDistributionOperationResult<bool>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetWriteFailed,
                 $"Failed to write SKILL package atomically: {resolvedSkillDirectory}.{backupMessage} {ex.Message}");
         }
         finally

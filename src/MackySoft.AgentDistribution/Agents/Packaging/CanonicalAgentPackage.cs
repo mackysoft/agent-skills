@@ -8,7 +8,7 @@ namespace MackySoft.AgentDistribution.Agents.Packaging;
 public sealed class CanonicalAgentPackage
 {
     /// <summary> Initializes a canonical package after validating its manifest and files. </summary>
-    internal CanonicalAgentPackage (AgentManifest manifest, IReadOnlyList<PackageTextFile> files, AgentManifestJsonSerializer serializer, SkillDigestCalculator digestCalculator)
+    internal CanonicalAgentPackage (AgentManifest manifest, IReadOnlyList<PackageTextFile> files, AgentManifestJsonSerializer serializer, PackageContentDigestCalculator digestCalculator)
     {
         Manifest = manifest ?? throw new ArgumentNullException(nameof(manifest));
         ArgumentNullException.ThrowIfNull(files);

@@ -28,7 +28,7 @@ public sealed class SkillInstalledTargetStateTests
     [Trait("Size", "Small")]
     public void Blocking_RejectsFailureThatDoesNotMatchKind ()
     {
-        var failure = SkillFailure.Create(SkillFailureCodes.InstallTargetHostConflict, "Host conflict.");
+        var failure = AgentDistributionFailure.Create(AgentDistributionFailureCodes.InstallTargetHostConflict, "Host conflict.");
 
         Assert.Throws<ArgumentException>(() => SkillInstalledTargetState.Blocking(
             SkillTargetStateKind.Unmanaged,
@@ -39,7 +39,7 @@ public sealed class SkillInstalledTargetStateTests
     [Trait("Size", "Small")]
     public void Drift_RejectsFileSetDriftKind ()
     {
-        var failure = SkillFailure.Create(SkillFailureCodes.InstallTargetFileSetMismatch, "File-set drift.");
+        var failure = AgentDistributionFailure.Create(AgentDistributionFailureCodes.InstallTargetFileSetMismatch, "File-set drift.");
 
         Assert.Throws<ArgumentOutOfRangeException>(() => SkillInstalledTargetState.Drift(
             SkillTargetStateKind.FileSetDrift,
@@ -51,7 +51,7 @@ public sealed class SkillInstalledTargetStateTests
     [Trait("Size", "Small")]
     public void FileSetDrift_RejectsFileSetWithoutChangedPaths ()
     {
-        var failure = SkillFailure.Create(SkillFailureCodes.InstallTargetFileSetMismatch, "File-set drift.");
+        var failure = AgentDistributionFailure.Create(AgentDistributionFailureCodes.InstallTargetFileSetMismatch, "File-set drift.");
         var emptyFileSet = new SkillInstalledTargetFileSet([], [], []);
 
         Assert.Throws<ArgumentException>(() => SkillInstalledTargetState.FileSetDrift(
@@ -64,7 +64,7 @@ public sealed class SkillInstalledTargetStateTests
     [Trait("Size", "Small")]
     public void VersionFactories_RejectInvalidVersionRelation ()
     {
-        var failure = SkillFailure.Create(SkillFailureCodes.InstallTargetVersionAhead, "Version ahead.");
+        var failure = AgentDistributionFailure.Create(AgentDistributionFailureCodes.InstallTargetVersionAhead, "Version ahead.");
 
         Assert.Throws<ArgumentException>(() => SkillInstalledTargetState.VersionAhead(
             failure,
@@ -79,7 +79,7 @@ public sealed class SkillInstalledTargetStateTests
     [Trait("Size", "Small")]
     public void Blocking_RejectsStateNotProducedByInstalledTargetAnalyzer ()
     {
-        var failure = SkillFailure.Create(SkillFailureCodes.InstallTargetRemovedFromCatalog, "Removed from catalog.");
+        var failure = AgentDistributionFailure.Create(AgentDistributionFailureCodes.InstallTargetRemovedFromCatalog, "Removed from catalog.");
 
         Assert.Throws<ArgumentOutOfRangeException>(() => SkillInstalledTargetState.Blocking(
             SkillTargetStateKind.RemovedFromCatalog,
@@ -90,8 +90,8 @@ public sealed class SkillInstalledTargetStateTests
     [Trait("Size", "Small")]
     public void Factories_CreateOnlyTheirCompleteStateShape ()
     {
-        var driftFailure = SkillFailure.Create(SkillFailureCodes.InstallTargetContentDigestMismatch, "Content drift.");
-        var blockingFailure = SkillFailure.Create(SkillFailureCodes.InstallTargetUnmanaged, "Unmanaged target.");
+        var driftFailure = AgentDistributionFailure.Create(AgentDistributionFailureCodes.InstallTargetContentDigestMismatch, "Content drift.");
+        var blockingFailure = AgentDistributionFailure.Create(AgentDistributionFailureCodes.InstallTargetUnmanaged, "Unmanaged target.");
 
         var drift = SkillInstalledTargetState.Drift(
             SkillTargetStateKind.CommonContentDrift,
@@ -111,7 +111,7 @@ public sealed class SkillInstalledTargetStateTests
     [Trait("Size", "Small")]
     public void CleanOutdated_AllowsSameVersionWithChangedCanonicalContent ()
     {
-        var failure = SkillFailure.Create(SkillFailureCodes.InstallTargetOutdated, "Canonical content changed.");
+        var failure = AgentDistributionFailure.Create(AgentDistributionFailureCodes.InstallTargetOutdated, "Canonical content changed.");
 
         var state = SkillInstalledTargetState.CleanOutdated(
             failure,

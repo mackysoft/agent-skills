@@ -20,10 +20,10 @@ internal sealed class MutatingSkillInstalledPackageRemover : ISkillInstalledPack
     }
 
     /// <inheritdoc />
-    public ValueTask<SkillOperationResult<bool>> DeleteAsync (
+    public ValueTask<AgentDistributionOperationResult<bool>> DeleteAsync (
         AbsolutePath targetRoot,
         AbsolutePath skillDirectory,
-        Func<AbsolutePath, CancellationToken, ValueTask<SkillOperationResult<bool>>>? precondition,
+        Func<AbsolutePath, CancellationToken, ValueTask<AgentDistributionOperationResult<bool>>>? precondition,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();

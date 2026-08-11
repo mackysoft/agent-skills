@@ -71,7 +71,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var result = await reader.ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
         Assert.Contains("<category>/<skill>", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -86,7 +86,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var result = await reader.ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
         Assert.Contains("category", result.Failure.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -101,7 +101,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var result = await reader.ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
         Assert.Contains("does not contain any definitions", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -117,7 +117,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var result = await reader.ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
         Assert.Contains("duplicate skill directory name across categories", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -132,7 +132,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -146,7 +146,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -160,7 +160,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -174,7 +174,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -199,7 +199,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -215,7 +215,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -229,7 +229,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -275,7 +275,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
         Assert.Contains("top-level heading", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -308,7 +308,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -322,7 +322,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -336,7 +336,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -350,7 +350,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var result = await reader.ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
         Assert.Contains("dependency was not found", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -366,7 +366,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var result = await reader.ReadAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
         Assert.Contains("dependency cycle", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -382,7 +382,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -397,7 +397,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -411,7 +411,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -434,7 +434,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -458,7 +458,7 @@ public sealed class SkillSourceDefinitionReaderTests
         var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     private static string WriteMinimalDefinition (

@@ -21,10 +21,10 @@ public sealed class SkillDoctorDiagnosticTests
     [Trait("Size", "Small")]
     public void Error_WithFailureCode_CreatesErrorDiagnostic ()
     {
-        var diagnostic = SkillDoctorDiagnostic.Error(SkillFailureCodes.ManifestInvalid, "Broken.", new SkillName("sample-skill"));
+        var diagnostic = SkillDoctorDiagnostic.Error(AgentDistributionFailureCodes.ManifestInvalid, "Broken.", new SkillName("sample-skill"));
 
         Assert.Equal(SkillDoctorSeverity.Error, diagnostic.Severity);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, diagnostic.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, diagnostic.Code);
         Assert.Equal("Broken.", diagnostic.Message);
         Assert.Equal("sample-skill", diagnostic.SkillName!.Value);
     }

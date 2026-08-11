@@ -9,21 +9,21 @@ public static class SkillNameLiteralParser
     /// <param name="selectedSkillNames"> The exact SKILL name literals selected by the caller. </param>
     /// <returns> An immutable snapshot of the normalized selected SKILL names, or an input failure. Duplicate values are removed after their first occurrence. </returns>
     /// <exception cref="ArgumentNullException"> Thrown when <paramref name="selectedSkillNames" /> is <see langword="null" />. </exception>
-    public static SkillOperationResult<IReadOnlyList<SkillName>> ParseSelectedSkillNames (IReadOnlyList<string> selectedSkillNames)
+    public static AgentDistributionOperationResult<IReadOnlyList<SkillName>> ParseSelectedSkillNames (IReadOnlyList<string> selectedSkillNames)
     {
         ArgumentNullException.ThrowIfNull(selectedSkillNames);
 
         if (selectedSkillNames.Count == 0)
         {
-            return SkillOperationResult<IReadOnlyList<SkillName>>.FailureResult(
-                SkillFailureCodes.InputInvalid,
+            return AgentDistributionOperationResult<IReadOnlyList<SkillName>>.FailureResult(
+                AgentDistributionFailureCodes.InputInvalid,
                 "At least one SKILL name must be selected.");
         }
 
         return ParseOptionalSkillNames(selectedSkillNames);
     }
 
-    internal static SkillOperationResult<IReadOnlyList<SkillName>> ParseOptionalSkillNames (IReadOnlyList<string> selectedSkillNames)
+    internal static AgentDistributionOperationResult<IReadOnlyList<SkillName>> ParseOptionalSkillNames (IReadOnlyList<string> selectedSkillNames)
     {
         ArgumentNullException.ThrowIfNull(selectedSkillNames);
 
@@ -33,8 +33,8 @@ public static class SkillNameLiteralParser
         {
             if (!SkillName.TryCreate(skillNameLiteral, out var skillName))
             {
-                return SkillOperationResult<IReadOnlyList<SkillName>>.FailureResult(
-                    SkillFailureCodes.InputInvalid,
+                return AgentDistributionOperationResult<IReadOnlyList<SkillName>>.FailureResult(
+                    AgentDistributionFailureCodes.InputInvalid,
                     $"SKILL name literal is invalid: {skillNameLiteral ?? "<null>"}.");
             }
 
@@ -44,7 +44,7 @@ public static class SkillNameLiteralParser
             }
         }
 
-        return SkillOperationResult<IReadOnlyList<SkillName>>.Success(
+        return AgentDistributionOperationResult<IReadOnlyList<SkillName>>.Success(
             Array.AsReadOnly(normalizedSkillNames.ToArray()));
     }
 }

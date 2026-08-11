@@ -2,15 +2,15 @@ using MackySoft.AgentDistribution.Shared;
 
 namespace MackySoft.AgentDistribution.Digests;
 
-/// <summary> Represents one normalized file used for SKILL digest input. </summary>
-public sealed class SkillDigestInputFile
+/// <summary> Represents one normalized file used for package content digest input. </summary>
+public sealed class PackageContentDigestInputFile
 {
     /// <summary> Initializes one validated, normalized digest input file. </summary>
     /// <param name="relativePath"> The slash-separated relative path. </param>
     /// <param name="content"> The text content to normalize to LF line endings. </param>
     /// <exception cref="ArgumentException"> Thrown when <paramref name="relativePath" /> is not a safe relative file path. </exception>
     /// <exception cref="ArgumentNullException"> Thrown when <paramref name="content" /> is <see langword="null" />. </exception>
-    public SkillDigestInputFile (
+    public PackageContentDigestInputFile (
         PackageRelativePath relativePath,
         string content)
     {
@@ -18,7 +18,7 @@ public sealed class SkillDigestInputFile
         ArgumentNullException.ThrowIfNull(content);
 
         RelativePath = relativePath;
-        Content = SkillTextNormalizer.NormalizeToLf(content);
+        Content = AgentDistributionTextNormalizer.NormalizeToLf(content);
     }
 
     /// <summary> Gets the slash-separated relative path. </summary>

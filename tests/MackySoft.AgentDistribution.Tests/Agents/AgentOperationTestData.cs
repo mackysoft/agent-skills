@@ -22,7 +22,7 @@ internal static class AgentOperationTestData
         IReadOnlyList<SkillName>? skillDependencies = null)
     {
         var serializer = new AgentManifestJsonSerializer();
-        var digestCalculator = new SkillDigestCalculator();
+        var digestCalculator = new PackageContentDigestCalculator();
         var packageArtifactPath = AgentHostArtifactPackagePath.Create(HostKind.Codex, PackageRelativePath.Parse(artifactRelativePath));
         var instructionsPath = PackageRelativePath.Parse("AGENT.md");
         var artifact = new AgentHostArtifactManifest(
@@ -89,7 +89,7 @@ internal static class AgentOperationTestData
     public static AgentInstalledTargetInspector CreateInspector (
         AgentInstallationStatePathResolver statePathResolver,
         AgentInstallationStateStore stateStore,
-        SkillDigestCalculator digestCalculator)
+        PackageContentDigestCalculator digestCalculator)
     {
         return new AgentInstalledTargetInspector(statePathResolver, stateStore, digestCalculator);
     }
@@ -98,7 +98,7 @@ internal static class AgentOperationTestData
     {
         var statePathResolver = new AgentInstallationStatePathResolver();
         var stateStore = new AgentInstallationStateStore(new AgentInstallationStateJsonSerializer());
-        var digestCalculator = new SkillDigestCalculator();
+        var digestCalculator = new PackageContentDigestCalculator();
         return new AgentInstallService(
             CreateAgentTargetResolver(homeDirectory),
             CreateInspector(statePathResolver, stateStore, digestCalculator),
@@ -112,7 +112,7 @@ internal static class AgentOperationTestData
     {
         var statePathResolver = new AgentInstallationStatePathResolver();
         var stateStore = new AgentInstallationStateStore(new AgentInstallationStateJsonSerializer());
-        var digestCalculator = new SkillDigestCalculator();
+        var digestCalculator = new PackageContentDigestCalculator();
         return new AgentUpdateService(
             CreateAgentTargetResolver(homeDirectory),
             CreateInspector(statePathResolver, stateStore, digestCalculator),
@@ -128,7 +128,7 @@ internal static class AgentOperationTestData
         var stateStore = new AgentInstallationStateStore(new AgentInstallationStateJsonSerializer());
         return new AgentUninstallService(
             CreateAgentTargetResolver(homeDirectory),
-            CreateInspector(statePathResolver, stateStore, new SkillDigestCalculator()),
+            CreateInspector(statePathResolver, stateStore, new PackageContentDigestCalculator()),
             statePathResolver,
             stateStore);
     }
@@ -139,7 +139,7 @@ internal static class AgentOperationTestData
         var stateStore = new AgentInstallationStateStore(new AgentInstallationStateJsonSerializer());
         return new AgentPruneService(
             CreateAgentTargetResolver(homeDirectory),
-            CreateInspector(statePathResolver, stateStore, new SkillDigestCalculator()),
+            CreateInspector(statePathResolver, stateStore, new PackageContentDigestCalculator()),
             statePathResolver,
             stateStore);
     }
@@ -151,7 +151,7 @@ internal static class AgentOperationTestData
         return new AgentDoctorService(
             CreateAgentTargetResolver(homeDirectory),
             SkillTestData.CreateInstallTargetResolver(),
-            CreateInspector(statePathResolver, stateStore, new SkillDigestCalculator()),
+            CreateInspector(statePathResolver, stateStore, new PackageContentDigestCalculator()),
             SkillTestData.CreateDoctorService());
     }
 }

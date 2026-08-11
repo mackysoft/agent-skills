@@ -32,7 +32,7 @@ public sealed class CanonicalSkillPackageReader
     /// <param name="packageRoot"> The generated <c>skills</c> directory. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The canonical packages or validation failure. </returns>
-    public async ValueTask<SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>> ReadAllAsync (
+    public async ValueTask<AgentDistributionOperationResult<IReadOnlyList<CanonicalSkillPackage>>> ReadAllAsync (
         AbsolutePath packageRoot,
         CancellationToken cancellationToken = default)
     {
@@ -45,8 +45,8 @@ public sealed class CanonicalSkillPackageReader
                 out var packageRootObservation,
                 out _))
         {
-            return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
+            return AgentDistributionOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
+                AgentDistributionFailureCodes.PathUnsafe,
                 $"Generated skills root could not be inspected: {fullPackageRoot.Value}");
         }
 
@@ -72,15 +72,15 @@ public sealed class CanonicalSkillPackageReader
                     out _)
                 || skillDirectoryObservation.State != FileSystemEntryState.Directory)
             {
-                return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
-                    SkillFailureCodes.PathUnsafe,
+                return AgentDistributionOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
+                    AgentDistributionFailureCodes.PathUnsafe,
                     $"Generated skills root contains an unsupported non-regular package directory: {Path.GetFileName(skillDirectory.Value)}");
             }
 
             var result = await ReadOneAsync(fullPackageRoot, skillDirectory, cancellationToken).ConfigureAwait(false);
             if (!result.IsSuccess)
             {
-                return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
+                return AgentDistributionOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
                     result.Failure!.Code,
                     result.Failure.Message);
             }
@@ -93,12 +93,12 @@ public sealed class CanonicalSkillPackageReader
             return Failure($"Generated skills directory does not contain any packages: {fullPackageRoot.Value}");
         }
 
-        return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.Success(packages
+        return AgentDistributionOperationResult<IReadOnlyList<CanonicalSkillPackage>>.Success(packages
             .OrderBy(static package => package.Manifest.SkillName.Value, StringComparer.Ordinal)
             .ToArray());
     }
 
-    private async ValueTask<SkillOperationResult<CanonicalSkillPackage>> ReadOneAsync (
+    private async ValueTask<AgentDistributionOperationResult<CanonicalSkillPackage>> ReadOneAsync (
         AbsolutePath packageRoot,
         AbsolutePath skillDirectory,
         CancellationToken cancellationToken)
@@ -106,13 +106,13 @@ public sealed class CanonicalSkillPackageReader
         var directoryResult = PackagePathResolver.ResolveUnderRoot(packageRoot, skillDirectory);
         if (!directoryResult.IsSuccess)
         {
-            return SkillOperationResult<CanonicalSkillPackage>.FailureResult(directoryResult.Failure!.Code, directoryResult.Failure.Message);
+            return AgentDistributionOperationResult<CanonicalSkillPackage>.FailureResult(directoryResult.Failure!.Code, directoryResult.Failure.Message);
         }
 
         var filesResult = await ReadFilesAsync(directoryResult.Value!, cancellationToken).ConfigureAwait(false);
         if (!filesResult.IsSuccess)
         {
-            return SkillOperationResult<CanonicalSkillPackage>.FailureResult(filesResult.Failure!.Code, filesResult.Failure.Message);
+            return AgentDistributionOperationResult<CanonicalSkillPackage>.FailureResult(filesResult.Failure!.Code, filesResult.Failure.Message);
         }
 
         var files = filesResult.Value!;
@@ -149,7 +149,7 @@ public sealed class CanonicalSkillPackageReader
         return packageFactory.CreateCanonical(new CanonicalSkillPackageCandidate(manifest, packageFiles));
     }
 
-    private async ValueTask<SkillOperationResult<IReadOnlyList<PackageTextFile>>> ReadFilesAsync (
+    private async ValueTask<AgentDistributionOperationResult<IReadOnlyList<PackageTextFile>>> ReadFilesAsync (
         AbsolutePath skillDirectory,
         CancellationToken cancellationToken)
     {
@@ -157,17 +157,17 @@ public sealed class CanonicalSkillPackageReader
         var readResult = await ReadDirectoryEntriesAsync(skillDirectory, skillDirectory, files, cancellationToken).ConfigureAwait(false);
         if (!readResult.IsSuccess)
         {
-            return SkillOperationResult<IReadOnlyList<PackageTextFile>>.FailureResult(
+            return AgentDistributionOperationResult<IReadOnlyList<PackageTextFile>>.FailureResult(
                 readResult.Failure!.Code,
                 readResult.Failure.Message);
         }
 
-        return SkillOperationResult<IReadOnlyList<PackageTextFile>>.Success(files
+        return AgentDistributionOperationResult<IReadOnlyList<PackageTextFile>>.Success(files
             .OrderBy(static file => file.RelativePath.Value, StringComparer.Ordinal)
             .ToArray());
     }
 
-    private async ValueTask<SkillOperationResult<bool>> ReadDirectoryEntriesAsync (
+    private async ValueTask<AgentDistributionOperationResult<bool>> ReadDirectoryEntriesAsync (
         AbsolutePath skillDirectory,
         AbsolutePath directoryPath,
         List<PackageTextFile> files,
@@ -199,7 +199,7 @@ public sealed class CanonicalSkillPackageReader
                 var directoryResult = PackagePathResolver.ResolveUnderRoot(skillDirectory, entryPath);
                 if (!directoryResult.IsSuccess)
                 {
-                    return SkillOperationResult<bool>.FailureResult(directoryResult.Failure!.Code, directoryResult.Failure.Message);
+                    return AgentDistributionOperationResult<bool>.FailureResult(directoryResult.Failure!.Code, directoryResult.Failure.Message);
                 }
 
                 var result = await ReadDirectoryEntriesAsync(skillDirectory, directoryResult.Value!, files, cancellationToken).ConfigureAwait(false);
@@ -220,13 +220,13 @@ public sealed class CanonicalSkillPackageReader
             var pathResult = PackagePathResolver.ResolveUnderRoot(skillDirectory, entryPath);
             if (!pathResult.IsSuccess)
             {
-                return SkillOperationResult<bool>.FailureResult(pathResult.Failure!.Code, pathResult.Failure.Message);
+                return AgentDistributionOperationResult<bool>.FailureResult(pathResult.Failure!.Code, pathResult.Failure.Message);
             }
 
             var contentResult = await CanonicalPackageTextReader.ReadAsync(pathResult.Value!, cancellationToken).ConfigureAwait(false);
             if (!contentResult.IsSuccess)
             {
-                return SkillOperationResult<bool>.FailureResult(
+                return AgentDistributionOperationResult<bool>.FailureResult(
                     contentResult.Failure!.Code,
                     contentResult.Failure.Message);
             }
@@ -234,21 +234,21 @@ public sealed class CanonicalSkillPackageReader
             files.Add(new PackageTextFile(packageRelativePath, contentResult.Value!));
         }
 
-        return SkillOperationResult<bool>.Success(true);
+        return AgentDistributionOperationResult<bool>.Success(true);
     }
 
-    private static SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>> Failure (string message)
+    private static AgentDistributionOperationResult<IReadOnlyList<CanonicalSkillPackage>> Failure (string message)
     {
-        return SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(SkillFailureCodes.ManifestInvalid, message);
+        return AgentDistributionOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(AgentDistributionFailureCodes.ManifestInvalid, message);
     }
 
-    private static SkillOperationResult<CanonicalSkillPackage> PackageFailure (string message)
+    private static AgentDistributionOperationResult<CanonicalSkillPackage> PackageFailure (string message)
     {
-        return SkillOperationResult<CanonicalSkillPackage>.FailureResult(SkillFailureCodes.ManifestInvalid, message);
+        return AgentDistributionOperationResult<CanonicalSkillPackage>.FailureResult(AgentDistributionFailureCodes.ManifestInvalid, message);
     }
 
-    private static SkillOperationResult<bool> BoolFailure (string message)
+    private static AgentDistributionOperationResult<bool> BoolFailure (string message)
     {
-        return SkillOperationResult<bool>.FailureResult(SkillFailureCodes.ManifestInvalid, message);
+        return AgentDistributionOperationResult<bool>.FailureResult(AgentDistributionFailureCodes.ManifestInvalid, message);
     }
 }

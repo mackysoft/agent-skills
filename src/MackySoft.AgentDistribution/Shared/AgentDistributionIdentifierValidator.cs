@@ -1,6 +1,6 @@
 namespace MackySoft.AgentDistribution.Shared;
 
-internal static class SkillIdentifierValidator
+internal static class AgentDistributionIdentifierValidator
 {
     public static bool IsSafeLowercaseHyphenLiteral (string? value)
     {

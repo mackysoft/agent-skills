@@ -16,10 +16,10 @@ internal sealed class SourceAndGeneratedBundleTransaction
     }
 
     /// <summary> Replaces generated output, publishes source text, and restores generated output when source publication fails. </summary>
-    internal async ValueTask<SkillOperationResult<AbsolutePath>> PublishAsync (
+    internal async ValueTask<AgentDistributionOperationResult<AbsolutePath>> PublishAsync (
         AbsolutePath bundleRoot,
         string sourceContents,
-        Func<AbsolutePath, CancellationToken, ValueTask<SkillOperationResult<AbsolutePath>>> publishGenerated,
+        Func<AbsolutePath, CancellationToken, ValueTask<AgentDistributionOperationResult<AbsolutePath>>> publishGenerated,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(bundleRoot);
@@ -38,7 +38,7 @@ internal sealed class SourceAndGeneratedBundleTransaction
             var initialGeneratedRootResult = ValidateDirectoryOrMissing(generatedRoot, "Generated bundle output");
             if (!initialGeneratedRootResult.IsSuccess)
             {
-                return SkillOperationResult<AbsolutePath>.FailureResult(
+                return AgentDistributionOperationResult<AbsolutePath>.FailureResult(
                     initialGeneratedRootResult.Failure!.Code,
                     initialGeneratedRootResult.Failure.Message);
             }
@@ -143,23 +143,23 @@ internal sealed class SourceAndGeneratedBundleTransaction
         }
     }
 
-    private static SkillOperationResult<bool> ValidateDirectoryOrMissing (
+    private static AgentDistributionOperationResult<bool> ValidateDirectoryOrMissing (
         AbsolutePath path,
         string description)
     {
         if (!FileSystemEntryInspector.TryInspect(path, out var observation, out _))
         {
-            return SkillOperationResult<bool>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
+            return AgentDistributionOperationResult<bool>.FailureResult(
+                AgentDistributionFailureCodes.PathUnsafe,
                 $"{description} could not be inspected: {path.Value}");
         }
 
         return observation.State switch
         {
-            FileSystemEntryState.Missing => SkillOperationResult<bool>.Success(false),
-            FileSystemEntryState.Directory => SkillOperationResult<bool>.Success(true),
-            _ => SkillOperationResult<bool>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
+            FileSystemEntryState.Missing => AgentDistributionOperationResult<bool>.Success(false),
+            FileSystemEntryState.Directory => AgentDistributionOperationResult<bool>.Success(true),
+            _ => AgentDistributionOperationResult<bool>.FailureResult(
+                AgentDistributionFailureCodes.PathUnsafe,
                 $"{description} must be a regular directory or a missing path: {path.Value}"),
         };
     }

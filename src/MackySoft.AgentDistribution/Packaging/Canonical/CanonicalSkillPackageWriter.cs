@@ -13,7 +13,7 @@ public sealed class CanonicalSkillPackageWriter
     /// <param name="stagingRoot"> The bundle staging directory. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The full staged package directory path or failure. </returns>
-    internal async ValueTask<SkillOperationResult<AbsolutePath>> WriteToStagingAsync (
+    internal async ValueTask<AgentDistributionOperationResult<AbsolutePath>> WriteToStagingAsync (
         CanonicalSkillPackage package,
         AbsolutePath stagingRoot,
         CancellationToken cancellationToken = default)
@@ -28,7 +28,7 @@ public sealed class CanonicalSkillPackageWriter
             ContainedPath.Create(stagingRoot, RootRelativePath.Parse(package.Manifest.SkillName.Value)).Target);
         if (!skillDirectoryResult.IsSuccess)
         {
-            return SkillOperationResult<AbsolutePath>.FailureResult(
+            return AgentDistributionOperationResult<AbsolutePath>.FailureResult(
                 skillDirectoryResult.Failure!.Code,
                 skillDirectoryResult.Failure.Message);
         }
@@ -43,7 +43,7 @@ public sealed class CanonicalSkillPackageWriter
                 ContainedPath.Create(skillDirectory, file.RelativePath.RootRelativePath).Target);
             if (!filePathResult.IsSuccess)
             {
-                return SkillOperationResult<AbsolutePath>.FailureResult(
+                return AgentDistributionOperationResult<AbsolutePath>.FailureResult(
                     filePathResult.Failure!.Code,
                     filePathResult.Failure.Message);
             }
@@ -55,6 +55,6 @@ public sealed class CanonicalSkillPackageWriter
                 .ConfigureAwait(false);
         }
 
-        return SkillOperationResult<AbsolutePath>.Success(skillDirectory);
+        return AgentDistributionOperationResult<AbsolutePath>.Success(skillDirectory);
     }
 }

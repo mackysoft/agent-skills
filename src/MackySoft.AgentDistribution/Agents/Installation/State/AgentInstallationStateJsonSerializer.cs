@@ -43,11 +43,11 @@ public sealed class AgentInstallationStateJsonSerializer
             writer.WriteEndObject();
         }
 
-        return SkillTextNormalizer.NormalizeToLf(Encoding.UTF8.GetString(stream.ToArray())) + "\n";
+        return AgentDistributionTextNormalizer.NormalizeToLf(Encoding.UTF8.GetString(stream.ToArray())) + "\n";
     }
 
     /// <summary> Reads canonical installation state or returns a manifest-invalid failure. </summary>
-    public SkillOperationResult<AgentInstallationState> TryDeserialize (string json)
+    public AgentDistributionOperationResult<AgentInstallationState> TryDeserialize (string json)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(json);
         try
@@ -81,13 +81,13 @@ public sealed class AgentInstallationStateJsonSerializer
             var state = new AgentInstallationState(
                 root.GetProperty("schemaVersion").GetInt32(),
                 new AgentDistributionBundleVersion(root.GetProperty("bundleVersion").GetInt32()),
-                new SkillCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty),
+                new AgentDistributionCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty),
                 ParseHost(root.GetProperty("hostId").GetString() ?? string.Empty),
                 new AgentName(root.GetProperty("agentName").GetString() ?? string.Empty),
                 Sha256Digest.Parse(root.GetProperty("agentManifestDigest").GetString() ?? string.Empty),
                 artifacts);
             return string.Equals(json, Serialize(state), StringComparison.Ordinal)
-                ? SkillOperationResult<AgentInstallationState>.Success(state)
+                ? AgentDistributionOperationResult<AgentInstallationState>.Success(state)
                 : Failure("Agent installation state is not canonical JSON.");
         }
         catch (Exception exception) when (exception is JsonException or ArgumentException or FormatException or InvalidOperationException)
@@ -96,9 +96,9 @@ public sealed class AgentInstallationStateJsonSerializer
         }
     }
 
-    private static SkillOperationResult<AgentInstallationState> Failure (string message)
+    private static AgentDistributionOperationResult<AgentInstallationState> Failure (string message)
     {
-        return SkillOperationResult<AgentInstallationState>.FailureResult(SkillFailureCodes.ManifestInvalid, message);
+        return AgentDistributionOperationResult<AgentInstallationState>.FailureResult(AgentDistributionFailureCodes.ManifestInvalid, message);
     }
 
     private static HostKind ParseHost (string literal)

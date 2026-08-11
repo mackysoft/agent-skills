@@ -13,10 +13,10 @@ internal sealed class AgentPackageGenerationService
 {
     private readonly AgentManifestJsonSerializer manifestSerializer;
     private readonly AgentManifestDigestCalculator manifestDigestCalculator;
-    private readonly SkillDigestCalculator digestCalculator;
+    private readonly PackageContentDigestCalculator digestCalculator;
 
     /// <summary> Initializes the generator. </summary>
-    public AgentPackageGenerationService (AgentManifestJsonSerializer manifestSerializer, AgentManifestDigestCalculator manifestDigestCalculator, SkillDigestCalculator digestCalculator)
+    public AgentPackageGenerationService (AgentManifestJsonSerializer manifestSerializer, AgentManifestDigestCalculator manifestDigestCalculator, PackageContentDigestCalculator digestCalculator)
     {
         this.manifestSerializer = manifestSerializer ?? throw new ArgumentNullException(nameof(manifestSerializer));
         this.manifestDigestCalculator = manifestDigestCalculator ?? throw new ArgumentNullException(nameof(manifestDigestCalculator));
@@ -28,7 +28,7 @@ internal sealed class AgentPackageGenerationService
     {
         ArgumentNullException.ThrowIfNull(bundle);
         ArgumentNullException.ThrowIfNull(definition);
-        var instructions = SkillTextNormalizer.NormalizeToLf(definition.InstructionsTemplate);
+        var instructions = AgentDistributionTextNormalizer.NormalizeToLf(definition.InstructionsTemplate);
         var instructionsPath = PackageRelativePath.Parse("AGENT.md");
         var files = new List<PackageTextFile> { new(instructionsPath, instructions) };
         var artifacts = new List<AgentHostArtifactManifest>();

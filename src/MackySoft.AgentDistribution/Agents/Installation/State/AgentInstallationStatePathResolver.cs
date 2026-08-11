@@ -9,7 +9,7 @@ namespace MackySoft.AgentDistribution.Agents.Installation.State;
 public sealed class AgentInstallationStatePathResolver
 {
     /// <summary> Resolves one canonical ownership-state file path. </summary>
-    public SkillOperationResult<AbsolutePath> Resolve (AgentResolvedTarget target, SkillCatalogId catalogId, AgentName agentName)
+    public AgentDistributionOperationResult<AbsolutePath> Resolve (AgentResolvedTarget target, AgentDistributionCatalogId catalogId, AgentName agentName)
     {
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(catalogId);

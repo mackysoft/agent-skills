@@ -28,7 +28,7 @@ internal sealed class CanonicalAgentDistributionBundleWriter
     }
 
     /// <summary> Writes a complete generated directory. </summary>
-    public async ValueTask<SkillOperationResult<AbsolutePath>> WriteAsync (CanonicalAgentDistributionBundle bundle, AbsolutePath outputRoot, CancellationToken cancellationToken)
+    public async ValueTask<AgentDistributionOperationResult<AbsolutePath>> WriteAsync (CanonicalAgentDistributionBundle bundle, AbsolutePath outputRoot, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(bundle);
         ArgumentNullException.ThrowIfNull(outputRoot);
@@ -37,7 +37,7 @@ internal sealed class CanonicalAgentDistributionBundleWriter
         var outputRootResult = ResolveOutputRoot(outputRoot);
         if (!outputRootResult.IsSuccess)
         {
-            return SkillOperationResult<AbsolutePath>.FailureResult(outputRootResult.Failure!.Code, outputRootResult.Failure.Message);
+            return AgentDistributionOperationResult<AbsolutePath>.FailureResult(outputRootResult.Failure!.Code, outputRootResult.Failure.Message);
         }
 
         var full = outputRootResult.Value!;
@@ -60,7 +60,7 @@ internal sealed class CanonicalAgentDistributionBundleWriter
                     cancellationToken).ConfigureAwait(false);
                 if (!result.IsSuccess)
                 {
-                    return SkillOperationResult<AbsolutePath>.FailureResult(result.Failure!.Code, result.Failure.Message);
+                    return AgentDistributionOperationResult<AbsolutePath>.FailureResult(result.Failure!.Code, result.Failure.Message);
                 }
             }
 
@@ -72,7 +72,7 @@ internal sealed class CanonicalAgentDistributionBundleWriter
                     cancellationToken).ConfigureAwait(false);
                 if (!result.IsSuccess)
                 {
-                    return SkillOperationResult<AbsolutePath>.FailureResult(result.Failure!.Code, result.Failure.Message);
+                    return AgentDistributionOperationResult<AbsolutePath>.FailureResult(result.Failure!.Code, result.Failure.Message);
                 }
             }
 
@@ -83,14 +83,14 @@ internal sealed class CanonicalAgentDistributionBundleWriter
             var stagedBundleResult = await bundleReader.ReadAsync(staging, cancellationToken).ConfigureAwait(false);
             if (!stagedBundleResult.IsSuccess)
             {
-                return SkillOperationResult<AbsolutePath>.FailureResult(stagedBundleResult.Failure!.Code, stagedBundleResult.Failure.Message);
+                return AgentDistributionOperationResult<AbsolutePath>.FailureResult(stagedBundleResult.Failure!.Code, stagedBundleResult.Failure.Message);
             }
 
             cancellationToken.ThrowIfCancellationRequested();
             CanonicalSkillBundleDirectoryPublisher.Publish(staging, full, backup);
             published = true;
             TryDeleteDirectory(backup);
-            return SkillOperationResult<AbsolutePath>.Success(full);
+            return AgentDistributionOperationResult<AbsolutePath>.Success(full);
         }
         finally
         {
@@ -101,13 +101,13 @@ internal sealed class CanonicalAgentDistributionBundleWriter
         }
     }
 
-    private static SkillOperationResult<AbsolutePath> ResolveOutputRoot (AbsolutePath outputRoot)
+    private static AgentDistributionOperationResult<AbsolutePath> ResolveOutputRoot (AbsolutePath outputRoot)
     {
         var outputName = Path.GetFileName(outputRoot.Value);
         if (!string.Equals(outputName, "generated", StringComparison.Ordinal)
-            && !string.Equals(outputName, "skills", StringComparison.Ordinal))
+            && !string.Equals(outputName, "agent-distribution", StringComparison.Ordinal))
         {
-            return SkillOperationResult<AbsolutePath>.FailureResult(SkillFailureCodes.PathUnsafe, $"Generated v3 bundle output root must be named 'generated' or 'skills': {outputRoot}");
+            return AgentDistributionOperationResult<AbsolutePath>.FailureResult(AgentDistributionFailureCodes.PathUnsafe, $"Generated v3 bundle output root must be named 'generated' or 'agent-distribution': {outputRoot}");
         }
 
         if (!FileSystemEntryInspector.TryInspect(
@@ -116,10 +116,10 @@ internal sealed class CanonicalAgentDistributionBundleWriter
                 out _)
             || outputRootObservation.State is not FileSystemEntryState.Missing and not FileSystemEntryState.Directory)
         {
-            return SkillOperationResult<AbsolutePath>.FailureResult(SkillFailureCodes.PathUnsafe, $"Generated v3 bundle output root must be a regular directory: {outputRoot}");
+            return AgentDistributionOperationResult<AbsolutePath>.FailureResult(AgentDistributionFailureCodes.PathUnsafe, $"Generated v3 bundle output root must be a regular directory: {outputRoot}");
         }
 
-        return SkillOperationResult<AbsolutePath>.Success(outputRoot);
+        return AgentDistributionOperationResult<AbsolutePath>.Success(outputRoot);
     }
 
     private static void TryDeleteDirectory (AbsolutePath path)

@@ -22,14 +22,14 @@ public sealed class BundleOperationVersionScriptTests
         await RunProcessAsync("git", ["config", "user.name", "Test User"], scope.FullPath);
         await RunProcessAsync("git", ["config", "user.email", "test@example.com"], scope.FullPath);
         WriteBundle(scope, baseVersion);
-        await RunProcessAsync("git", ["add", "skills/bundle.json"], scope.FullPath);
+        await RunProcessAsync("git", ["add", "agent-distribution/bundle.json"], scope.FullPath);
         await RunProcessAsync("git", ["commit", "--quiet", "-m", "base"], scope.FullPath);
         var baseRef = (await RunProcessAsync("git", ["rev-parse", "HEAD"], scope.FullPath)).StandardOutput.Trim();
         WriteBundle(scope, currentVersion);
 
         var result = await RunProcessAsync(
             "bash",
-            [GetScriptPath(), "--operation", "release", "--root", "skills", "--base-ref", baseRef],
+            [GetScriptPath(), "--operation", "release", "--root", "agent-distribution", "--base-ref", baseRef],
             scope.FullPath);
 
         Assert.Equal((baseVersion + 1).ToString(), result.StandardOutput.Trim());
@@ -49,14 +49,14 @@ public sealed class BundleOperationVersionScriptTests
         await RunProcessAsync("git", ["config", "user.name", "Test User"], scope.FullPath);
         await RunProcessAsync("git", ["config", "user.email", "test@example.com"], scope.FullPath);
         WriteBundle(scope, 3);
-        await RunProcessAsync("git", ["add", "skills/bundle.json"], scope.FullPath);
+        await RunProcessAsync("git", ["add", "agent-distribution/bundle.json"], scope.FullPath);
         await RunProcessAsync("git", ["commit", "--quiet", "-m", "base"], scope.FullPath);
         var baseRef = (await RunProcessAsync("git", ["rev-parse", "HEAD"], scope.FullPath)).StandardOutput.Trim();
         WriteBundle(scope, 5);
 
         var result = await RunProcessAsync(
             "bash",
-            [GetScriptPath(), "--operation", "release", "--root", "skills", "--base-ref", baseRef],
+            [GetScriptPath(), "--operation", "release", "--root", "agent-distribution", "--base-ref", baseRef],
             scope.FullPath,
             requireSuccess: false);
 
@@ -78,13 +78,13 @@ public sealed class BundleOperationVersionScriptTests
         await RunProcessAsync("git", ["config", "user.name", "Test User"], scope.FullPath);
         await RunProcessAsync("git", ["config", "user.email", "test@example.com"], scope.FullPath);
         WriteBundle(scope, 3);
-        await RunProcessAsync("git", ["add", "skills/bundle.json"], scope.FullPath);
+        await RunProcessAsync("git", ["add", "agent-distribution/bundle.json"], scope.FullPath);
         await RunProcessAsync("git", ["commit", "--quiet", "-m", "base"], scope.FullPath);
         var baseRef = (await RunProcessAsync("git", ["rev-parse", "HEAD"], scope.FullPath)).StandardOutput.Trim();
 
         var result = await RunProcessAsync(
             "bash",
-            [GetScriptPath(), "--operation", "sync", "--root", "skills", "--base-ref", baseRef],
+            [GetScriptPath(), "--operation", "sync", "--root", "agent-distribution", "--base-ref", baseRef],
             scope.FullPath);
 
         Assert.Equal("3", result.StandardOutput.Trim());
@@ -104,14 +104,14 @@ public sealed class BundleOperationVersionScriptTests
         await RunProcessAsync("git", ["config", "user.name", "Test User"], scope.FullPath);
         await RunProcessAsync("git", ["config", "user.email", "test@example.com"], scope.FullPath);
         WriteBundle(scope, 3);
-        await RunProcessAsync("git", ["add", "skills/bundle.json"], scope.FullPath);
+        await RunProcessAsync("git", ["add", "agent-distribution/bundle.json"], scope.FullPath);
         await RunProcessAsync("git", ["commit", "--quiet", "-m", "base"], scope.FullPath);
         var baseRef = (await RunProcessAsync("git", ["rev-parse", "HEAD"], scope.FullPath)).StandardOutput.Trim();
         WriteBundle(scope, 4);
 
         var result = await RunProcessAsync(
             "bash",
-            [GetScriptPath(), "--operation", "sync", "--root", "skills", "--base-ref", baseRef],
+            [GetScriptPath(), "--operation", "sync", "--root", "agent-distribution", "--base-ref", baseRef],
             scope.FullPath,
             requireSuccess: false);
 
@@ -122,7 +122,7 @@ public sealed class BundleOperationVersionScriptTests
     private static void WriteBundle (TestDirectoryScope scope, int bundleVersion)
     {
         scope.WriteFile(
-            "skills/bundle.json",
+            "agent-distribution/bundle.json",
             $$"""
             {
               "schemaVersion": 3,

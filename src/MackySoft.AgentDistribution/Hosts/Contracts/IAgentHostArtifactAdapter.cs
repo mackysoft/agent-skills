@@ -7,7 +7,7 @@ namespace MackySoft.AgentDistribution.Hosts.Contracts;
 internal interface IAgentHostArtifactAdapter
 {
     /// <summary>Validates host-owned binding JSON.</summary>
-    SkillOperationResult<bool> ValidateBinding (string bindingJson);
+    AgentDistributionOperationResult<bool> ValidateBinding (string bindingJson);
 
     /// <summary>Generates host-owned files from a validated binding.</summary>
     AgentHostArtifactSet BuildArtifacts (AgentSourceMetadata metadata, string agentInstructions, string bindingJson);

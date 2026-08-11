@@ -35,7 +35,7 @@ public sealed class AgentDistributionBundleJsonSerializer
     {
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
-        return new AgentDistributionBundleDefinition(root.GetProperty("schemaVersion").GetInt32(), new SkillCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty), new AgentDistributionBundleVersion(root.GetProperty("bundleVersion").GetInt32()));
+        return new AgentDistributionBundleDefinition(root.GetProperty("schemaVersion").GetInt32(), new AgentDistributionCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty), new AgentDistributionBundleVersion(root.GetProperty("bundleVersion").GetInt32()));
     }
 
     /// <summary> Deserializes a generated v3 descriptor. </summary>
@@ -43,7 +43,7 @@ public sealed class AgentDistributionBundleJsonSerializer
     {
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
-        return new AgentDistributionBundleDescriptor(root.GetProperty("schemaVersion").GetInt32(), new SkillCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty), new AgentDistributionBundleVersion(root.GetProperty("bundleVersion").GetInt32()), Sha256Digest.Parse(root.GetProperty("bundleDigest").GetString() ?? string.Empty));
+        return new AgentDistributionBundleDescriptor(root.GetProperty("schemaVersion").GetInt32(), new AgentDistributionCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty), new AgentDistributionBundleVersion(root.GetProperty("bundleVersion").GetInt32()), Sha256Digest.Parse(root.GetProperty("bundleDigest").GetString() ?? string.Empty));
     }
 
     private static string Serialize (Action<Utf8JsonWriter> write)
@@ -56,11 +56,11 @@ public sealed class AgentDistributionBundleJsonSerializer
             writer.WriteEndObject();
         }
 
-        var result = SkillTextNormalizer.NormalizeToLf(Encoding.UTF8.GetString(stream.ToArray()));
+        var result = AgentDistributionTextNormalizer.NormalizeToLf(Encoding.UTF8.GetString(stream.ToArray()));
         return result.EndsWith('\n') ? result : result + "\n";
     }
 
-    private static void WriteShared (Utf8JsonWriter writer, int schemaVersion, SkillCatalogId catalogId, AgentDistributionBundleVersion bundleVersion)
+    private static void WriteShared (Utf8JsonWriter writer, int schemaVersion, AgentDistributionCatalogId catalogId, AgentDistributionBundleVersion bundleVersion)
     {
         writer.WriteNumber("schemaVersion", schemaVersion);
         writer.WriteString("catalogId", catalogId.Value);

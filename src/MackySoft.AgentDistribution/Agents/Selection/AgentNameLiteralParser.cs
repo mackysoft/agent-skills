@@ -8,7 +8,7 @@ public static class AgentNameLiteralParser
     /// <summary> Parses selected agent name literals. </summary>
     /// <param name="selectedAgentNames"> The exact agent name literals selected by the caller. </param>
     /// <returns> A deduplicated immutable agent-name selection, or an input failure. </returns>
-    public static SkillOperationResult<IReadOnlyList<AgentName>> ParseOptionalAgentNames (
+    public static AgentDistributionOperationResult<IReadOnlyList<AgentName>> ParseOptionalAgentNames (
         IReadOnlyList<string> selectedAgentNames)
     {
         ArgumentNullException.ThrowIfNull(selectedAgentNames);
@@ -19,8 +19,8 @@ public static class AgentNameLiteralParser
         {
             if (!AgentName.TryCreate(agentNameLiteral, out var agentName))
             {
-                return SkillOperationResult<IReadOnlyList<AgentName>>.FailureResult(
-                    SkillFailureCodes.InputInvalid,
+                return AgentDistributionOperationResult<IReadOnlyList<AgentName>>.FailureResult(
+                    AgentDistributionFailureCodes.InputInvalid,
                     $"Agent name literal is invalid: {agentNameLiteral ?? "<null>"}.");
             }
 
@@ -30,7 +30,7 @@ public static class AgentNameLiteralParser
             }
         }
 
-        return SkillOperationResult<IReadOnlyList<AgentName>>.Success(
+        return AgentDistributionOperationResult<IReadOnlyList<AgentName>>.Success(
             Array.AsReadOnly(normalizedAgentNames.ToArray()));
     }
 }

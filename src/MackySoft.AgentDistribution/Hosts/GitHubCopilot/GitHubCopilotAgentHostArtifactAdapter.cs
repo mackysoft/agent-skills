@@ -14,12 +14,12 @@ internal sealed class GitHubCopilotAgentHostArtifactAdapter : IAgentHostArtifact
         StringComparer.Ordinal);
 
     /// <inheritdoc />
-    public SkillOperationResult<bool> ValidateBinding (string bindingJson)
+    public AgentDistributionOperationResult<bool> ValidateBinding (string bindingJson)
     {
         var binding = ParseBinding(bindingJson);
         return binding.IsSuccess
-            ? SkillOperationResult<bool>.Success(true)
-            : SkillOperationResult<bool>.FailureResult(binding.Failure!.Code, binding.Failure.Message);
+            ? AgentDistributionOperationResult<bool>.Success(true)
+            : AgentDistributionOperationResult<bool>.FailureResult(binding.Failure!.Code, binding.Failure.Message);
     }
 
     /// <inheritdoc />
@@ -77,7 +77,7 @@ internal sealed class GitHubCopilotAgentHostArtifactAdapter : IAgentHostArtifact
             [new AgentHostArtifactFile(PackageRelativePath.Parse($"{metadata.AgentName.Value}.agent.md"), content)]);
     }
 
-    private static SkillOperationResult<GitHubCopilotBinding> ParseBinding (string bindingJson)
+    private static AgentDistributionOperationResult<GitHubCopilotBinding> ParseBinding (string bindingJson)
     {
         var deserialized = AgentHostBindingJson.Deserialize<GitHubCopilotBinding>(bindingJson, "GitHub Copilot");
         if (!deserialized.IsSuccess)
@@ -106,7 +106,7 @@ internal sealed class GitHubCopilotAgentHostArtifactAdapter : IAgentHostArtifact
             return Failure("GitHub Copilot agent binding model must be a non-empty string without control characters.");
         }
 
-        return SkillOperationResult<GitHubCopilotBinding>.Success(binding);
+        return AgentDistributionOperationResult<GitHubCopilotBinding>.Success(binding);
     }
 
     private static bool IsStringSetValid (IReadOnlyList<string>? values)
@@ -133,13 +133,13 @@ internal sealed class GitHubCopilotAgentHostArtifactAdapter : IAgentHostArtifact
 
     private static string EnsureTrailingLineFeed (string instructions)
     {
-        var normalized = SkillTextNormalizer.NormalizeToLf(instructions);
+        var normalized = AgentDistributionTextNormalizer.NormalizeToLf(instructions);
         return normalized.EndsWith('\n') ? normalized : normalized + '\n';
     }
 
-    private static SkillOperationResult<GitHubCopilotBinding> Failure (string message)
+    private static AgentDistributionOperationResult<GitHubCopilotBinding> Failure (string message)
     {
-        return SkillOperationResult<GitHubCopilotBinding>.FailureResult(SkillFailureCodes.SourceInvalid, message);
+        return AgentDistributionOperationResult<GitHubCopilotBinding>.FailureResult(AgentDistributionFailureCodes.SourceInvalid, message);
     }
 
     private sealed class GitHubCopilotBinding

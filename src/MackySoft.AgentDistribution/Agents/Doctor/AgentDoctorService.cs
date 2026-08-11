@@ -9,7 +9,7 @@ namespace MackySoft.AgentDistribution.Agents.Doctor;
 /// <summary> Diagnoses selected custom-agent packages, host artifacts, installed state, and resolved SKILL dependencies. </summary>
 public sealed class AgentDoctorService
 {
-    private static readonly SkillFailureCode HealthyCode = new("AGENT_DOCTOR_OK");
+    private static readonly AgentDistributionFailureCode HealthyCode = new("AGENT_DOCTOR_OK");
     private readonly AgentInstallTargetResolver agentTargetResolver;
     private readonly SkillInstallTargetResolver skillTargetResolver;
     private readonly AgentInstalledTargetInspector targetInspector;
@@ -29,7 +29,7 @@ public sealed class AgentDoctorService
     }
 
     /// <summary> Diagnoses all selected agents and their resolved SKILL dependency closure without writing files. </summary>
-    public async ValueTask<SkillOperationResult<AgentDoctorResult>> DiagnoseAsync (
+    public async ValueTask<AgentDistributionOperationResult<AgentDoctorResult>> DiagnoseAsync (
         AgentDoctorInput input,
         CancellationToken cancellationToken = default)
     {
@@ -63,7 +63,7 @@ public sealed class AgentDoctorService
                     package.Manifest.AgentName,
                     AgentDoctorDiagnosticArea.HostArtifact,
                     isError: true,
-                    SkillFailureCodes.HostUnsupported,
+                    AgentDistributionFailureCodes.HostUnsupported,
                     $"Agent has no generated artifacts for host '{Vocabulary.GetText(agentTarget.HostId)}'."));
                 continue;
             }
@@ -96,27 +96,27 @@ public sealed class AgentDoctorService
             skillTargetResult.Value!.Host,
             skillTargetResult.Value.TargetRoot.Value,
             cancellationToken).ConfigureAwait(false);
-        return SkillOperationResult<AgentDoctorResult>.Success(new AgentDoctorResult(
+        return AgentDistributionOperationResult<AgentDoctorResult>.Success(new AgentDoctorResult(
             agentTarget.ArtifactRoot,
             agentTarget.StateRoot,
             diagnostics,
             skillResult));
     }
 
-    private static SkillFailureCode ResolveStateCode (AgentInstalledTargetStateKind kind)
+    private static AgentDistributionFailureCode ResolveStateCode (AgentInstalledTargetStateKind kind)
     {
         return kind switch
         {
             AgentInstalledTargetStateKind.Current => HealthyCode,
-            AgentInstalledTargetStateKind.Missing or AgentInstalledTargetStateKind.Unmanaged or AgentInstalledTargetStateKind.OtherCatalog => SkillFailureCodes.InstallTargetUnmanaged,
-            AgentInstalledTargetStateKind.CleanOutdated => SkillFailureCodes.InstallTargetOutdated,
-            AgentInstalledTargetStateKind.LocallyModified => SkillFailureCodes.InstallTargetLocalModification,
-            _ => SkillFailureCodes.ManifestInvalid,
+            AgentInstalledTargetStateKind.Missing or AgentInstalledTargetStateKind.Unmanaged or AgentInstalledTargetStateKind.OtherCatalog => AgentDistributionFailureCodes.InstallTargetUnmanaged,
+            AgentInstalledTargetStateKind.CleanOutdated => AgentDistributionFailureCodes.InstallTargetOutdated,
+            AgentInstalledTargetStateKind.LocallyModified => AgentDistributionFailureCodes.InstallTargetLocalModification,
+            _ => AgentDistributionFailureCodes.ManifestInvalid,
         };
     }
 
-    private static SkillOperationResult<AgentDoctorResult> Failure (SkillFailure failure)
+    private static AgentDistributionOperationResult<AgentDoctorResult> Failure (AgentDistributionFailure failure)
     {
-        return SkillOperationResult<AgentDoctorResult>.FailureResult(failure.Code, failure.Message);
+        return AgentDistributionOperationResult<AgentDoctorResult>.FailureResult(failure.Code, failure.Message);
     }
 }

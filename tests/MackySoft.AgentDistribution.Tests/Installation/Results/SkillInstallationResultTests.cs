@@ -43,42 +43,42 @@ public sealed class SkillInstallationResultTests
     {
         Assert.Throws<ArgumentException>(() => new SkillActionTargetState(
             SkillTargetStateKind.Current,
-            SkillFailureCodes.InstallTargetContentDigestMismatch,
+            AgentDistributionFailureCodes.InstallTargetContentDigestMismatch,
             "Drift.",
             fileSet: null,
             installedSkillBundleVersion: 1,
             bundledSkillBundleVersion: 1));
         Assert.Throws<ArgumentException>(() => new SkillActionTargetState(
             SkillTargetStateKind.CommonContentDrift,
-            SkillFailureCodes.InstallTargetContentDigestMismatch,
+            AgentDistributionFailureCodes.InstallTargetContentDigestMismatch,
             "Content drift.",
             fileSet: new SkillActionTargetFileSet([PackageRelativePath.Parse("missing.md")], [], []),
             installedSkillBundleVersion: null,
             bundledSkillBundleVersion: 1));
         Assert.Throws<ArgumentException>(() => new SkillActionTargetState(
             SkillTargetStateKind.VersionAhead,
-            SkillFailureCodes.InstallTargetVersionAhead,
+            AgentDistributionFailureCodes.InstallTargetVersionAhead,
             "Version ahead.",
             fileSet: null,
             installedSkillBundleVersion: 1,
             bundledSkillBundleVersion: 1));
         Assert.Throws<ArgumentException>(() => new SkillActionTargetState(
             SkillTargetStateKind.FileSetDrift,
-            SkillFailureCodes.InstallTargetFileSetMismatch,
+            AgentDistributionFailureCodes.InstallTargetFileSetMismatch,
             "File-set drift.",
             fileSet: new SkillActionTargetFileSet([], [], []),
             installedSkillBundleVersion: null,
             bundledSkillBundleVersion: 1));
         Assert.Throws<ArgumentException>(() => new SkillActionTargetState(
             SkillTargetStateKind.CommonContentDrift,
-            SkillFailureCodes.InstallTargetContentDigestMismatch,
+            AgentDistributionFailureCodes.InstallTargetContentDigestMismatch,
             "Content drift.",
             fileSet: null,
             installedSkillBundleVersion: null,
             bundledSkillBundleVersion: null));
         Assert.Throws<ArgumentException>(() => new SkillActionTargetState(
             SkillTargetStateKind.CommonContentDrift,
-            SkillFailureCodes.InstallTargetContentDigestMismatch,
+            AgentDistributionFailureCodes.InstallTargetContentDigestMismatch,
             "Content drift.",
             fileSet: null,
             installedSkillBundleVersion: 1,
@@ -157,7 +157,7 @@ public sealed class SkillInstallationResultTests
     {
         return new SkillActionTargetState(
             SkillTargetStateKind.Unmanaged,
-            SkillFailureCodes.InstallTargetUnmanaged,
+            AgentDistributionFailureCodes.InstallTargetUnmanaged,
             "Unmanaged.",
             fileSet: null,
             installedSkillBundleVersion: null,

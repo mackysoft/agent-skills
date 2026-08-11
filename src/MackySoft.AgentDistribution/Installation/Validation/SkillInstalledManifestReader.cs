@@ -27,7 +27,7 @@ public sealed class SkillInstalledManifestReader
     /// <param name="skillDirectory"> The installed skill directory. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The installed manifest or validation failure. </returns>
-    public async ValueTask<SkillOperationResult<SkillInstalledManifest>> ReadRequiredAsync (
+    public async ValueTask<AgentDistributionOperationResult<SkillInstalledManifest>> ReadRequiredAsync (
         AbsolutePath skillDirectory,
         CancellationToken cancellationToken = default)
     {
@@ -39,7 +39,7 @@ public sealed class SkillInstalledManifestReader
             PackageRelativePath.Parse("agent-skill.json"));
         if (!manifestPathResult.IsSuccess)
         {
-            return SkillOperationResult<SkillInstalledManifest>.FailureResult(
+            return AgentDistributionOperationResult<SkillInstalledManifest>.FailureResult(
                 manifestPathResult.Failure!.Code,
                 manifestPathResult.Failure.Message);
         }
@@ -47,15 +47,15 @@ public sealed class SkillInstalledManifestReader
         var manifestPath = manifestPathResult.Value!;
         if (!File.Exists(manifestPath.Value))
         {
-            return SkillOperationResult<SkillInstalledManifest>.FailureResult(
-                SkillFailureCodes.InstallTargetUnmanaged,
+            return AgentDistributionOperationResult<SkillInstalledManifest>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetUnmanaged,
                 $"Target skill directory is missing agent-skill.json: {skillDirectory}");
         }
 
         var manifestTextResult = await CanonicalPackageTextReader.ReadAsync(manifestPath, cancellationToken).ConfigureAwait(false);
         if (!manifestTextResult.IsSuccess)
         {
-            return SkillOperationResult<SkillInstalledManifest>.FailureResult(
+            return AgentDistributionOperationResult<SkillInstalledManifest>.FailureResult(
                 manifestTextResult.Failure!.Code,
                 manifestTextResult.Failure.Message);
         }
@@ -64,7 +64,7 @@ public sealed class SkillInstalledManifestReader
         var manifestResult = manifestSerializer.TryDeserialize(manifestText);
         if (!manifestResult.IsSuccess)
         {
-            return SkillOperationResult<SkillInstalledManifest>.FailureResult(
+            return AgentDistributionOperationResult<SkillInstalledManifest>.FailureResult(
                 manifestResult.Failure!.Code,
                 $"Target skill manifest is invalid: {manifestPath}");
         }
@@ -72,7 +72,7 @@ public sealed class SkillInstalledManifestReader
         var validationResult = manifestFactory.CreateCanonicalFromInstalledShape(manifestResult.Value!);
         if (!validationResult.IsSuccess)
         {
-            return SkillOperationResult<SkillInstalledManifest>.FailureResult(
+            return AgentDistributionOperationResult<SkillInstalledManifest>.FailureResult(
                 validationResult.Failure!.Code,
                 validationResult.Failure.Message);
         }
@@ -80,12 +80,12 @@ public sealed class SkillInstalledManifestReader
         var manifest = validationResult.Value!;
         if (!string.Equals(Path.GetFileName(skillDirectory.Value), manifest.SkillName.Value, StringComparison.Ordinal))
         {
-            return SkillOperationResult<SkillInstalledManifest>.FailureResult(
-                SkillFailureCodes.InstallTargetNameCollision,
+            return AgentDistributionOperationResult<SkillInstalledManifest>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetNameCollision,
                 $"agent-skill.json skillName must match installed directory name: {manifestPath}");
         }
 
-        return SkillOperationResult<SkillInstalledManifest>.Success(new SkillInstalledManifest(
+        return AgentDistributionOperationResult<SkillInstalledManifest>.Success(new SkillInstalledManifest(
             manifestPath,
             manifestText,
             manifest));

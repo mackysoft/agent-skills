@@ -51,7 +51,7 @@ public sealed class SkillCategoryLiteralParserTests
         var result = SkillCategoryLiteralParser.ParseSelectedCategories(["Removed"]);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
         Assert.Contains("category literal is invalid", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -65,7 +65,7 @@ public sealed class SkillCategoryLiteralParserTests
         var result = SkillCategoryLiteralParser.ParseSelectedCategories(AvailableCategories, [literal]);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
         Assert.Contains("Supported categories: core, advanced, developer", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -76,7 +76,7 @@ public sealed class SkillCategoryLiteralParserTests
         var result = SkillCategoryLiteralParser.ParseSelectedCategories(AvailableCategories, []);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
         Assert.Contains("At least one SKILL category", result.Failure.Message, StringComparison.Ordinal);
     }
 }

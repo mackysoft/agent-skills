@@ -22,7 +22,7 @@ public sealed class AgentUpdateService
     public AgentUpdateService (
         AgentInstallTargetResolver targetResolver,
         AgentInstalledTargetInspector targetInspector,
-        SkillDigestCalculator digestCalculator,
+        PackageContentDigestCalculator digestCalculator,
         AgentInstallationStatePathResolver statePathResolver,
         AgentInstallationStateStore stateStore,
         SkillUpdateService skillUpdateService)
@@ -37,7 +37,7 @@ public sealed class AgentUpdateService
     }
 
     /// <summary> Updates agents only after both the agent plan and the SKILL dry-run plan are write-safe. </summary>
-    public async ValueTask<SkillOperationResult<AgentUpdateResult>> UpdateAsync (
+    public async ValueTask<AgentDistributionOperationResult<AgentUpdateResult>> UpdateAsync (
         AgentUpdateInput input,
         CancellationToken cancellationToken = default)
     {
@@ -123,7 +123,7 @@ public sealed class AgentUpdateService
         return Success(input, target, plansResult.Value!, skillWriteResult.Value!);
     }
 
-    private async ValueTask<SkillOperationResult<bool>> ValidatePreconditionsAsync (
+    private async ValueTask<AgentDistributionOperationResult<bool>> ValidatePreconditionsAsync (
         IReadOnlyList<AgentReconciliationPlan> plans,
         AgentResolvedTarget target,
         CancellationToken cancellationToken)
@@ -133,27 +133,27 @@ public sealed class AgentUpdateService
             var currentResult = await targetInspector.InspectAsync(plan.Package.Manifest, target, cancellationToken).ConfigureAwait(false);
             if (!currentResult.IsSuccess)
             {
-                return SkillOperationResult<bool>.FailureResult(currentResult.Failure!.Code, currentResult.Failure.Message);
+                return AgentDistributionOperationResult<bool>.FailureResult(currentResult.Failure!.Code, currentResult.Failure.Message);
             }
 
             if (currentResult.Value!.Kind != plan.TargetState.Kind || !string.Equals(currentResult.Value.Detail, plan.TargetState.Detail, StringComparison.Ordinal))
             {
-                return SkillOperationResult<bool>.FailureResult(
-                    SkillFailureCodes.InstallTargetWriteFailed,
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.InstallTargetWriteFailed,
                     $"Custom-agent target changed after planning: {plan.Package.Manifest.AgentName.Value}.");
             }
         }
 
-        return SkillOperationResult<bool>.Success(true);
+        return AgentDistributionOperationResult<bool>.Success(true);
     }
 
-    private static SkillOperationResult<AgentUpdateResult> Success (
+    private static AgentDistributionOperationResult<AgentUpdateResult> Success (
         AgentUpdateInput input,
         AgentResolvedTarget target,
         IReadOnlyList<AgentReconciliationPlan> plans,
         global::MackySoft.AgentDistribution.Installation.Results.SkillUpdateResult skillResult)
     {
-        return SkillOperationResult<AgentUpdateResult>.Success(new AgentUpdateResult(
+        return AgentDistributionOperationResult<AgentUpdateResult>.Success(new AgentUpdateResult(
             target.ArtifactRoot,
             target.StateRoot,
             plans.Select(static plan => plan.Action).ToArray(),
@@ -163,8 +163,8 @@ public sealed class AgentUpdateService
             input.PrintDiff));
     }
 
-    private static SkillOperationResult<AgentUpdateResult> Failure (SkillFailure failure)
+    private static AgentDistributionOperationResult<AgentUpdateResult> Failure (AgentDistributionFailure failure)
     {
-        return SkillOperationResult<AgentUpdateResult>.FailureResult(failure.Code, failure.Message);
+        return AgentDistributionOperationResult<AgentUpdateResult>.FailureResult(failure.Code, failure.Message);
     }
 }

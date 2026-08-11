@@ -33,7 +33,7 @@ public sealed class SkillInstalledTargetStateAnalyzer
     /// <param name="host"> The requested host. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The target state or a hard safety failure. </returns>
-    public async ValueTask<SkillOperationResult<SkillInstalledTargetState>> AnalyzeAsync (
+    public async ValueTask<AgentDistributionOperationResult<SkillInstalledTargetState>> AnalyzeAsync (
         CanonicalSkillPackage package,
         AbsolutePath skillDirectory,
         HostKind host,
@@ -45,14 +45,14 @@ public sealed class SkillInstalledTargetStateAnalyzer
 
         if (!Directory.Exists(skillDirectory.Value))
         {
-            return SkillOperationResult<SkillInstalledTargetState>.Success(
+            return AgentDistributionOperationResult<SkillInstalledTargetState>.Success(
                 SkillInstalledTargetState.Missing(package.Manifest.SkillBundleVersion));
         }
 
         var currentResult = await installedPackageValidator.ValidateAsync(package, skillDirectory, host, cancellationToken).ConfigureAwait(false);
         if (currentResult.IsSuccess)
         {
-            return SkillOperationResult<SkillInstalledTargetState>.Success(
+            return AgentDistributionOperationResult<SkillInstalledTargetState>.Success(
                 SkillInstalledTargetState.Current(
                     currentResult.Value!.SkillBundleVersion,
                     package.Manifest.SkillBundleVersion));
@@ -64,24 +64,24 @@ public sealed class SkillInstalledTargetStateAnalyzer
         if (installedManifestResult.IsSuccess
             && installedManifestResult.Value!.Manifest.CatalogId != package.Manifest.CatalogId)
         {
-            return SkillOperationResult<SkillInstalledTargetState>.Success(
+            return AgentDistributionOperationResult<SkillInstalledTargetState>.Success(
                 SkillInstalledTargetState.Blocking(
                     SkillTargetStateKind.Unmanaged,
-                    SkillFailure.Create(
-                        SkillFailureCodes.InstallTargetUnmanaged,
+                    AgentDistributionFailure.Create(
+                        AgentDistributionFailureCodes.InstallTargetUnmanaged,
                         $"Installed SKILL belongs to another catalog: {installedManifestResult.Value.Manifest.CatalogId.Value}")));
         }
 
         var currentFailure = currentResult.Failure!;
         if (SkillTargetStateClassifier.TryResolveBlockingKind(currentFailure.Code, out var currentNonDriftKind))
         {
-            return SkillOperationResult<SkillInstalledTargetState>.Success(
+            return AgentDistributionOperationResult<SkillInstalledTargetState>.Success(
                 SkillInstalledTargetState.Blocking(currentNonDriftKind, currentFailure));
         }
 
         if (!SkillTargetStateClassifier.TryResolveDriftKind(currentFailure.Code, out _))
         {
-            return SkillOperationResult<SkillInstalledTargetState>.FailureResult(currentFailure.Code, currentFailure.Message);
+            return AgentDistributionOperationResult<SkillInstalledTargetState>.FailureResult(currentFailure.Code, currentFailure.Message);
         }
 
         var integrityResult = await installedPackageIntegrityVerifier.VerifyAsync(skillDirectory, host, cancellationToken).ConfigureAwait(false);
@@ -102,19 +102,19 @@ public sealed class SkillInstalledTargetStateAnalyzer
                     failure,
                     installedManifest.SkillBundleVersion,
                     package.Manifest.SkillBundleVersion);
-            return SkillOperationResult<SkillInstalledTargetState>.Success(state);
+            return AgentDistributionOperationResult<SkillInstalledTargetState>.Success(state);
         }
 
         var integrityFailure = integrityResult.Failure!;
         if (SkillTargetStateClassifier.TryResolveBlockingKind(integrityFailure.Code, out var integrityNonDriftKind))
         {
-            return SkillOperationResult<SkillInstalledTargetState>.Success(
+            return AgentDistributionOperationResult<SkillInstalledTargetState>.Success(
                 SkillInstalledTargetState.Blocking(integrityNonDriftKind, integrityFailure));
         }
 
         if (!SkillTargetStateClassifier.TryResolveDriftKind(integrityFailure.Code, out _))
         {
-            return SkillOperationResult<SkillInstalledTargetState>.FailureResult(integrityFailure.Code, integrityFailure.Message);
+            return AgentDistributionOperationResult<SkillInstalledTargetState>.FailureResult(integrityFailure.Code, integrityFailure.Message);
         }
 
         return await CreateDriftStateAsync(
@@ -127,18 +127,18 @@ public sealed class SkillInstalledTargetStateAnalyzer
             .ConfigureAwait(false);
     }
 
-    private static async ValueTask<SkillOperationResult<SkillInstalledTargetState>> CreateDriftStateAsync (
+    private static async ValueTask<AgentDistributionOperationResult<SkillInstalledTargetState>> CreateDriftStateAsync (
         CanonicalSkillPackage package,
         AbsolutePath skillDirectory,
         HostKind host,
-        SkillFailure currentFailure,
-        SkillFailure integrityFailure,
+        AgentDistributionFailure currentFailure,
+        AgentDistributionFailure integrityFailure,
         CancellationToken cancellationToken)
     {
         var selectedFailure = SelectDriftFailure(currentFailure, integrityFailure);
         if (!SkillTargetStateClassifier.TryResolveDriftKind(selectedFailure.Code, out var stateKind))
         {
-            return SkillOperationResult<SkillInstalledTargetState>.FailureResult(selectedFailure.Code, selectedFailure.Message);
+            return AgentDistributionOperationResult<SkillInstalledTargetState>.FailureResult(selectedFailure.Code, selectedFailure.Message);
         }
 
         if (stateKind == SkillTargetStateKind.FileSetDrift)
@@ -146,17 +146,17 @@ public sealed class SkillInstalledTargetStateAnalyzer
             var fileSetResult = await ReadCurrentFileSetDriftAsync(package, skillDirectory, host, cancellationToken).ConfigureAwait(false);
             if (!fileSetResult.IsSuccess)
             {
-                return SkillOperationResult<SkillInstalledTargetState>.FailureResult(fileSetResult.Failure!.Code, fileSetResult.Failure.Message);
+                return AgentDistributionOperationResult<SkillInstalledTargetState>.FailureResult(fileSetResult.Failure!.Code, fileSetResult.Failure.Message);
             }
 
-            return SkillOperationResult<SkillInstalledTargetState>.Success(
+            return AgentDistributionOperationResult<SkillInstalledTargetState>.Success(
                 SkillInstalledTargetState.FileSetDrift(
                     selectedFailure,
                     fileSetResult.Value!,
                     package.Manifest.SkillBundleVersion));
         }
 
-        return SkillOperationResult<SkillInstalledTargetState>.Success(
+        return AgentDistributionOperationResult<SkillInstalledTargetState>.Success(
             SkillInstalledTargetState.Drift(
                 stateKind,
                 selectedFailure,
@@ -172,7 +172,7 @@ public sealed class SkillInstalledTargetStateAnalyzer
             : SkillTargetStateKind.CleanOutdated;
     }
 
-    private static SkillFailure CreateCleanManagedMismatchFailure (
+    private static AgentDistributionFailure CreateCleanManagedMismatchFailure (
         string skillName,
         SkillBundleVersion installedSkillBundleVersion,
         SkillBundleVersion bundledSkillBundleVersion)
@@ -180,29 +180,29 @@ public sealed class SkillInstalledTargetStateAnalyzer
         var comparison = installedSkillBundleVersion.CompareTo(bundledSkillBundleVersion);
         if (comparison > 0)
         {
-            return SkillFailure.Create(
-                SkillFailureCodes.InstallTargetVersionAhead,
+            return AgentDistributionFailure.Create(
+                AgentDistributionFailureCodes.InstallTargetVersionAhead,
                 $"Installed SKILL package was generated from a newer skillBundleVersion for '{skillName}': installed {installedSkillBundleVersion}, bundled {bundledSkillBundleVersion}.");
         }
 
         if (comparison == 0)
         {
-            return SkillFailure.Create(
-                SkillFailureCodes.InstallTargetOutdated,
+            return AgentDistributionFailure.Create(
+                AgentDistributionFailureCodes.InstallTargetOutdated,
                 $"Installed SKILL package is clean but differs from the bundled package at skillBundleVersion {bundledSkillBundleVersion}: {skillName}");
         }
 
-        return SkillFailure.Create(
-            SkillFailureCodes.InstallTargetOutdated,
+        return AgentDistributionFailure.Create(
+            AgentDistributionFailureCodes.InstallTargetOutdated,
             $"Installed SKILL package is clean but older than the bundled package for '{skillName}': installed {installedSkillBundleVersion}, bundled {bundledSkillBundleVersion}.");
     }
 
-    private static SkillFailure SelectDriftFailure (
-        SkillFailure currentFailure,
-        SkillFailure integrityFailure)
+    private static AgentDistributionFailure SelectDriftFailure (
+        AgentDistributionFailure currentFailure,
+        AgentDistributionFailure integrityFailure)
     {
-        var normalizedIntegrityFailure = integrityFailure.Code == SkillFailureCodes.InstallTargetDigestMismatch
-            ? SkillFailure.Create(SkillFailureCodes.InstallTargetLocalModification, integrityFailure.Message)
+        var normalizedIntegrityFailure = integrityFailure.Code == AgentDistributionFailureCodes.InstallTargetDigestMismatch
+            ? AgentDistributionFailure.Create(AgentDistributionFailureCodes.InstallTargetLocalModification, integrityFailure.Message)
             : integrityFailure;
         if (!SkillTargetStateClassifier.TryResolveDriftKind(currentFailure.Code, out var currentKind))
         {
@@ -219,7 +219,7 @@ public sealed class SkillInstalledTargetStateAnalyzer
             : normalizedIntegrityFailure;
     }
 
-    private static ValueTask<SkillOperationResult<SkillInstalledTargetFileSet>> ReadCurrentFileSetDriftAsync (
+    private static ValueTask<AgentDistributionOperationResult<SkillInstalledTargetFileSet>> ReadCurrentFileSetDriftAsync (
         CanonicalSkillPackage package,
         AbsolutePath skillDirectory,
         HostKind host,
@@ -231,7 +231,7 @@ public sealed class SkillInstalledTargetStateAnalyzer
         var entriesResult = SkillInstalledFileSetVerifier.ReadInstalledEntries(skillDirectory, cancellationToken);
         if (!entriesResult.IsSuccess)
         {
-            return ValueTask.FromResult(SkillOperationResult<SkillInstalledTargetFileSet>.FailureResult(
+            return ValueTask.FromResult(AgentDistributionOperationResult<SkillInstalledTargetFileSet>.FailureResult(
                 entriesResult.Failure!.Code,
                 entriesResult.Failure.Message));
         }
@@ -239,7 +239,7 @@ public sealed class SkillInstalledTargetStateAnalyzer
         var requiredPathsResult = SkillManagedFileSetPaths.CreateMaterializedRequiredPaths(package, host);
         if (!requiredPathsResult.IsSuccess)
         {
-            return ValueTask.FromResult(SkillOperationResult<SkillInstalledTargetFileSet>.FailureResult(
+            return ValueTask.FromResult(AgentDistributionOperationResult<SkillInstalledTargetFileSet>.FailureResult(
                 requiredPathsResult.Failure!.Code,
                 requiredPathsResult.Failure.Message));
         }
@@ -252,13 +252,13 @@ public sealed class SkillInstalledTargetStateAnalyzer
             cancellationToken);
         if (!fileSetResult.IsSuccess)
         {
-            return ValueTask.FromResult(SkillOperationResult<SkillInstalledTargetFileSet>.FailureResult(
+            return ValueTask.FromResult(AgentDistributionOperationResult<SkillInstalledTargetFileSet>.FailureResult(
                 fileSetResult.Failure!.Code,
                 fileSetResult.Failure.Message));
         }
 
         var fileSet = fileSetResult.Value!;
-        return ValueTask.FromResult(SkillOperationResult<SkillInstalledTargetFileSet>.Success(new SkillInstalledTargetFileSet(
+        return ValueTask.FromResult(AgentDistributionOperationResult<SkillInstalledTargetFileSet>.Success(new SkillInstalledTargetFileSet(
             fileSet.MissingFiles,
             fileSet.ExtraFiles,
             fileSet.ExtraDirectories)));

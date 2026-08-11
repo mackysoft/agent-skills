@@ -8,7 +8,7 @@ namespace MackySoft.AgentDistribution.Hosting.Commands;
 /// <summary>Resolves raw command path options into Foundation path contracts.</summary>
 internal static class CommandPathResolver
 {
-    public static SkillOperationResult<CommandRepositoryContext> ResolveRepositoryContext (
+    public static AgentDistributionOperationResult<CommandRepositoryContext> ResolveRepositoryContext (
         SkillScopeKind scope,
         string? repositoryRoot,
         AgentDistributionCommandRuntimeConfiguration configuration)
@@ -18,9 +18,9 @@ internal static class CommandPathResolver
         if (scope == SkillScopeKind.User)
         {
             return string.IsNullOrWhiteSpace(repositoryRoot)
-                ? SkillOperationResult<CommandRepositoryContext>.Success(new CommandRepositoryContext(scope, null))
-                : SkillOperationResult<CommandRepositoryContext>.FailureResult(
-                    SkillFailureCodes.InputInvalid,
+                ? AgentDistributionOperationResult<CommandRepositoryContext>.Success(new CommandRepositoryContext(scope, null))
+                : AgentDistributionOperationResult<CommandRepositoryContext>.FailureResult(
+                    AgentDistributionFailureCodes.InputInvalid,
                     "Option '--repository-root' is not supported when '--scope user' is used.");
         }
 
@@ -28,42 +28,42 @@ internal static class CommandPathResolver
         {
             var resolvedRoot = configuration.RepositoryRootResolver(AbsolutePath.Parse(Directory.GetCurrentDirectory()));
             return resolvedRoot is null
-                ? SkillOperationResult<CommandRepositoryContext>.FailureResult(
-                    SkillFailureCodes.InputInvalid,
+                ? AgentDistributionOperationResult<CommandRepositoryContext>.FailureResult(
+                    AgentDistributionFailureCodes.InputInvalid,
                     "The configured repository-root resolver returned null.")
-                : SkillOperationResult<CommandRepositoryContext>.Success(new CommandRepositoryContext(scope, resolvedRoot));
+                : AgentDistributionOperationResult<CommandRepositoryContext>.Success(new CommandRepositoryContext(scope, resolvedRoot));
         }
 
         var result = ResolveRequired(repositoryRoot, "Option '--repository-root' is required for project scope.");
         return result.IsSuccess
-            ? SkillOperationResult<CommandRepositoryContext>.Success(new CommandRepositoryContext(scope, result.Value))
-            : SkillOperationResult<CommandRepositoryContext>.FailureResult(result.Failure!.Code, result.Failure.Message);
+            ? AgentDistributionOperationResult<CommandRepositoryContext>.Success(new CommandRepositoryContext(scope, result.Value))
+            : AgentDistributionOperationResult<CommandRepositoryContext>.FailureResult(result.Failure!.Code, result.Failure.Message);
     }
 
-    public static SkillOperationResult<AbsolutePath> ResolveRequired (
+    public static AgentDistributionOperationResult<AbsolutePath> ResolveRequired (
         string? path,
         string missingMessage)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            return SkillOperationResult<AbsolutePath>.FailureResult(
-                SkillFailureCodes.InputInvalid,
+            return AgentDistributionOperationResult<AbsolutePath>.FailureResult(
+                AgentDistributionFailureCodes.InputInvalid,
                 missingMessage);
         }
 
         try
         {
-            return SkillOperationResult<AbsolutePath>.Success(AbsolutePath.Parse(Path.GetFullPath(path)));
+            return AgentDistributionOperationResult<AbsolutePath>.Success(AbsolutePath.Parse(Path.GetFullPath(path)));
         }
         catch (Exception exception) when (exception is ArgumentException or IOException or NotSupportedException or PathTooLongException)
         {
-            return SkillOperationResult<AbsolutePath>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
+            return AgentDistributionOperationResult<AbsolutePath>.FailureResult(
+                AgentDistributionFailureCodes.PathUnsafe,
                 exception.Message);
         }
     }
 
-    public static SkillOperationResult<AbsolutePath> ResolveTarget (
+    public static AgentDistributionOperationResult<AbsolutePath> ResolveTarget (
         string targetRoot,
         AbsolutePath? repositoryRoot,
         string optionName)
@@ -72,24 +72,24 @@ internal static class CommandPathResolver
 
         if (AbsolutePath.TryParse(targetRoot, out var absoluteTargetRoot, out _))
         {
-            return SkillOperationResult<AbsolutePath>.Success(absoluteTargetRoot);
+            return AgentDistributionOperationResult<AbsolutePath>.Success(absoluteTargetRoot);
         }
 
         if (repositoryRoot is null)
         {
-            return SkillOperationResult<AbsolutePath>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
+            return AgentDistributionOperationResult<AbsolutePath>.FailureResult(
+                AgentDistributionFailureCodes.PathUnsafe,
                 $"User-scope {optionName} must be an absolute path.");
         }
 
         if (!RootRelativePath.TryParse(targetRoot, out var relativeTargetRoot, out var failure))
         {
-            return SkillOperationResult<AbsolutePath>.FailureResult(
-                SkillFailureCodes.PathUnsafe,
+            return AgentDistributionOperationResult<AbsolutePath>.FailureResult(
+                AgentDistributionFailureCodes.PathUnsafe,
                 $"Project-scope {optionName} must be absolute or repository-relative: {failure.Message}");
         }
 
-        return SkillOperationResult<AbsolutePath>.Success(
+        return AgentDistributionOperationResult<AbsolutePath>.Success(
             ContainedPath.Create(repositoryRoot, relativeTargetRoot).Target);
     }
 }

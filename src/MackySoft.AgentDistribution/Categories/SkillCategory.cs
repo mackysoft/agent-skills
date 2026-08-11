@@ -11,7 +11,7 @@ public sealed record SkillCategory
     /// <exception cref="ArgumentException"> Thrown when <paramref name="value" /> is not a safe category literal. </exception>
     public SkillCategory (string value)
     {
-        if (!SkillIdentifierValidator.IsSafeLowercaseHyphenLiteral(value))
+        if (!AgentDistributionIdentifierValidator.IsSafeLowercaseHyphenLiteral(value))
         {
             throw new ArgumentException($"SKILL category literal is invalid: {value}", nameof(value));
         }
@@ -30,7 +30,7 @@ public sealed record SkillCategory
         string? value,
         [NotNullWhen(true)] out SkillCategory? category)
     {
-        if (SkillIdentifierValidator.IsSafeLowercaseHyphenLiteral(value))
+        if (AgentDistributionIdentifierValidator.IsSafeLowercaseHyphenLiteral(value))
         {
             category = new SkillCategory(value!);
             return true;

@@ -38,17 +38,17 @@ public sealed class CanonicalSkillBundle
         }
 
         /// <summary> Validates one complete candidate and creates its canonical bundle snapshot. </summary>
-        internal SkillOperationResult<CanonicalSkillBundle> CreateCanonical (CanonicalSkillBundleCandidate candidate)
+        internal AgentDistributionOperationResult<CanonicalSkillBundle> CreateCanonical (CanonicalSkillBundleCandidate candidate)
         {
             ArgumentNullException.ThrowIfNull(candidate);
 
             var validationResult = Validate(candidate.Descriptor, candidate.Packages);
             return validationResult.IsSuccess
-                ? SkillOperationResult<CanonicalSkillBundle>.Success(new CanonicalSkillBundle(candidate))
+                ? AgentDistributionOperationResult<CanonicalSkillBundle>.Success(new CanonicalSkillBundle(candidate))
                 : BundleFailure(validationResult.Failure!.Message);
         }
 
-        private SkillOperationResult<bool> Validate (
+        private AgentDistributionOperationResult<bool> Validate (
             SkillBundleDescriptor descriptor,
             IReadOnlyList<CanonicalSkillPackage> packages)
         {
@@ -81,7 +81,7 @@ public sealed class CanonicalSkillBundle
                 packageIndex.ToDictionary(
                     static item => item.Key,
                     static item => item.Value.Manifest.Dependencies),
-                SkillFailureCodes.ManifestInvalid,
+                AgentDistributionFailureCodes.ManifestInvalid,
                 "Generated SKILL bundle");
             if (!dependencyResult.IsSuccess)
             {
@@ -103,17 +103,17 @@ public sealed class CanonicalSkillBundle
                 return ValidationFailure("Generated bundle.json bundleDigest does not match canonical package files.");
             }
 
-            return SkillOperationResult<bool>.Success(true);
+            return AgentDistributionOperationResult<bool>.Success(true);
         }
 
-        private static SkillOperationResult<CanonicalSkillBundle> BundleFailure (string message)
+        private static AgentDistributionOperationResult<CanonicalSkillBundle> BundleFailure (string message)
         {
-            return SkillOperationResult<CanonicalSkillBundle>.FailureResult(SkillFailureCodes.ManifestInvalid, message);
+            return AgentDistributionOperationResult<CanonicalSkillBundle>.FailureResult(AgentDistributionFailureCodes.ManifestInvalid, message);
         }
 
-        private static SkillOperationResult<bool> ValidationFailure (string message)
+        private static AgentDistributionOperationResult<bool> ValidationFailure (string message)
         {
-            return SkillOperationResult<bool>.FailureResult(SkillFailureCodes.ManifestInvalid, message);
+            return AgentDistributionOperationResult<bool>.FailureResult(AgentDistributionFailureCodes.ManifestInvalid, message);
         }
     }
 }

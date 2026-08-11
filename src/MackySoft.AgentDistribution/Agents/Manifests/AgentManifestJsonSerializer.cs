@@ -28,7 +28,7 @@ public sealed class AgentManifestJsonSerializer
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
         var artifacts = root.GetProperty("hostArtifacts").EnumerateArray().Select(static item => new AgentHostArtifactManifest(ParseHost(item.GetProperty("host").GetString() ?? string.Empty), PackageRelativePath.Parse(item.GetProperty("path").GetString() ?? string.Empty), Sha256Digest.Parse(item.GetProperty("digest").GetString() ?? string.Empty))).ToArray();
-        return new AgentManifest(root.GetProperty("schemaVersion").GetInt32(), new AgentDistributionBundleVersion(root.GetProperty("bundleVersion").GetInt32()), new SkillCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty), new AgentName(root.GetProperty("agentName").GetString() ?? string.Empty), root.GetProperty("displayName").GetString() ?? string.Empty, root.GetProperty("description").GetString() ?? string.Empty, root.GetProperty("skillDependencies").EnumerateArray().Select(static item => new SkillName(item.GetString() ?? string.Empty)).ToArray(), Sha256Digest.Parse(root.GetProperty("contentDigest").GetString() ?? string.Empty), Sha256Digest.Parse(root.GetProperty("manifestDigest").GetString() ?? string.Empty), artifacts);
+        return new AgentManifest(root.GetProperty("schemaVersion").GetInt32(), new AgentDistributionBundleVersion(root.GetProperty("bundleVersion").GetInt32()), new AgentDistributionCatalogId(root.GetProperty("catalogId").GetString() ?? string.Empty), new AgentName(root.GetProperty("agentName").GetString() ?? string.Empty), root.GetProperty("displayName").GetString() ?? string.Empty, root.GetProperty("description").GetString() ?? string.Empty, root.GetProperty("skillDependencies").EnumerateArray().Select(static item => new SkillName(item.GetString() ?? string.Empty)).ToArray(), Sha256Digest.Parse(root.GetProperty("contentDigest").GetString() ?? string.Empty), Sha256Digest.Parse(root.GetProperty("manifestDigest").GetString() ?? string.Empty), artifacts);
     }
 
     private static string Serialize (AgentManifest manifest, bool includeBundleVersion, bool includeManifestDigest)
@@ -77,7 +77,7 @@ public sealed class AgentManifestJsonSerializer
             writer.WriteEndObject();
         }
 
-        var result = SkillTextNormalizer.NormalizeToLf(Encoding.UTF8.GetString(stream.ToArray()));
+        var result = AgentDistributionTextNormalizer.NormalizeToLf(Encoding.UTF8.GetString(stream.ToArray()));
         return result.EndsWith('\n') ? result : result + "\n";
     }
 

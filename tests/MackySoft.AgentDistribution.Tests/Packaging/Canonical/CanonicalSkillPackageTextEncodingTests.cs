@@ -24,7 +24,7 @@ public sealed class CanonicalSkillPackageTextEncodingTests
         var result = await SkillTestData.CreatePackageReader().ReadAllAsync(skillsRoot, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
         Assert.Contains("byte order mark", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -48,7 +48,7 @@ public sealed class CanonicalSkillPackageTextEncodingTests
         var result = await SkillTestData.CreatePackageReader().ReadAllAsync(skillsRoot, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
         Assert.Contains("LF line endings", result.Failure.Message, StringComparison.Ordinal);
     }
 }

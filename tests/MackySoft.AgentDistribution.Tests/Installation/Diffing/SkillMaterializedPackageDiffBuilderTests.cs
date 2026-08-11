@@ -88,7 +88,7 @@ public sealed class SkillMaterializedPackageDiffBuilderTests
         var result = await builder.BuildAsync(AbsolutePath.Parse(skillDirectory), package, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
     }
 
     [Fact]
@@ -132,6 +132,6 @@ public sealed class SkillMaterializedPackageDiffBuilderTests
         var result = await builder.BuildAsync(AbsolutePath.Parse(skillDirectory), package, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
     }
 }

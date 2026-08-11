@@ -106,7 +106,7 @@ public sealed class SkillBundleBuildServiceTests
         var services = CreateServices();
         var initialResult = await services.BuildService.BuildAsync(scope.FullPath, check: false, cancellationToken: CancellationToken.None);
         Assert.True(initialResult.IsSuccess, initialResult.Failure?.Message);
-        var changedCatalogId = new SkillCatalogId("com.mackysoft.agent-distribution.changed");
+        var changedCatalogId = new AgentDistributionCatalogId("com.mackysoft.agent-distribution.changed");
         WriteBundleDefinition(scope, services.Serializer, skillBundleVersion: 1, catalogId: changedCatalogId);
 
         var result = await services.BuildService.BuildAsync(scope.FullPath, check: false, cancellationToken: CancellationToken.None);
@@ -212,7 +212,7 @@ public sealed class SkillBundleBuildServiceTests
             cancellationToken: CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InputInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
         Assert.Equal(expectedFiles, CaptureFiles(scope.FullPath));
     }
 
@@ -234,7 +234,7 @@ public sealed class SkillBundleBuildServiceTests
             cancellationToken: CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.BundleUpdateRequired, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.BundleUpdateRequired, result.Failure!.Code);
         Assert.Equal(expectedFiles, CaptureFiles(scope.FullPath));
     }
 
@@ -253,7 +253,7 @@ public sealed class SkillBundleBuildServiceTests
         var result = await services.BuildService.BuildAsync(scope.FullPath, check: true, cancellationToken: CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.BundleUpdateRequired, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.BundleUpdateRequired, result.Failure!.Code);
         Assert.Equal(expectedFiles, CaptureFiles(scope.FullPath));
     }
 
@@ -315,13 +315,13 @@ public sealed class SkillBundleBuildServiceTests
         TestDirectoryScope scope,
         SkillBundleJsonSerializer serializer,
         int skillBundleVersion,
-        SkillCatalogId? catalogId = null)
+        AgentDistributionCatalogId? catalogId = null)
     {
         scope.WriteFile(
             "bundle.json",
             serializer.SerializeDefinition(new SkillBundleDefinition(
                 SkillBundleDefinition.CurrentSchemaVersion,
-                catalogId ?? new SkillCatalogId("com.mackysoft.agent-distribution.tests"),
+                catalogId ?? new AgentDistributionCatalogId("com.mackysoft.agent-distribution.tests"),
                 new SkillBundleVersion(skillBundleVersion))));
     }
 

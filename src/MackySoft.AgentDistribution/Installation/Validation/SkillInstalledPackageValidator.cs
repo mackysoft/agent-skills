@@ -41,7 +41,7 @@ public sealed class SkillInstalledPackageValidator
     /// <param name="host"> The requested host. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The installed manifest when validation succeeds; otherwise a validation failure. </returns>
-    public async ValueTask<SkillOperationResult<SkillManifest>> ValidateAsync (
+    public async ValueTask<AgentDistributionOperationResult<SkillManifest>> ValidateAsync (
         CanonicalSkillPackage package,
         AbsolutePath skillDirectory,
         HostKind host,
@@ -54,7 +54,7 @@ public sealed class SkillInstalledPackageValidator
         var installedManifestResult = await installedManifestReader.ReadRequiredAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
         if (!installedManifestResult.IsSuccess)
         {
-            return SkillOperationResult<SkillManifest>.FailureResult(
+            return AgentDistributionOperationResult<SkillManifest>.FailureResult(
                 installedManifestResult.Failure!.Code,
                 installedManifestResult.Failure.Message);
         }
@@ -64,49 +64,49 @@ public sealed class SkillInstalledPackageValidator
         var materializedResult = materializationService.Materialize(package, host);
         if (!materializedResult.IsSuccess)
         {
-            return SkillOperationResult<SkillManifest>.FailureResult(materializedResult.Failure!.Code, materializedResult.Failure.Message);
+            return AgentDistributionOperationResult<SkillManifest>.FailureResult(materializedResult.Failure!.Code, materializedResult.Failure.Message);
         }
 
         var differentHostResult = await hostInspector.MatchesDifferentHostAsync(skillDirectory, package.Manifest, host, cancellationToken).ConfigureAwait(false);
         if (!differentHostResult.IsSuccess)
         {
-            return SkillOperationResult<SkillManifest>.FailureResult(differentHostResult.Failure!.Code, differentHostResult.Failure.Message);
+            return AgentDistributionOperationResult<SkillManifest>.FailureResult(differentHostResult.Failure!.Code, differentHostResult.Failure.Message);
         }
 
         if (differentHostResult.Value)
         {
-            return SkillOperationResult<SkillManifest>.FailureResult(
-                SkillFailureCodes.InstallTargetHostConflict,
+            return AgentDistributionOperationResult<SkillManifest>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetHostConflict,
                 $"Installed skill directory is materialized for another host: {skillDirectory}");
         }
 
         var hostMatchResult = await hostInspector.MatchesHostAsync(skillDirectory, package.Manifest, host, cancellationToken).ConfigureAwait(false);
         if (!hostMatchResult.IsSuccess)
         {
-            return SkillOperationResult<SkillManifest>.FailureResult(hostMatchResult.Failure!.Code, hostMatchResult.Failure.Message);
+            return AgentDistributionOperationResult<SkillManifest>.FailureResult(hostMatchResult.Failure!.Code, hostMatchResult.Failure.Message);
         }
 
         if (!hostMatchResult.Value)
         {
-            return SkillOperationResult<SkillManifest>.FailureResult(
-                SkillFailureCodes.InstallTargetDigestMismatch,
+            return AgentDistributionOperationResult<SkillManifest>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetDigestMismatch,
                 $"Installed skill directory is not materialized for requested host: {skillDirectory}");
         }
 
         var fileSetResult = await fileSetVerifier.VerifyAsync(skillDirectory, materializedResult.Value!.Files, cancellationToken).ConfigureAwait(false);
         if (!fileSetResult.IsSuccess)
         {
-            return SkillOperationResult<SkillManifest>.FailureResult(fileSetResult.Failure!.Code, fileSetResult.Failure.Message);
+            return AgentDistributionOperationResult<SkillManifest>.FailureResult(fileSetResult.Failure!.Code, fileSetResult.Failure.Message);
         }
 
         return fileSetResult.Value!.HasFileSetDrift
-            ? SkillOperationResult<SkillManifest>.FailureResult(
-                SkillFailureCodes.InstallTargetFileSetMismatch,
+            ? AgentDistributionOperationResult<SkillManifest>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetFileSetMismatch,
                 $"Installed SKILL file set does not match materialized package: {package.Manifest.SkillName}")
             : await ValidateInstalledContentAsync(package, skillDirectory, installedManifest.ManifestText, manifest, cancellationToken).ConfigureAwait(false);
     }
 
-    private async ValueTask<SkillOperationResult<SkillManifest>> ValidateInstalledContentAsync (
+    private async ValueTask<AgentDistributionOperationResult<SkillManifest>> ValidateInstalledContentAsync (
         CanonicalSkillPackage package,
         AbsolutePath skillDirectory,
         string installedManifestText,
@@ -115,8 +115,8 @@ public sealed class SkillInstalledPackageValidator
     {
         if (manifest.ContentDigest != package.Manifest.ContentDigest)
         {
-            return SkillOperationResult<SkillManifest>.FailureResult(
-                SkillFailureCodes.InstallTargetContentDigestMismatch,
+            return AgentDistributionOperationResult<SkillManifest>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetContentDigestMismatch,
                 $"Installed SKILL contentDigest does not match canonical package: {package.Manifest.SkillName}");
         }
 
@@ -126,29 +126,29 @@ public sealed class SkillInstalledPackageValidator
             cancellationToken).ConfigureAwait(false);
         if (!installedDigestResult.IsSuccess)
         {
-            return SkillOperationResult<SkillManifest>.FailureResult(installedDigestResult.Failure!.Code, installedDigestResult.Failure.Message);
+            return AgentDistributionOperationResult<SkillManifest>.FailureResult(installedDigestResult.Failure!.Code, installedDigestResult.Failure.Message);
         }
 
         if (!installedDigestResult.Value)
         {
-            return SkillOperationResult<SkillManifest>.FailureResult(
-                SkillFailureCodes.InstallTargetContentDigestMismatch,
+            return AgentDistributionOperationResult<SkillManifest>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetContentDigestMismatch,
                 $"Installed SKILL files do not match canonical package contentDigest: {package.Manifest.SkillName}");
         }
 
         return ValidateCanonicalManifestText(package, installedManifestText, manifest);
     }
 
-    private static SkillOperationResult<SkillManifest> ValidateCanonicalManifestText (
+    private static AgentDistributionOperationResult<SkillManifest> ValidateCanonicalManifestText (
         CanonicalSkillPackage package,
         string installedManifestText,
         SkillManifest manifest)
     {
         var canonicalManifestText = package.Files.Single(static file => file.RelativePath == SkillManagedFileSetPaths.ManifestPath).Content;
         return string.Equals(installedManifestText, canonicalManifestText, StringComparison.Ordinal)
-            ? SkillOperationResult<SkillManifest>.Success(manifest)
-            : SkillOperationResult<SkillManifest>.FailureResult(
-                SkillFailureCodes.InstallTargetManifestDigestMismatch,
+            ? AgentDistributionOperationResult<SkillManifest>.Success(manifest)
+            : AgentDistributionOperationResult<SkillManifest>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetManifestDigestMismatch,
                 $"Installed SKILL manifest does not match canonical package: {package.Manifest.SkillName}");
     }
 }

@@ -8,7 +8,7 @@ public sealed class SkillInstalledTargetState
 {
     private SkillInstalledTargetState (
         SkillTargetStateKind kind,
-        SkillFailure? failure,
+        AgentDistributionFailure? failure,
         SkillInstalledTargetFileSet? fileSet,
         SkillBundleVersion? installedSkillBundleVersion,
         SkillBundleVersion? bundledSkillBundleVersion)
@@ -52,7 +52,7 @@ public sealed class SkillInstalledTargetState
     }
 
     internal static SkillInstalledTargetState CleanOutdated (
-        SkillFailure failure,
+        AgentDistributionFailure failure,
         SkillBundleVersion installedSkillBundleVersion,
         SkillBundleVersion bundledSkillBundleVersion)
     {
@@ -65,7 +65,7 @@ public sealed class SkillInstalledTargetState
     }
 
     internal static SkillInstalledTargetState VersionAhead (
-        SkillFailure failure,
+        AgentDistributionFailure failure,
         SkillBundleVersion installedSkillBundleVersion,
         SkillBundleVersion bundledSkillBundleVersion)
     {
@@ -79,7 +79,7 @@ public sealed class SkillInstalledTargetState
 
     internal static SkillInstalledTargetState Blocking (
         SkillTargetStateKind kind,
-        SkillFailure failure)
+        AgentDistributionFailure failure)
     {
         if (kind is not (SkillTargetStateKind.Unmanaged or SkillTargetStateKind.NameCollision or SkillTargetStateKind.HostConflict))
         {
@@ -96,7 +96,7 @@ public sealed class SkillInstalledTargetState
 
     internal static SkillInstalledTargetState Drift (
         SkillTargetStateKind kind,
-        SkillFailure failure,
+        AgentDistributionFailure failure,
         SkillBundleVersion bundledSkillBundleVersion)
     {
         if (!SkillTargetStateClassifier.IsLocalModificationDrift(kind)
@@ -114,7 +114,7 @@ public sealed class SkillInstalledTargetState
     }
 
     internal static SkillInstalledTargetState FileSetDrift (
-        SkillFailure failure,
+        AgentDistributionFailure failure,
         SkillInstalledTargetFileSet fileSet,
         SkillBundleVersion bundledSkillBundleVersion)
     {
@@ -130,7 +130,7 @@ public sealed class SkillInstalledTargetState
     public SkillTargetStateKind Kind { get; }
 
     /// <summary> Gets the failure contract represented by this state, when applicable. </summary>
-    public SkillFailure? Failure { get; }
+    public AgentDistributionFailure? Failure { get; }
 
     /// <summary> Gets the structured file-set drift details, when the state is file-set drift. </summary>
     public SkillInstalledTargetFileSet? FileSet { get; }
@@ -160,7 +160,7 @@ public sealed class SkillInstalledTargetState
 
     private static void ValidateFailure (
         SkillTargetStateKind kind,
-        SkillFailure? failure)
+        AgentDistributionFailure? failure)
     {
         if (kind is SkillTargetStateKind.Missing or SkillTargetStateKind.Current)
         {

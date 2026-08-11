@@ -7,7 +7,7 @@ namespace MackySoft.AgentDistribution.Packaging.Paths;
 internal static class PackagePathResolver
 {
     /// <summary>Validates one package path against its lexical and physical root boundary.</summary>
-    internal static SkillOperationResult<AbsolutePath> ResolveUnderRoot (
+    internal static AgentDistributionOperationResult<AbsolutePath> ResolveUnderRoot (
         AbsolutePath rootPath,
         AbsolutePath targetPath)
     {
@@ -33,7 +33,7 @@ internal static class PackagePathResolver
 
             // NOTE: Resolution is a safety snapshot. The lexical target remains the package contract
             // used by later operations and must be resolved again at every physical access boundary.
-            return SkillOperationResult<AbsolutePath>.Success(resolution.RequestedPath.Target);
+            return AgentDistributionOperationResult<AbsolutePath>.Success(resolution.RequestedPath.Target);
         }
         catch (Exception exception) when (exception is ArgumentException or IOException or NotSupportedException or PathTooLongException)
         {
@@ -42,7 +42,7 @@ internal static class PackagePathResolver
     }
 
     /// <summary>Resolves one package-relative path whose final entry is missing or a regular file.</summary>
-    internal static SkillOperationResult<AbsolutePath> ResolveRegularFile (
+    internal static AgentDistributionOperationResult<AbsolutePath> ResolveRegularFile (
         AbsolutePath packageDirectory,
         PackageRelativePath relativePath)
     {
@@ -59,8 +59,8 @@ internal static class PackagePathResolver
         return ResolveUnderRoot(packageDirectory, targetPath);
     }
 
-    private static SkillOperationResult<AbsolutePath> Failure (string message)
+    private static AgentDistributionOperationResult<AbsolutePath> Failure (string message)
     {
-        return SkillOperationResult<AbsolutePath>.FailureResult(SkillFailureCodes.PathUnsafe, message);
+        return AgentDistributionOperationResult<AbsolutePath>.FailureResult(AgentDistributionFailureCodes.PathUnsafe, message);
     }
 }

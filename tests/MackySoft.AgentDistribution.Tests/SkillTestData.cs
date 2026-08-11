@@ -138,7 +138,7 @@ internal static class SkillTestData
     {
         var manifestSerializer = new SkillManifestJsonSerializer();
         var bundleDigestCalculator = new SkillBundleDigestCalculator(manifestSerializer);
-        var digestCalculator = new SkillDigestCalculator();
+        var digestCalculator = new PackageContentDigestCalculator();
         var manifestFactory = new SkillManifest.Factory(new SkillManifestDigestCalculator(manifestSerializer));
         var packageFactory = new CanonicalSkillPackage.Factory(
             digestCalculator,
@@ -194,7 +194,7 @@ internal static class SkillTestData
     {
         manifestSerializer ??= new SkillManifestJsonSerializer();
         return new CanonicalSkillPackage.Factory(
-            new SkillDigestCalculator(),
+            new PackageContentDigestCalculator(),
             manifestSerializer);
     }
 
@@ -332,10 +332,10 @@ internal static class SkillTestData
                 ? new PackageTextFile(PackageRelativePath.Parse("SKILL.md"), file.Content + "\nFixture update.\n")
                 : file)
             .ToArray();
-        var contentDigest = new SkillDigestCalculator().ComputeDigest(files
+        var contentDigest = new PackageContentDigestCalculator().ComputeDigest(files
             .Where(static file => string.Equals(file.RelativePath.Value, "SKILL.md", StringComparison.Ordinal)
                 || file.RelativePath.Value.StartsWith("references/", StringComparison.Ordinal))
-            .Select(static file => new SkillDigestInputFile(file.RelativePath, file.Content)));
+            .Select(static file => new PackageContentDigestInputFile(file.RelativePath, file.Content)));
         var manifestCandidate = CopyManifest(
             package.Manifest,
             skillBundleVersion: skillBundleVersion ?? package.Manifest.SkillBundleVersion.Next().Value,
@@ -353,7 +353,7 @@ internal static class SkillTestData
 
     internal static CanonicalSkillPackage CreatePackageWithCatalogId (
         CanonicalSkillPackage package,
-        SkillCatalogId catalogId)
+        AgentDistributionCatalogId catalogId)
     {
         ArgumentNullException.ThrowIfNull(package);
         ArgumentNullException.ThrowIfNull(catalogId);
@@ -383,10 +383,10 @@ internal static class SkillTestData
             new PackageTextFile(PackageRelativePath.Parse("references/a.md"), "lowercase reference\n"),
             new PackageTextFile(PackageRelativePath.Parse("references/B.md"), "uppercase reference\n"),
         };
-        var digestCalculator = new SkillDigestCalculator();
+        var digestCalculator = new PackageContentDigestCalculator();
         var contentDigest = digestCalculator.ComputeDigest(
-            new[] { new SkillDigestInputFile(bodyFile.RelativePath, bodyFile.Content) }
-                .Concat(referenceFiles.Select(static file => new SkillDigestInputFile(file.RelativePath, file.Content))));
+            new[] { new PackageContentDigestInputFile(bodyFile.RelativePath, bodyFile.Content) }
+                .Concat(referenceFiles.Select(static file => new PackageContentDigestInputFile(file.RelativePath, file.Content))));
         var metadata = new SkillHostMetadata(new SkillName(SkillName), DisplayName, Description);
         var hostArtifacts = new List<SkillHostArtifactManifest>();
         var hostArtifactFiles = new List<PackageTextFile>();
@@ -419,7 +419,7 @@ internal static class SkillTestData
         var manifest = WithComputedManifestDigest(new SkillManifestCandidate(
             SkillManifest.CurrentSchemaVersion,
             new SkillBundleVersion(1),
-            new SkillCatalogId("com.mackysoft.agent-distribution"),
+            new AgentDistributionCatalogId("com.mackysoft.agent-distribution"),
             new SkillCategory(ExpectedCategory),
             new SkillName(SkillName),
             DisplayName,
@@ -445,7 +445,7 @@ internal static class SkillTestData
             skillBundleVersion: package.Manifest.SkillBundleVersion.Next().Value,
             displayName: package.Manifest.DisplayName + " Updated");
         var metadata = new SkillHostMetadata(manifestCandidate.SkillName, manifestCandidate.DisplayName, manifestCandidate.Description);
-        var digestCalculator = new SkillDigestCalculator();
+        var digestCalculator = new PackageContentDigestCalculator();
         string? openAiMetadata = null;
         var hostArtifacts = new List<SkillHostArtifactManifest>();
         foreach (var artifact in manifestCandidate.HostArtifacts.OrderBy(static artifact => artifact.Host))
@@ -519,9 +519,9 @@ internal static class SkillTestData
         return new SkillInstalledPackageValidator(
             CreateInstalledManifestReader(),
             new SkillMaterializationService(),
-            new SkillInstalledContentDigestVerifier(new SkillDigestCalculator()),
+            new SkillInstalledContentDigestVerifier(new PackageContentDigestCalculator()),
             new SkillInstalledFileSetVerifier(),
-            new SkillHostMaterializationInspector(new SkillDigestCalculator()));
+            new SkillHostMaterializationInspector(new PackageContentDigestCalculator()));
     }
 
     internal static SkillInstalledPackageIntegrityVerifier CreateInstalledPackageIntegrityVerifier ()
@@ -530,8 +530,8 @@ internal static class SkillTestData
         return new SkillInstalledPackageIntegrityVerifier(
             CreateInstalledManifestReader(),
             manifestSerializer,
-            new SkillHostMaterializationInspector(new SkillDigestCalculator()),
-            new SkillDigestCalculator());
+            new SkillHostMaterializationInspector(new PackageContentDigestCalculator()),
+            new PackageContentDigestCalculator());
     }
 
     internal static SkillInstalledManifestReader CreateInstalledManifestReader ()
@@ -604,7 +604,7 @@ internal static class SkillTestData
         SkillManifest source,
         int? schemaVersion = null,
         int? skillBundleVersion = null,
-        SkillCatalogId? catalogId = null,
+        AgentDistributionCatalogId? catalogId = null,
         SkillCategory? category = null,
         SkillName? skillName = null,
         string? displayName = null,
@@ -634,7 +634,7 @@ internal static class SkillTestData
         SkillManifestCandidate source,
         int? schemaVersion = null,
         int? skillBundleVersion = null,
-        SkillCatalogId? catalogId = null,
+        AgentDistributionCatalogId? catalogId = null,
         SkillCategory? category = null,
         SkillName? skillName = null,
         string? displayName = null,

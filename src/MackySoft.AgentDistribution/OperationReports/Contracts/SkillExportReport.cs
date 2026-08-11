@@ -10,7 +10,7 @@ public sealed class SkillExportReport
         HostKind host,
         IReadOnlyList<string> categories,
         IReadOnlyList<string> skillNames,
-        SkillExportFormat format,
+        PackageExportFormat format,
         AbsolutePath outputPath,
         IReadOnlyList<string> skills,
         int skillCount,
@@ -57,7 +57,7 @@ public sealed class SkillExportReport
     public IReadOnlyList<string> SkillNames { get; }
 
     /// <summary> Gets the export format. </summary>
-    public SkillExportFormat Format { get; }
+    public PackageExportFormat Format { get; }
 
     /// <summary> Gets the canonical output directory or zip path. </summary>
     public string OutputPath { get; }

@@ -25,7 +25,7 @@ public sealed class AgentPackageProvider
     /// <summary> Gets every agent in the v3 bundle and the SKILL dependencies they require. </summary>
     /// <param name="cancellationToken"> The cancellation token propagated through bundle reading. </param>
     /// <returns> The selected agent catalog, or a bundle-selection failure. </returns>
-    public ValueTask<SkillOperationResult<AgentPackageCatalog>> GetPackageCatalogAsync (
+    public ValueTask<AgentDistributionOperationResult<AgentPackageCatalog>> GetPackageCatalogAsync (
         CancellationToken cancellationToken = default)
     {
         return GetPackageCatalogAsync([], cancellationToken);
@@ -35,7 +35,7 @@ public sealed class AgentPackageProvider
     /// <param name="selectedAgentNames"> The exact agent names. Empty selects every agent in the bundle. </param>
     /// <param name="cancellationToken"> The cancellation token propagated through bundle reading. </param>
     /// <returns> The selected agent catalog, or a bundle-selection failure. </returns>
-    public async ValueTask<SkillOperationResult<AgentPackageCatalog>> GetPackageCatalogAsync (
+    public async ValueTask<AgentDistributionOperationResult<AgentPackageCatalog>> GetPackageCatalogAsync (
         IReadOnlyList<string> selectedAgentNames,
         CancellationToken cancellationToken = default)
     {
@@ -45,7 +45,7 @@ public sealed class AgentPackageProvider
         var agentNameSelectionResult = AgentNameLiteralParser.ParseOptionalAgentNames(selectedAgentNames);
         if (!agentNameSelectionResult.IsSuccess)
         {
-            return SkillOperationResult<AgentPackageCatalog>.FailureResult(
+            return AgentDistributionOperationResult<AgentPackageCatalog>.FailureResult(
                 agentNameSelectionResult.Failure!.Code,
                 agentNameSelectionResult.Failure.Message);
         }
@@ -53,7 +53,7 @@ public sealed class AgentPackageProvider
         var bundleResult = await ReadBundleAsync(cancellationToken).ConfigureAwait(false);
         if (!bundleResult.IsSuccess)
         {
-            return SkillOperationResult<AgentPackageCatalog>.FailureResult(
+            return AgentDistributionOperationResult<AgentPackageCatalog>.FailureResult(
                 bundleResult.Failure!.Code,
                 bundleResult.Failure.Message);
         }
@@ -61,7 +61,7 @@ public sealed class AgentPackageProvider
         return CreatePackageCatalog(bundleResult.Value!, agentNameSelectionResult.Value!);
     }
 
-    private async ValueTask<SkillOperationResult<CanonicalAgentDistributionBundle>> ReadBundleAsync (CancellationToken cancellationToken)
+    private async ValueTask<AgentDistributionOperationResult<CanonicalAgentDistributionBundle>> ReadBundleAsync (CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -72,15 +72,15 @@ public sealed class AgentPackageProvider
         }
         catch (DirectoryNotFoundException exception)
         {
-            return SkillOperationResult<CanonicalAgentDistributionBundle>.FailureResult(
-                SkillFailureCodes.SourceInvalid,
+            return AgentDistributionOperationResult<CanonicalAgentDistributionBundle>.FailureResult(
+                AgentDistributionFailureCodes.SourceInvalid,
                 exception.Message);
         }
 
         return await bundleReader.ReadAsync(packageRoot, cancellationToken).ConfigureAwait(false);
     }
 
-    private static SkillOperationResult<AgentPackageCatalog> CreatePackageCatalog (
+    private static AgentDistributionOperationResult<AgentPackageCatalog> CreatePackageCatalog (
         CanonicalAgentDistributionBundle bundle,
         IReadOnlyList<AgentName> selectedAgentNames)
     {
@@ -89,8 +89,8 @@ public sealed class AgentPackageProvider
         {
             if (!agentByName.ContainsKey(agentName))
             {
-                return SkillOperationResult<AgentPackageCatalog>.FailureResult(
-                    SkillFailureCodes.InputInvalid,
+                return AgentDistributionOperationResult<AgentPackageCatalog>.FailureResult(
+                    AgentDistributionFailureCodes.InputInvalid,
                     $"Selected agent name was not found: {agentName.Value}.");
             }
         }
@@ -107,7 +107,7 @@ public sealed class AgentPackageProvider
             .ToArray();
         var resolvedSkills = SkillPackageDependencyResolver.Resolve(bundle.Skills, directSkillDependencies);
 
-        return SkillOperationResult<AgentPackageCatalog>.Success(new AgentPackageCatalog(
+        return AgentDistributionOperationResult<AgentPackageCatalog>.Success(new AgentPackageCatalog(
             bundle.Descriptor,
             selectedAgentNames,
             selectedAgents,

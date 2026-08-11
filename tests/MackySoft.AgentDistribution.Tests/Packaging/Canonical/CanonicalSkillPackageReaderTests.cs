@@ -36,7 +36,7 @@ public sealed class CanonicalSkillPackageReaderTests
         var result = await reader.ReadAllAsync(skillsRoot, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public sealed class CanonicalSkillPackageReaderTests
         var result = await reader.ReadAllAsync(skillsRoot, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public sealed class CanonicalSkillPackageReaderTests
         var result = await reader.ReadAllAsync(skillsRoot, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
         Assert.Contains("manifestDigest", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -99,7 +99,7 @@ public sealed class CanonicalSkillPackageReaderTests
         var result = await reader.ReadAllAsync(skillsRoot, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
         Assert.Contains("manifestDigest", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -117,7 +117,7 @@ public sealed class CanonicalSkillPackageReaderTests
         var result = await reader.ReadAllAsync(skillsRoot, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
         Assert.Contains("LF line endings", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -135,7 +135,7 @@ public sealed class CanonicalSkillPackageReaderTests
         var result = await reader.ReadAllAsync(skillsRoot, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
         Assert.Contains("byte order mark", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -153,7 +153,7 @@ public sealed class CanonicalSkillPackageReaderTests
         var manifestPath = Path.Combine(skillDirectory, "agent-skill.json");
         var serializer = new SkillManifestJsonSerializer();
         var manifest = serializer.Deserialize(await File.ReadAllTextAsync(manifestPath));
-        var driftedDigest = new SkillDigestCalculator().ComputeSingleFileDigest(PackageRelativePath.Parse("agents/openai.yaml"), driftedArtifact);
+        var driftedDigest = new PackageContentDigestCalculator().ComputeSingleFileDigest(PackageRelativePath.Parse("agents/openai.yaml"), driftedArtifact);
         var driftedManifest = SkillTestData.CopyManifest(
             manifest,
             hostArtifacts: manifest.HostArtifacts
@@ -168,7 +168,7 @@ public sealed class CanonicalSkillPackageReaderTests
         var result = await reader.ReadAllAsync(skillsRoot, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -194,7 +194,7 @@ public sealed class CanonicalSkillPackageReaderTests
         var result = await reader.ReadAllAsync(skillsRoot, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -215,7 +215,7 @@ public sealed class CanonicalSkillPackageReaderTests
         var result = await reader.ReadAllAsync(skillsRoot, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -237,7 +237,7 @@ public sealed class CanonicalSkillPackageReaderTests
         var result = await reader.ReadAllAsync(skillsRoot, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
         Assert.Contains("non-regular path", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -259,7 +259,7 @@ public sealed class CanonicalSkillPackageReaderTests
         var result = await reader.ReadAllAsync(skillsRoot, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.PathUnsafe, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.PathUnsafe, result.Failure!.Code);
     }
 
     [Fact]
@@ -281,7 +281,7 @@ public sealed class CanonicalSkillPackageReaderTests
         var result = await reader.ReadAllAsync(skillsRoot, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
         Assert.Contains("non-regular path", result.Failure.Message, StringComparison.Ordinal);
     }
 

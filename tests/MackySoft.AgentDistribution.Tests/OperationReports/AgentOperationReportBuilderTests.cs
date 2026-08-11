@@ -65,11 +65,11 @@ public sealed class AgentOperationReportBuilderTests
             AbsolutePath.Parse(Path.GetFullPath(outputPath)),
             catalog,
             HostKind.Codex,
-            SkillExportFormat.Zip);
+            PackageExportFormat.Zip);
 
         Assert.Equal(HostKind.Codex, report.HostId);
         Assert.Equal(["planner"], report.AgentNames);
-        Assert.Equal(SkillExportFormat.Zip, report.Format);
+        Assert.Equal(PackageExportFormat.Zip, report.Format);
         Assert.Equal(Path.GetFullPath(outputPath), report.OutputPath);
         Assert.Equal(["planner"], report.Agents);
         Assert.Equal(1, report.AgentCount);

@@ -9,7 +9,7 @@ namespace MackySoft.AgentDistribution.Distribution;
 /// <summary> Provides selected SKILL packages from one validated generated bundle. </summary>
 public sealed class SkillPackageProvider
 {
-    private readonly BundledSkillPackageRootResolver packageRootResolver;
+    private readonly BundledAgentDistributionPackageRootResolver packageRootResolver;
     private readonly CanonicalSkillBundleReader bundleReader;
     private readonly CanonicalAgentDistributionBundleReader? agentDistributionBundleReader;
     private readonly SkillBundleDigestCalculator? skillBundleDigestCalculator;
@@ -19,7 +19,7 @@ public sealed class SkillPackageProvider
     /// <param name="packageRootResolver"> The bundled generated SKILL package root resolver. </param>
     /// <param name="bundleReader"> The canonical bundle reader. </param>
     public SkillPackageProvider (
-        BundledSkillPackageRootResolver packageRootResolver,
+        BundledAgentDistributionPackageRootResolver packageRootResolver,
         CanonicalSkillBundleReader bundleReader)
     {
         this.packageRootResolver = packageRootResolver ?? throw new ArgumentNullException(nameof(packageRootResolver));
@@ -33,7 +33,7 @@ public sealed class SkillPackageProvider
     /// <param name="agentDistributionBundleReader"> The canonical v3 mixed bundle reader. </param>
     /// <param name="skillBundleDigestCalculator"> The digest calculator used to project the v3 SKILL package set. </param>
     public SkillPackageProvider (
-        BundledSkillPackageRootResolver packageRootResolver,
+        BundledAgentDistributionPackageRootResolver packageRootResolver,
         CanonicalSkillBundleReader bundleReader,
         CanonicalAgentDistributionBundleReader agentDistributionBundleReader,
         SkillBundleDigestCalculator skillBundleDigestCalculator)
@@ -48,15 +48,15 @@ public sealed class SkillPackageProvider
     /// <summary> Gets every package from the validated bundled SKILL package set. </summary>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The canonical packages, or a bundle-resolution failure. </returns>
-    public async ValueTask<SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>> GetPackagesAsync (
+    public async ValueTask<AgentDistributionOperationResult<IReadOnlyList<CanonicalSkillPackage>>> GetPackagesAsync (
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         var bundleResult = await ReadBundleAsync(cancellationToken).ConfigureAwait(false);
         return bundleResult.IsSuccess
-            ? SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.Success(bundleResult.Value!.Packages)
-            : SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
+            ? AgentDistributionOperationResult<IReadOnlyList<CanonicalSkillPackage>>.Success(bundleResult.Value!.Packages)
+            : AgentDistributionOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
                 bundleResult.Failure!.Code,
                 bundleResult.Failure.Message);
     }
@@ -64,7 +64,7 @@ public sealed class SkillPackageProvider
     /// <summary> Gets the complete validated bundled package catalog. </summary>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The complete package catalog, or a bundle-resolution failure. </returns>
-    public ValueTask<SkillOperationResult<SkillPackageCatalog>> GetPackageCatalogAsync (
+    public ValueTask<AgentDistributionOperationResult<SkillPackageCatalog>> GetPackageCatalogAsync (
         CancellationToken cancellationToken = default)
     {
         return GetPackageCatalogAsync([], [], cancellationToken);
@@ -75,7 +75,7 @@ public sealed class SkillPackageProvider
     /// <param name="selectedSkillNames"> The exact selected SKILL names. Empty disables the name filter. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The selected root packages and their transitive dependencies, or a selection or bundle failure. </returns>
-    public async ValueTask<SkillOperationResult<SkillPackageCatalog>> GetPackageCatalogAsync (
+    public async ValueTask<AgentDistributionOperationResult<SkillPackageCatalog>> GetPackageCatalogAsync (
         IReadOnlyList<string> selectedCategoryLiterals,
         IReadOnlyList<string> selectedSkillNames,
         CancellationToken cancellationToken = default)
@@ -87,7 +87,7 @@ public sealed class SkillPackageProvider
         var skillNameSelectionResult = SkillNameLiteralParser.ParseOptionalSkillNames(selectedSkillNames);
         if (!skillNameSelectionResult.IsSuccess)
         {
-            return SkillOperationResult<SkillPackageCatalog>.FailureResult(
+            return AgentDistributionOperationResult<SkillPackageCatalog>.FailureResult(
                 skillNameSelectionResult.Failure!.Code,
                 skillNameSelectionResult.Failure.Message);
         }
@@ -95,7 +95,7 @@ public sealed class SkillPackageProvider
         var bundleResult = await ReadBundleAsync(cancellationToken).ConfigureAwait(false);
         if (!bundleResult.IsSuccess)
         {
-            return SkillOperationResult<SkillPackageCatalog>.FailureResult(
+            return AgentDistributionOperationResult<SkillPackageCatalog>.FailureResult(
                 bundleResult.Failure!.Code,
                 bundleResult.Failure.Message);
         }
@@ -110,7 +110,7 @@ public sealed class SkillPackageProvider
     /// <param name="selectedCategoryLiterals"> The selected category literals. Empty selects every category present in the bundle. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The selected root packages and their transitive dependencies, or a selection or bundle failure. </returns>
-    public ValueTask<SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>> GetPackagesAsync (
+    public ValueTask<AgentDistributionOperationResult<IReadOnlyList<CanonicalSkillPackage>>> GetPackagesAsync (
         IReadOnlyList<string> selectedCategoryLiterals,
         CancellationToken cancellationToken = default)
     {
@@ -122,7 +122,7 @@ public sealed class SkillPackageProvider
     /// <param name="selectedSkillNames"> The exact selected SKILL names. Empty disables the name filter. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The selected root packages and their transitive dependencies, or a selection or bundle failure. </returns>
-    public async ValueTask<SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>> GetPackagesAsync (
+    public async ValueTask<AgentDistributionOperationResult<IReadOnlyList<CanonicalSkillPackage>>> GetPackagesAsync (
         IReadOnlyList<string> selectedCategoryLiterals,
         IReadOnlyList<string> selectedSkillNames,
         CancellationToken cancellationToken = default)
@@ -133,8 +133,8 @@ public sealed class SkillPackageProvider
 
         var catalogResult = await GetPackageCatalogAsync(selectedCategoryLiterals, selectedSkillNames, cancellationToken).ConfigureAwait(false);
         return catalogResult.IsSuccess
-            ? SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.Success(catalogResult.Value!.Packages)
-            : SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
+            ? AgentDistributionOperationResult<IReadOnlyList<CanonicalSkillPackage>>.Success(catalogResult.Value!.Packages)
+            : AgentDistributionOperationResult<IReadOnlyList<CanonicalSkillPackage>>.FailureResult(
                 catalogResult.Failure!.Code,
                 catalogResult.Failure.Message);
     }
@@ -143,7 +143,7 @@ public sealed class SkillPackageProvider
     /// <param name="selectedSkillNames"> The exact selected SKILL names. Empty disables the name filter. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The selected root packages and their transitive dependencies, or a selection or bundle failure. </returns>
-    public ValueTask<SkillOperationResult<IReadOnlyList<CanonicalSkillPackage>>> GetPackagesBySkillNamesAsync (
+    public ValueTask<AgentDistributionOperationResult<IReadOnlyList<CanonicalSkillPackage>>> GetPackagesBySkillNamesAsync (
         IReadOnlyList<string> selectedSkillNames,
         CancellationToken cancellationToken = default)
     {
@@ -154,14 +154,14 @@ public sealed class SkillPackageProvider
     /// <param name="selectedSkillNames"> The exact selected SKILL names. Empty disables the name filter. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The selected package catalog, or a selection or bundle failure. </returns>
-    public ValueTask<SkillOperationResult<SkillPackageCatalog>> GetPackageCatalogBySkillNamesAsync (
+    public ValueTask<AgentDistributionOperationResult<SkillPackageCatalog>> GetPackageCatalogBySkillNamesAsync (
         IReadOnlyList<string> selectedSkillNames,
         CancellationToken cancellationToken = default)
     {
         return GetPackageCatalogAsync([], selectedSkillNames, cancellationToken);
     }
 
-    private async ValueTask<SkillOperationResult<SkillPackageBundle>> ReadBundleAsync (CancellationToken cancellationToken)
+    private async ValueTask<AgentDistributionOperationResult<SkillPackageBundle>> ReadBundleAsync (CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -172,16 +172,16 @@ public sealed class SkillPackageProvider
         }
         catch (DirectoryNotFoundException ex)
         {
-            return SkillOperationResult<SkillPackageBundle>.FailureResult(
-                SkillFailureCodes.SourceInvalid,
+            return AgentDistributionOperationResult<SkillPackageBundle>.FailureResult(
+                AgentDistributionFailureCodes.SourceInvalid,
                 ex.Message);
         }
 
         var schemaVersionResult = await schemaVersionReader.ReadAsync(packageRoot, cancellationToken).ConfigureAwait(false);
         if (!schemaVersionResult.IsSuccess)
         {
-            return SkillOperationResult<SkillPackageBundle>.FailureResult(
-                SkillFailureCodes.ManifestInvalid,
+            return AgentDistributionOperationResult<SkillPackageBundle>.FailureResult(
+                AgentDistributionFailureCodes.ManifestInvalid,
                 schemaVersionResult.Failure!.Message);
         }
 
@@ -189,9 +189,9 @@ public sealed class SkillPackageProvider
         {
             var bundleResult = await bundleReader.ReadAsync(packageRoot, cancellationToken).ConfigureAwait(false);
             return bundleResult.IsSuccess
-                ? SkillOperationResult<SkillPackageBundle>.Success(
+                ? AgentDistributionOperationResult<SkillPackageBundle>.Success(
                     new SkillPackageBundle(bundleResult.Value!.Descriptor, bundleResult.Value.Packages))
-                : SkillOperationResult<SkillPackageBundle>.FailureResult(
+                : AgentDistributionOperationResult<SkillPackageBundle>.FailureResult(
                     bundleResult.Failure!.Code,
                     bundleResult.Failure.Message);
         }
@@ -200,15 +200,15 @@ public sealed class SkillPackageProvider
             || agentDistributionBundleReader is null
             || skillBundleDigestCalculator is null)
         {
-            return SkillOperationResult<SkillPackageBundle>.FailureResult(
-                SkillFailureCodes.ManifestInvalid,
+            return AgentDistributionOperationResult<SkillPackageBundle>.FailureResult(
+                AgentDistributionFailureCodes.ManifestInvalid,
                 $"Generated bundle schema is not supported by this SKILL package provider: {schemaVersionResult.Value}");
         }
 
         var mixedBundleResult = await agentDistributionBundleReader.ReadAsync(packageRoot, cancellationToken).ConfigureAwait(false);
         if (!mixedBundleResult.IsSuccess)
         {
-            return SkillOperationResult<SkillPackageBundle>.FailureResult(
+            return AgentDistributionOperationResult<SkillPackageBundle>.FailureResult(
                 mixedBundleResult.Failure!.Code,
                 mixedBundleResult.Failure.Message);
         }
@@ -216,8 +216,8 @@ public sealed class SkillPackageProvider
         var mixedBundle = mixedBundleResult.Value!;
         if (mixedBundle.Skills.Count == 0)
         {
-            return SkillOperationResult<SkillPackageBundle>.FailureResult(
-                SkillFailureCodes.InputInvalid,
+            return AgentDistributionOperationResult<SkillPackageBundle>.FailureResult(
+                AgentDistributionFailureCodes.InputInvalid,
                 "The v3 generated bundle does not contain any SKILL packages.");
         }
 
@@ -226,11 +226,11 @@ public sealed class SkillPackageProvider
             mixedBundle.Descriptor.CatalogId,
             new SkillBundleVersion(mixedBundle.Descriptor.BundleVersion.Value),
             skillBundleDigestCalculator.ComputeDigest(mixedBundle.Skills));
-        return SkillOperationResult<SkillPackageBundle>.Success(
+        return AgentDistributionOperationResult<SkillPackageBundle>.Success(
             new SkillPackageBundle(descriptor, mixedBundle.Skills));
     }
 
-    private static SkillOperationResult<SkillPackageCatalog> CreatePackageCatalog (
+    private static AgentDistributionOperationResult<SkillPackageCatalog> CreatePackageCatalog (
         SkillPackageBundle bundle,
         IReadOnlyList<string> selectedCategoryLiterals,
         IReadOnlyList<SkillName> selectedSkillNames)
@@ -256,7 +256,7 @@ public sealed class SkillPackageProvider
                 selectedCategoryLiterals);
             if (!categorySelectionResult.IsSuccess)
             {
-                return SkillOperationResult<SkillPackageCatalog>.FailureResult(
+                return AgentDistributionOperationResult<SkillPackageCatalog>.FailureResult(
                     categorySelectionResult.Failure!.Code,
                     categorySelectionResult.Failure.Message);
             }
@@ -270,15 +270,15 @@ public sealed class SkillPackageProvider
         {
             if (!packageIndex.TryGetValue(skillName, out var package))
             {
-                return SkillOperationResult<SkillPackageCatalog>.FailureResult(
-                    SkillFailureCodes.InputInvalid,
+                return AgentDistributionOperationResult<SkillPackageCatalog>.FailureResult(
+                    AgentDistributionFailureCodes.InputInvalid,
                     $"Selected SKILL name was not found: {skillName.Value}.");
             }
 
             if (!selectedCategorySet.Contains(package.Manifest.Category))
             {
-                return SkillOperationResult<SkillPackageCatalog>.FailureResult(
-                    SkillFailureCodes.InputInvalid,
+                return AgentDistributionOperationResult<SkillPackageCatalog>.FailureResult(
+                    AgentDistributionFailureCodes.InputInvalid,
                     $"Selected SKILL name '{skillName.Value}' does not match selected categories: {string.Join(", ", selectedCategories.Select(static category => category.Value))}. Its category is: {package.Manifest.Category.Value}.");
             }
         }
@@ -293,7 +293,7 @@ public sealed class SkillPackageProvider
             bundle.Packages,
             rootPackages.Select(static package => package.Manifest.SkillName).ToArray());
 
-        return SkillOperationResult<SkillPackageCatalog>.Success(new SkillPackageCatalog(
+        return AgentDistributionOperationResult<SkillPackageCatalog>.Success(new SkillPackageCatalog(
             bundle.Descriptor,
             selectedCategories,
             selectedSkillNames,

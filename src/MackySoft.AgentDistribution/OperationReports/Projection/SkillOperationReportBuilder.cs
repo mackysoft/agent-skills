@@ -61,7 +61,7 @@ public static class SkillOperationReportBuilder
         AbsolutePath outputPath,
         IReadOnlyList<CanonicalSkillPackage> packages,
         HostKind host,
-        SkillExportFormat format,
+        PackageExportFormat format,
         IReadOnlyList<SkillCategory> selectedCategories)
     {
         return CreateExportReport(outputPath, packages, host, format, selectedCategories, []);
@@ -82,7 +82,7 @@ public static class SkillOperationReportBuilder
         AbsolutePath outputPath,
         IReadOnlyList<CanonicalSkillPackage> packages,
         HostKind host,
-        SkillExportFormat format,
+        PackageExportFormat format,
         IReadOnlyList<SkillCategory> selectedCategories,
         IReadOnlyList<SkillName> selectedSkillNames)
     {
@@ -114,7 +114,7 @@ public static class SkillOperationReportBuilder
         AbsolutePath outputPath,
         IReadOnlyList<CanonicalSkillPackage> packages,
         HostKind host,
-        SkillExportFormat format,
+        PackageExportFormat format,
         SkillCategory category)
     {
         ArgumentNullException.ThrowIfNull(category);
@@ -475,7 +475,7 @@ public static class SkillOperationReportBuilder
             .ToArray();
     }
 
-    private static SkillTargetStateKind? ResolveDiagnosticTargetState (SkillFailureCode code)
+    private static SkillTargetStateKind? ResolveDiagnosticTargetState (AgentDistributionFailureCode code)
     {
         return SkillDiagnosticTargetStateResolver.TryResolve(code, out var stateKind)
             ? stateKind

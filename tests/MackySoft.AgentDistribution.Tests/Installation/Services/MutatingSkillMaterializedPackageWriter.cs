@@ -21,12 +21,12 @@ internal sealed class MutatingSkillMaterializedPackageWriter : ISkillMaterialize
     }
 
     /// <inheritdoc />
-    public ValueTask<SkillOperationResult<bool>> WriteAsync (
+    public ValueTask<AgentDistributionOperationResult<bool>> WriteAsync (
         AbsolutePath targetRoot,
         AbsolutePath skillDirectory,
         SkillMaterializedPackage materializedPackage,
         SkillMaterializedPackageWriteMode writeMode,
-        Func<AbsolutePath, CancellationToken, ValueTask<SkillOperationResult<bool>>>? precondition,
+        Func<AbsolutePath, CancellationToken, ValueTask<AgentDistributionOperationResult<bool>>>? precondition,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();

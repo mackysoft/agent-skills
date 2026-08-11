@@ -9,7 +9,7 @@ public sealed class AgentExportReport
     internal AgentExportReport (
         HostKind hostId,
         IReadOnlyList<string> agentNames,
-        SkillExportFormat format,
+        PackageExportFormat format,
         AbsolutePath outputPath,
         IReadOnlyList<string> agents,
         IReadOnlyList<string> skills)
@@ -40,7 +40,7 @@ public sealed class AgentExportReport
     public IReadOnlyList<string> AgentNames { get; }
 
     /// <summary> Gets the export format. </summary>
-    public SkillExportFormat Format { get; }
+    public PackageExportFormat Format { get; }
 
     /// <summary> Gets the canonical output directory or zip path. </summary>
     public string OutputPath { get; }

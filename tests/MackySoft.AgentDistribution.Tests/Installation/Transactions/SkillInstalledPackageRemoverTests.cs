@@ -46,12 +46,12 @@ public sealed class SkillInstalledPackageRemoverTests
             AbsolutePath.Parse(skillDirectory),
             (_, _) => ValueTask.FromResult(
                 ++preconditionCallCount == 1
-                    ? SkillOperationResult<bool>.Success(true)
-                    : SkillOperationResult<bool>.FailureResult(SkillFailureCodes.InstallTargetDigestMismatch, "Synthetic moved target failure.")),
+                    ? AgentDistributionOperationResult<bool>.Success(true)
+                    : AgentDistributionOperationResult<bool>.FailureResult(AgentDistributionFailureCodes.InstallTargetDigestMismatch, "Synthetic moved target failure.")),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
         Assert.True(Directory.Exists(skillDirectory));
         Assert.Equal("# Existing\n", File.ReadAllText(skillPath));
         Assert.False(Directory.Exists(Path.Combine(targetRoot, ".agent-distribution-skill-transactions")));
@@ -73,12 +73,12 @@ public sealed class SkillInstalledPackageRemoverTests
             (_, _) =>
             {
                 preconditionCallCount++;
-                return ValueTask.FromResult(SkillOperationResult<bool>.Success(true));
+                return ValueTask.FromResult(AgentDistributionOperationResult<bool>.Success(true));
             },
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
         Assert.Equal(1, preconditionCallCount);
     }
 

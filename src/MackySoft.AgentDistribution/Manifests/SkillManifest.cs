@@ -38,7 +38,7 @@ public sealed class SkillManifest
     public SkillBundleVersion SkillBundleVersion { get; }
 
     /// <summary> Gets the stable SKILL catalog ID. </summary>
-    public SkillCatalogId CatalogId { get; }
+    public AgentDistributionCatalogId CatalogId { get; }
 
     /// <summary> Gets the product-owned SKILL category. </summary>
     public SkillCategory Category { get; }
@@ -80,7 +80,7 @@ public sealed class SkillManifest
         }
 
         /// <summary> Validates one parsed or generated candidate and creates its canonical manifest. </summary>
-        internal SkillOperationResult<SkillManifest> CreateCanonical (SkillManifestCandidate candidate)
+        internal AgentDistributionOperationResult<SkillManifest> CreateCanonical (SkillManifestCandidate candidate)
         {
             var shapeResult = ValidateShape(candidate);
             if (!shapeResult.IsSuccess)
@@ -94,13 +94,13 @@ public sealed class SkillManifest
                 return ManifestFailure("agent-skill.json manifestDigest does not match manifest content.");
             }
 
-            return SkillOperationResult<SkillManifest>.Success(new SkillManifest(candidate, expectedManifestDigest));
+            return AgentDistributionOperationResult<SkillManifest>.Success(new SkillManifest(candidate, expectedManifestDigest));
         }
 
         /// <summary>
         /// Validates an installed manifest candidate's shape and normalizes its digest while its source text retains drift evidence.
         /// </summary>
-        internal SkillOperationResult<SkillManifest> CreateCanonicalFromInstalledShape (SkillManifestCandidate candidate)
+        internal AgentDistributionOperationResult<SkillManifest> CreateCanonicalFromInstalledShape (SkillManifestCandidate candidate)
         {
             var shapeResult = ValidateShape(candidate);
             if (!shapeResult.IsSuccess)
@@ -109,10 +109,10 @@ public sealed class SkillManifest
             }
 
             var manifestDigest = manifestDigestCalculator.ComputeManifestDigest(candidate);
-            return SkillOperationResult<SkillManifest>.Success(new SkillManifest(candidate, manifestDigest));
+            return AgentDistributionOperationResult<SkillManifest>.Success(new SkillManifest(candidate, manifestDigest));
         }
 
-        private SkillOperationResult<bool> ValidateShape (SkillManifestCandidate candidate)
+        private AgentDistributionOperationResult<bool> ValidateShape (SkillManifestCandidate candidate)
         {
             ArgumentNullException.ThrowIfNull(candidate);
 
@@ -144,17 +144,17 @@ public sealed class SkillManifest
                 }
             }
 
-            return SkillOperationResult<bool>.Success(true);
+            return AgentDistributionOperationResult<bool>.Success(true);
         }
 
-        private static SkillOperationResult<SkillManifest> ManifestFailure (string message)
+        private static AgentDistributionOperationResult<SkillManifest> ManifestFailure (string message)
         {
-            return SkillOperationResult<SkillManifest>.FailureResult(SkillFailureCodes.ManifestInvalid, message);
+            return AgentDistributionOperationResult<SkillManifest>.FailureResult(AgentDistributionFailureCodes.ManifestInvalid, message);
         }
 
-        private static SkillOperationResult<bool> ShapeFailure (string message)
+        private static AgentDistributionOperationResult<bool> ShapeFailure (string message)
         {
-            return SkillOperationResult<bool>.FailureResult(SkillFailureCodes.ManifestInvalid, message);
+            return AgentDistributionOperationResult<bool>.FailureResult(AgentDistributionFailureCodes.ManifestInvalid, message);
         }
     }
 }

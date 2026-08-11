@@ -40,14 +40,14 @@ public sealed class SkillPackageGenerationServiceTests
     public async Task GenerateAllAsync_ComputesContentDigestFromBodyAndReferencesOnly ()
     {
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
-        var calculator = new SkillDigestCalculator();
+        var calculator = new PackageContentDigestCalculator();
 
         foreach (var package in packages)
         {
             var expectedDigest = calculator.ComputeDigest(package.Files
                 .Where(static file => string.Equals(file.RelativePath.Value, "SKILL.md", StringComparison.Ordinal)
                     || file.RelativePath.Value.StartsWith("references/", StringComparison.Ordinal))
-                .Select(static file => new SkillDigestInputFile(file.RelativePath, file.Content)));
+                .Select(static file => new PackageContentDigestInputFile(file.RelativePath, file.Content)));
 
             Assert.Equal(expectedDigest, package.Manifest.ContentDigest);
         }
@@ -231,7 +231,7 @@ public sealed class SkillPackageGenerationServiceTests
         var result = await service.GenerateAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
     [Fact]
@@ -254,7 +254,7 @@ public sealed class SkillPackageGenerationServiceTests
         var result = await service.GenerateAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
         Assert.Contains("definitions", result.Failure.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -315,7 +315,7 @@ public sealed class SkillPackageGenerationServiceTests
         var result = await service.GenerateAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
         Assert.Contains("not referenced", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -331,7 +331,7 @@ public sealed class SkillPackageGenerationServiceTests
         var result = await service.GenerateAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(SkillFailureCodes.SourceInvalid, result.Failure!.Code);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
         Assert.Contains("undeclared", result.Failure.Message, StringComparison.Ordinal);
     }
 
@@ -434,7 +434,7 @@ public sealed class SkillPackageGenerationServiceTests
     {
         return new SkillBundleDefinition(
             SkillBundleDefinition.CurrentSchemaVersion,
-            new SkillCatalogId("com.mackysoft.agent-distribution"),
+            new AgentDistributionCatalogId("com.mackysoft.agent-distribution"),
             new SkillBundleVersion(skillBundleVersion));
     }
 
