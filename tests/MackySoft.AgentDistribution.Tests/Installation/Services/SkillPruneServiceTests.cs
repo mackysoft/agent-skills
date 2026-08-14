@@ -43,6 +43,32 @@ public sealed class SkillPruneServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task PruneAsync_DeletesCleanOrphanScriptsAsManagedFiles ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "prune-scripts");
+        var generated = (await SkillTestData.GenerateFixturePackagesAsync())[0];
+        var package = SkillTestData.CreatePackageWithScripts(
+            generated,
+            [new PackageTextFile(PackageRelativePath.Parse("scripts/bench/collect.sh"), "#!/bin/sh\necho collect\n")]);
+        var installService = SkillTestData.CreateInstallService();
+        var pruneService = SkillTestData.CreatePruneService();
+        var request = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath);
+        var install = await installService.InstallAsync(package.Manifest.CatalogId, [package], request, CancellationToken.None);
+        Assert.True(install.IsSuccess, install.Failure?.Message);
+
+        var result = await pruneService.PruneAsync(
+            new SkillPruneInput(package.Manifest.CatalogId, Array.Empty<CanonicalSkillPackage>(), request),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        var deleted = Assert.Single(result.Value!.Actions);
+        Assert.Equal(SkillPruneActionKind.Deleted, deleted.ActionKind);
+        Assert.Contains(PackageRelativePath.Parse("scripts/bench/collect.sh"), deleted.FileChanges!.RemovedFiles);
+        Assert.False(Directory.Exists(Path.Combine(result.Value.TargetRoot.Value, package.Manifest.SkillName.Value)));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task PruneAsync_DefaultTargetPrunesCompatiblePreviousLayoutWithoutModifyingUnrelatedSkills ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "prune-compatible-previous-layout");

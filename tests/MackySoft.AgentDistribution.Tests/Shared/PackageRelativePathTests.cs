@@ -20,6 +20,7 @@ public sealed class PackageRelativePathTests
     [InlineData("")]
     [InlineData(".")]
     [InlineData("../escape.md")]
+    [InlineData("scripts/../escape.sh")]
     [InlineData("/absolute.md")]
     [InlineData("nested\\artifact.md")]
     [InlineData("nested:artifact.md")]

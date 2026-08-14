@@ -9,6 +9,8 @@ namespace MackySoft.AgentDistribution.Sources;
 /// <summary> Reads and validates source SKILL definitions from fixed <c>definitions/&lt;category&gt;/&lt;skill&gt;</c> directories. </summary>
 public sealed class SkillSourceDefinitionReader
 {
+    private static readonly RootRelativePath ScriptsRootRelativePath = RootRelativePath.Parse("scripts");
+
     private static readonly string[] ExpectedJsonProperties =
     [
         "schemaVersion",
@@ -165,6 +167,14 @@ public sealed class SkillSourceDefinitionReader
                 referencesResult.Failure!.Message);
         }
 
+        var scriptsResult = await ReadScriptsAsync(skillDirectory, cancellationToken).ConfigureAwait(false);
+        if (!scriptsResult.IsSuccess)
+        {
+            return AgentDistributionOperationResult<SkillSourceDefinition>.FailureResult(
+                AgentDistributionFailureCodes.SourceInvalid,
+                scriptsResult.Failure!.Message);
+        }
+
         AgentDistributionOperationResult<SkillSourceMetadata> metadataResult;
         try
         {
@@ -202,7 +212,7 @@ public sealed class SkillSourceDefinitionReader
         try
         {
             return AgentDistributionOperationResult<SkillSourceDefinition>.Success(
-                new SkillSourceDefinition(metadataResult.Value!, skillTemplate, referencesResult.Value!));
+                new SkillSourceDefinition(metadataResult.Value!, skillTemplate, referencesResult.Value!, scriptsResult.Value!));
         }
         catch (ArgumentException ex)
         {
@@ -322,6 +332,138 @@ public sealed class SkillSourceDefinitionReader
 
         return AgentDistributionOperationResult<IReadOnlyList<SkillSourceReference>>.Success(
             Array.AsReadOnly(references.ToArray()));
+    }
+
+    private static async ValueTask<AgentDistributionOperationResult<IReadOnlyList<PackageTextFile>>> ReadScriptsAsync (
+        AbsolutePath skillDirectory,
+        CancellationToken cancellationToken)
+    {
+        var scriptsRoot = ContainedPath.Create(skillDirectory, ScriptsRootRelativePath).Target;
+        if (!AuthoredSourcePathResolver.EntryExists(scriptsRoot))
+        {
+            return AgentDistributionOperationResult<IReadOnlyList<PackageTextFile>>.Success([]);
+        }
+
+        var scriptsRootResult = AuthoredSourcePathResolver.ResolveDirectory(skillDirectory, ScriptsRootRelativePath, "SKILL scripts directory");
+        if (!scriptsRootResult.IsSuccess)
+        {
+            return AgentDistributionOperationResult<IReadOnlyList<PackageTextFile>>.FailureResult(
+                AgentDistributionFailureCodes.SourceInvalid,
+                scriptsRootResult.Failure!.Message);
+        }
+
+        var scripts = new List<PackageTextFile>();
+        var scriptPaths = new HashSet<PackageRelativePath>(PackageRelativePath.PortableFileSystemComparer);
+        var readResult = await ReadScriptEntriesAsync(
+                skillDirectory,
+                scriptsRootResult.Value!,
+                scripts,
+                scriptPaths,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (!readResult.IsSuccess)
+        {
+            return AgentDistributionOperationResult<IReadOnlyList<PackageTextFile>>.FailureResult(
+                AgentDistributionFailureCodes.SourceInvalid,
+                readResult.Failure!.Message);
+        }
+
+        return AgentDistributionOperationResult<IReadOnlyList<PackageTextFile>>.Success(
+            Array.AsReadOnly(scripts
+                .OrderBy(static script => script.RelativePath.Value, StringComparer.Ordinal)
+                .ToArray()));
+    }
+
+    private static async ValueTask<AgentDistributionOperationResult<bool>> ReadScriptEntriesAsync (
+        AbsolutePath skillDirectory,
+        AbsolutePath directory,
+        List<PackageTextFile> scripts,
+        HashSet<PackageRelativePath> scriptPaths,
+        CancellationToken cancellationToken)
+    {
+        foreach (var entryPathValue in Directory.GetFileSystemEntries(directory.Value).Order(StringComparer.Ordinal))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var entryPath = AbsolutePath.Parse(entryPathValue);
+            var relativePathValue = Path.GetRelativePath(skillDirectory.Value, entryPath.Value)
+                .Replace(Path.DirectorySeparatorChar, '/');
+            if (!RootRelativePath.TryParse(relativePathValue, out var sourceRelativePath, out var pathFailure))
+            {
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.SourceInvalid,
+                    $"SKILL script path is invalid: {relativePathValue}. {pathFailure.Message}");
+            }
+
+            if (sourceRelativePath.IsRoot
+                || !PackageRelativePath.TryParse(relativePathValue, out var packageRelativePath)
+                || !packageRelativePath.IsDescendantOf(SkillContentFileSetPaths.ScriptsDirectoryPath))
+            {
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.SourceInvalid,
+                    $"SKILL script path must be below scripts/: {relativePathValue}");
+            }
+
+            if (!FileSystemEntryInspector.TryInspect(entryPath, out var entryObservation, out _))
+            {
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.SourceInvalid,
+                    $"SKILL script entry could not be inspected: {packageRelativePath.Value}");
+            }
+
+            if (entryObservation.State == FileSystemEntryState.Directory)
+            {
+                var directoryResult = AuthoredSourcePathResolver.ResolveDirectory(skillDirectory, sourceRelativePath, "SKILL scripts directory");
+                if (!directoryResult.IsSuccess)
+                {
+                    return AgentDistributionOperationResult<bool>.FailureResult(
+                        AgentDistributionFailureCodes.SourceInvalid,
+                        directoryResult.Failure!.Message);
+                }
+
+                var childResult = await ReadScriptEntriesAsync(
+                        skillDirectory,
+                        directoryResult.Value!,
+                        scripts,
+                        scriptPaths,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                if (!childResult.IsSuccess)
+                {
+                    return childResult;
+                }
+
+                continue;
+            }
+
+            if (entryObservation.State != FileSystemEntryState.RegularFile)
+            {
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.SourceInvalid,
+                    $"SKILL script entry must be a regular file or directory: {packageRelativePath.Value}");
+            }
+
+            var scriptPathResult = AuthoredSourcePathResolver.ResolveRegularFile(skillDirectory, sourceRelativePath, "SKILL script file");
+            if (!scriptPathResult.IsSuccess)
+            {
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.SourceInvalid,
+                    scriptPathResult.Failure!.Message);
+            }
+
+            if (!scriptPaths.Add(packageRelativePath))
+            {
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.SourceInvalid,
+                    $"SKILL script paths collide when case is ignored: {packageRelativePath.Value}");
+            }
+
+            var content = AgentDistributionTextNormalizer.NormalizeToLf(
+                await File.ReadAllTextAsync(scriptPathResult.Value!.Value, cancellationToken).ConfigureAwait(false));
+            scripts.Add(new PackageTextFile(packageRelativePath, content));
+        }
+
+        return AgentDistributionOperationResult<bool>.Success(true);
     }
 
     private static AgentDistributionOperationResult<IReadOnlyList<SkillName>> ReadDependencies (

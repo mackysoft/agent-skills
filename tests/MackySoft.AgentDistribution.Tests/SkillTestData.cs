@@ -332,10 +332,7 @@ internal static class SkillTestData
                 ? new PackageTextFile(PackageRelativePath.Parse("SKILL.md"), file.Content + "\nFixture update.\n")
                 : file)
             .ToArray();
-        var contentDigest = new PackageContentDigestCalculator().ComputeDigest(files
-            .Where(static file => string.Equals(file.RelativePath.Value, "SKILL.md", StringComparison.Ordinal)
-                || file.RelativePath.Value.StartsWith("references/", StringComparison.Ordinal))
-            .Select(static file => new PackageContentDigestInputFile(file.RelativePath, file.Content)));
+        var contentDigest = ComputeSkillContentDigest(files);
         var manifestCandidate = CopyManifest(
             package.Manifest,
             skillBundleVersion: skillBundleVersion ?? package.Manifest.SkillBundleVersion.Next().Value,
@@ -349,6 +346,40 @@ internal static class SkillTestData
             .ToArray();
 
         return CreateCanonicalPackage(manifest, files);
+    }
+
+    internal static CanonicalSkillPackage CreatePackageWithScripts (
+        CanonicalSkillPackage package,
+        IReadOnlyList<PackageTextFile> scripts,
+        int? skillBundleVersion = null)
+    {
+        ArgumentNullException.ThrowIfNull(package);
+        ArgumentNullException.ThrowIfNull(scripts);
+
+        var scriptSnapshot = scripts.ToArray();
+        if (scriptSnapshot.Any(static script => script is null))
+        {
+            throw new ArgumentException("Scripts must not contain null items.", nameof(scripts));
+        }
+
+        var filesWithoutManifest = package.Files
+            .Where(static file => !string.Equals(file.RelativePath.Value, "agent-skill.json", StringComparison.Ordinal))
+            .Concat(scriptSnapshot)
+            .ToArray();
+        var manifest = WithComputedManifestDigest(CopyManifest(
+            package.Manifest,
+            skillBundleVersion: skillBundleVersion ?? package.Manifest.SkillBundleVersion.Value,
+            contentDigest: ComputeSkillContentDigest(filesWithoutManifest)));
+        var manifestFile = new PackageTextFile(
+            PackageRelativePath.Parse("agent-skill.json"),
+            new SkillManifestJsonSerializer().Serialize(manifest));
+
+        return CreateCanonicalPackage(
+            manifest,
+            filesWithoutManifest
+                .Append(manifestFile)
+                .OrderBy(static file => file.RelativePath.Value, StringComparer.Ordinal)
+                .ToArray());
     }
 
     internal static CanonicalSkillPackage CreatePackageWithCatalogId (
@@ -369,6 +400,17 @@ internal static class SkillTestData
             .ToArray();
 
         return CreateCanonicalPackage(manifest, files);
+    }
+
+    private static Sha256Digest ComputeSkillContentDigest (IEnumerable<PackageTextFile> files)
+    {
+        ArgumentNullException.ThrowIfNull(files);
+
+        return new PackageContentDigestCalculator().ComputeDigest(files
+            .Where(static file => string.Equals(file.RelativePath.Value, "SKILL.md", StringComparison.Ordinal)
+                || file.RelativePath.Value.StartsWith("references/", StringComparison.Ordinal)
+                || file.RelativePath.Value.StartsWith("scripts/", StringComparison.Ordinal))
+            .Select(static file => new PackageContentDigestInputFile(file.RelativePath, file.Content)));
     }
 
     internal static CanonicalSkillPackage CreateOrdinalSensitivePackage ()

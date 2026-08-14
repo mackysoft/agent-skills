@@ -48,6 +48,7 @@ public sealed class CanonicalSkillPackageTests
     [Theory]
     [InlineData("references/example.md", "references/example.md")]
     [InlineData("references/example.md", "REFERENCES/EXAMPLE.MD")]
+    [InlineData("scripts/collect.sh", "scripts/COLLECT.sh")]
     [Trait("Size", "Small")]
     public async Task Factory_RejectsNonPortableDuplicateFilePath (
         string firstPath,

@@ -307,7 +307,7 @@ public sealed class SkillInstalledPackageIntegrityVerifier
         };
 
         foreach (var relativePath in installedEntries.Files
-            .Where(static path => path.IsDescendantOf(SkillManagedFileSetPaths.ReferencesDirectoryPath))
+            .Where(SkillContentFileSetPaths.IsSupplementalContentFile)
             .OrderBy(static path => path.Value, StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -375,7 +375,10 @@ public sealed class SkillInstalledPackageIntegrityVerifier
         return SkillInstalledFileSetVerifier.VerifyInstalledEntries(
             skillDirectory,
             requiredPathsResult.Value!,
-            [SkillManagedFileSetPaths.ReferencesDirectoryPath],
+            [
+                SkillManagedFileSetPaths.ReferencesDirectoryPath,
+                SkillManagedFileSetPaths.ScriptsDirectoryPath,
+            ],
             installedEntries,
             cancellationToken);
     }

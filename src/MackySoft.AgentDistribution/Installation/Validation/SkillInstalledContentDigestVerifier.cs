@@ -47,7 +47,7 @@ public sealed class SkillInstalledContentDigestVerifier
 
         digestInputs.Add(new PackageContentDigestInputFile(PackageRelativePath.Parse("SKILL.md"), skillBody.Body));
         foreach (var reference in package.Files
-            .Where(static file => file.RelativePath.IsDescendantOf(SkillManagedFileSetPaths.ReferencesDirectoryPath))
+            .Where(static file => SkillContentFileSetPaths.IsSupplementalContentFile(file.RelativePath))
             .OrderBy(static file => file.RelativePath.Value, StringComparer.Ordinal))
         {
             var referencePathResult = PackagePathResolver.ResolveRegularFile(skillDirectory, reference.RelativePath);

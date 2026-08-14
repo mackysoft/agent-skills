@@ -76,6 +76,28 @@ public sealed class SkillBundleBuildServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task BuildAsync_PublishesNestedScriptsIntoCanonicalBundle ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "build-scripts");
+        WriteSourceBundle(scope);
+        WriteScript(scope, "bench/collect.sh", "#!/bin/sh\necho collect\n");
+        var services = CreateServices();
+
+        var result = await services.BuildService.BuildAsync(SourceRoot(scope), OutputRoot(scope), check: false, cancellationToken: CancellationToken.None);
+        var generatedResult = await services.Reader.ReadAsync(OutputRoot(scope), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.True(generatedResult.IsSuccess, generatedResult.Failure?.Message);
+        Assert.Equal(
+            "#!/bin/sh\necho collect\n",
+            File.ReadAllText(Path.Combine(OutputRoot(scope).Value, "example-skill", "scripts", "bench", "collect.sh")));
+        Assert.Contains(
+            generatedResult.Value!.Packages[0].Files,
+            static file => string.Equals(file.RelativePath.Value, "scripts/bench/collect.sh", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task BuildAsync_WithChangedCatalogId_PreservesVersionAndPublishesNewCatalogIdentity ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "build-catalog-id-change");
@@ -216,6 +238,14 @@ public sealed class SkillBundleBuildServiceTests
         string contents)
     {
         scope.WriteFile("source/definitions/core/example-skill/SKILL.md.template", contents);
+    }
+
+    private static void WriteScript (
+        TestDirectoryScope scope,
+        string relativePath,
+        string contents)
+    {
+        scope.WriteFile(Path.Combine("source", "definitions", "core", "example-skill", "scripts", relativePath), contents);
     }
 
     private static IReadOnlyDictionary<string, string> CaptureFiles (string root)

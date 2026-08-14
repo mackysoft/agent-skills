@@ -8,9 +8,7 @@ namespace MackySoft.AgentDistribution.Packaging.Canonical;
 /// <summary> Represents one immutable canonical host-independent SKILL package snapshot. </summary>
 public sealed class CanonicalSkillPackage
 {
-    private static readonly PackageRelativePath SkillBodyPath = PackageRelativePath.Parse("SKILL.md");
     private static readonly PackageRelativePath ManifestPath = PackageRelativePath.Parse("agent-skill.json");
-    private static readonly PackageRelativePath ReferencesDirectoryPath = PackageRelativePath.Parse("references");
 
     /// <summary> Initializes one canonical package from a fully validated candidate. </summary>
     /// <param name="candidate"> The candidate whose manifest, file set, and digests agree. </param>
@@ -94,7 +92,7 @@ public sealed class CanonicalSkillPackage
             IReadOnlyDictionary<PackageRelativePath, PackageTextFile> filesByPath,
             SkillManifest manifest)
         {
-            if (!filesByPath.ContainsKey(SkillBodyPath))
+            if (!filesByPath.ContainsKey(SkillContentFileSetPaths.SkillBodyPath))
             {
                 return BoolFailure($"Generated SKILL package is missing SKILL.md: {manifest.SkillName}");
             }
@@ -106,9 +104,9 @@ public sealed class CanonicalSkillPackage
 
             foreach (var relativePath in filesByPath.Keys)
             {
-                if (relativePath == SkillBodyPath
+                if (relativePath == SkillContentFileSetPaths.SkillBodyPath
                     || relativePath == ManifestPath
-                    || relativePath.IsDescendantOf(ReferencesDirectoryPath)
+                    || SkillContentFileSetPaths.IsSupplementalContentFile(relativePath)
                     || hostArtifactPaths.Contains(relativePath))
                 {
                     continue;
@@ -125,8 +123,7 @@ public sealed class CanonicalSkillPackage
             SkillManifest manifest)
         {
             var contentDigest = digestCalculator.ComputeDigest(filesByPath.Values
-                .Where(static file => file.RelativePath == SkillBodyPath
-                    || file.RelativePath.IsDescendantOf(ReferencesDirectoryPath))
+                .Where(static file => SkillContentFileSetPaths.IsContentFile(file.RelativePath))
                 .Select(static file => new PackageContentDigestInputFile(file.RelativePath, file.Content)));
 
             if (contentDigest != manifest.ContentDigest)

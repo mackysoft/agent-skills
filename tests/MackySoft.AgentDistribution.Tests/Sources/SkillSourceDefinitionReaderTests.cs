@@ -245,6 +245,7 @@ public sealed class SkillSourceDefinitionReaderTests
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.Empty(result.Value!.Metadata.References);
         Assert.Empty(result.Value.References);
+        Assert.Empty(result.Value.Scripts);
     }
 
     [Fact]
@@ -262,6 +263,27 @@ public sealed class SkillSourceDefinitionReaderTests
         Assert.Equal(
             ["a-reference.md", "z-reference.md"],
             result.Value.References.Select(static reference => reference.FileName).ToArray());
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task ReadOneAsync_ReadsNestedScriptsWithNormalizedContent ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "nested-scripts");
+        var skillDirectory = WriteMinimalDefinition(scope);
+        scope.WriteFile("core/sample-skill/scripts/collect.sh", "#!/bin/sh\r\necho collect\r\n");
+        scope.WriteFile("core/sample-skill/scripts/bench/report.py", "print('report')\n");
+        var reader = new SkillSourceDefinitionReader();
+
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.Equal(
+            ["scripts/bench/report.py", "scripts/collect.sh"],
+            result.Value!.Scripts.Select(static script => script.RelativePath.Value).ToArray());
+        Assert.Equal(
+            ["print('report')\n", "#!/bin/sh\necho collect\n"],
+            result.Value.Scripts.Select(static script => script.Content).ToArray());
     }
 
     [Fact]
@@ -453,6 +475,74 @@ public sealed class SkillSourceDefinitionReaderTests
         Directory.CreateDirectory(Path.Combine(skillDirectory, "references"));
         File.CreateSymbolicLink(Path.Combine(skillDirectory, "references", "reference.md.template"), outsideTemplate);
 
+        var reader = new SkillSourceDefinitionReader();
+
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task ReadOneAsync_RejectsScriptsRootSymlinkOutsideSkillDirectory ()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "scripts-root-symlink");
+        using var outsideScope = TestDirectories.CreateTempScope("agent-distribution-skills", "scripts-root-symlink-outside");
+        var skillDirectory = WriteMinimalDefinition(scope);
+        outsideScope.WriteFile("outside/collect.sh", "#!/bin/sh\n");
+        Directory.CreateSymbolicLink(Path.Combine(skillDirectory, "scripts"), outsideScope.GetPath("outside"));
+        var reader = new SkillSourceDefinitionReader();
+
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task ReadOneAsync_RejectsScriptFileThatIsNotRegular ()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "script-file-symlink");
+        using var outsideScope = TestDirectories.CreateTempScope("agent-distribution-skills", "script-file-symlink-outside");
+        var skillDirectory = WriteMinimalDefinition(scope);
+        var outsideScript = outsideScope.WriteFile("collect.sh", "#!/bin/sh\n");
+        Directory.CreateDirectory(Path.Combine(skillDirectory, "scripts"));
+        File.CreateSymbolicLink(Path.Combine(skillDirectory, "scripts", "collect.sh"), outsideScript);
+        var reader = new SkillSourceDefinitionReader();
+
+        var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task ReadOneAsync_RejectsNestedScriptDirectorySymlink ()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "nested-script-directory-symlink");
+        using var outsideScope = TestDirectories.CreateTempScope("agent-distribution-skills", "nested-script-directory-symlink-outside");
+        var skillDirectory = WriteMinimalDefinition(scope);
+        outsideScope.WriteFile("collect.sh", "#!/bin/sh\n");
+        Directory.CreateDirectory(Path.Combine(skillDirectory, "scripts"));
+        Directory.CreateSymbolicLink(Path.Combine(skillDirectory, "scripts", "outside"), outsideScope.FullPath);
         var reader = new SkillSourceDefinitionReader();
 
         var result = await reader.ReadOneAsync(AbsolutePath.Parse(skillDirectory), CancellationToken.None);
