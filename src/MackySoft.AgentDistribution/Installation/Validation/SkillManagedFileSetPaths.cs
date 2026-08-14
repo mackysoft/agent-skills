@@ -8,13 +8,16 @@ namespace MackySoft.AgentDistribution.Installation.Validation;
 internal static class SkillManagedFileSetPaths
 {
     /// <summary> Gets the package-relative path for the installed SKILL body. </summary>
-    public static PackageRelativePath SkillBodyPath { get; } = PackageRelativePath.Parse("SKILL.md");
+    public static PackageRelativePath SkillBodyPath { get; } = SkillContentFileSetPaths.SkillBodyPath;
 
     /// <summary> Gets the package-relative path for the installed Agent Distribution manifest. </summary>
     public static PackageRelativePath ManifestPath { get; } = PackageRelativePath.Parse("agent-skill.json");
 
     /// <summary> Gets the package-relative path prefix for host-independent reference files. </summary>
-    public static PackageRelativePath ReferencesDirectoryPath { get; } = PackageRelativePath.Parse("references");
+    public static PackageRelativePath ReferencesDirectoryPath { get; } = SkillContentFileSetPaths.ReferencesDirectoryPath;
+
+    /// <summary> Gets the package-relative path prefix for host-independent script files. </summary>
+    public static PackageRelativePath ScriptsDirectoryPath { get; } = SkillContentFileSetPaths.ScriptsDirectoryPath;
 
     /// <summary> Creates the managed file set expected from a materialized canonical package for one host. </summary>
     /// <param name="package"> The canonical package to inspect. Must not be <see langword="null" />. </param>
@@ -39,8 +42,7 @@ internal static class SkillManagedFileSetPaths
         var paths = package.Files
             .Select(static file => file.RelativePath)
             .Where(path => path.Equals(ManifestPath)
-                || path.Equals(SkillBodyPath)
-                || path.IsDescendantOf(ReferencesDirectoryPath)
+                || SkillContentFileSetPaths.IsContentFile(path)
                 || (hostArtifactPath is not null && path.Equals(hostArtifactPath)))
             .ToArray();
 

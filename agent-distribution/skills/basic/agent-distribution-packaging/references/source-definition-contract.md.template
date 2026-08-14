@@ -4,7 +4,7 @@
 
 この文書は、同じ配布物に含まれる Agent Distribution CLI が受け付けるソース入力の公開契約を定める。
 
-ソース入力は、`bundle.json`、`skills` 以下のメタデータ、本文テンプレート、参照テンプレートで構成する。
+ソース入力は、`bundle.json`、`skills` 以下のメタデータ、本文テンプレート、参照テンプレート、スクリプトで構成する。
 
 ## ディレクトリ構造
 
@@ -20,14 +20,16 @@
         SKILL.md.template
         references/
           <reference-name>.md.template
+        scripts/
+          <relative-path>
 ```
 
 - `bundle.json` と `skills` は必須である。
 - `skills` には一つ以上のスキル定義を置く。
 - `skills` 直下の各ディレクトリを category、その直下の各ディレクトリをスキル定義として読み取る。これより深いディレクトリはスキル定義として探索しない。
 - 各 category には一つ以上のスキル定義を置く。category 直下へ `skill.json` を置く形式は受け付けない。
-- 各スキル定義には `skill.json` と `SKILL.md.template` が必要である。`references` は任意である。
-- 読み取るパスは、それぞれの所有ディレクトリ内に解決できなければならない。`references` ディレクトリとその内容に、シンボリックリンクなどの再解析ポイントは使用できない。
+- 各スキル定義には `skill.json` と `SKILL.md.template` が必要である。`references` と `scripts` は任意である。
+- 読み取るパスは、それぞれの所有ディレクトリ内に解決できなければならない。`references`、`scripts` の各ディレクトリとその内容に、シンボリックリンクなどの再解析ポイントは使用できない。
 
 ## `bundle.json`
 
@@ -107,3 +109,14 @@ skill name は、category が異なる場合も含めて、同じ `skills` 全�
 ファイル名は `.md.template` で終わる安全な単一パス要素にする。末尾の `.template` を除いた名前が `.md` で終わり、空、`.`、`..`、絶対パス、スラッシュ、バックスラッシュを含む名前は使用できない。同じディレクトリに同名の参照は置けない。
 
 同じ配布集合の skill name への表記は `dependencies` の照合対象になる。
+
+## スクリプト
+
+`scripts` が存在する場合は、通常ファイルだけを再帰的に置く。ディレクトリはスクリプトの相対階層を表すために使用できる。各通常ファイルは、スキル定義ディレクトリから見た `scripts/<relative-path>` のまま canonical package と各 host の導入先へ配置する。
+
+- `scripts` 以下の相対パスは、安全な package-relative path にする。空のパス要素、`.`、`..`、絶対パス、スラッシュ以外の区切り文字、バックスラッシュ、ドライブ指定を含めない。
+- `scripts` 自身、途中のディレクトリ、通常ファイルのいずれにも、シンボリックリンクなどの再解析ポイントを使用しない。通常ファイルでも通常ディレクトリでもないエントリは受け付けない。
+- 大文字と小文字を区別しないファイルシステムでも衝突する相対パスを同じスキル内に置かない。
+- ファイル名や拡張子にテンプレート規則はない。スクリプトのテキストは LF 改行へ正規化して配布し、`SKILL.md` と `references/**` とともに content digest と bundle digest の入力に含める。追加、内容変更、削除は導入、更新、診断、削除時の managed file set と integrity 検証の対象になる。
+- Agent Distribution はスクリプトを実行しない。実行権限、interpreter の選択、runner はこの契約の対象外である。source の実行ビットは読み取らず、canonical package と host materialization へ引き継がない。
+- `assets/**` はこの契約で配布しない。

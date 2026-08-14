@@ -121,6 +121,7 @@ GitHub Copilot の project 成果物は公開 custom-agent contract を使う。
         skill.json
         SKILL.md.template
         references/
+        scripts/
   agents/
     <agent-name>/
       agent.json

@@ -48,7 +48,6 @@ public sealed class GeneratedSkillPackagePolicyTests
             Assert.Contains("touched", skillText, StringComparison.Ordinal);
             Assert.Contains("readPostcondition", skillText, StringComparison.Ordinal);
             Assert.Contains("--allowDangerous", skillText, StringComparison.Ordinal);
-            Assert.False(Directory.Exists(Path.Combine(skillDirectory, "scripts")), skillName);
 
             foreach (var forbiddenTerm in ForbiddenCanonicalSchemaTerms)
             {

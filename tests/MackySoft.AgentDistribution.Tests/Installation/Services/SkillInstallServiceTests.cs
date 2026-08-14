@@ -13,6 +13,34 @@ public sealed class SkillInstallServiceTests
 {
     [Fact]
     [Trait("Size", "Small")]
+    public async Task InstallAsync_MaterializesNestedScriptsAndRecognizesThemAsCurrent ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "install-scripts");
+        var generated = (await SkillTestData.GenerateFixturePackagesAsync())[0];
+        var package = SkillTestData.CreatePackageWithScripts(
+            generated,
+            [new PackageTextFile(PackageRelativePath.Parse("scripts/bench/collect.sh"), "#!/bin/sh\necho collect\n")]);
+        var service = SkillTestData.CreateInstallService();
+        var request = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath);
+
+        var created = await service.InstallAsync(package.Manifest.CatalogId, [package], request, CancellationToken.None);
+        var noOp = await service.InstallAsync(package.Manifest.CatalogId, [package], request, CancellationToken.None);
+
+        Assert.True(created.IsSuccess, created.Failure?.Message);
+        Assert.True(noOp.IsSuccess, noOp.Failure?.Message);
+        Assert.Equal(SkillInstallActionKind.Created, Assert.Single(created.Value!.Actions).ActionKind);
+        Assert.Equal(SkillInstallActionKind.NoOp, Assert.Single(noOp.Value!.Actions).ActionKind);
+        var installedScript = Path.Combine(
+            created.Value.TargetRoot.Value,
+            package.Manifest.SkillName.Value,
+            "scripts",
+            "bench",
+            "collect.sh");
+        Assert.Equal("#!/bin/sh\necho collect\n", File.ReadAllText(installedScript));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task InstallAsync_CreatesThenNoOps_WhenTargetMatchesSameHost ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "install-noop");

@@ -41,6 +41,7 @@ agent-distribution/
       skill.json
       SKILL.md.template
       references/
+      scripts/
   agents/
     <agent-name>/
       agent.json
@@ -94,6 +95,8 @@ Create a skill at `skills/<category>/<skill-name>` and a custom agent at `agents
 `AGENT.md.template` is host-independent. Host bindings contain only the settings owned by one execution host. A custom agent may define any non-empty subset of `codex.json`, `claude-code.json`, and `github-copilot.json`; every binding field other than `schemaVersion` is optional.
 
 Use the [skill source definition contract](agent-distribution/skills/basic/agent-distribution-packaging/references/source-definition-contract.md.template) for the complete skill layout, naming, dependency, content, and encoding rules.
+
+`scripts/**` is optional host-independent text content. Each script is published at the same relative path in the canonical package and every host materialization, and participates in package and bundle integrity checks. Agent Distribution does not execute scripts or read and preserve executable permissions; interpreter selection and execution remain the responsibility of a separate runner.
 
 ### Build Canonical Packages
 

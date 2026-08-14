@@ -11,6 +11,49 @@ public sealed class SkillUpdateServiceTests
 {
     [Fact]
     [Trait("Size", "Small")]
+    public async Task UpdateAsync_ReconcilesAddedChangedAndRemovedScripts ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "update-scripts");
+        var basePackage = (await SkillTestData.GenerateFixturePackagesAsync())[0];
+        var addedPackage = SkillTestData.CreatePackageWithScripts(
+            basePackage,
+            [new PackageTextFile(PackageRelativePath.Parse("scripts/collect.sh"), "#!/bin/sh\necho first\n")],
+            basePackage.Manifest.SkillBundleVersion.Next().Value);
+        var changedPackage = SkillTestData.CreatePackageWithScripts(
+            basePackage,
+            [new PackageTextFile(PackageRelativePath.Parse("scripts/collect.sh"), "#!/bin/sh\necho changed\n")],
+            addedPackage.Manifest.SkillBundleVersion.Next().Value);
+        var removedPackage = SkillTestData.CreatePackageWithSkillBundleVersion(
+            basePackage,
+            changedPackage.Manifest.SkillBundleVersion.Next().Value);
+        var installService = SkillTestData.CreateInstallService();
+        var updateService = SkillTestData.CreateUpdateService();
+        var request = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath);
+
+        var install = await installService.InstallAsync(basePackage.Manifest.CatalogId, [basePackage], request, CancellationToken.None);
+        Assert.True(install.IsSuccess, install.Failure?.Message);
+
+        var added = await updateService.UpdateAsync(new SkillUpdateInput(addedPackage.Manifest.CatalogId, [addedPackage], request), CancellationToken.None);
+        Assert.True(added.IsSuccess, added.Failure?.Message);
+        Assert.Equal(SkillUpdateActionKind.Updated, Assert.Single(added.Value!.Actions).ActionKind);
+        var scriptPath = Path.Combine(added.Value.TargetRoot.Value, basePackage.Manifest.SkillName.Value, "scripts", "collect.sh");
+        Assert.Equal("#!/bin/sh\necho first\n", File.ReadAllText(scriptPath));
+
+        var changed = await updateService.UpdateAsync(new SkillUpdateInput(changedPackage.Manifest.CatalogId, [changedPackage], request), CancellationToken.None);
+        Assert.True(changed.IsSuccess, changed.Failure?.Message);
+        Assert.Equal(SkillUpdateActionKind.Updated, Assert.Single(changed.Value!.Actions).ActionKind);
+        Assert.Equal("#!/bin/sh\necho changed\n", File.ReadAllText(scriptPath));
+
+        var removed = await updateService.UpdateAsync(new SkillUpdateInput(removedPackage.Manifest.CatalogId, [removedPackage], request), CancellationToken.None);
+
+        Assert.True(removed.IsSuccess, removed.Failure?.Message);
+        Assert.Equal(SkillUpdateActionKind.Updated, Assert.Single(removed.Value!.Actions).ActionKind);
+        Assert.False(File.Exists(scriptPath));
+        Assert.False(Directory.Exists(Path.GetDirectoryName(scriptPath)!));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task UpdateAsync_CreatesThenNoOps_WhenTargetIsCurrent ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "update-create-noop");

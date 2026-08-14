@@ -40,6 +40,33 @@ public sealed class SkillDoctorServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task DiagnoseAsync_RecognizesScriptsAndReportsTheirContentDrift ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "doctor-scripts");
+        var generated = (await SkillTestData.GenerateFixturePackagesAsync())[0];
+        var package = SkillTestData.CreatePackageWithScripts(
+            generated,
+            [new PackageTextFile(PackageRelativePath.Parse("scripts/collect.sh"), "#!/bin/sh\necho collect\n")]);
+        var installService = SkillTestData.CreateInstallService();
+        var request = SkillTestData.CreateInstallRequest(HostKind.Codex, SkillScopeKind.Project, scope.FullPath);
+        var install = await installService.InstallAsync(package.Manifest.CatalogId, [package], request, CancellationToken.None);
+        Assert.True(install.IsSuccess, install.Failure?.Message);
+        var doctor = SkillTestData.CreateDoctorService();
+
+        var healthy = await doctor.DiagnoseAsync([package], HostKind.Codex, install.Value!.TargetRoot.Value, CancellationToken.None);
+
+        Assert.True(healthy.IsHealthy);
+        var scriptPath = Path.Combine(install.Value.TargetRoot.Value, package.Manifest.SkillName.Value, "scripts", "collect.sh");
+        File.AppendAllText(scriptPath, "echo changed\n");
+
+        var drifted = await doctor.DiagnoseAsync([package], HostKind.Codex, install.Value.TargetRoot.Value, CancellationToken.None);
+
+        Assert.False(drifted.IsHealthy);
+        Assert.Contains(drifted.Diagnostics, static diagnostic => diagnostic.Code == AgentDistributionFailureCodes.InstallTargetContentDigestMismatch);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task DiagnoseAsync_ReportsMissingSkillDirectory ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "doctor-missing");

@@ -168,15 +168,19 @@ public sealed class SkillPackageGenerationService
         ArgumentNullException.ThrowIfNull(bundle);
         ArgumentNullException.ThrowIfNull(definition);
 
-        var bodyFile = new PackageTextFile(PackageRelativePath.Parse("SKILL.md"), CreateSkillBody(definition));
+        var bodyFile = new PackageTextFile(SkillContentFileSetPaths.SkillBodyPath, CreateSkillBody(definition));
         var referenceFiles = definition.References
             .OrderBy(static reference => reference.FileName, StringComparer.Ordinal)
             .Select(static reference => new PackageTextFile(PackageRelativePath.Parse($"references/{reference.FileName}"), reference.Template))
             .ToArray();
+        var scriptFiles = definition.Scripts
+            .OrderBy(static script => script.RelativePath.Value, StringComparer.Ordinal)
+            .ToArray();
 
         var contentDigest = digestCalculator.ComputeDigest(
             new[] { new PackageContentDigestInputFile(bodyFile.RelativePath, bodyFile.Content) }
-                .Concat(referenceFiles.Select(static file => new PackageContentDigestInputFile(file.RelativePath, file.Content))));
+                .Concat(referenceFiles.Select(static file => new PackageContentDigestInputFile(file.RelativePath, file.Content)))
+                .Concat(scriptFiles.Select(static file => new PackageContentDigestInputFile(file.RelativePath, file.Content))));
 
         var hostArtifactOutputs = CreateHostArtifactOutputs(definition.Metadata)
             .OrderBy(static artifact => artifact.Manifest.Host)
@@ -212,6 +216,7 @@ public sealed class SkillPackageGenerationService
             .ToArray();
         var files = new[] { bodyFile, manifestFile }
             .Concat(referenceFiles)
+            .Concat(scriptFiles)
             .Concat(hostArtifactFiles)
             .OrderBy(static file => file.RelativePath.Value, StringComparer.Ordinal)
             .ToArray();

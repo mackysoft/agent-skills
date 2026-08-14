@@ -1,3 +1,4 @@
+using MackySoft.AgentDistribution.Shared;
 using MackySoft.AgentDistribution.Sources;
 
 namespace MackySoft.AgentDistribution.Tests.Sources;
@@ -12,15 +13,21 @@ public sealed class SkillSourceModelTests
         var referenceNames = new List<string> { "reference.md" };
         var metadata = CreateMetadata(dependencies, referenceNames);
         var referenceTemplates = new List<SkillSourceReference> { new("reference.md", "Reference content.\n") };
-        var definition = new SkillSourceDefinition(metadata, "Skill content.\n", referenceTemplates);
+        var scriptFiles = new List<PackageTextFile>
+        {
+            new(PackageRelativePath.Parse("scripts/collect.sh"), "#!/bin/sh\n"),
+        };
+        var definition = new SkillSourceDefinition(metadata, "Skill content.\n", referenceTemplates, scriptFiles);
 
         dependencies.Clear();
         referenceNames.Clear();
         referenceTemplates.Clear();
+        scriptFiles.Clear();
 
         Assert.Equal(["helper-skill"], metadata.Dependencies.Select(static dependency => dependency.Value).ToArray());
         Assert.Equal(["reference.md"], metadata.References);
         Assert.Equal(["reference.md"], definition.References.Select(static reference => reference.FileName).ToArray());
+        Assert.Equal(["scripts/collect.sh"], definition.Scripts.Select(static script => script.RelativePath.Value).ToArray());
     }
 
     [Theory]
@@ -85,7 +92,7 @@ public sealed class SkillSourceModelTests
     [Trait("Size", "Small")]
     public void DefinitionConstructor_RejectsInvalidSkillTemplate (string skillTemplate)
     {
-        Assert.Throws<ArgumentException>(() => new SkillSourceDefinition(CreateMetadata([], []), skillTemplate, []));
+        Assert.Throws<ArgumentException>(() => new SkillSourceDefinition(CreateMetadata([], []), skillTemplate, [], []));
     }
 
     [Fact]
@@ -94,7 +101,32 @@ public sealed class SkillSourceModelTests
     {
         var metadata = CreateMetadata([], ["reference.md"]);
 
-        Assert.Throws<ArgumentException>(() => new SkillSourceDefinition(metadata, "Skill content.\n", []));
+        Assert.Throws<ArgumentException>(() => new SkillSourceDefinition(metadata, "Skill content.\n", [], []));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void DefinitionConstructor_RejectsScriptsOutsideScriptsDirectory ()
+    {
+        Assert.Throws<ArgumentException>(() => new SkillSourceDefinition(
+            CreateMetadata([], []),
+            "Skill content.\n",
+            [],
+            [new PackageTextFile(PackageRelativePath.Parse("references/collect.sh"), "#!/bin/sh\n")]));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void DefinitionConstructor_RejectsNonPortableScriptPathCollision ()
+    {
+        Assert.Throws<ArgumentException>(() => new SkillSourceDefinition(
+            CreateMetadata([], []),
+            "Skill content.\n",
+            [],
+            [
+                new PackageTextFile(PackageRelativePath.Parse("scripts/collect.sh"), "first\n"),
+                new PackageTextFile(PackageRelativePath.Parse("scripts/COLLECT.sh"), "second\n"),
+            ]));
     }
 
     private static SkillSourceMetadata CreateMetadata (

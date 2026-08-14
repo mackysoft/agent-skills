@@ -66,6 +66,26 @@ public sealed class SkillMaterializationServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task Materialize_PreservesNestedScriptsAcrossHosts ()
+    {
+        var generated = (await SkillTestData.GenerateFixturePackagesAsync())[0];
+        var package = SkillTestData.CreatePackageWithScripts(
+            generated,
+            [new PackageTextFile(PackageRelativePath.Parse("scripts/bench/collect.sh"), "#!/bin/sh\necho collect\n")]);
+        var service = SkillTestData.CreateMaterializationService();
+
+        foreach (var registration in GetSupportedHosts())
+        {
+            var result = service.Materialize(package, registration.Host);
+
+            Assert.True(result.IsSuccess, result.Failure?.Message);
+            var script = Assert.Single(result.Value!.Files, static file => file.RelativePath.Value == "scripts/bench/collect.sh");
+            Assert.Equal("#!/bin/sh\necho collect\n", script.Content);
+        }
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public void Materialize_UsesOrdinalOrdering_ForCultureSensitivePaths ()
     {
         var originalCulture = CultureInfo.CurrentCulture;

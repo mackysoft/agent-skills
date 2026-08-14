@@ -73,6 +73,24 @@ public sealed class CanonicalSkillPackageFactoryTests
 
     [Fact]
     [Trait("Size", "Small")]
+    public async Task Validate_AcceptsNestedScriptFiles ()
+    {
+        var generated = (await SkillTestData.GenerateFixturePackagesAsync())[0];
+        var package = SkillTestData.CreatePackageWithScripts(
+            generated,
+            [new PackageTextFile(PackageRelativePath.Parse("scripts/bench/collect.sh"), "#!/bin/sh\necho collect\n")]);
+        var factory = CreateFactory();
+
+        var result = factory.CreateCanonical(new CanonicalSkillPackageCandidate(package.Manifest, package.Files));
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.Contains(
+            result.Value!.Files,
+            static file => string.Equals(file.RelativePath.Value, "scripts/bench/collect.sh", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
     public async Task Validate_RejectsContentDigestDrift ()
     {
         var package = (await SkillTestData.GenerateFixturePackagesAsync())[0];
@@ -80,6 +98,26 @@ public sealed class CanonicalSkillPackageFactoryTests
             package,
             "SKILL.md",
             static file => new PackageTextFile(file.RelativePath, file.Content + "drift\n"));
+        var factory = CreateFactory();
+
+        var result = factory.CreateCanonical(changedPackage);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("contentDigest", result.Failure!.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task Validate_RejectsContentDigestDrift_WhenScriptContentChanges ()
+    {
+        var generated = (await SkillTestData.GenerateFixturePackagesAsync())[0];
+        var package = SkillTestData.CreatePackageWithScripts(
+            generated,
+            [new PackageTextFile(PackageRelativePath.Parse("scripts/collect.sh"), "#!/bin/sh\necho collect\n")]);
+        var changedPackage = ReplaceFile(
+            package,
+            "scripts/collect.sh",
+            static file => new PackageTextFile(file.RelativePath, "#!/bin/sh\necho changed\n"));
         var factory = CreateFactory();
 
         var result = factory.CreateCanonical(changedPackage);

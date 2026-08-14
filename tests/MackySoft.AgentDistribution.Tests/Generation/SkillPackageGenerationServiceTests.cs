@@ -37,7 +37,7 @@ public sealed class SkillPackageGenerationServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task GenerateAllAsync_ComputesContentDigestFromBodyAndReferencesOnly ()
+    public async Task GenerateAllAsync_ComputesContentDigestFromBodyReferencesAndScripts ()
     {
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var calculator = new PackageContentDigestCalculator();
@@ -46,7 +46,8 @@ public sealed class SkillPackageGenerationServiceTests
         {
             var expectedDigest = calculator.ComputeDigest(package.Files
                 .Where(static file => string.Equals(file.RelativePath.Value, "SKILL.md", StringComparison.Ordinal)
-                    || file.RelativePath.Value.StartsWith("references/", StringComparison.Ordinal))
+                    || file.RelativePath.Value.StartsWith("references/", StringComparison.Ordinal)
+                    || file.RelativePath.Value.StartsWith("scripts/", StringComparison.Ordinal))
                 .Select(static file => new PackageContentDigestInputFile(file.RelativePath, file.Content)));
 
             Assert.Equal(expectedDigest, package.Manifest.ContentDigest);
@@ -83,6 +84,57 @@ public sealed class SkillPackageGenerationServiceTests
         Assert.Equal(
             first.Select(static package => GetManifestContent(package)).ToArray(),
             second.Select(static package => GetManifestContent(package)).ToArray());
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task GenerateAllAsync_GeneratesNestedScriptsAndDetectsScriptContentSetChanges ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "generated-scripts");
+        WriteDefinition(
+            scope,
+            "script-skill",
+            scripts: new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["bench/collect.sh"] = "#!/bin/sh\necho collect\n",
+                ["report.py"] = "print('report')\n",
+            });
+        var service = SkillTestData.CreatePackageGenerationService();
+
+        var initialResult = await service.GenerateAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
+
+        Assert.True(initialResult.IsSuccess, initialResult.Failure?.Message);
+        var initial = Assert.Single(initialResult.Value!.Packages);
+        Assert.Equal(
+            ["scripts/bench/collect.sh", "scripts/report.py"],
+            initial.Files
+                .Where(static file => file.RelativePath.Value.StartsWith("scripts/", StringComparison.Ordinal))
+                .Select(static file => file.RelativePath.Value)
+                .ToArray());
+        Assert.Equal(
+            new PackageContentDigestCalculator().ComputeDigest(initial.Files
+                .Where(static file => file.RelativePath.Value == "SKILL.md"
+                    || file.RelativePath.Value.StartsWith("references/", StringComparison.Ordinal)
+                    || file.RelativePath.Value.StartsWith("scripts/", StringComparison.Ordinal))
+                .Select(static file => new PackageContentDigestInputFile(file.RelativePath, file.Content))),
+            initial.Manifest.ContentDigest);
+
+        scope.WriteFile("definitions/core/script-skill/scripts/bench/collect.sh", "#!/bin/sh\necho changed\n");
+        var changedResult = await service.GenerateAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
+
+        Assert.True(changedResult.IsSuccess, changedResult.Failure?.Message);
+        Assert.NotEqual(initial.Manifest.ContentDigest, changedResult.Value!.Packages[0].Manifest.ContentDigest);
+        Assert.NotEqual(initialResult.Value.Descriptor.BundleDigest, changedResult.Value.Descriptor.BundleDigest);
+
+        File.Delete(scope.GetPath("definitions/core/script-skill/scripts/report.py"));
+        var removedResult = await service.GenerateAllAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
+
+        Assert.True(removedResult.IsSuccess, removedResult.Failure?.Message);
+        Assert.NotEqual(changedResult.Value.Packages[0].Manifest.ContentDigest, removedResult.Value!.Packages[0].Manifest.ContentDigest);
+        Assert.NotEqual(changedResult.Value.Descriptor.BundleDigest, removedResult.Value.Descriptor.BundleDigest);
+        Assert.DoesNotContain(
+            removedResult.Value.Packages[0].Files,
+            static file => string.Equals(file.RelativePath.Value, "scripts/report.py", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -152,7 +204,8 @@ public sealed class SkillPackageGenerationServiceTests
                 [
                     new SkillSourceReference("a.md", "lowercase reference\n"),
                     new SkillSourceReference("B.md", "uppercase reference\n"),
-                ]));
+                ],
+                []));
 
             var paths = package.Files.Select(static file => file.RelativePath.Value).ToArray();
             var ordinalPaths = paths.Order(StringComparer.Ordinal).ToArray();
@@ -184,6 +237,7 @@ public sealed class SkillPackageGenerationServiceTests
                 [],
                 []),
             "Use this skill to verify reference-free package generation.\n",
+            [],
             []));
 
         var paths = package.Files.Select(static file => file.RelativePath.Value).ToArray();
@@ -209,6 +263,7 @@ public sealed class SkillPackageGenerationServiceTests
                 [],
                 []),
             "Use this skill to verify generated heading insertion.\n",
+            [],
             []));
 
         var body = package.Files.Single(static file => string.Equals(file.RelativePath.Value, "SKILL.md", StringComparison.Ordinal)).Content;
@@ -396,10 +451,12 @@ public sealed class SkillPackageGenerationServiceTests
         IReadOnlyList<string>? dependencies = null,
         string? description = null,
         string? skillTemplate = null,
-        IReadOnlyDictionary<string, string>? references = null)
+        IReadOnlyDictionary<string, string>? references = null,
+        IReadOnlyDictionary<string, string>? scripts = null)
     {
         dependencies ??= [];
         references ??= new Dictionary<string, string>(StringComparer.Ordinal);
+        scripts ??= new Dictionary<string, string>(StringComparer.Ordinal);
         if (!File.Exists(scope.GetPath("bundle.json")))
         {
             WriteBundle(scope);
@@ -425,6 +482,11 @@ public sealed class SkillPackageGenerationServiceTests
         foreach (var reference in references.OrderBy(static item => item.Key, StringComparer.Ordinal))
         {
             scope.WriteFile(Path.Combine(sourceRelativeDirectory, "references", reference.Key + ".template"), reference.Value);
+        }
+
+        foreach (var script in scripts.OrderBy(static item => item.Key, StringComparer.Ordinal))
+        {
+            scope.WriteFile(Path.Combine(sourceRelativeDirectory, "scripts", script.Key), script.Value);
         }
 
         return skillDirectory;

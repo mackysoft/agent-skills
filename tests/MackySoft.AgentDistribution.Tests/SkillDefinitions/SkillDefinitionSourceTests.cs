@@ -154,7 +154,6 @@ public sealed class SkillDefinitionSourceTests
             }
 
             Assert.False(ContainsOperationCatalogTableCopy(template), skillName);
-            Assert.False(Directory.Exists(Path.Combine(skillDirectory, "scripts")), skillName);
             Assert.False(Directory.Exists(Path.Combine(skillDirectory, "assets")), skillName);
         }
     }
