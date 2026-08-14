@@ -27,52 +27,49 @@ The core package uses [`MackySoft.FileSystem`](https://github.com/mackysoft/dotn
 
 ## Create Distribution Bundles
 
-Agent Distribution separates authored definitions from generated packages. Source schema `3` can contain skills, custom agents, or both. The namespaces are separate, and the only distribution dependency direction is Agent to Skill. Skills never depend on agents, and agents do not form a distribution dependency graph with other agents.
+Agent Distribution separates authored definitions from canonical runtime packages. Source schema `4` can contain skills, custom agents, or both. Skills and agents have separate namespaces; the only distribution dependency direction is Agent to Skill.
 
 ### Define the Source Layout
 
 Create this fixed layout in the product repository:
 
 ```text
-<bundle-root>/
+agent-distribution/
   bundle.json
-  definitions/
-    skills/
-      <category>/<skill-name>/
-        skill.json
-        SKILL.md.template
-        references/
-    agents/
-      <agent-name>/
-        agent.json
-        AGENT.md.template
-        hosts/
-          codex.json
-          claude-code.json
-          github-copilot.json
+  skills/
+    <category>/<skill-name>/
+      skill.json
+      SKILL.md.template
+      references/
+  agents/
+    <agent-name>/
+      agent.json
+      AGENT.md.template
+      hosts/
+        codex.json
+        claude-code.json
+        github-copilot.json
 ```
 
-Omit `definitions/skills` or `definitions/agents` when the catalog does not define that artifact kind. A namespace must contain at least one definition when present, and `definitions` accepts no other entries.
+Omit `skills` or `agents` when the catalog does not define that artifact kind. Each directory that is present contains at least one definition. Source schema `4` accepts no other root entries.
 
-Create `bundle.json` at the bundle root. One `bundleVersion` covers both package kinds:
+Create `bundle.json` at the source root. One `bundleVersion` covers both package kinds:
 
 ```json
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "catalogId": "com.example.agent-assets",
   "bundleVersion": 1
 }
 ```
 
-| Property | JSON type | Meaning |
-| --- | --- | --- |
-| `schemaVersion` | 32-bit integer | Selects source schema `3`. |
-| `catalogId` | string | Provides the stable identity shared by source definitions, generated packages, and managed installations. |
-| `bundleVersion` | 32-bit integer | Identifies the revision of the complete generated bundle. A new bundle starts at `1`. |
+`catalogId` is the stable identity shared by the source, canonical packages, and managed installations. `bundleVersion` identifies one complete canonical bundle.
 
-### Define Skills
+### Define Skills and Custom Agents
 
-For each skill, create `definitions/skills/<category>/<skill-name>/skill.json`. Category and skill name come from the directory names. The metadata contains exactly these properties:
+Create a skill at `skills/<category>/<skill-name>` and a custom agent at `agents/<agent-name>`. Category, skill name, and agent name come from their directory names.
+
+`skill.json` defines the skill's display metadata and same-bundle dependencies. Its current schema remains `1`:
 
 ```json
 {
@@ -83,22 +80,7 @@ For each skill, create `definitions/skills/<category>/<skill-name>/skill.json`. 
 }
 ```
 
-| Property | JSON type | Meaning |
-| --- | --- | --- |
-| `schemaVersion` | 32-bit integer | Selects the skill definition contract. The current value is `1`. |
-| `displayName` | string | Provides the name shown to users. |
-| `description` | string | Provides the host-independent description used for selection and materialization. |
-| `dependencies` | array of strings | Names same-bundle skills that must be resolved with this skill. |
-
-Do not repeat bundle identity, category, skill name, reference-file names, digests, or host artifacts in `skill.json`. Those values belong to the bundle, directory layout, reference files, or generated package.
-
-Use the [skill source definition contract](agent-distribution/generated/skills/agent-distribution-packaging/references/source-definition-contract.md) shipped with `agent-distribution-packaging` for the complete skill layout, naming, dependency, content, and encoding rules.
-
-### Define Custom Agents
-
-Create each custom agent at `definitions/agents/<agent-name>`. The directory name is the globally unique agent name within the catalog.
-
-An agent's `agent.json` contains only host-independent metadata and direct skill dependencies:
+`agent.json` defines host-independent metadata and direct skill dependencies:
 
 ```json
 {
@@ -109,155 +91,46 @@ An agent's `agent.json` contains only host-independent metadata and direct skill
 }
 ```
 
-`AGENT.md.template` is the host-independent instruction source. It does not contain host binding fields or require a host-specific skill-reference syntax. `skillDependencies` is the only dependency declaration; dependency resolution starts from that array and then reuses the existing transitive skill graph. The build does not infer dependencies from the instruction text.
+`AGENT.md.template` is host-independent. Host bindings contain only the settings owned by one execution host. A custom agent may define any non-empty subset of `codex.json`, `claude-code.json`, and `github-copilot.json`; every binding field other than `schemaVersion` is optional.
 
-Host bindings contain only the model and execution settings owned by one execution host. A definition may contain any non-empty subset of `codex.json`, `claude-code.json`, and `github-copilot.json`.
+Use the [skill source definition contract](agent-distribution/skills/basic/agent-distribution-packaging/references/source-definition-contract.md.template) for the complete skill layout, naming, dependency, content, and encoding rules.
 
-`codex.json` accepts:
-
-```json
-{
-  "schemaVersion": 1,
-  "model": "gpt-5.6-terra",
-  "reasoningEffort": "high",
-  "sandboxMode": "workspace-write"
-}
-```
-
-The Codex names `default`, `worker`, and `explorer` are reserved and cannot be used by distributed custom agents. The adapter generates one `<agent-name>.toml` file and never edits shared `.codex/config.toml` state.
-
-`claude-code.json` accepts:
-
-```json
-{
-  "schemaVersion": 1,
-  "model": "sonnet",
-  "tools": ["Read", "Grep"],
-  "disallowedTools": ["Write"],
-  "permissionMode": "default",
-  "maxTurns": 20
-}
-```
-
-`permissionMode` also accepts Claude Code's `manual` alias for `default`; generated frontmatter preserves the authored value.
-
-`github-copilot.json` accepts:
-
-```json
-{
-  "schemaVersion": 1,
-  "target": "github-copilot",
-  "tools": ["read"],
-  "disableModelInvocation": false,
-  "userInvocable": true
-}
-```
-
-For GitHub Copilot, omit `tools` to inherit all tools or set it to an empty array to disable every tool.
-
-Every binding field other than `schemaVersion` is optional. Each host adapter validates only its own binding and generates only its own format.
-
-### Generate Shipped Packages
+### Build Canonical Packages
 
 Install the build tool in the product repository:
 
 ```bash
 dotnet new tool-manifest
-dotnet tool install MackySoft.AgentDistribution.Cli --version 5.0.0
+dotnet tool install MackySoft.AgentDistribution.Cli --version 6.0.0
 ```
 
-Build the source bundle:
+Build source into a separate artifact root. The output directory name is always `agent-distribution`:
 
 ```bash
-dotnet tool run agent-distribution -- build --root agent-distribution
-dotnet tool run agent-distribution -- build --root agent-distribution --check
+dotnet tool run agent-distribution -- build \
+  --source agent-distribution \
+  --output artifacts/agent-distribution
 ```
 
-The command reads `bundle.json` and `definitions`, then publishes `generated` as one canonical bundle. Do not edit generated files manually. When packaging a product CLI, ship `generated` as `<PackageBaseDirectory>/agent-distribution`.
+The command reads the source root and publishes the canonical bundle below the explicit output root. Do not edit `artifacts/agent-distribution` manually or commit it. Before packing a product CLI, run the build in a separate process and include `artifacts/agent-distribution/**/*` in the package as `agent-distribution/`.
 
-`build` always preserves the version authored in `bundle.json`; the CLI and build services do not expose a bundle-version update operation. The release Action owns the version transition, updates `bundle.json` to the exact next revision inside release CI, and then invokes the same version-preserving `build` command.
+`build --check` verifies an existing explicit output without writing it. The build always preserves the version authored in `bundle.json`; release preparation updates only that source descriptor.
 
-The generated layout preserves the two artifact namespaces:
+The canonical bundle contains `bundle.json`, `skills/<skill-name>/...`, and `agents/<agent-name>/...`. The generator owns every canonical file, including manifests and digests. It validates the complete source, dependency graph, host bindings, file sets, and digests before replacing the output. Repeating a build from the same source produces the same bytes.
 
-```text
-generated/
-  bundle.json
-  skills/<skill-name>/...
-  agents/<agent-name>/
-    AGENT.md
-    agent-manifest.json
-    hosts/
-      codex/<agent-name>.toml
-      claude-code/<agent-name>.md
-      github-copilot/<agent-name>.agent.md
-```
+### Verify Source Builds in GitHub Actions
 
-The build validates the complete source, skill dependency graph, agent references, host bindings, fixed layout, manifests, file sets, and digests before replacing generated output. Repeating a build from the same input produces the same bytes.
-
-### Generated Package Metadata
-
-The generator owns `generated/bundle.json`, skill manifests, agent manifests, and every generated package file. The root descriptor contains `schemaVersion`, `catalogId`, `bundleVersion`, and `bundleDigest`. The digest binds the complete package set independently of its version.
-
-Each `generated/skills/<skill-name>/agent-skill.json` records the skill identity, direct skill dependencies, content and manifest digests, and materialization metadata for every supported host. Each `generated/agents/<agent-name>/agent-manifest.json` records the agent identity, direct skill dependencies, instruction and manifest digests, and the generated artifact path and digest for each declared host. Generated manifests do not contain source paths, timestamps, tool versions, Git commits, install targets, or host capability definitions.
-
-### Verify and Synchronize Generated Packages
-
-When generated output already matches the source definition and bundle version, the command does not write any files. To verify committed output without changing the working tree, use:
-
-```bash
-dotnet tool run agent-distribution -- build --root agent-distribution --check
-```
-
-The repository provides `verify`, `sync`, and `release` composite GitHub Actions. Each accepts `root`, a bundle root relative to the GitHub workspace that resolves inside the checked-out Git worktree, and restores the CLI version pinned by the caller's .NET tool manifest.
-
-Use `verify` for pull requests and other read-only checks. It runs `build --check`, fails when committed output is stale, and never generates or commits files.
+The `verify` composite Action builds its bundled CLI source into `${RUNNER_TEMP}/agent-distribution` from a fresh checkout. It does not compare with or commit generated output.
 
 ```yaml
 - name: Checkout
   uses: actions/checkout@v5
 
-- name: Verify Agent Distribution
-  uses: mackysoft/agent-distribution/actions/verify@5.0.0
+- name: Verify Agent Distribution source
+  uses: mackysoft/agent-distribution/actions/verify@6.0.0
   with:
-    root: agent-distribution
+    source: agent-distribution
 ```
-
-Use `sync` only from a branch workflow with `contents: write`. When reconciliation is required, it requires a clean Git index, preserves the authored bundle version, synchronizes generated output, stages only `<root>/generated`, creates a `github-actions[bot]` commit, and pushes that commit to the current branch. Its `changed` output is `true` only after that push succeeds.
-
-```yaml
-permissions:
-  contents: write
-
-steps:
-  - name: Checkout
-    uses: actions/checkout@v5
-
-  - name: Sync Agent Distribution
-    id: agent-distribution
-    uses: mackysoft/agent-distribution/actions/sync@5.0.0
-    with:
-      root: agent-distribution
-```
-
-Use `release` only from a release branch workflow. The caller must resolve one exact release revision from an authoritative base before invoking the Action. The Action requires a tracked, unmodified source descriptor, accepts only its current or next revision, updates `bundle.json` when the next revision is requested, runs `build`, commits the matching source descriptor and generated output, and pushes the release commit to the current branch. Ordinary pull requests must preserve the base bundle version; the repository CI guard rejects manual version changes even on release branches.
-
-```yaml
-permissions:
-  contents: write
-
-steps:
-  - name: Checkout
-    uses: actions/checkout@v5
-
-  - name: Prepare Agent Distribution release
-    id: agent-distribution-release
-    uses: mackysoft/agent-distribution/actions/release@5.0.0
-    with:
-      root: agent-distribution
-      bundle-version: 2
-```
-
-Pushes made with the default `GITHUB_TOKEN` do not trigger another workflow run. If the caller supplies credentials that do trigger workflows, synchronization and release preparation converge because `build --check` passes after the release commit. Branch protection still applies; use `verify` when direct bot pushes are not permitted.
 
 ## Add Agent Distribution to a Product CLI
 
@@ -268,7 +141,7 @@ Use the hosting package when the product CLI wants standard Agent Distribution c
 Add the hosting package to the product CLI.
 
 ```bash
-dotnet add <PROJECT>.csproj package MackySoft.AgentDistribution.Hosting --version 5.0.0
+dotnet add <PROJECT>.csproj package MackySoft.AgentDistribution.Hosting --version 6.0.0
 ```
 
 Register the runtime in the product's DI container.
@@ -314,7 +187,7 @@ Use the ConsoleAppFramework integration when the product CLI already uses Consol
 Add the integration package to the product CLI.
 
 ```bash
-dotnet add <PROJECT>.csproj package MackySoft.AgentDistribution.ConsoleAppFramework --version 5.0.0
+dotnet add <PROJECT>.csproj package MackySoft.AgentDistribution.ConsoleAppFramework --version 6.0.0
 dotnet add <PROJECT>.csproj package Microsoft.Extensions.Hosting
 ```
 

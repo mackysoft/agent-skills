@@ -4,7 +4,7 @@
 
 この文書は、同じ配布物に含まれる Agent Distribution CLI が受け付けるソース入力の公開契約を定める。
 
-ソース入力は、`bundle.json`、`definitions/skills` 以下のメタデータ、本文テンプレート、参照テンプレートで構成する。
+ソース入力は、`bundle.json`、`skills` 以下のメタデータ、本文テンプレート、参照テンプレートで構成する。
 
 ## ディレクトリ構造
 
@@ -13,19 +13,18 @@
 ```text
 <bundle-root>/
   bundle.json
-  definitions/
-    skills/
-      <category>/
-        <skill-name>/
-          skill.json
-          SKILL.md.template
-          references/
-            <reference-name>.md.template
+  skills/
+    <category>/
+      <skill-name>/
+        skill.json
+        SKILL.md.template
+        references/
+          <reference-name>.md.template
 ```
 
-- `bundle.json`、`definitions`、`definitions/skills` は必須である。
-- `definitions/skills` には一つ以上のスキル定義を置く。
-- `definitions/skills` 直下の各ディレクトリを category、その直下の各ディレクトリをスキル定義として読み取る。これより深いディレクトリはスキル定義として探索しない。
+- `bundle.json` と `skills` は必須である。
+- `skills` には一つ以上のスキル定義を置く。
+- `skills` 直下の各ディレクトリを category、その直下の各ディレクトリをスキル定義として読み取る。これより深いディレクトリはスキル定義として探索しない。
 - 各 category には一つ以上のスキル定義を置く。category 直下へ `skill.json` を置く形式は受け付けない。
 - 各スキル定義には `skill.json` と `SKILL.md.template` が必要である。`references` は任意である。
 - 読み取るパスは、それぞれの所有ディレクトリ内に解決できなければならない。`references` ディレクトリとその内容に、シンボリックリンクなどの再解析ポイントは使用できない。
@@ -36,7 +35,7 @@
 
 ```json
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "catalogId": "com.example.skills",
   "bundleVersion": 1
 }
@@ -44,7 +43,7 @@
 
 | プロパティ | 型 | 制約 |
 | --- | --- | --- |
-| `schemaVersion` | 32 ビット整数 | `3` |
+| `schemaVersion` | 32 ビット整数 | `4` |
 | `catalogId` | 文字列 | 1〜255 文字。ピリオド区切りの各区間は ASCII 小文字または数字で始まり、以降は ASCII 小文字、数字、ハイフンを使える。区間の末尾をハイフンにせず、空の区間を含めない。 |
 | `bundleVersion` | 32 ビット整数 | 1 以上 |
 
@@ -58,7 +57,7 @@ category と skill name はメタデータへ書かず、ディレクトリ名�
 ^[a-z0-9][a-z0-9-]*$
 ```
 
-skill name は、category が異なる場合も含めて、同じ `definitions/skills` 全体で一意にする。`dependencies` とスキル選択には、このディレクトリ名をそのまま使う。
+skill name は、category が異なる場合も含めて、同じ `skills` 全体で一意にする。`dependencies` とスキル選択には、このディレクトリ名をそのまま使う。
 
 ## `skill.json`
 
@@ -88,9 +87,9 @@ skill name は、category が異なる場合も含めて、同じ `definitions/s
 `dependencies` は次をすべて満たす。
 
 - 各値は、この契約の skill name 構文に従う。
-- 自分自身、重複、同じ `definitions/skills` に存在しない skill name を含めない。
+- 自分自身、重複、同じ `skills` に存在しない skill name を含めない。
 - 依存関係全体に循環を作らない。
-- 同じ `definitions/skills` にある別のスキルを、本文または参照内でドル記号を前置した skill name として参照する場合、その名前を `dependencies` に置く。宣言した依存先も、本文または参照内で同じ形式により参照する。
+- 同じ `skills` にある別のスキルを、本文または参照内でドル記号を前置した skill name として参照する場合、その名前を `dependencies` に置く。宣言した依存先も、本文または参照内で同じ形式により参照する。
 
 本文とすべての参照は Markdown 上の役割を区別せず、コードブロック、例、説明を含む全テキストを照合する。参照として受け付けるのは、`$` の直後に skill name を置き、その末尾に ASCII の英数字、アンダースコア、ハイフンが続かない表記である。`${skill-name}` は受け付けない。
 

@@ -46,7 +46,7 @@ public sealed class BundleApiContractTests
         var buildServiceMethod = Assert.Single(serviceMethods);
         Assert.Equal(nameof(SkillBundleBuildService.BuildAsync), buildServiceMethod.Name);
         Assert.Equal(
-            [typeof(string), typeof(bool), typeof(CancellationToken)],
+            [typeof(AbsolutePath), typeof(AbsolutePath), typeof(bool), typeof(CancellationToken)],
             buildServiceMethod.GetParameters().Select(static parameter => parameter.ParameterType));
     }
 }

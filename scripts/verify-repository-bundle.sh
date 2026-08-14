@@ -31,4 +31,6 @@ if [ "$restore" = false ]; then
   run_options+=(--no-restore)
 fi
 
-dotnet run "${run_options[@]}" -- build --root "$DOTNET_REPO_ROOT/agent-distribution" --check
+dotnet run "${run_options[@]}" -- build \
+  --source "$DOTNET_REPO_ROOT/agent-distribution" \
+  --output "$DOTNET_REPO_ROOT/artifacts/agent-distribution"

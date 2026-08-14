@@ -34,7 +34,7 @@ internal sealed class CanonicalAgentDistributionBundleWriter
         ArgumentNullException.ThrowIfNull(outputRoot);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var outputRootResult = ResolveOutputRoot(outputRoot);
+        var outputRootResult = BundleBuildPathGuard.ValidateOutputRoot(outputRoot);
         if (!outputRootResult.IsSuccess)
         {
             return AgentDistributionOperationResult<AbsolutePath>.FailureResult(outputRootResult.Failure!.Code, outputRootResult.Failure.Message);
@@ -87,6 +87,12 @@ internal sealed class CanonicalAgentDistributionBundleWriter
             }
 
             cancellationToken.ThrowIfCancellationRequested();
+            var publicationPathResult = BundleBuildPathGuard.ValidatePublicationPaths(full, staging, backup);
+            if (!publicationPathResult.IsSuccess)
+            {
+                return AgentDistributionOperationResult<AbsolutePath>.FailureResult(publicationPathResult.Failure!.Code, publicationPathResult.Failure.Message);
+            }
+
             CanonicalSkillBundleDirectoryPublisher.Publish(staging, full, backup);
             published = true;
             TryDeleteDirectory(backup);
@@ -99,27 +105,6 @@ internal sealed class CanonicalAgentDistributionBundleWriter
                 TryDeleteDirectory(staging);
             }
         }
-    }
-
-    private static AgentDistributionOperationResult<AbsolutePath> ResolveOutputRoot (AbsolutePath outputRoot)
-    {
-        var outputName = Path.GetFileName(outputRoot.Value);
-        if (!string.Equals(outputName, "generated", StringComparison.Ordinal)
-            && !string.Equals(outputName, "agent-distribution", StringComparison.Ordinal))
-        {
-            return AgentDistributionOperationResult<AbsolutePath>.FailureResult(AgentDistributionFailureCodes.PathUnsafe, $"Generated v3 bundle output root must be named 'generated' or 'agent-distribution': {outputRoot}");
-        }
-
-        if (!FileSystemEntryInspector.TryInspect(
-                outputRoot,
-                out var outputRootObservation,
-                out _)
-            || outputRootObservation.State is not FileSystemEntryState.Missing and not FileSystemEntryState.Directory)
-        {
-            return AgentDistributionOperationResult<AbsolutePath>.FailureResult(AgentDistributionFailureCodes.PathUnsafe, $"Generated v3 bundle output root must be a regular directory: {outputRoot}");
-        }
-
-        return AgentDistributionOperationResult<AbsolutePath>.Success(outputRoot);
     }
 
     private static void TryDeleteDirectory (AbsolutePath path)

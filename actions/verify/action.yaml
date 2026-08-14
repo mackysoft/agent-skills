@@ -1,9 +1,9 @@
-name: Verify Agent Distribution
-description: Verify that a fixed-layout Agent Distribution bundle is synchronized with its source definitions.
+name: Verify Agent Distribution source
+description: Build a fixed-layout Agent Distribution source bundle with the CLI shipped by this Action.
 
 inputs:
-  root:
-    description: Bundle root relative to the GitHub workspace. It must resolve inside a checked-out Git worktree.
+  source:
+    description: Source root relative to the GitHub workspace.
     required: false
     default: agent-distribution
 
@@ -13,11 +13,11 @@ runs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v5
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: 10.0.x
 
-    - name: Verify Agent Distribution bundle
+    - name: Build Agent Distribution source
       shell: bash
       working-directory: ${{ github.workspace }}
       env:
-        AGENT_DISTRIBUTION_ROOT: ${{ inputs.root }}
-      run: bash "${GITHUB_ACTION_PATH}/../run-bundle-operation.sh" verify
+        AGENT_DISTRIBUTION_SOURCE: ${{ inputs.source }}
+      run: bash "${GITHUB_ACTION_PATH}/build-source.sh"

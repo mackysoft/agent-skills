@@ -69,43 +69,42 @@
 
    GitHub Release に設定する notes は、一般的な changelog 形式で `Added`、`Changed`、`Fixed`、`Removed` に分けます。利用者が移行判断に使うため、公開 API、manifest contract、CLI 動作、検証契約、互換性注意を優先して書きます。
 
-5. release 準備 branch で検証する。
+5. `agent-distribution/bundle.json` の `bundleVersion` を、default branch の次の revision へ更新する。生成 output は更新・追加しない。
+
+6. release 準備 branch で検証する。
 
    ```bash
    bash scripts/code-quality.sh verify
    bash scripts/verify.sh --configuration Release
    ```
 
-6. release 準備 commit を作成する。
+7. release 準備 commit を作成する。
 
    ```bash
-   git add Directory.Build.props README.md
+   git add Directory.Build.props README.md agent-distribution/bundle.json
    git commit -m "chore(release): prepare <VERSION>"
    ```
 
-7. release 準備 branch を push し、`bundle-sync` workflow の完了を待つ。
+8. release 準備 branch を push する。
 
    ```bash
    git push -u origin release/<VERSION>
-   gh run list --workflow bundle-sync --branch release/<VERSION> --limit 5
-   gh run watch <RUN_ID> --exit-status --interval 10
-   git pull --ff-only
    ```
 
-   `bundle-sync` workflow は、`release/` で始まるbranchについて、default branchのバンドル版から次の正確な版を解決します。release Actionが `bundle.json` と生成物を同じ版へ更新し、`github-actions[bot]` のrelease commitを現在のbranchへpushします。通常branchの同期はバンドル版を変更しません。
+   CI は source の `bundleVersion` が default branch から導かれる正確な release revision であることを確認します。通常の pull request は base revision を維持します。
 
-   workflowを再実行しても、default branchから求める目標版は変わりません。すでにrelease commitが存在する場合は同じ版へ収束し、さらに版を進めません。ローカルでは `bundleVersion` を変更しません。
+   package 作成時には、source から非追跡の `artifacts/agent-distribution` を生成して package に含めます。output を commit しません。
 
-8. bot commit 後の SHA を使って package smoke test を実行する。
+9. release 準備 commit の SHA を使って package smoke test を実行する。
 
    ```bash
    bash scripts/verify-packages.sh \
      --configuration Release \
      --version <VERSION> \
-     --repository-commit <RELEASE_BUNDLE_COMMIT_SHA>
+     --repository-commit <RELEASE_PREPARATION_COMMIT_SHA>
    ```
 
-9. PR を作成し、CI が通過したら `master` へ merge する。
+10. PR を作成し、CI が通過したら `master` へ merge する。
 
 ## Tag と公開
 1. merge 後の `origin/master` を取得する。

@@ -29,7 +29,7 @@ public sealed class CanonicalSkillBundleWriter
 
     /// <summary> Replaces an output root with one complete canonical bundle. </summary>
     /// <param name="bundle"> The generated bundle whose descriptor matches every package. </param>
-    /// <param name="outputRoot"> A directory named <c>generated</c> or <c>agent-distribution</c>. </param>
+    /// <param name="outputRoot"> A directory named <c>agent-distribution</c>. </param>
     /// <param name="cancellationToken"> The cancellation token propagated through file access. </param>
     /// <returns> The full output root path, or a validation/path failure. </returns>
     internal async ValueTask<AgentDistributionOperationResult<AbsolutePath>> WriteAsync (
@@ -41,7 +41,7 @@ public sealed class CanonicalSkillBundleWriter
         ArgumentNullException.ThrowIfNull(outputRoot);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var outputRootResult = ResolveOutputRoot(outputRoot);
+        var outputRootResult = BundleBuildPathGuard.ValidateOutputRoot(outputRoot);
         if (!outputRootResult.IsSuccess)
         {
             return AgentDistributionOperationResult<AbsolutePath>.FailureResult(outputRootResult.Failure!.Code, outputRootResult.Failure.Message);
@@ -101,6 +101,12 @@ public sealed class CanonicalSkillBundleWriter
             }
 
             cancellationToken.ThrowIfCancellationRequested();
+            var publicationPathResult = BundleBuildPathGuard.ValidatePublicationPaths(fullOutputRoot, stagingRoot, backupRoot);
+            if (!publicationPathResult.IsSuccess)
+            {
+                return AgentDistributionOperationResult<AbsolutePath>.FailureResult(publicationPathResult.Failure!.Code, publicationPathResult.Failure.Message);
+            }
+
             CanonicalSkillBundleDirectoryPublisher.Publish(stagingRoot, fullOutputRoot, backupRoot);
             published = true;
             TryDeleteDirectory(backupRoot);
@@ -114,31 +120,6 @@ public sealed class CanonicalSkillBundleWriter
                 TryDeleteDirectory(stagingRoot);
             }
         }
-    }
-
-    private static AgentDistributionOperationResult<AbsolutePath> ResolveOutputRoot (AbsolutePath outputRoot)
-    {
-        var outputName = Path.GetFileName(outputRoot.Value);
-        if (!string.Equals(outputName, "generated", StringComparison.Ordinal)
-            && !string.Equals(outputName, "agent-distribution", StringComparison.Ordinal))
-        {
-            return AgentDistributionOperationResult<AbsolutePath>.FailureResult(
-                AgentDistributionFailureCodes.PathUnsafe,
-                $"Generated SKILL output root must be named 'generated' or 'agent-distribution': {outputRoot}");
-        }
-
-        if (!FileSystemEntryInspector.TryInspect(
-                outputRoot,
-                out var outputRootObservation,
-                out _)
-            || outputRootObservation.State is not FileSystemEntryState.Missing and not FileSystemEntryState.Directory)
-        {
-            return AgentDistributionOperationResult<AbsolutePath>.FailureResult(
-                AgentDistributionFailureCodes.PathUnsafe,
-                $"Generated SKILL output root must be a regular directory: {outputRoot}");
-        }
-
-        return AgentDistributionOperationResult<AbsolutePath>.Success(outputRoot);
     }
 
     private static void TryDeleteDirectory (AbsolutePath path)

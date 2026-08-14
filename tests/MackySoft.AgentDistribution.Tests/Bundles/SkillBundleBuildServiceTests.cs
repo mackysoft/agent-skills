@@ -13,16 +13,16 @@ public sealed class SkillBundleBuildServiceTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "build-missing-generated");
         WriteSourceBundle(scope, skillBundleVersion: 4);
-        var originalDefinition = File.ReadAllText(scope.GetPath("bundle.json"));
+        var originalDefinition = File.ReadAllText(scope.GetPath("source/bundle.json"));
         var services = CreateServices();
 
-        var result = await services.BuildService.BuildAsync(scope.FullPath, check: false, cancellationToken: CancellationToken.None);
-        var generatedResult = await services.Reader.ReadAsync(AbsolutePath.Parse(scope.GetPath("generated")), CancellationToken.None);
+        var result = await services.BuildService.BuildAsync(SourceRoot(scope), OutputRoot(scope), check: false, cancellationToken: CancellationToken.None);
+        var generatedResult = await services.Reader.ReadAsync(OutputRoot(scope), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.True(result.Value!.Changed);
         Assert.Equal(4, result.Value.Descriptor.SkillBundleVersion.Value);
-        Assert.Equal(originalDefinition, File.ReadAllText(scope.GetPath("bundle.json")));
+        Assert.Equal(originalDefinition, File.ReadAllText(scope.GetPath("source/bundle.json")));
         Assert.True(generatedResult.IsSuccess, generatedResult.Failure?.Message);
         Assert.Equal(4, generatedResult.Value!.Descriptor.SkillBundleVersion.Value);
     }
@@ -34,13 +34,13 @@ public sealed class SkillBundleBuildServiceTests
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "build-no-op");
         WriteSourceBundle(scope);
         var services = CreateServices();
-        var initialResult = await services.BuildService.BuildAsync(scope.FullPath, check: false, cancellationToken: CancellationToken.None);
+        var initialResult = await services.BuildService.BuildAsync(SourceRoot(scope), OutputRoot(scope), check: false, cancellationToken: CancellationToken.None);
         Assert.True(initialResult.IsSuccess, initialResult.Failure?.Message);
-        var descriptorPath = scope.GetPath("generated/bundle.json");
+        var descriptorPath = scope.GetPath("agent-distribution/bundle.json");
         File.SetLastWriteTimeUtc(descriptorPath, new DateTime(2001, 2, 3, 4, 5, 6, DateTimeKind.Utc));
         var sentinelWriteTime = File.GetLastWriteTimeUtc(descriptorPath);
 
-        var result = await services.BuildService.BuildAsync(scope.FullPath, check: true, cancellationToken: CancellationToken.None);
+        var result = await services.BuildService.BuildAsync(SourceRoot(scope), OutputRoot(scope), check: true, cancellationToken: CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.False(result.Value!.Changed);
@@ -55,19 +55,19 @@ public sealed class SkillBundleBuildServiceTests
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "build-preserve-version");
         WriteSourceBundle(scope);
         var services = CreateServices();
-        var initialResult = await services.BuildService.BuildAsync(scope.FullPath, check: false, cancellationToken: CancellationToken.None);
+        var initialResult = await services.BuildService.BuildAsync(SourceRoot(scope), OutputRoot(scope), check: false, cancellationToken: CancellationToken.None);
         Assert.True(initialResult.IsSuccess, initialResult.Failure?.Message);
-        var originalDefinition = File.ReadAllText(scope.GetPath("bundle.json"));
+        var originalDefinition = File.ReadAllText(scope.GetPath("source/bundle.json"));
         WriteSkillTemplate(scope, "Changed source content.\n");
 
-        var result = await services.BuildService.BuildAsync(scope.FullPath, check: false, cancellationToken: CancellationToken.None);
+        var result = await services.BuildService.BuildAsync(SourceRoot(scope), OutputRoot(scope), check: false, cancellationToken: CancellationToken.None);
         var sourceDefinition = await ReadSourceDefinitionAsync(scope, services.Serializer);
-        var generatedResult = await services.Reader.ReadAsync(AbsolutePath.Parse(scope.GetPath("generated")), CancellationToken.None);
+        var generatedResult = await services.Reader.ReadAsync(OutputRoot(scope), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.True(result.Value!.Changed);
         Assert.Equal(1, sourceDefinition.SkillBundleVersion.Value);
-        Assert.Equal(originalDefinition, File.ReadAllText(scope.GetPath("bundle.json")));
+        Assert.Equal(originalDefinition, File.ReadAllText(scope.GetPath("source/bundle.json")));
         Assert.True(generatedResult.IsSuccess, generatedResult.Failure?.Message);
         Assert.Equal(1, generatedResult.Value!.Descriptor.SkillBundleVersion.Value);
         Assert.NotEqual(initialResult.Value!.Descriptor.BundleDigest, generatedResult.Value.Descriptor.BundleDigest);
@@ -81,14 +81,14 @@ public sealed class SkillBundleBuildServiceTests
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "build-catalog-id-change");
         WriteSourceBundle(scope);
         var services = CreateServices();
-        var initialResult = await services.BuildService.BuildAsync(scope.FullPath, check: false, cancellationToken: CancellationToken.None);
+        var initialResult = await services.BuildService.BuildAsync(SourceRoot(scope), OutputRoot(scope), check: false, cancellationToken: CancellationToken.None);
         Assert.True(initialResult.IsSuccess, initialResult.Failure?.Message);
         var changedCatalogId = new AgentDistributionCatalogId("com.mackysoft.agent-distribution.changed");
         WriteBundleDefinition(scope, services.Serializer, skillBundleVersion: 1, catalogId: changedCatalogId);
 
-        var result = await services.BuildService.BuildAsync(scope.FullPath, check: false, cancellationToken: CancellationToken.None);
+        var result = await services.BuildService.BuildAsync(SourceRoot(scope), OutputRoot(scope), check: false, cancellationToken: CancellationToken.None);
         var sourceDefinition = await ReadSourceDefinitionAsync(scope, services.Serializer);
-        var generatedResult = await services.Reader.ReadAsync(AbsolutePath.Parse(scope.GetPath("generated")), CancellationToken.None);
+        var generatedResult = await services.Reader.ReadAsync(OutputRoot(scope), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.True(result.Value!.Changed);
@@ -107,14 +107,14 @@ public sealed class SkillBundleBuildServiceTests
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "build-manual-version");
         WriteSourceBundle(scope);
         var services = CreateServices();
-        var initialResult = await services.BuildService.BuildAsync(scope.FullPath, check: false, cancellationToken: CancellationToken.None);
+        var initialResult = await services.BuildService.BuildAsync(SourceRoot(scope), OutputRoot(scope), check: false, cancellationToken: CancellationToken.None);
         Assert.True(initialResult.IsSuccess, initialResult.Failure?.Message);
         WriteBundleDefinition(scope, services.Serializer, skillBundleVersion: 2);
         WriteSkillTemplate(scope, "Changed source content.\n");
 
-        var result = await services.BuildService.BuildAsync(scope.FullPath, check: false, cancellationToken: CancellationToken.None);
+        var result = await services.BuildService.BuildAsync(SourceRoot(scope), OutputRoot(scope), check: false, cancellationToken: CancellationToken.None);
         var sourceDefinition = await ReadSourceDefinitionAsync(scope, services.Serializer);
-        var generatedResult = await services.Reader.ReadAsync(AbsolutePath.Parse(scope.GetPath("generated")), CancellationToken.None);
+        var generatedResult = await services.Reader.ReadAsync(OutputRoot(scope), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Failure?.Message);
         Assert.True(result.Value!.Changed);
@@ -131,12 +131,12 @@ public sealed class SkillBundleBuildServiceTests
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "build-check-outdated");
         WriteSourceBundle(scope);
         var services = CreateServices();
-        var initialResult = await services.BuildService.BuildAsync(scope.FullPath, check: false, cancellationToken: CancellationToken.None);
+        var initialResult = await services.BuildService.BuildAsync(SourceRoot(scope), OutputRoot(scope), check: false, cancellationToken: CancellationToken.None);
         Assert.True(initialResult.IsSuccess, initialResult.Failure?.Message);
         WriteSkillTemplate(scope, "Changed source content.\n");
         var expectedFiles = CaptureFiles(scope.FullPath);
 
-        var result = await services.BuildService.BuildAsync(scope.FullPath, check: true, cancellationToken: CancellationToken.None);
+        var result = await services.BuildService.BuildAsync(SourceRoot(scope), OutputRoot(scope), check: true, cancellationToken: CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(AgentDistributionFailureCodes.BundleUpdateRequired, result.Failure!.Code);
@@ -173,7 +173,7 @@ public sealed class SkillBundleBuildServiceTests
         SkillBundleJsonSerializer serializer)
     {
         var reader = new SkillBundleDefinitionReader(serializer);
-        var result = await reader.ReadAsync(AbsolutePath.Parse(scope.FullPath), CancellationToken.None);
+        var result = await reader.ReadAsync(SourceRoot(scope), CancellationToken.None);
         Assert.True(result.IsSuccess, result.Failure?.Message);
         return result.Value!;
     }
@@ -185,7 +185,7 @@ public sealed class SkillBundleBuildServiceTests
         var serializer = new SkillBundleJsonSerializer();
         WriteBundleDefinition(scope, serializer, skillBundleVersion);
         scope.WriteFile(
-            "definitions/core/example-skill/skill.json",
+            "source/definitions/core/example-skill/skill.json",
             """
             {
               "schemaVersion": 1,
@@ -204,7 +204,7 @@ public sealed class SkillBundleBuildServiceTests
         AgentDistributionCatalogId? catalogId = null)
     {
         scope.WriteFile(
-            "bundle.json",
+            "source/bundle.json",
             serializer.SerializeDefinition(new SkillBundleDefinition(
                 SkillBundleDefinition.CurrentSchemaVersion,
                 catalogId ?? new AgentDistributionCatalogId("com.mackysoft.agent-distribution.tests"),
@@ -215,7 +215,7 @@ public sealed class SkillBundleBuildServiceTests
         TestDirectoryScope scope,
         string contents)
     {
-        scope.WriteFile("definitions/core/example-skill/SKILL.md.template", contents);
+        scope.WriteFile("source/definitions/core/example-skill/SKILL.md.template", contents);
     }
 
     private static IReadOnlyDictionary<string, string> CaptureFiles (string root)
@@ -227,6 +227,10 @@ public sealed class SkillBundleBuildServiceTests
                 File.ReadAllText,
                 StringComparer.Ordinal);
     }
+
+    private static AbsolutePath SourceRoot (TestDirectoryScope scope) => AbsolutePath.Parse(scope.GetPath("source"));
+
+    private static AbsolutePath OutputRoot (TestDirectoryScope scope) => AbsolutePath.Parse(scope.GetPath("agent-distribution"));
 
     private sealed class BuildServices
     {

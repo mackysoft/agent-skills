@@ -7,12 +7,12 @@ using MackySoft.AgentDistribution.Shared;
 
 namespace MackySoft.AgentDistribution.Bundles;
 
-/// <summary> Serializes canonical v3 source and generated bundle descriptors. </summary>
+/// <summary> Serializes canonical v4 source definitions and v3 generated bundle descriptors. </summary>
 public sealed class AgentDistributionBundleJsonSerializer
 {
     private static readonly JsonWriterOptions WriterOptions = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping, Indented = true };
 
-    /// <summary> Serializes the authored v3 definition. </summary>
+    /// <summary> Serializes the authored v4 definition. </summary>
     public string SerializeDefinition (AgentDistributionBundleDefinition definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
@@ -30,7 +30,7 @@ public sealed class AgentDistributionBundleJsonSerializer
         });
     }
 
-    /// <summary> Deserializes an authored v3 definition. </summary>
+    /// <summary> Deserializes an authored v4 definition. </summary>
     public AgentDistributionBundleDefinition DeserializeDefinition (string json)
     {
         using var document = JsonDocument.Parse(json);

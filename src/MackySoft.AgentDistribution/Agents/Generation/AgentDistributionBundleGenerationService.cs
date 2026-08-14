@@ -8,7 +8,7 @@ using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Agents.Generation;
 
-/// <summary> Reads and generates v3 mixed bundles while preserving v1 skill package contracts. </summary>
+/// <summary> Reads v4 mixed source bundles and generates v3 output while preserving v1 skill package contracts. </summary>
 internal sealed class AgentDistributionBundleGenerationService
 {
     private readonly AgentDistributionBundleDefinitionReader bundleReader;
@@ -29,7 +29,7 @@ internal sealed class AgentDistributionBundleGenerationService
         this.bundleDigestCalculator = bundleDigestCalculator ?? throw new ArgumentNullException(nameof(bundleDigestCalculator));
     }
 
-    /// <summary> Reads a complete v3 source snapshot. </summary>
+    /// <summary> Reads a complete v4 source snapshot. </summary>
     public async ValueTask<AgentDistributionOperationResult<AgentDistributionGenerationSource>> ReadSourceAsync (AbsolutePath bundleRoot, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(bundleRoot);
@@ -39,36 +39,26 @@ internal sealed class AgentDistributionBundleGenerationService
             return Failure(bundleResult.Failure!);
         }
 
-        var definitionsRootResult = AuthoredSourcePathResolver.ResolveDirectory(
-            bundleRoot,
-            RootRelativePath.Parse("definitions"),
-            "v3 definitions root");
-        if (!definitionsRootResult.IsSuccess)
+        var rootEntriesResult = ReadSourceRootEntryNames(bundleRoot, cancellationToken);
+        if (!rootEntriesResult.IsSuccess)
         {
-            return Failure(definitionsRootResult.Failure!);
+            return Failure(rootEntriesResult.Failure!);
         }
 
-        var definitionsRoot = definitionsRootResult.Value!;
-        var namespaceNamesResult = ReadDefinitionNamespaceNames(definitionsRoot, cancellationToken);
-        if (!namespaceNamesResult.IsSuccess)
-        {
-            return Failure(namespaceNamesResult.Failure!);
-        }
-
-        var namespaceNames = namespaceNamesResult.Value!;
-        var unsupportedNamespace = namespaceNames.FirstOrDefault(static name => name is not "agents" and not "skills");
-        if (unsupportedNamespace is not null)
+        var rootEntries = rootEntriesResult.Value!;
+        var unsupportedRootEntry = rootEntries.FirstOrDefault(static name => name is not "bundle.json" and not "agents" and not "skills");
+        if (unsupportedRootEntry is not null)
         {
             return AgentDistributionOperationResult<AgentDistributionGenerationSource>.FailureResult(
                 AgentDistributionFailureCodes.SourceInvalid,
-                $"v3 definitions root contains an unsupported entry: {unsupportedNamespace}");
+                $"v4 source bundle root contains an unsupported entry: {unsupportedRootEntry}");
         }
 
-        var hasSkillsNamespace = namespaceNames.Contains("skills", StringComparer.Ordinal);
+        var hasSkillsNamespace = rootEntries.Contains("skills", StringComparer.Ordinal);
         AgentDistributionOperationResult<IReadOnlyList<SkillSourceDefinition>> skillsResult;
         if (hasSkillsNamespace)
         {
-            var namespaceResult = ResolveNamespace(definitionsRoot, "skills");
+            var namespaceResult = ResolveNamespace(bundleRoot, "skills");
             if (!namespaceResult.IsSuccess)
             {
                 return Failure(namespaceResult.Failure!);
@@ -86,11 +76,11 @@ internal sealed class AgentDistributionBundleGenerationService
             return Failure(skillsResult.Failure!);
         }
 
-        var hasAgentsNamespace = namespaceNames.Contains("agents", StringComparer.Ordinal);
+        var hasAgentsNamespace = rootEntries.Contains("agents", StringComparer.Ordinal);
         AgentDistributionOperationResult<IReadOnlyList<AgentSourceDefinition>> agentsResult;
         if (hasAgentsNamespace)
         {
-            var namespaceResult = ResolveNamespace(definitionsRoot, "agents");
+            var namespaceResult = ResolveNamespace(bundleRoot, "agents");
             if (!namespaceResult.IsSuccess)
             {
                 return Failure(namespaceResult.Failure!);
@@ -112,19 +102,19 @@ internal sealed class AgentDistributionBundleGenerationService
         {
             return AgentDistributionOperationResult<AgentDistributionGenerationSource>.FailureResult(
                 AgentDistributionFailureCodes.SourceInvalid,
-                "The v3 skills namespace must not be empty when it is present.");
+                "The v4 skills namespace must not be empty when it is present.");
         }
 
         if (hasAgentsNamespace && agentsResult.Value!.Count == 0)
         {
             return AgentDistributionOperationResult<AgentDistributionGenerationSource>.FailureResult(
                 AgentDistributionFailureCodes.SourceInvalid,
-                "The v3 agents namespace must not be empty when it is present.");
+                "The v4 agents namespace must not be empty when it is present.");
         }
 
         if (skillsResult.Value!.Count == 0 && agentsResult.Value!.Count == 0)
         {
-            return AgentDistributionOperationResult<AgentDistributionGenerationSource>.FailureResult(AgentDistributionFailureCodes.SourceInvalid, "A v3 bundle must contain at least one skill or agent definition.");
+            return AgentDistributionOperationResult<AgentDistributionGenerationSource>.FailureResult(AgentDistributionFailureCodes.SourceInvalid, "A v4 bundle must contain at least one skill or agent definition.");
         }
 
         var skillReferences = SkillSourceDependencyReferenceValidator.Validate(skillsResult.Value!);
@@ -147,7 +137,7 @@ internal sealed class AgentDistributionBundleGenerationService
         var skillBundle = new SkillBundleDefinition(SkillBundleDefinition.CurrentSchemaVersion, bundle.CatalogId, skillVersion);
         var skills = source.Skills.Select(definition => skillGenerator.Generate(skillBundle, definition)).ToArray();
         var agents = source.Agents.Select(definition => agentGenerator.Generate(bundle, definition)).ToArray();
-        var descriptor = new AgentDistributionBundleDescriptor(AgentDistributionBundleDefinition.CurrentSchemaVersion, bundle.CatalogId, bundle.BundleVersion, bundleDigestCalculator.ComputeDigest(skills, agents));
+        var descriptor = new AgentDistributionBundleDescriptor(AgentDistributionBundleDescriptor.CurrentSchemaVersion, bundle.CatalogId, bundle.BundleVersion, bundleDigestCalculator.ComputeDigest(skills, agents));
         return new CanonicalAgentDistributionBundle(descriptor, skills, agents);
     }
 
@@ -183,17 +173,17 @@ internal sealed class AgentDistributionBundleGenerationService
         return AuthoredSourcePathResolver.ResolveDirectory(
             definitionsRoot,
             RootRelativePath.Parse(namespaceName),
-            $"v3 {namespaceName} namespace");
+            $"v4 {namespaceName} namespace");
     }
 
-    private static AgentDistributionOperationResult<IReadOnlyList<string>> ReadDefinitionNamespaceNames (
-        AbsolutePath definitionsRoot,
+    private static AgentDistributionOperationResult<IReadOnlyList<string>> ReadSourceRootEntryNames (
+        AbsolutePath bundleRoot,
         CancellationToken cancellationToken)
     {
         try
         {
             var names = new List<string>();
-            foreach (var path in Directory.EnumerateFileSystemEntries(definitionsRoot.Value))
+            foreach (var path in Directory.EnumerateFileSystemEntries(bundleRoot.Value))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 names.Add(Path.GetFileName(path));
@@ -206,7 +196,7 @@ internal sealed class AgentDistributionBundleGenerationService
         {
             return AgentDistributionOperationResult<IReadOnlyList<string>>.FailureResult(
                 AgentDistributionFailureCodes.SourceInvalid,
-                $"The v3 definitions root could not be read: {exception.Message}");
+                $"The v4 source bundle root could not be read: {exception.Message}");
         }
     }
 }

@@ -170,7 +170,7 @@ public sealed class CanonicalAgentDistributionBundleReader
 
             return AgentDistributionOperationResult<CanonicalAgentDistributionBundle>.Success(new CanonicalAgentDistributionBundle(descriptor, skillsResult.Value!, agentsResult.Value!));
         }
-        catch (Exception exception) when (exception is IOException or JsonException or ArgumentException or InvalidOperationException or FormatException)
+        catch (Exception exception) when (exception is IOException or JsonException or ArgumentException or InvalidOperationException or KeyNotFoundException or FormatException)
         {
             return Failure(AgentDistributionFailureCodes.ManifestInvalid, "Generated v3 bundle is invalid.");
         }
