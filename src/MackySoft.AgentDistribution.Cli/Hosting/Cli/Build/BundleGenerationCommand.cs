@@ -22,39 +22,44 @@ internal sealed class BundleGenerationCommand
         this.schemaVersionReader = schemaVersionReader ?? throw new ArgumentNullException(nameof(schemaVersionReader));
     }
 
-    /// <summary> Reconciles a canonical runtime bundle from a fixed-layout source bundle root. </summary>
-    /// <param name="root"> The root containing <c>bundle.json</c>, <c>definitions</c>, and generated output. </param>
+    /// <summary> Reconciles a canonical runtime bundle from an explicit source root to an explicit output root. </summary>
+    /// <param name="source"> The root containing the authored <c>bundle.json</c> and schema-specific source directories. </param>
+    /// <param name="output"> The separate canonical generated output root. </param>
     /// <param name="check"> Whether to fail without writing when generated output requires changes. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
     /// <returns> The process exit code. </returns>
     [Command("build")]
     public Task<int> BuildAsync (
-        string root = "agent-distribution",
+        string source,
+        string output,
         bool check = false,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteAsync(root, check, cancellationToken);
+        return ExecuteAsync(source, output, check, cancellationToken);
     }
 
     private async Task<int> ExecuteAsync (
-        string root,
+        string source,
+        string output,
         bool check,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        AbsolutePath bundleRoot;
+        AbsolutePath sourceRoot;
+        AbsolutePath outputRoot;
         try
         {
-            bundleRoot = AbsolutePath.Parse(Path.GetFullPath(root));
+            sourceRoot = AbsolutePath.Parse(Path.GetFullPath(source));
+            outputRoot = AbsolutePath.Parse(Path.GetFullPath(output));
         }
         catch (Exception exception) when (exception is ArgumentException or IOException or NotSupportedException or PathTooLongException)
         {
-            Console.Error.WriteLine($"Source bundle root is invalid: {exception.Message}");
+            Console.Error.WriteLine($"Bundle source or output root is invalid: {exception.Message}");
             return 1;
         }
 
-        var schemaResult = await schemaVersionReader.ReadAsync(bundleRoot, cancellationToken).ConfigureAwait(false);
+        var schemaResult = await schemaVersionReader.ReadAsync(sourceRoot, cancellationToken).ConfigureAwait(false);
         if (!schemaResult.IsSuccess)
         {
             Console.Error.WriteLine(schemaResult.Failure!.Message);
@@ -62,26 +67,26 @@ internal sealed class BundleGenerationCommand
         }
         if (schemaResult.Value == SkillBundleDefinition.CurrentSchemaVersion)
         {
-            var result = await buildService.BuildAsync(root, check, cancellationToken).ConfigureAwait(false);
+            var result = await buildService.BuildAsync(sourceRoot, outputRoot, check, cancellationToken).ConfigureAwait(false);
             if (!result.IsSuccess)
             {
                 Console.Error.WriteLine(result.Failure!.Message);
                 return 1;
             }
 
-            Console.WriteLine(result.Value!.Changed ? $"Generated canonical skills: {Path.Combine(Path.GetFullPath(root), "generated")} (bundle version {result.Value.Descriptor.SkillBundleVersion})" : $"Canonical skills are up to date: {Path.Combine(Path.GetFullPath(root), "generated")}");
+            Console.WriteLine(result.Value!.Changed ? $"Generated canonical skills: {outputRoot} (bundle version {result.Value.Descriptor.SkillBundleVersion})" : $"Canonical skills are up to date: {outputRoot}");
             return 0;
         }
         if (schemaResult.Value == AgentDistributionBundleDefinition.CurrentSchemaVersion)
         {
-            var result = await agentDistributionBuildService.BuildAsync(root, check, cancellationToken).ConfigureAwait(false);
+            var result = await agentDistributionBuildService.BuildAsync(sourceRoot, outputRoot, check, cancellationToken).ConfigureAwait(false);
             if (!result.IsSuccess)
             {
                 Console.Error.WriteLine(result.Failure!.Message);
                 return 1;
             }
 
-            Console.WriteLine(result.Value!.Changed ? $"Generated canonical agent assets: {Path.Combine(Path.GetFullPath(root), "generated")} (bundle version {result.Value.Descriptor.BundleVersion})" : $"Canonical agent assets are up to date: {Path.Combine(Path.GetFullPath(root), "generated")}");
+            Console.WriteLine(result.Value!.Changed ? $"Generated canonical agent assets: {outputRoot} (bundle version {result.Value.Descriptor.BundleVersion})" : $"Canonical agent assets are up to date: {outputRoot}");
             return 0;
         }
 

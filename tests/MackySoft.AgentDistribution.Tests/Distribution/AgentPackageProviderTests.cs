@@ -123,7 +123,7 @@ public sealed class AgentPackageProviderTests
         var agentManifestSerializer = new AgentManifestJsonSerializer();
         var digestCalculator = new PackageContentDigestCalculator();
         var descriptor = new AgentDistributionBundleDescriptor(
-            AgentDistributionBundleDefinition.CurrentSchemaVersion,
+            AgentDistributionBundleDescriptor.CurrentSchemaVersion,
             skills[0].Manifest.CatalogId,
             new AgentDistributionBundleVersion(skills[0].Manifest.SkillBundleVersion.Value),
             new AgentDistributionBundleDigestCalculator(skillManifestSerializer, agentManifestSerializer, digestCalculator).ComputeDigest(skills, agents));

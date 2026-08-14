@@ -2,36 +2,24 @@
 set -euo pipefail
 
 usage() {
-  echo "usage: bash scripts/resolve-bundle-operation-version.sh --operation <sync|release|verify-release> --root <bundle-root> --base-ref <git-ref>" >&2
+  echo "usage: bash scripts/resolve-bundle-operation-version.sh --operation <verify|verify-release> --source <source-root> --base-ref <git-ref>" >&2
 }
 
 operation=""
-bundle_root=""
+source_root=""
 base_ref=""
 while [[ "$#" -gt 0 ]]; do
   case "$1" in
     --operation)
-      if [[ "$#" -lt 2 ]]; then
-        usage
-        exit 2
-      fi
-      operation="$2"
+      operation="${2-}"
       shift 2
       ;;
-    --root)
-      if [[ "$#" -lt 2 ]]; then
-        usage
-        exit 2
-      fi
-      bundle_root="$2"
+    --source)
+      source_root="${2-}"
       shift 2
       ;;
     --base-ref)
-      if [[ "$#" -lt 2 ]]; then
-        usage
-        exit 2
-      fi
-      base_ref="$2"
+      base_ref="${2-}"
       shift 2
       ;;
     *)
@@ -41,12 +29,8 @@ while [[ "$#" -gt 0 ]]; do
   esac
 done
 
-if [[ "${operation}" != "sync" && "${operation}" != "release" && "${operation}" != "verify-release" ]]; then
-  usage
-  exit 2
-fi
-
-if [[ -z "${bundle_root}" || -z "${base_ref}" ]]; then
+if [[ "${operation}" != "verify" && "${operation}" != "verify-release" ]] \
+  || [[ -z "${source_root}" || -z "${base_ref}" ]]; then
   usage
   exit 2
 fi
@@ -58,27 +42,27 @@ fi
 
 repository_root="$(git rev-parse --show-toplevel)"
 repository_root="$(cd -- "${repository_root}" && pwd -P)"
-if ! resolved_bundle_root="$(cd -- "${bundle_root}" && pwd -P)"; then
-  echo "The bundle root does not exist: ${bundle_root}" >&2
+if ! resolved_source_root="$(cd -- "${source_root}" && pwd -P)"; then
+  echo "The source root does not exist: ${source_root}" >&2
   exit 1
 fi
 
-case "${resolved_bundle_root}" in
+case "${resolved_source_root}" in
   "${repository_root}")
-    bundle_relative=""
+    source_relative=""
     ;;
   "${repository_root}"/*)
-    bundle_relative="${resolved_bundle_root#"${repository_root}"/}"
+    source_relative="${resolved_source_root#"${repository_root}"/}"
     ;;
   *)
-    echo "The bundle root must remain inside the Git worktree: ${bundle_root}" >&2
+    echo "The source root must remain inside the Git worktree: ${source_root}" >&2
     exit 1
     ;;
 esac
 
 bundle_path="bundle.json"
-if [[ -n "${bundle_relative}" ]]; then
-  bundle_path="${bundle_relative}/bundle.json"
+if [[ -n "${source_relative}" ]]; then
+  bundle_path="${source_relative}/bundle.json"
 fi
 
 if ! base_commit="$(git rev-parse --verify --end-of-options "${base_ref}^{commit}")"; then
@@ -87,26 +71,8 @@ if ! base_commit="$(git rev-parse --verify --end-of-options "${base_ref}^{commit
 fi
 
 if ! base_bundle="$(git show "${base_commit}:${bundle_path}" 2>/dev/null)"; then
-  previous_bundle_path=""
-  while IFS=$'\t' read -r status old_path new_path; do
-    if [[ "${status}" == "R100" && "${new_path}" == "${bundle_path}" ]]; then
-      if [[ -n "${previous_bundle_path}" ]]; then
-        echo "The current bundle descriptor has more than one exact rename source relative to ${base_ref}: ${bundle_path}" >&2
-        exit 1
-      fi
-      previous_bundle_path="${old_path}"
-    fi
-  done < <(git diff --find-renames=100% --name-status "${base_commit}" HEAD --)
-
-  if [[ -z "${previous_bundle_path}" ]]; then
-    echo "The base ref does not contain ${bundle_path}, and no exact Git rename to that path was found: ${base_ref}" >&2
-    exit 1
-  fi
-
-  if ! base_bundle="$(git show "${base_commit}:${previous_bundle_path}")"; then
-    echo "The exact rename source could not be read from the base ref: ${previous_bundle_path}" >&2
-    exit 1
-  fi
+  echo "The base ref does not contain ${bundle_path}: ${base_ref}" >&2
+  exit 1
 fi
 
 read_bundle_version() {
@@ -124,11 +90,11 @@ read_bundle_version() {
 }
 
 base_version="$(read_bundle_version "Base bundle" <<< "${base_bundle}")"
-current_version="$(read_bundle_version "Current bundle" < "${resolved_bundle_root}/bundle.json")"
+current_version="$(read_bundle_version "Current bundle" < "${resolved_source_root}/bundle.json")"
 
-if [[ "${operation}" == "sync" ]]; then
+if [[ "${operation}" == "verify" ]]; then
   if [[ "${current_version}" -ne "${base_version}" ]]; then
-    echo "Ordinary synchronization must preserve the base bundle version ${base_version}; current version is ${current_version}." >&2
+    echo "Ordinary changes must preserve the base bundle version ${base_version}; current version is ${current_version}." >&2
     exit 1
   fi
 
@@ -151,10 +117,3 @@ if [[ "${operation}" == "verify-release" ]]; then
   printf '%s\n' "${target_version}"
   exit 0
 fi
-
-if [[ "${current_version}" -ne "${base_version}" && "${current_version}" -ne "${target_version}" ]]; then
-  echo "Current bundle version ${current_version} must equal the base version ${base_version} or release target ${target_version}." >&2
-  exit 1
-fi
-
-printf '%s\n' "${target_version}"

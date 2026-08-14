@@ -13,8 +13,8 @@ public sealed class CanonicalSkillBundleReaderWriterTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "canonical-bundle-roundtrip");
         var bundle = await SkillTestData.GenerateFixtureBundleAsync();
-        var outputRoot = AbsolutePath.Parse(scope.GetPath("generated"));
-        var oldMarker = scope.WriteFile("generated/old-bundle.txt", "old bundle\n");
+        var outputRoot = AbsolutePath.Parse(scope.GetPath("agent-distribution"));
+        var oldMarker = scope.WriteFile("agent-distribution/old-bundle.txt", "old bundle\n");
         var services = CreateServices();
 
         var writeResult = await services.Writer.WriteAsync(bundle, outputRoot, CancellationToken.None);
@@ -40,7 +40,7 @@ public sealed class CanonicalSkillBundleReaderWriterTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "canonical-bundle-digest-mismatch");
         var bundle = await SkillTestData.GenerateFixtureBundleAsync();
-        var outputRoot = AbsolutePath.Parse(scope.GetPath("generated"));
+        var outputRoot = AbsolutePath.Parse(scope.GetPath("agent-distribution"));
         var services = CreateServices();
         var writeResult = await services.Writer.WriteAsync(bundle, outputRoot, CancellationToken.None);
         Assert.True(writeResult.IsSuccess, writeResult.Failure?.Message);
@@ -70,7 +70,7 @@ public sealed class CanonicalSkillBundleReaderWriterTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "canonical-bundle-package-symlink");
         var bundle = await SkillTestData.GenerateFixtureBundleAsync();
-        var outputRoot = AbsolutePath.Parse(scope.GetPath("generated"));
+        var outputRoot = AbsolutePath.Parse(scope.GetPath("agent-distribution"));
         var services = CreateServices();
         var writeResult = await services.Writer.WriteAsync(bundle, outputRoot, CancellationToken.None);
         Assert.True(writeResult.IsSuccess, writeResult.Failure?.Message);
@@ -91,8 +91,8 @@ public sealed class CanonicalSkillBundleReaderWriterTests
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "canonical-bundle-cancelled");
         var bundle = await SkillTestData.GenerateFixtureBundleAsync();
-        var outputRoot = AbsolutePath.Parse(scope.CreateDirectory("generated"));
-        var oldMarker = scope.WriteFile("generated/old-bundle.txt", "old bundle\n");
+        var outputRoot = AbsolutePath.Parse(scope.CreateDirectory("agent-distribution"));
+        var oldMarker = scope.WriteFile("agent-distribution/old-bundle.txt", "old bundle\n");
         var services = CreateServices();
         using var cancellationSource = new CancellationTokenSource();
         cancellationSource.Cancel();
@@ -131,7 +131,7 @@ public sealed class CanonicalSkillBundleReaderWriterTests
     private static IReadOnlyList<string> GetPublicationArtifacts (string parentDirectory)
     {
         return Directory.EnumerateFileSystemEntries(parentDirectory)
-            .Where(static path => Path.GetFileName(path).StartsWith(".generated.", StringComparison.Ordinal))
+            .Where(static path => Path.GetFileName(path).StartsWith(".agent-distribution.", StringComparison.Ordinal))
             .ToArray();
     }
 }

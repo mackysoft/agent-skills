@@ -16,7 +16,7 @@ internal static class AgentDistributionTestData
         IReadOnlyList<AgentName>? selectedAgentNames = null)
     {
         var descriptor = new AgentDistributionBundleDescriptor(
-            AgentDistributionBundleDefinition.CurrentSchemaVersion,
+            AgentDistributionBundleDescriptor.CurrentSchemaVersion,
             skills[0].Manifest.CatalogId,
             new AgentDistributionBundleVersion(skills[0].Manifest.SkillBundleVersion.Value),
             Sha256Digest.Parse(new string('f', 64)));

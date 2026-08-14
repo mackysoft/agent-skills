@@ -9,10 +9,10 @@ public sealed class CanonicalSkillBundleDirectoryPublisherTests
     public void Publish_RestoresExistingOutputWhenStagingMoveFails ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "bundle-publisher-rollback");
-        var outputRoot = AbsolutePath.Parse(scope.CreateDirectory("generated"));
-        var oldMarker = scope.WriteFile("generated/old-bundle.txt", "old bundle\n");
-        var missingStagingRoot = AbsolutePath.Parse(scope.GetPath(".generated.staging.missing"));
-        var backupRoot = AbsolutePath.Parse(scope.GetPath(".generated.backup.test"));
+        var outputRoot = AbsolutePath.Parse(scope.CreateDirectory("agent-distribution"));
+        var oldMarker = scope.WriteFile("agent-distribution/old-bundle.txt", "old bundle\n");
+        var missingStagingRoot = AbsolutePath.Parse(scope.GetPath(".agent-distribution.staging.missing"));
+        var backupRoot = AbsolutePath.Parse(scope.GetPath(".agent-distribution.backup.test"));
 
         Assert.Throws<DirectoryNotFoundException>(() =>
             CanonicalSkillBundleDirectoryPublisher.Publish(missingStagingRoot, outputRoot, backupRoot));

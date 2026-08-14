@@ -110,30 +110,28 @@ GitHub Copilot の project 成果物は公開 custom-agent contract を使う。
 
 ### バンドルレイアウト
 
-ソーススキーマ v3 は次の固定レイアウトを使う。
+ソーススキーマ v4 は次の固定レイアウトを使う。
 
 ```text
 <bundle-root>/
   bundle.json
-  definitions/
-    skills/
-      <category>/
-        <skill-name>/
-          skill.json
-          SKILL.md.template
-          references/
-    agents/
-      <agent-name>/
-        agent.json
-        AGENT.md.template
-        hosts/
-          codex.json
-          claude-code.json
-          github-copilot.json
-  generated/
+  skills/
+    <category>/
+      <skill-name>/
+        skill.json
+        SKILL.md.template
+        references/
+  agents/
+    <agent-name>/
+      agent.json
+      AGENT.md.template
+      hosts/
+        codex.json
+        claude-code.json
+        github-copilot.json
 ```
 
-`definitions/skills` と `definitions/agents` は、定義がある成果物種別だけ配置する。少なくとも一方に一つ以上の定義が必要である。Agent ごとに1つ以上のホストバインディングを要求するが、3ホストすべてを要求しない。バインディングファイルの存在が、その Agent が当該ホストをサポートする宣言になる。
+`skills` と `agents` は、定義がある成果物種別だけ配置する。少なくとも一方に一つ以上の定義が必要である。Agent ごとに1つ以上のホストバインディングを要求するが、3ホストすべてを要求しない。バインディングファイルの存在が、その Agent が当該ホストをサポートする宣言になる。source root は `bundle.json`、`skills`、`agents` だけを許可する。
 
 Agent 名は全 Agent 間で一意な lower-kebab とする。この制約は Claude Code の必須命名規則を満たし、Codex と GitHub Copilot でも安定したファイル名と識別子として利用できる。
 
@@ -141,7 +139,7 @@ Agent 名は全 Agent 間で一意な lower-kebab とする。この制約は Cl
 
 ```json
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "catalogId": "com.example.agent-assets",
   "bundleVersion": 1
 }
@@ -169,7 +167,7 @@ Agent 名は全 Agent 間で一意な lower-kebab とする。この制約は Cl
 | `description` | ホストが委譲判断に利用できるホスト非依存の説明 |
 | `skillDependencies` | 同じカタログ内で直接要求する Skill 名 |
 
-Agent 名は `definitions/agents` 直下のディレクトリ名から導出する。モデル、モデル提供者、推論強度、権限、ツール、ホスト識別子、導入先を `agent.json` に置かない。
+Agent 名は `agents` 直下のディレクトリ名から導出する。モデル、モデル提供者、推論強度、権限、ツール、ホスト識別子、導入先を `agent.json` に置かない。
 
 ### `AGENT.md.template`
 
@@ -275,7 +273,7 @@ Agent artifact adapter が所有するのは次だけである。
 ### 生成レイアウト
 
 ```text
-generated/
+<output-root>/agent-distribution/
   bundle.json
   skills/
     <skill-name>/
@@ -310,7 +308,7 @@ generated/
 
 ### Build
 
-`agent-distribution build --root <bundle-root>` は一つのカタログ全体を次の順で処理する。
+`agent-distribution build --source <source-root> --output <output-root>/agent-distribution` は一つのカタログ全体を次の順で処理する。
 
 1. ソーススキーマを選択する。
 2. 全 Skill と Agent の構造、名前、メタデータを読む。
@@ -319,9 +317,9 @@ generated/
 5. 各 adapter で binding を検証し、host artifacts を生成する。
 6. manifest と bundle digest を決定論的に計算する。
 7. 完成した生成ルート全体を検証する。
-8. 現在の `generated` と異なる場合だけ置き換える。
+8. 指定した output の `agent-distribution` と異なる場合だけ置き換える。
 
-検証または生成が一件でも失敗した場合、ソースと `generated` を変更しない。`--check` は同じ処理を行い、書込みだけを禁止する。
+検証または生成が一件でも失敗した場合、ソースと output を変更しない。`--check` は同じ処理を行い、書込みだけを禁止する。repository は output を `artifacts/agent-distribution` に生成し、Git で追跡しない。package 作成前に別プロセスで output を生成し、NuGet package 内では従来どおり `agent-distribution/` に配置する。
 
 ## 配布と導入
 
@@ -420,9 +418,9 @@ Foundation の resolution は操作時点の snapshot であり、永続的な�
 ## 継続する既存契約
 
 - ソーススキーマ v1 とその生成物は、Skill 専用レイアウトとして読む。
-- v3 は `definitions/skills` と `definitions/agents` を明示し、ディレクトリの有無から version を推定しない。
+- v4 は `skills` と `agents` を明示し、ディレクトリの有無から version を推定しない。
 - Skill コマンドは既存の位置と意味を変えない。
-- v3 Agent source、manifest、operation report は `codex`、`claude-code`、`github-copilot` を正規値にする。
+- v4 Agent source、manifest、operation report は `codex`、`claude-code`、`github-copilot` を正規値にする。
 - 現在の skills-pack `feat/agent-orchestration-foundation` にある `.codex/agents/*.toml` は、エージェント責務を検討する作業配置であり、Codex 固有の配布設計を正本化するものではない。
 
 ## 非目標

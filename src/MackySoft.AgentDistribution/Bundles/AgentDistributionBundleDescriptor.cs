@@ -6,12 +6,15 @@ namespace MackySoft.AgentDistribution.Bundles;
 /// <summary> Represents a generated v3 mixed bundle descriptor. </summary>
 public sealed class AgentDistributionBundleDescriptor
 {
+    /// <summary> Gets the generated descriptor schema version. </summary>
+    public const int CurrentSchemaVersion = 3;
+
     /// <summary> Initializes a generated descriptor. </summary>
     public AgentDistributionBundleDescriptor (int schemaVersion, AgentDistributionCatalogId catalogId, AgentDistributionBundleVersion bundleVersion, Sha256Digest bundleDigest)
     {
-        if (schemaVersion != AgentDistributionBundleDefinition.CurrentSchemaVersion)
+        if (schemaVersion != CurrentSchemaVersion)
         {
-            throw new ArgumentOutOfRangeException(nameof(schemaVersion), schemaVersion, $"Bundle schema version must be {AgentDistributionBundleDefinition.CurrentSchemaVersion}.");
+            throw new ArgumentOutOfRangeException(nameof(schemaVersion), schemaVersion, $"Bundle schema version must be {CurrentSchemaVersion}.");
         }
 
         SchemaVersion = schemaVersion;

@@ -25,7 +25,7 @@ public sealed class ReadmeContractTests
     public async Task SourceSkillExample_IsAcceptedAsSourceMetadata ()
     {
         var readme = ReadReadme();
-        var skillJson = ReadJsonCodeBlock(readme, "For each skill, create");
+        var skillJson = ReadJsonCodeBlock(readme, "`skill.json` defines");
         using var scope = TestDirectories.CreateTempScope("agent-distribution-readme", "skill-json");
         var skillDirectory = scope.CreateDirectory("basic/example-review");
         scope.WriteFile("basic/example-review/skill.json", skillJson);
@@ -44,7 +44,6 @@ public sealed class ReadmeContractTests
         var contractPath = Path.Combine(
             SkillTestData.GetRepositoryRoot(),
             "agent-distribution",
-            "definitions",
             "skills",
             "basic",
             "agent-distribution-packaging",
@@ -55,9 +54,9 @@ public sealed class ReadmeContractTests
         var skillJson = ReadJsonCodeBlock(contract, "## `skill.json`");
         using var scope = TestDirectories.CreateTempScope("agent-distribution-documentation", "source-contract");
         scope.WriteFile("bundle.json", bundleJson);
-        var skillDirectory = scope.CreateDirectory("definitions/skills/basic/example-review");
-        scope.WriteFile("definitions/skills/basic/example-review/skill.json", skillJson);
-        scope.WriteFile("definitions/skills/basic/example-review/SKILL.md.template", "Review an example when requested.\n");
+        var skillDirectory = scope.CreateDirectory("skills/basic/example-review");
+        scope.WriteFile("skills/basic/example-review/skill.json", skillJson);
+        scope.WriteFile("skills/basic/example-review/SKILL.md.template", "Review an example when requested.\n");
         var bundleReader = new AgentDistributionBundleDefinitionReader(new AgentDistributionBundleJsonSerializer());
         var sourceReader = new SkillSourceDefinitionReader();
 

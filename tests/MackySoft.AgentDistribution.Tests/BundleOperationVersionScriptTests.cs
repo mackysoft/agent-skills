@@ -4,66 +4,6 @@ namespace MackySoft.AgentDistribution.Tests;
 
 public sealed class BundleOperationVersionScriptTests
 {
-    [Theory]
-    [InlineData(3, 3)]
-    [InlineData(3, 4)]
-    [Trait("Size", "Small")]
-    public async Task Resolve_WhenCurrentVersionIsBaseOrTarget_ReturnsSameNextVersion (
-        int baseVersion,
-        int currentVersion)
-    {
-        if (OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-release", $"resolve-{baseVersion}-{currentVersion}");
-        await RunProcessAsync("git", ["init", "--quiet"], scope.FullPath);
-        await RunProcessAsync("git", ["config", "user.name", "Test User"], scope.FullPath);
-        await RunProcessAsync("git", ["config", "user.email", "test@example.com"], scope.FullPath);
-        WriteBundle(scope, baseVersion);
-        await RunProcessAsync("git", ["add", "agent-distribution/bundle.json"], scope.FullPath);
-        await RunProcessAsync("git", ["commit", "--quiet", "-m", "base"], scope.FullPath);
-        var baseRef = (await RunProcessAsync("git", ["rev-parse", "HEAD"], scope.FullPath)).StandardOutput.Trim();
-        WriteBundle(scope, currentVersion);
-
-        var result = await RunProcessAsync(
-            "bash",
-            [GetScriptPath(), "--operation", "release", "--root", "agent-distribution", "--base-ref", baseRef],
-            scope.FullPath);
-
-        Assert.Equal((baseVersion + 1).ToString(), result.StandardOutput.Trim());
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task Resolve_WhenCurrentVersionIsOutsideReleaseTransition_Fails ()
-    {
-        if (OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-release", "resolve-invalid-current");
-        await RunProcessAsync("git", ["init", "--quiet"], scope.FullPath);
-        await RunProcessAsync("git", ["config", "user.name", "Test User"], scope.FullPath);
-        await RunProcessAsync("git", ["config", "user.email", "test@example.com"], scope.FullPath);
-        WriteBundle(scope, 3);
-        await RunProcessAsync("git", ["add", "agent-distribution/bundle.json"], scope.FullPath);
-        await RunProcessAsync("git", ["commit", "--quiet", "-m", "base"], scope.FullPath);
-        var baseRef = (await RunProcessAsync("git", ["rev-parse", "HEAD"], scope.FullPath)).StandardOutput.Trim();
-        WriteBundle(scope, 5);
-
-        var result = await RunProcessAsync(
-            "bash",
-            [GetScriptPath(), "--operation", "release", "--root", "agent-distribution", "--base-ref", baseRef],
-            scope.FullPath,
-            requireSuccess: false);
-
-        Assert.NotEqual(0, result.ExitCode);
-        Assert.Contains("must equal the base version 3 or release target 4", result.StandardError, StringComparison.Ordinal);
-    }
-
     [Fact]
     [Trait("Size", "Small")]
     public async Task VerifyRelease_WhenCurrentVersionIsTarget_ReturnsTargetVersion ()
@@ -85,7 +25,7 @@ public sealed class BundleOperationVersionScriptTests
 
         var result = await RunProcessAsync(
             "bash",
-            [GetScriptPath(), "--operation", "verify-release", "--root", "agent-distribution", "--base-ref", baseRef],
+            [GetScriptPath(), "--operation", "verify-release", "--source", "agent-distribution", "--base-ref", baseRef],
             scope.FullPath);
 
         Assert.Equal("4", result.StandardOutput.Trim());
@@ -111,7 +51,7 @@ public sealed class BundleOperationVersionScriptTests
 
         var result = await RunProcessAsync(
             "bash",
-            [GetScriptPath(), "--operation", "verify-release", "--root", "agent-distribution", "--base-ref", baseRef],
+            [GetScriptPath(), "--operation", "verify-release", "--source", "agent-distribution", "--base-ref", baseRef],
             scope.FullPath,
             requireSuccess: false);
 
@@ -121,7 +61,7 @@ public sealed class BundleOperationVersionScriptTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task ResolveSync_WhenCurrentVersionMatchesBase_ReturnsPreservedVersion ()
+    public async Task Verify_WhenCurrentVersionMatchesBase_ReturnsPreservedVersion ()
     {
         if (OperatingSystem.IsWindows())
         {
@@ -139,7 +79,7 @@ public sealed class BundleOperationVersionScriptTests
 
         var result = await RunProcessAsync(
             "bash",
-            [GetScriptPath(), "--operation", "sync", "--root", "agent-distribution", "--base-ref", baseRef],
+            [GetScriptPath(), "--operation", "verify", "--source", "agent-distribution", "--base-ref", baseRef],
             scope.FullPath);
 
         Assert.Equal("3", result.StandardOutput.Trim());
@@ -147,36 +87,7 @@ public sealed class BundleOperationVersionScriptTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task ResolveSync_WhenBundleRootWasExactlyRenamed_UsesBaseDescriptorFromRenameSource ()
-    {
-        if (OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-release", "resolve-sync-renamed-root");
-        await RunProcessAsync("git", ["init", "--quiet"], scope.FullPath);
-        await RunProcessAsync("git", ["config", "user.name", "Test User"], scope.FullPath);
-        await RunProcessAsync("git", ["config", "user.email", "test@example.com"], scope.FullPath);
-        WriteBundle(scope, 3, "skills");
-        await RunProcessAsync("git", ["add", "skills/bundle.json"], scope.FullPath);
-        await RunProcessAsync("git", ["commit", "--quiet", "-m", "base"], scope.FullPath);
-        var baseRef = (await RunProcessAsync("git", ["rev-parse", "HEAD"], scope.FullPath)).StandardOutput.Trim();
-        Directory.Move(scope.GetPath("skills"), scope.GetPath("agent-distribution"));
-        await RunProcessAsync("git", ["add", "--all"], scope.FullPath);
-        await RunProcessAsync("git", ["commit", "--quiet", "-m", "rename bundle root"], scope.FullPath);
-
-        var result = await RunProcessAsync(
-            "bash",
-            [GetScriptPath(), "--operation", "sync", "--root", "agent-distribution", "--base-ref", baseRef],
-            scope.FullPath);
-
-        Assert.Equal("3", result.StandardOutput.Trim());
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task ResolveSync_WhenCurrentVersionChanges_Fails ()
+    public async Task Verify_WhenCurrentVersionChanges_Fails ()
     {
         if (OperatingSystem.IsWindows())
         {
@@ -195,7 +106,7 @@ public sealed class BundleOperationVersionScriptTests
 
         var result = await RunProcessAsync(
             "bash",
-            [GetScriptPath(), "--operation", "sync", "--root", "agent-distribution", "--base-ref", baseRef],
+            [GetScriptPath(), "--operation", "verify", "--source", "agent-distribution", "--base-ref", baseRef],
             scope.FullPath,
             requireSuccess: false);
 
@@ -203,13 +114,13 @@ public sealed class BundleOperationVersionScriptTests
         Assert.Contains("must preserve the base bundle version 3", result.StandardError, StringComparison.Ordinal);
     }
 
-    private static void WriteBundle (TestDirectoryScope scope, int bundleVersion, string root = "agent-distribution")
+    private static void WriteBundle (TestDirectoryScope scope, int bundleVersion)
     {
         scope.WriteFile(
-            $"{root}/bundle.json",
+            "agent-distribution/bundle.json",
             $$"""
             {
-              "schemaVersion": 3,
+              "schemaVersion": 4,
               "catalogId": "com.mackysoft.agent-distribution.tests",
               "bundleVersion": {{bundleVersion}}
             }

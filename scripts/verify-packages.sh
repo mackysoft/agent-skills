@@ -130,6 +130,13 @@ fi
 
 cd "$DOTNET_REPO_ROOT"
 dotnet restore AgentDistribution.slnx --artifacts-path "$artifacts_path"
+dotnet run \
+  --project src/MackySoft.AgentDistribution.Cli/MackySoft.AgentDistribution.Cli.csproj \
+  --configuration "$configuration" \
+  --no-restore \
+  -- build \
+  --source "$DOTNET_REPO_ROOT/agent-distribution" \
+  --output "$DOTNET_REPO_ROOT/artifacts/agent-distribution"
 dotnet pack src/MackySoft.AgentDistribution/MackySoft.AgentDistribution.csproj \
   --configuration "$configuration" \
   --no-restore \
@@ -248,7 +255,7 @@ dotnet build "$consumer_dir/consumer.csproj" --configuration "$configuration" --
 
 console_consumer_dir="$work_root/console-consumer"
 dotnet new console --output "$console_consumer_dir" --no-restore >/dev/null
-cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/AgentDistributionBundle/generated" "$console_consumer_dir/agent-distribution"
+cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/AgentDistributionBundle/expected/agent-distribution" "$console_consumer_dir/agent-distribution"
 dotnet add "$console_consumer_dir/console-consumer.csproj" package MackySoft.AgentDistribution.ConsoleAppFramework \
   --version "$package_version" \
   --source "$package_dir" >/dev/null
@@ -408,27 +415,19 @@ mkdir -p "$tool_dir"
   fi
 
   bundle_root="$work_root/skill-bundle"
+  bundle_output="$work_root/skill-bundle-output/agent-distribution"
   cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/SkillBundle" "$bundle_root"
-  rm -rf "$bundle_root/generated"
-  dotnet tool run agent-distribution -- build --root "$bundle_root" >/dev/null
+  dotnet tool run agent-distribution -- build --source "$bundle_root" --output "$bundle_output" >/dev/null
 
-  diff -ruN "$DOTNET_REPO_ROOT/tests/Fixtures/SkillBundle/generated" "$bundle_root/generated"
+  diff -ruN "$DOTNET_REPO_ROOT/tests/Fixtures/SkillBundle/generated" "$bundle_output"
   grep -Eq '^[[:space:]]*"skillBundleVersion":[[:space:]]*1[,]?$' "$bundle_root/bundle.json"
-  if dotnet tool run agent-distribution -- build --root "$bundle_root" --bundle-version 2 >/dev/null 2>&1; then
-    printf 'The build command accepted a release bundle version.\n' >&2
-    exit 1
-  fi
 
-  dotnet tool run agent-distribution -- prepare-release --bundle-version 2 --root "$bundle_root" >/dev/null 2>&1 || true
-  grep -Eq '^[[:space:]]*"skillBundleVersion":[[:space:]]*1[,]?$' "$bundle_root/bundle.json"
-  grep -Eq '^[[:space:]]*"skillBundleVersion":[[:space:]]*1[,]?$' "$bundle_root/generated/bundle.json"
+  agent_bundle_root="$work_root/agent-bundle-source"
+  agent_bundle_output="$work_root/agent-bundle-output/agent-distribution"
+  cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/AgentDistributionBundle/source" "$agent_bundle_root"
+  dotnet tool run agent-distribution -- build --source "$agent_bundle_root" --output "$agent_bundle_output" >/dev/null
 
-  agent_bundle_root="$work_root/agent-bundle"
-  cp -R "$DOTNET_REPO_ROOT/tests/Fixtures/AgentDistributionBundle" "$agent_bundle_root"
-  rm -rf "$agent_bundle_root/generated"
-  dotnet tool run agent-distribution -- build --root "$agent_bundle_root" >/dev/null
-
-  diff -ruN "$DOTNET_REPO_ROOT/tests/Fixtures/AgentDistributionBundle/generated" "$agent_bundle_root/generated"
+  diff -ruN "$DOTNET_REPO_ROOT/tests/Fixtures/AgentDistributionBundle/expected/agent-distribution" "$agent_bundle_output"
   grep -Eq '^[[:space:]]*"bundleVersion":[[:space:]]*1[,]?$' "$agent_bundle_root/bundle.json"
 
   dotnet tool run agent-distribution -- skills list --pretty > "$work_root/agent-distribution-own-list.json"

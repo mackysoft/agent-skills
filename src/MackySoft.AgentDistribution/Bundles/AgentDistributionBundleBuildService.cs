@@ -11,7 +11,7 @@ using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Bundles;
 
-/// <summary> Reconciles generated output from a source schema v3 bundle. </summary>
+/// <summary> Reconciles generated v3 output from a source schema v4 bundle. </summary>
 public sealed class AgentDistributionBundleBuildService
 {
     private readonly AgentDistributionBundleGenerationService generationService;
@@ -28,7 +28,7 @@ public sealed class AgentDistributionBundleBuildService
         this.bundleWriter = bundleWriter ?? throw new ArgumentNullException(nameof(bundleWriter));
     }
 
-    /// <summary> Creates the default v3 build service with all built-in host modules. </summary>
+    /// <summary> Creates the default v4 source build service with all built-in host modules. </summary>
     public static AgentDistributionBundleBuildService CreateDefault ()
     {
         var skillManifestSerializer = new SkillManifestJsonSerializer();
@@ -73,29 +73,50 @@ public sealed class AgentDistributionBundleBuildService
             mixedBundleWriter);
     }
 
-    /// <summary> Builds v3 generated output while preserving the authored bundle version. </summary>
-    /// <param name="bundleRoot"> The root containing the source and generated bundle. </param>
+    /// <summary> Builds v3 generated output from one v4 source root while preserving the authored bundle version. </summary>
+    /// <param name="sourceRoot"> The root containing source <c>bundle.json</c>, <c>skills</c>, and <c>agents</c> entries. </param>
+    /// <param name="outputRoot"> The separate canonical output directory named <c>agent-distribution</c>. </param>
     /// <param name="check"> Whether to fail without writing when reconciliation would change files. </param>
     /// <param name="cancellationToken"> The cancellation token propagated through source access and publication. </param>
     /// <returns> The resulting descriptor and whether files changed, or a structured failure. </returns>
     public ValueTask<AgentDistributionOperationResult<AgentDistributionBundleBuildResult>> BuildAsync (
-        string bundleRoot,
+        AbsolutePath sourceRoot,
+        AbsolutePath outputRoot,
         bool check = false,
         CancellationToken cancellationToken = default)
     {
-        return ReconcileAsync(bundleRoot, check, cancellationToken);
+        return ReconcileAsync(sourceRoot, outputRoot, check, cancellationToken);
     }
 
     private async ValueTask<AgentDistributionOperationResult<AgentDistributionBundleBuildResult>> ReconcileAsync (
-        string bundleRoot,
+        AbsolutePath sourceRoot,
+        AbsolutePath outputRoot,
         bool check,
         CancellationToken cancellationToken)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(bundleRoot);
+        ArgumentNullException.ThrowIfNull(sourceRoot);
+        ArgumentNullException.ThrowIfNull(outputRoot);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var fullBundleRoot = AbsolutePath.Parse(Path.GetFullPath(bundleRoot));
-        var sourceResult = await generationService.ReadSourceAsync(fullBundleRoot, cancellationToken).ConfigureAwait(false);
+        var sourceRootResult = BundleBuildPathGuard.ValidateSourceRoot(sourceRoot);
+        if (!sourceRootResult.IsSuccess)
+        {
+            return AgentDistributionOperationResult<AgentDistributionBundleBuildResult>.FailureResult(sourceRootResult.Failure!.Code, sourceRootResult.Failure.Message);
+        }
+
+        var outputRootResult = BundleBuildPathGuard.ValidateOutputRoot(outputRoot);
+        if (!outputRootResult.IsSuccess)
+        {
+            return AgentDistributionOperationResult<AgentDistributionBundleBuildResult>.FailureResult(outputRootResult.Failure!.Code, outputRootResult.Failure.Message);
+        }
+
+        var distinctRootsResult = BundleBuildPathGuard.ValidateDistinctRoots(sourceRoot, outputRoot);
+        if (!distinctRootsResult.IsSuccess)
+        {
+            return AgentDistributionOperationResult<AgentDistributionBundleBuildResult>.FailureResult(distinctRootsResult.Failure!.Code, distinctRootsResult.Failure.Message);
+        }
+
+        var sourceResult = await generationService.ReadSourceAsync(sourceRoot, cancellationToken).ConfigureAwait(false);
         if (!sourceResult.IsSuccess)
         {
             return AgentDistributionOperationResult<AgentDistributionBundleBuildResult>.FailureResult(sourceResult.Failure!.Code, sourceResult.Failure.Message);
@@ -113,20 +134,13 @@ public sealed class AgentDistributionBundleBuildService
         {
             return AgentDistributionOperationResult<AgentDistributionBundleBuildResult>.FailureResult(
                 AgentDistributionFailureCodes.SourceInvalid,
-                $"The v3 source bundle could not be generated: {exception.Message}");
-        }
-        var generatedRoot = ContainedPath.Create(fullBundleRoot, RootRelativePath.Parse("generated")).Target;
-        if (!FileSystemEntryInspector.TryInspect(generatedRoot, out var generatedRootObservation, out _))
-        {
-            return AgentDistributionOperationResult<AgentDistributionBundleBuildResult>.FailureResult(
-                AgentDistributionFailureCodes.PathUnsafe,
-                $"Generated v3 bundle output could not be inspected: {generatedRoot}");
+                $"The v4 source bundle could not be generated: {exception.Message}");
         }
 
         CanonicalAgentDistributionBundle? current = null;
-        if (generatedRootObservation.State == FileSystemEntryState.Directory)
+        if (Directory.Exists(outputRoot.Value))
         {
-            var currentResult = await bundleReader.ReadAsync(generatedRoot, cancellationToken).ConfigureAwait(false);
+            var currentResult = await bundleReader.ReadAsync(outputRoot, cancellationToken).ConfigureAwait(false);
             if (!currentResult.IsSuccess)
             {
                 return AgentDistributionOperationResult<AgentDistributionBundleBuildResult>.FailureResult(currentResult.Failure!.Code, currentResult.Failure.Message);
@@ -134,13 +148,6 @@ public sealed class AgentDistributionBundleBuildService
 
             current = currentResult.Value!;
         }
-        else if (generatedRootObservation.State != FileSystemEntryState.Missing)
-        {
-            return AgentDistributionOperationResult<AgentDistributionBundleBuildResult>.FailureResult(
-                AgentDistributionFailureCodes.PathUnsafe,
-                $"Generated v3 bundle output must be a regular directory: {generatedRoot}");
-        }
-
         if (current is not null && current.Descriptor.BundleVersion == authoredVersion && current.Descriptor.BundleDigest == candidate.Descriptor.BundleDigest)
         {
             return AgentDistributionOperationResult<AgentDistributionBundleBuildResult>.Success(new AgentDistributionBundleBuildResult(false, candidate.Descriptor));
@@ -151,7 +158,7 @@ public sealed class AgentDistributionBundleBuildService
             return AgentDistributionOperationResult<AgentDistributionBundleBuildResult>.FailureResult(AgentDistributionFailureCodes.BundleUpdateRequired, "Canonical v3 bundle requires generation.");
         }
 
-        var write = await bundleWriter.WriteAsync(candidate, generatedRoot, cancellationToken).ConfigureAwait(false);
+        var write = await bundleWriter.WriteAsync(candidate, outputRoot, cancellationToken).ConfigureAwait(false);
 
         if (!write.IsSuccess)
         {

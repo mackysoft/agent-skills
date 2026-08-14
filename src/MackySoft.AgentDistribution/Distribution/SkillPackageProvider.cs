@@ -196,7 +196,7 @@ public sealed class SkillPackageProvider
                     bundleResult.Failure.Message);
         }
 
-        if (schemaVersionResult.Value != AgentDistributionBundleDefinition.CurrentSchemaVersion
+        if (schemaVersionResult.Value != AgentDistributionBundleDescriptor.CurrentSchemaVersion
             || agentDistributionBundleReader is null
             || skillBundleDigestCalculator is null)
         {

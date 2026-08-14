@@ -26,28 +26,49 @@ public sealed class SkillBundleBuildService
     }
 
     /// <summary> Reconciles generated output while preserving the authored bundle version. </summary>
-    /// <param name="bundleRoot"> The root containing <c>bundle.json</c>, <c>definitions</c>, and fixed <c>generated</c> output. </param>
+    /// <param name="sourceRoot"> The root containing the v1 <c>bundle.json</c> and <c>definitions</c> source layout. </param>
+    /// <param name="outputRoot"> The separate canonical output directory named <c>agent-distribution</c>. </param>
     /// <param name="check"> Whether to fail without writing when reconciliation would change files. </param>
     /// <param name="cancellationToken"> The cancellation token propagated through source access and publication. </param>
     /// <returns> The resulting descriptor and whether files changed, or a structured source or generated failure. </returns>
     public ValueTask<AgentDistributionOperationResult<SkillBundleBuildResult>> BuildAsync (
-        string bundleRoot,
+        AbsolutePath sourceRoot,
+        AbsolutePath outputRoot,
         bool check = false,
         CancellationToken cancellationToken = default)
     {
-        return ReconcileAsync(bundleRoot, check, cancellationToken);
+        return ReconcileAsync(sourceRoot, outputRoot, check, cancellationToken);
     }
 
     private async ValueTask<AgentDistributionOperationResult<SkillBundleBuildResult>> ReconcileAsync (
-        string bundleRoot,
+        AbsolutePath sourceRoot,
+        AbsolutePath outputRoot,
         bool check,
         CancellationToken cancellationToken)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(bundleRoot);
+        ArgumentNullException.ThrowIfNull(sourceRoot);
+        ArgumentNullException.ThrowIfNull(outputRoot);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var fullBundleRoot = AbsolutePath.Parse(Path.GetFullPath(bundleRoot));
-        var sourceResult = await generationService.ReadSourceAsync(fullBundleRoot, cancellationToken).ConfigureAwait(false);
+        var sourceRootResult = BundleBuildPathGuard.ValidateSourceRoot(sourceRoot);
+        if (!sourceRootResult.IsSuccess)
+        {
+            return AgentDistributionOperationResult<SkillBundleBuildResult>.FailureResult(sourceRootResult.Failure!.Code, sourceRootResult.Failure.Message);
+        }
+
+        var outputRootResult = BundleBuildPathGuard.ValidateOutputRoot(outputRoot);
+        if (!outputRootResult.IsSuccess)
+        {
+            return AgentDistributionOperationResult<SkillBundleBuildResult>.FailureResult(outputRootResult.Failure!.Code, outputRootResult.Failure.Message);
+        }
+
+        var distinctRootsResult = BundleBuildPathGuard.ValidateDistinctRoots(sourceRoot, outputRoot);
+        if (!distinctRootsResult.IsSuccess)
+        {
+            return AgentDistributionOperationResult<SkillBundleBuildResult>.FailureResult(distinctRootsResult.Failure!.Code, distinctRootsResult.Failure.Message);
+        }
+
+        var sourceResult = await generationService.ReadSourceAsync(sourceRoot, cancellationToken).ConfigureAwait(false);
         if (!sourceResult.IsSuccess)
         {
             return BuildFailure(sourceResult.Failure!);
@@ -56,22 +77,11 @@ public sealed class SkillBundleBuildService
         var source = sourceResult.Value!;
         var authoredVersion = source.BundleDefinition.SkillBundleVersion;
         var candidate = generationService.GenerateAll(source, authoredVersion);
-        var generatedRoot = ContainedPath.Create(fullBundleRoot, RootRelativePath.Parse("generated")).Target;
         CanonicalSkillBundle? generatedBundle = null;
 
-        if (!FileSystemEntryInspector.TryInspect(
-                generatedRoot,
-                out var generatedRootObservation,
-                out _))
+        if (Directory.Exists(outputRoot.Value))
         {
-            return AgentDistributionOperationResult<SkillBundleBuildResult>.FailureResult(
-                AgentDistributionFailureCodes.PathUnsafe,
-                $"Generated SKILL bundle output could not be inspected: {generatedRoot}");
-        }
-
-        if (generatedRootObservation.State == FileSystemEntryState.Directory)
-        {
-            var generatedResult = await bundleReader.ReadAsync(generatedRoot, cancellationToken).ConfigureAwait(false);
+            var generatedResult = await bundleReader.ReadAsync(outputRoot, cancellationToken).ConfigureAwait(false);
             if (!generatedResult.IsSuccess)
             {
                 return BuildFailure(generatedResult.Failure!);
@@ -79,13 +89,6 @@ public sealed class SkillBundleBuildService
 
             generatedBundle = generatedResult.Value!;
         }
-        else if (generatedRootObservation.State != FileSystemEntryState.Missing)
-        {
-            return AgentDistributionOperationResult<SkillBundleBuildResult>.FailureResult(
-                AgentDistributionFailureCodes.PathUnsafe,
-                $"Generated SKILL bundle output must be a regular directory: {generatedRoot}");
-        }
-
         var generatedIsCurrent = generatedBundle is not null
             && generatedBundle.Descriptor.SkillBundleVersion == authoredVersion
             && generatedBundle.Descriptor.BundleDigest == candidate.Descriptor.BundleDigest;
@@ -99,12 +102,12 @@ public sealed class SkillBundleBuildService
         {
             return AgentDistributionOperationResult<SkillBundleBuildResult>.FailureResult(
                 AgentDistributionFailureCodes.BundleUpdateRequired,
-                $"Canonical SKILL bundle requires generation at version {authoredVersion}: {fullBundleRoot}");
+                $"Canonical SKILL bundle requires generation at version {authoredVersion}: {sourceRoot}");
         }
 
         var publicationResult = await bundleWriter.WriteAsync(
                 candidate,
-                generatedRoot,
+                outputRoot,
                 cancellationToken)
             .ConfigureAwait(false);
 
