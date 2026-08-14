@@ -104,7 +104,7 @@ Install the build tool in the product repository:
 
 ```bash
 dotnet new tool-manifest
-dotnet tool install MackySoft.AgentDistribution.Cli --version 6.0.0
+dotnet tool install MackySoft.AgentDistribution.Cli --version 6.1.0
 ```
 
 Build source into a separate artifact root. The output directory name is always `agent-distribution`:
@@ -130,7 +130,7 @@ The `verify` composite Action builds its bundled CLI source into `${RUNNER_TEMP}
   uses: actions/checkout@v5
 
 - name: Verify Agent Distribution source
-  uses: mackysoft/agent-distribution/actions/verify@6.0.0
+  uses: mackysoft/agent-distribution/actions/verify@6.1.0
   with:
     source: agent-distribution
 ```
@@ -144,7 +144,7 @@ Use the hosting package when the product CLI wants standard Agent Distribution c
 Add the hosting package to the product CLI.
 
 ```bash
-dotnet add <PROJECT>.csproj package MackySoft.AgentDistribution.Hosting --version 6.0.0
+dotnet add <PROJECT>.csproj package MackySoft.AgentDistribution.Hosting --version 6.1.0
 ```
 
 Register the runtime in the product's DI container.
@@ -190,7 +190,7 @@ Use the ConsoleAppFramework integration when the product CLI already uses Consol
 Add the integration package to the product CLI.
 
 ```bash
-dotnet add <PROJECT>.csproj package MackySoft.AgentDistribution.ConsoleAppFramework --version 6.0.0
+dotnet add <PROJECT>.csproj package MackySoft.AgentDistribution.ConsoleAppFramework --version 6.1.0
 dotnet add <PROJECT>.csproj package Microsoft.Extensions.Hosting
 ```
 
