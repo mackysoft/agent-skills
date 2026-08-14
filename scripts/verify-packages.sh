@@ -134,6 +134,7 @@ dotnet run \
   --project src/MackySoft.AgentDistribution.Cli/MackySoft.AgentDistribution.Cli.csproj \
   --configuration "$configuration" \
   --no-restore \
+  --artifacts-path "$artifacts_path" \
   -- build \
   --source "$DOTNET_REPO_ROOT/agent-distribution" \
   --output "$DOTNET_REPO_ROOT/artifacts/agent-distribution"
