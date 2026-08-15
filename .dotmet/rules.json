@@ -14,6 +14,15 @@
             ]
           }
         ]
+      },
+      {
+        "matches": [
+          {
+            "assemblyExact": [
+              "DotmetReportGate"
+            ]
+          }
+        ]
       }
     ],
     "external": []
@@ -382,6 +391,45 @@
             ],
             "subjectKindExact": [
               "project"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "dotmet-report-gate",
+        "matches": [
+          {
+            "assemblyExact": [
+              "DotmetReportGate"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "dotmet-report-gate-json",
+        "matches": [
+          {
+            "assemblyExact": [
+              "System.Text.Json"
+            ]
+          },
+          {
+            "namespacePrefix": [
+              "System.Text.Json"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "dotmet-report-gate-runtime",
+        "matches": [
+          {
+            "namespaceExact": [
+              "System",
+              "System.Collections.Generic",
+              "System.IO",
+              "System.Linq",
+              "System.Threading.Tasks"
             ]
           }
         ]
@@ -1028,6 +1076,27 @@
         "allow": [
           {
             "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "dotmet-report-gate"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "dotmet-report-gate"
+            ]
+          },
+          {
+            "subject": "external",
+            "domain": [
+              "dotmet-report-gate-json",
+              "dotmet-report-gate-runtime"
+            ]
           }
         ]
       },

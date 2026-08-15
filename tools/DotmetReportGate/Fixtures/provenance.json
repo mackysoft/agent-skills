@@ -1,0 +1,14 @@
+{
+  "run": "run-fixture",
+  "candidate": "1111111111111111111111111111111111111111",
+  "candidateReference": "1111111111111111111111111111111111111111",
+  "comparisonBase": "2222222222222222222222222222222222222222",
+  "head": "3333333333333333333333333333333333333333",
+  "resolutionMethod": "explicit-base-sha-merge-base",
+  "commandExitCodes": {
+    "toolRestore": 0,
+    "rulesValidate": 0,
+    "doctor": 0,
+    "analyze": 0
+  }
+}
