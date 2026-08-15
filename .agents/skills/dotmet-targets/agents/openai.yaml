@@ -1,0 +1,7 @@
+interface:
+  display_name: "dotmet Targets"
+  short_description: "dotmet の target set を単体で定義、更新、レビューし、解析対象、子ターゲット `id`、`adapter`、`solutionPath`、`projectPath`、target set の粒度を判断する。解析対象の固定、パス判断、既存 target set のレビューで使う。target set と rules をまとめて整える作業は dotmet-project-config。"
+  default_prompt: "Use $dotmet-targets to follow the dotmet Targets workflow."
+
+policy:
+  allow_implicit_invocation: true

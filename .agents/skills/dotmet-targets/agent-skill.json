@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "skillBundleVersion": 1,
+  "catalogId": "com.mackysoft.dotmet",
+  "category": "basic",
+  "skillName": "dotmet-targets",
+  "displayName": "dotmet Targets",
+  "description": "dotmet の target set を単体で定義、更新、レビューし、解析対象、子ターゲット `id`、`adapter`、`solutionPath`、`projectPath`、target set の粒度を判断する。解析対象の固定、パス判断、既存 target set のレビューで使う。target set と rules をまとめて整える作業は dotmet-project-config。",
+  "dependencies": [],
+  "contentDigest": "b80159a5e9e0b03f66bd6553ee196933dc172fd953c63ac4897c2a5fd1978a23",
+  "manifestDigest": "d9bb8937c7062c623f2cd1b504148847f745b004ef63e7d56c89ca5df66129ed",
+  "hostArtifacts": [
+    {
+      "host": "codex",
+      "path": "agents/openai.yaml",
+      "digest": "6e26c244b4b2dfed1558dcb8736178293162482620a5457baa40b6d59ef29f2c",
+      "materializedFrontmatterDigest": "541e91679209a7b866655c3587252f1ff41c1d4a7ae3f20b6564b7deac838268"
+    },
+    {
+      "host": "claude-code",
+      "materializedFrontmatterDigest": "b1807efe4c67b71036c9ac4c7792496b05667f43d368e9e2e0b0765d1c9b72dc"
+    },
+    {
+      "host": "github-copilot",
+      "materializedFrontmatterDigest": "cba2c1d847f7876fe7cca7bd491780aa8d375ec54270116ce79dee2c93379a10"
+    }
+  ]
+}

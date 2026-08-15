@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "skillBundleVersion": 1,
+  "catalogId": "com.mackysoft.dotmet",
+  "category": "basic",
+  "skillName": "dotmet-repair-loop",
+  "displayName": "dotmet Repair Loop",
+  "description": "dotmet の解析結果を起点に、コード修正、rules 更新、target set 更新、実行環境修正、検証、再解析を反復し、コードベース改善を収束させる。報告、レビュー、CI 結果整理だけが目的の場合は、修正へ進むか、完了または中断として状態を残すかを判断する。dotmet 解析でコードベースを改善する作業、作業後の解析確認、CI や検証で見つかった `findings` と解析構成の不整合を収束させる作業で使う。解析構成だけを整える作業は dotmet-project-config。",
+  "dependencies": [
+    "dotmet-analysis",
+    "dotmet-rules",
+    "dotmet-targets"
+  ],
+  "contentDigest": "39d40c1f22d51e6ad7435dd82279a584bf71db004796020f08053fd70ea97b8c",
+  "manifestDigest": "821fe03bcaaf5d63d8174abc35fea254f24c3b4ef1228ebec07f46c7a7ea7d5e",
+  "hostArtifacts": [
+    {
+      "host": "codex",
+      "path": "agents/openai.yaml",
+      "digest": "aa3976536e13655f082e217f53a122600da3cfd1552b09b3ca6aace509eaa59e",
+      "materializedFrontmatterDigest": "0137c844fe676d5cf50bc7a8546b9c5f50c06aac4efe6a34ca887b921f8db7e7"
+    },
+    {
+      "host": "claude-code",
+      "materializedFrontmatterDigest": "2d312f597b38941a1e1451d43215058e3e9d3de336619a38fe06ad9ae5a4fb94"
+    },
+    {
+      "host": "github-copilot",
+      "materializedFrontmatterDigest": "a896d912df4be87a2762917650cf9aac35ae16dc5fe53d892bc185dbd8b9f6db"
+    }
+  ]
+}

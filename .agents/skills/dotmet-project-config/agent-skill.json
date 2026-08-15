@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "skillBundleVersion": 1,
+  "catalogId": "com.mackysoft.dotmet",
+  "category": "basic",
+  "skillName": "dotmet-project-config",
+  "displayName": "dotmet Project Config",
+  "description": "dotmet の解析構成を作成、更新、レビューするときに、target set、`findings` の主語にしてよい改善対象、`rulesCoverage` の full 化、rules と設計契約の検出力を一体で整える。解析対象と rules をまとめて扱う作業で使う。rules 単体は $dotmet-rules、target set 単体は $dotmet-targets。",
+  "dependencies": [
+    "dotmet-analysis",
+    "dotmet-rules",
+    "dotmet-targets"
+  ],
+  "contentDigest": "64f159dbb30544654adf13a6c3c7b9132f24cf7cc7e239f5aec3374ac6e7b80e",
+  "manifestDigest": "589542350212d4cef8c9d42fdfe0c982dfb50865960ab846c9cffa0a99f2c50e",
+  "hostArtifacts": [
+    {
+      "host": "codex",
+      "path": "agents/openai.yaml",
+      "digest": "81e26d4acc618d0bb52c74d8e8264d6188a7dea428e90b7240e7937a88036723",
+      "materializedFrontmatterDigest": "e8efba6fa5649e19f4277b19fcc7c7028c332d0c5d8ea1ca0ee0307f39af99cc"
+    },
+    {
+      "host": "claude-code",
+      "materializedFrontmatterDigest": "50e44de9dffac477cd9dd75307bf1cb66d8bd777a58d1c31c6c6037be3218cce"
+    },
+    {
+      "host": "github-copilot",
+      "materializedFrontmatterDigest": "fc1f8d4e712a640f86ea4706fb2cfba284b60b571c45e8acfb85a2003a281dbf"
+    }
+  ]
+}

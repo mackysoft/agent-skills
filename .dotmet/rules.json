@@ -1,0 +1,1181 @@
+{
+  "subjects": {
+    "owned": [
+      {
+        "matches": [
+          {
+            "pathPrefix": [
+              "src/"
+            ]
+          },
+          {
+            "pathPrefix": [
+              "tests/"
+            ]
+          }
+        ]
+      }
+    ],
+    "external": []
+  },
+  "classifiers": {
+    "codeKind": [],
+    "domain": [
+      {
+        "label": "foundation",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Shared",
+              "MackySoft.AgentDistribution.Digests",
+              "MackySoft.AgentDistribution.Paths",
+              "MackySoft.AgentDistribution.Packaging.Paths",
+              "MackySoft.AgentDistribution.Serialization"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "identity",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Names",
+              "MackySoft.AgentDistribution.Catalogs",
+              "MackySoft.AgentDistribution.Categories",
+              "MackySoft.AgentDistribution.Selection"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "skill-artifact-contracts",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Skills.Bundles",
+              "MackySoft.AgentDistribution.Skills.Manifests"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "agent-artifact-contracts",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Agents.Manifests"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "skill-canonical-packaging",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Skills.Packaging"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "agent-canonical-packaging",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Agents.Packaging"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "distribution-contracts",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Installation.Requests",
+              "MackySoft.AgentDistribution.Installation.Results"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "installation-write-contracts",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Installation.Contracts"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "installation-diffing",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Installation.Diffing"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "installation-inventory",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Installation.Inventory"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "reporting-contracts",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.OperationReports"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "reporting-projection",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.OperationReports.Projection"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "host-contracts",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Hosts.Contracts"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "host-registration",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Hosts.Registration"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "host-binding-serialization",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Hosts.Serialization"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "claude-code-host",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Hosts.ClaudeCode"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "codex-host",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Hosts.Codex"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "github-copilot-host",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Hosts.GitHubCopilot"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "sources",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Sources"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "skill-graph-invariants",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Dependencies"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "generation",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Generation",
+              "MackySoft.AgentDistribution.Skills.Generation"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "installation-targeting",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Installation.Targeting"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "installation-state",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Installation.State"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "installation-validation",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Installation.Validation"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "installation-transaction",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Installation.Transactions"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "installation-services",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Installation.Services"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "materialization",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Materialization"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "doctor",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Doctor"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "command",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Commands"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "agents",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Agents"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "bundles",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Bundles"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "distribution",
+        "matches": [
+          {
+            "namespacePrefix": [
+              "MackySoft.AgentDistribution.Distribution"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "command-runtime",
+        "matches": [
+          {
+            "assemblyExact": [
+              "MackySoft.AgentDistribution.Cli",
+              "MackySoft.AgentDistribution.Hosting",
+              "MackySoft.AgentDistribution.ConsoleAppFramework"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "tests",
+        "matches": [
+          {
+            "assemblyExact": [
+              "MackySoft.AgentDistribution.Tests"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "core-project",
+        "matches": [
+          {
+            "assemblyExact": [
+              "MackySoft.AgentDistribution"
+            ],
+            "subjectKindExact": [
+              "project"
+            ]
+          }
+        ]
+      }
+    ],
+    "layer": []
+  },
+  "policies": {
+    "dependencies": [
+      {
+        "from": {
+          "domain": [
+            "foundation"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "identity"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "skill-artifact-contracts"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "skill-artifact-contracts",
+              "skill-canonical-packaging",
+              "skill-graph-invariants",
+              "host-contracts"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "agent-artifact-contracts"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "agent-artifact-contracts",
+              "host-contracts"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "skill-canonical-packaging"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "skill-artifact-contracts",
+              "skill-canonical-packaging",
+              "host-contracts"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "agent-canonical-packaging"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "agent-artifact-contracts",
+              "skill-canonical-packaging",
+              "agent-canonical-packaging",
+              "host-contracts"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "distribution-contracts"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "skill-canonical-packaging",
+              "distribution-contracts",
+              "installation-targeting"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "installation-write-contracts"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "installation-write-contracts",
+              "materialization"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "installation-diffing"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "distribution-contracts",
+              "installation-diffing",
+              "materialization"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "installation-inventory"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "skill-artifact-contracts",
+              "skill-canonical-packaging",
+              "distribution-contracts",
+              "host-contracts",
+              "installation-targeting",
+              "installation-validation",
+              "installation-inventory"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "reporting-contracts"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "host-contracts",
+              "distribution-contracts",
+              "distribution",
+              "doctor",
+              "reporting-contracts"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "reporting-projection"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "reporting-contracts",
+              "reporting-projection",
+              "distribution-contracts",
+              "skill-canonical-packaging",
+              "agent-artifact-contracts",
+              "agent-canonical-packaging",
+              "agents",
+              "distribution",
+              "doctor",
+              "host-contracts",
+              "installation-targeting"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": ["host-contracts"]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "host-contracts"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": ["host-registration"]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "host-contracts",
+              "host-registration",
+              "claude-code-host",
+              "codex-host",
+              "github-copilot-host"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": ["host-binding-serialization"]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "host-binding-serialization"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": ["claude-code-host"]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "host-contracts",
+              "host-binding-serialization",
+              "claude-code-host"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": ["codex-host"]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "host-contracts",
+              "host-binding-serialization",
+              "codex-host"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": ["github-copilot-host"]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "host-contracts",
+              "host-binding-serialization",
+              "github-copilot-host"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "sources"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "skill-artifact-contracts",
+              "skill-graph-invariants",
+              "host-contracts",
+              "sources"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "skill-graph-invariants"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "skill-graph-invariants"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "generation"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "skill-artifact-contracts",
+              "skill-canonical-packaging",
+              "host-contracts",
+              "host-registration",
+              "sources",
+              "generation"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "installation-targeting"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "skill-artifact-contracts",
+              "distribution-contracts",
+              "host-contracts",
+              "host-registration",
+              "installation-targeting"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "installation-state"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "skill-artifact-contracts",
+              "skill-canonical-packaging",
+              "distribution-contracts",
+              "host-contracts",
+              "installation-state",
+              "installation-validation"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "installation-validation"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "skill-artifact-contracts",
+              "skill-canonical-packaging",
+              "distribution-contracts",
+              "host-contracts",
+              "installation-validation",
+              "materialization"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "installation-transaction"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "skill-artifact-contracts",
+              "distribution-contracts",
+              "host-contracts",
+              "installation-write-contracts",
+              "installation-transaction"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "installation-services"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "skill-artifact-contracts",
+              "skill-canonical-packaging",
+              "distribution-contracts",
+              "reporting-contracts",
+              "host-contracts",
+              "sources",
+              "installation-targeting",
+              "installation-state",
+              "installation-validation",
+              "installation-inventory",
+              "installation-write-contracts",
+              "installation-diffing",
+              "installation-transaction",
+              "installation-services",
+              "materialization"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "materialization"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "skill-artifact-contracts",
+              "skill-canonical-packaging",
+              "host-contracts",
+              "host-registration",
+              "materialization"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "doctor"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "skill-artifact-contracts",
+              "skill-canonical-packaging",
+              "distribution-contracts",
+              "reporting-contracts",
+              "host-contracts",
+              "installation-targeting",
+              "installation-state",
+              "installation-validation",
+              "doctor"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "command"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "host-contracts",
+              "installation-targeting",
+              "distribution",
+              "command"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "core-project"
+          ]
+        },
+        "allow": [
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "agents"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "agent-artifact-contracts",
+              "agent-canonical-packaging",
+              "skill-canonical-packaging",
+              "distribution-contracts",
+              "reporting-contracts",
+              "host-contracts",
+              "host-registration",
+              "installation-targeting",
+              "installation-services",
+              "doctor",
+              "agents"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "bundles"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "skill-artifact-contracts",
+              "agent-artifact-contracts",
+              "skill-canonical-packaging",
+              "agent-canonical-packaging",
+              "host-contracts",
+              "sources",
+              "generation",
+              "agents",
+              "bundles"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "distribution"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "skill-artifact-contracts",
+              "skill-canonical-packaging",
+              "materialization",
+              "host-contracts",
+              "agents",
+              "bundles",
+              "distribution"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "command-runtime"
+          ]
+        },
+        "allow": [
+          {
+            "domain": [
+              "foundation",
+              "identity",
+              "skill-artifact-contracts",
+              "agent-artifact-contracts",
+              "skill-canonical-packaging",
+              "agent-canonical-packaging",
+              "distribution-contracts",
+              "reporting-contracts",
+              "reporting-projection",
+              "installation-inventory",
+              "host-contracts",
+              "sources",
+              "generation",
+              "installation-targeting",
+              "installation-state",
+              "installation-validation",
+              "installation-transaction",
+              "installation-services",
+              "materialization",
+              "doctor",
+              "command",
+              "agents",
+              "bundles",
+              "distribution",
+              "core-project",
+              "command-runtime"
+            ]
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      },
+      {
+        "from": {
+          "domain": [
+            "tests"
+          ]
+        },
+        "allow": [
+          {
+            "subject": "owned"
+          },
+          {
+            "subject": "external"
+          }
+        ]
+      }
+    ]
+  },
+  "coverage": {
+    "ownedSubjectsMustClassify": [
+      "domain"
+    ],
+    "localSubjectsMustBeOwned": []
+  },
+  "thresholds": {}
+}
