@@ -2,9 +2,9 @@ using MackySoft.AgentDistribution.Catalogs;
 using MackySoft.AgentDistribution.Installation.State;
 using MackySoft.AgentDistribution.Installation.Targeting;
 using MackySoft.AgentDistribution.Installation.Validation;
-using MackySoft.AgentDistribution.Manifests;
-using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Manifests;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 
 namespace MackySoft.AgentDistribution.Tests.Installation.State;
 

@@ -79,113 +79,205 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
                 $"Skill directory parent could not be resolved: {resolvedSkillDirectory}");
         }
 
-        var transactionRootResult = PackagePathResolver.ResolveUnderRoot(
+        var transactionLockRootResult = PackagePathResolver.ResolveUnderRoot(
             resolvedTargetRoot,
             ContainedPath.Create(parentDirectory, RootRelativePath.Parse(".agent-distribution-skill-transactions")).Target);
-        if (!transactionRootResult.IsSuccess)
+        if (!transactionLockRootResult.IsSuccess)
         {
             return AgentDistributionOperationResult<bool>.FailureResult(
-                transactionRootResult.Failure!.Code,
-                transactionRootResult.Failure.Message);
+                transactionLockRootResult.Failure!.Code,
+                transactionLockRootResult.Failure.Message);
         }
 
-        var deletedContainerResult = PackagePathResolver.ResolveUnderRoot(
+        var workspaceResult = PackagePathResolver.ResolveUnderRoot(
             resolvedTargetRoot,
             ContainedPath.Create(
-                transactionRootResult.Value!,
-                RootRelativePath.Parse($"{Path.GetFileName(resolvedSkillDirectory.Value)}.delete.{Guid.NewGuid():N}")).Target);
-        if (!deletedContainerResult.IsSuccess)
+                transactionLockRootResult.Value!,
+                RootRelativePath.Parse(Guid.NewGuid().ToString("N"))).Target);
+        if (!workspaceResult.IsSuccess)
         {
             return AgentDistributionOperationResult<bool>.FailureResult(
-                deletedContainerResult.Failure!.Code,
-                deletedContainerResult.Failure.Message);
+                workspaceResult.Failure!.Code,
+                workspaceResult.Failure.Message);
         }
 
-        var deletedDirectoryResult = PackagePathResolver.ResolveUnderRoot(
+        var backupDirectoryResult = PackagePathResolver.ResolveUnderRoot(
             resolvedTargetRoot,
             ContainedPath.Create(
-                deletedContainerResult.Value!,
+                workspaceResult.Value!,
                 RootRelativePath.Parse(Path.GetFileName(resolvedSkillDirectory.Value))).Target);
-        if (!deletedDirectoryResult.IsSuccess)
+        if (!backupDirectoryResult.IsSuccess)
         {
             return AgentDistributionOperationResult<bool>.FailureResult(
-                deletedDirectoryResult.Failure!.Code,
-                deletedDirectoryResult.Failure.Message);
+                backupDirectoryResult.Failure!.Code,
+                backupDirectoryResult.Failure.Message);
         }
 
-        var transactionRoot = transactionRootResult.Value!;
-        var deletedContainer = deletedContainerResult.Value!;
-        var deletedDirectory = deletedDirectoryResult.Value!;
+        var transaction = new SkillPackageDeleteTransaction(
+            resolvedTargetRoot,
+            resolvedSkillDirectory,
+            precondition,
+            transactionLockRootResult.Value!,
+            workspaceResult.Value!,
+            backupDirectoryResult.Value!);
+
+        return await ExecuteTransactionAsync(transaction, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask<AgentDistributionOperationResult<bool>> ExecuteTransactionAsync (
+        SkillPackageDeleteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
         try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            directoryOperations.Create(transactionRoot);
-            var transactionRootGuard = SkillPackageTransactionPathGuard.ValidateCreatedDirectory(resolvedTargetRoot, transactionRoot);
-            if (!transactionRootGuard.IsSuccess)
-            {
-                return AgentDistributionOperationResult<bool>.FailureResult(
-                    transactionRootGuard.Failure!.Code,
-                    transactionRootGuard.Failure.Message);
-            }
-
-            var lockResult = SkillPackageTransactionLock.Acquire(resolvedTargetRoot, transactionRoot);
-            if (!lockResult.IsSuccess)
-            {
-                return AgentDistributionOperationResult<bool>.FailureResult(lockResult.Failure!.Code, lockResult.Failure.Message);
-            }
-
-            using var transactionLock = lockResult.Value!;
-            if (precondition is not null)
-            {
-                var preconditionResult = await precondition(resolvedSkillDirectory, cancellationToken).ConfigureAwait(false);
-                if (!preconditionResult.IsSuccess)
-                {
-                    return AgentDistributionOperationResult<bool>.FailureResult(preconditionResult.Failure!.Code, preconditionResult.Failure.Message);
-                }
-            }
-
-            if (!directoryOperations.Exists(resolvedSkillDirectory))
-            {
-                return AgentDistributionOperationResult<bool>.FailureResult(
-                    AgentDistributionFailureCodes.InstallTargetDigestMismatch,
-                    $"Target skill directory changed after planning; refusing to delete: {resolvedSkillDirectory}");
-            }
-
-            directoryOperations.Create(deletedContainer);
-            var deletedContainerGuard = SkillPackageTransactionPathGuard.ValidateCreatedDirectory(resolvedTargetRoot, deletedContainer);
-            if (!deletedContainerGuard.IsSuccess)
-            {
-                return AgentDistributionOperationResult<bool>.FailureResult(deletedContainerGuard.Failure!.Code, deletedContainerGuard.Failure.Message);
-            }
-
-            directoryOperations.Move(resolvedSkillDirectory, deletedDirectory);
-            if (precondition is not null)
-            {
-                var movedTargetResult = await precondition(deletedDirectory, cancellationToken).ConfigureAwait(false);
-                if (!movedTargetResult.IsSuccess)
-                {
-                    directoryOperations.Move(deletedDirectory, resolvedSkillDirectory);
-                    return AgentDistributionOperationResult<bool>.FailureResult(movedTargetResult.Failure!.Code, movedTargetResult.Failure.Message);
-                }
-            }
-
-            DeleteDirectoryBestEffort(deletedDirectory);
-            DeleteDirectoryBestEffort(transactionRoot);
-
-            return AgentDistributionOperationResult<bool>.Success(true);
+            return await ExecuteWithinTransactionAsync(transaction, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (OperationCanceledException)
         {
-            return AgentDistributionOperationResult<bool>.FailureResult(
-                AgentDistributionFailureCodes.InstallTargetWriteFailed,
-                $"Failed to delete installed SKILL package: {resolvedSkillDirectory}. {ex.Message}");
+            var restoreResult = RestoreMovedTargetIfNeeded(transaction);
+            if (!restoreResult.IsSuccess)
+            {
+                return restoreResult;
+            }
+
+            throw;
+        }
+        catch (Exception ex)
+        {
+            var restoreResult = RestoreMovedTargetIfNeeded(transaction);
+            if (!restoreResult.IsSuccess)
+            {
+                return restoreResult;
+            }
+
+            if (ex is IOException or UnauthorizedAccessException)
+            {
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    AgentDistributionFailureCodes.InstallTargetWriteFailed,
+                    $"Failed to delete installed SKILL package: {transaction.SkillDirectory}. {ex.Message}");
+            }
+
+            throw;
         }
         finally
         {
-            if (!directoryOperations.Exists(deletedDirectory))
-            {
-                DeleteDirectoryBestEffort(transactionRoot);
-            }
+            CleanupTransaction(transaction);
+        }
+    }
+
+    private async ValueTask<AgentDistributionOperationResult<bool>> ExecuteWithinTransactionAsync (
+        SkillPackageDeleteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        var lockRootResult = CreateVerifiedDirectory(transaction.TargetRoot, transaction.TransactionLockRoot);
+        if (!lockRootResult.IsSuccess)
+        {
+            return lockRootResult;
+        }
+
+        var lockResult = SkillPackageTransactionLock.Acquire(transaction.TargetRoot, transaction.TransactionLockRoot);
+        if (!lockResult.IsSuccess)
+        {
+            return AgentDistributionOperationResult<bool>.FailureResult(lockResult.Failure!.Code, lockResult.Failure.Message);
+        }
+
+        using var transactionLock = lockResult.Value!;
+        return await DeleteLockedAsync(transaction, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask<AgentDistributionOperationResult<bool>> DeleteLockedAsync (
+        SkillPackageDeleteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        var preconditionResult = await InvokePreconditionAsync(transaction, transaction.SkillDirectory, cancellationToken).ConfigureAwait(false);
+        if (!preconditionResult.IsSuccess)
+        {
+            return preconditionResult;
+        }
+
+        if (!directoryOperations.Exists(transaction.SkillDirectory))
+        {
+            return AgentDistributionOperationResult<bool>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetDigestMismatch,
+                $"Target skill directory changed after planning; refusing to delete: {transaction.SkillDirectory}");
+        }
+
+        var workspaceResult = CreateVerifiedDirectory(transaction.TargetRoot, transaction.WorkspaceDirectory);
+        if (!workspaceResult.IsSuccess)
+        {
+            return workspaceResult;
+        }
+
+        directoryOperations.Move(transaction.SkillDirectory, transaction.BackupDirectory);
+        transaction.MarkTargetMovedToBackup();
+
+        var movedTargetResult = await InvokePreconditionAsync(transaction, transaction.BackupDirectory, cancellationToken).ConfigureAwait(false);
+        if (!movedTargetResult.IsSuccess)
+        {
+            return RestoreTargetBeforeReturningFailure(transaction, movedTargetResult);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        DeleteDirectoryBestEffort(transaction.BackupDirectory);
+        transaction.MarkDeletionCommitted();
+        return AgentDistributionOperationResult<bool>.Success(true);
+    }
+
+    private static async ValueTask<AgentDistributionOperationResult<bool>> InvokePreconditionAsync (
+        SkillPackageDeleteTransaction transaction,
+        AbsolutePath path,
+        CancellationToken cancellationToken)
+    {
+        return transaction.Precondition is null
+            ? AgentDistributionOperationResult<bool>.Success(true)
+            : await transaction.Precondition(path, cancellationToken).ConfigureAwait(false);
+    }
+
+    private AgentDistributionOperationResult<bool> RestoreTargetBeforeReturningFailure (
+        SkillPackageDeleteTransaction transaction,
+        AgentDistributionOperationResult<bool> failureResult)
+    {
+        var restoreResult = RestoreMovedTargetIfNeeded(transaction);
+        return restoreResult.IsSuccess ? failureResult : restoreResult;
+    }
+
+    private AgentDistributionOperationResult<bool> RestoreMovedTargetIfNeeded (SkillPackageDeleteTransaction transaction)
+    {
+        if (!transaction.TargetMovedToBackup
+            || transaction.DeletionCommitted
+            || directoryOperations.Exists(transaction.SkillDirectory)
+            || !directoryOperations.Exists(transaction.BackupDirectory))
+        {
+            return AgentDistributionOperationResult<bool>.Success(true);
+        }
+
+        try
+        {
+            directoryOperations.Move(transaction.BackupDirectory, transaction.SkillDirectory);
+            transaction.MarkTargetRestored();
+            return AgentDistributionOperationResult<bool>.Success(true);
+        }
+        catch (Exception restoreException) when (restoreException is IOException or UnauthorizedAccessException)
+        {
+            return AgentDistributionOperationResult<bool>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetWriteFailed,
+                $"Failed to delete installed SKILL package and restore backup: {transaction.SkillDirectory}. Backup remains at: {transaction.BackupDirectory}. {restoreException.Message}");
+        }
+    }
+
+    private AgentDistributionOperationResult<bool> CreateVerifiedDirectory (
+        AbsolutePath targetRoot,
+        AbsolutePath directory)
+    {
+        directoryOperations.Create(directory);
+        return SkillPackageTransactionPathGuard.ValidateCreatedDirectory(targetRoot, directory);
+    }
+
+    private void CleanupTransaction (SkillPackageDeleteTransaction transaction)
+    {
+        if (!directoryOperations.Exists(transaction.BackupDirectory))
+        {
+            DeleteDirectoryBestEffort(transaction.WorkspaceDirectory);
         }
     }
 
@@ -205,6 +297,56 @@ public sealed class SkillInstalledPackageRemover : ISkillInstalledPackageRemover
         }
         catch (UnauthorizedAccessException)
         {
+        }
+    }
+
+    private sealed class SkillPackageDeleteTransaction
+    {
+        public SkillPackageDeleteTransaction (
+            AbsolutePath targetRoot,
+            AbsolutePath skillDirectory,
+            Func<AbsolutePath, CancellationToken, ValueTask<AgentDistributionOperationResult<bool>>>? precondition,
+            AbsolutePath transactionLockRoot,
+            AbsolutePath workspaceDirectory,
+            AbsolutePath backupDirectory)
+        {
+            TargetRoot = targetRoot;
+            SkillDirectory = skillDirectory;
+            Precondition = precondition;
+            TransactionLockRoot = transactionLockRoot;
+            WorkspaceDirectory = workspaceDirectory;
+            BackupDirectory = backupDirectory;
+        }
+
+        public AbsolutePath TargetRoot { get; }
+
+        public AbsolutePath SkillDirectory { get; }
+
+        public Func<AbsolutePath, CancellationToken, ValueTask<AgentDistributionOperationResult<bool>>>? Precondition { get; }
+
+        public AbsolutePath TransactionLockRoot { get; }
+
+        public AbsolutePath WorkspaceDirectory { get; }
+
+        public AbsolutePath BackupDirectory { get; }
+
+        public bool TargetMovedToBackup { get; private set; }
+
+        public bool DeletionCommitted { get; private set; }
+
+        public void MarkTargetMovedToBackup ()
+        {
+            TargetMovedToBackup = true;
+        }
+
+        public void MarkTargetRestored ()
+        {
+            TargetMovedToBackup = false;
+        }
+
+        public void MarkDeletionCommitted ()
+        {
+            DeletionCommitted = true;
         }
     }
 }

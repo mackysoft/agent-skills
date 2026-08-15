@@ -4,20 +4,20 @@ using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Installation.Transactions;
 
-/// <summary> Acquires cooperative locks for SKILL package transaction directories. </summary>
+/// <summary> Acquires cooperative locks from a shared SKILL package transaction lock root. </summary>
 internal static class SkillPackageTransactionLock
 {
-    /// <summary> Acquires an exclusive lock file under the transaction directory. </summary>
+    /// <summary> Acquires an exclusive lock file under the shared transaction lock root. </summary>
     /// <param name="targetRoot"> The resolved bundle target root. </param>
-    /// <param name="transactionRoot"> The transaction directory under the target root. </param>
+    /// <param name="transactionLockRoot"> The shared transaction lock root under the target root. </param>
     /// <returns> A disposable lock handle or a write failure. </returns>
     public static AgentDistributionOperationResult<IDisposable> Acquire (
         AbsolutePath targetRoot,
-        AbsolutePath transactionRoot)
+        AbsolutePath transactionLockRoot)
     {
         var lockPathResult = PackagePathResolver.ResolveUnderRoot(
             targetRoot,
-            ContainedPath.Create(transactionRoot, RootRelativePath.Parse(".lock")).Target);
+            ContainedPath.Create(transactionLockRoot, RootRelativePath.Parse(".lock")).Target);
         if (!lockPathResult.IsSuccess)
         {
             return AgentDistributionOperationResult<IDisposable>.FailureResult(lockPathResult.Failure!.Code, lockPathResult.Failure.Message);

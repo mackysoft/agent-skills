@@ -4,8 +4,8 @@ using MackySoft.AgentDistribution.Installation.Requests;
 using MackySoft.AgentDistribution.Installation.Results;
 using MackySoft.AgentDistribution.Installation.Targeting;
 using MackySoft.AgentDistribution.Installation.Validation;
-using MackySoft.AgentDistribution.Manifests;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Manifests;
 
 namespace MackySoft.AgentDistribution.Tests.Installation.Services;
 

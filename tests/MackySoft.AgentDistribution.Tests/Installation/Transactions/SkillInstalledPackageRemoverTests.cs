@@ -27,12 +27,12 @@ public sealed class SkillInstalledPackageRemoverTests
         Assert.False(Directory.Exists(skillDirectory));
         var transactionRoot = Path.Combine(targetRoot, ".agent-distribution-skill-transactions");
         Assert.True(Directory.Exists(transactionRoot));
-        Assert.Contains(Directory.EnumerateDirectories(transactionRoot), static path => path.Contains(".delete.", StringComparison.Ordinal));
+        Assert.Single(Directory.EnumerateDirectories(transactionRoot));
     }
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task DeleteAsync_WhenMovedTargetPreconditionFails_RestoresTargetAndCleansTransactionDirectory ()
+    public async Task DeleteAsync_WhenMovedTargetPreconditionFails_RestoresTargetAndCleansWorkspace ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "remover-moved-precondition-failure");
         var targetRoot = scope.CreateDirectory(".agents/skills");
@@ -54,7 +54,7 @@ public sealed class SkillInstalledPackageRemoverTests
         Assert.Equal(AgentDistributionFailureCodes.InstallTargetDigestMismatch, result.Failure!.Code);
         Assert.True(Directory.Exists(skillDirectory));
         Assert.Equal("# Existing\n", File.ReadAllText(skillPath));
-        Assert.False(Directory.Exists(Path.Combine(targetRoot, ".agent-distribution-skill-transactions")));
+        AssertSharedLockRootHasNoWorkspaces(targetRoot);
     }
 
     [Fact]
@@ -82,6 +82,79 @@ public sealed class SkillInstalledPackageRemoverTests
         Assert.Equal(1, preconditionCallCount);
     }
 
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task DeleteAsync_WhenCancellationOccursAfterBackupMove_RestoresTargetBeforePropagatingCancellation ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "remover-cancellation-restores");
+        using var cancellationSource = new CancellationTokenSource();
+        var targetRoot = scope.CreateDirectory(".agents/skills");
+        var skillDirectory = scope.CreateDirectory(Path.Combine(".agents", "skills", "sample-skill"));
+        var skillPath = scope.WriteFile(Path.Combine(".agents", "skills", "sample-skill", "SKILL.md"), "# Existing\n");
+        var remover = SkillTestData.CreatePackageRemover();
+        var preconditionCallCount = 0;
+
+        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await remover.DeleteAsync(
+                AbsolutePath.Parse(targetRoot),
+                AbsolutePath.Parse(skillDirectory),
+                (_, cancellationToken) =>
+                {
+                    if (++preconditionCallCount == 2)
+                    {
+                        cancellationSource.Cancel();
+                        cancellationToken.ThrowIfCancellationRequested();
+                    }
+
+                    return ValueTask.FromResult(AgentDistributionOperationResult<bool>.Success(true));
+                },
+                cancellationSource.Token));
+
+        Assert.True(Directory.Exists(skillDirectory));
+        Assert.Equal("# Existing\n", File.ReadAllText(skillPath));
+        AssertSharedLockRootHasNoWorkspaces(targetRoot);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task DeleteAsync_WhenMovedTargetPreconditionCancelsWithoutThrowing_RestoresTargetBeforeDeletion ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "remover-cancellation-after-precondition");
+        using var cancellationSource = new CancellationTokenSource();
+        var targetRoot = scope.CreateDirectory(".agents/skills");
+        var skillDirectory = scope.CreateDirectory(Path.Combine(".agents", "skills", "sample-skill"));
+        var skillPath = scope.WriteFile(Path.Combine(".agents", "skills", "sample-skill", "SKILL.md"), "# Existing\n");
+        var remover = SkillTestData.CreatePackageRemover();
+        var preconditionCallCount = 0;
+
+        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await remover.DeleteAsync(
+                AbsolutePath.Parse(targetRoot),
+                AbsolutePath.Parse(skillDirectory),
+                (_, _) =>
+                {
+                    if (++preconditionCallCount == 2)
+                    {
+                        cancellationSource.Cancel();
+                    }
+
+                    return ValueTask.FromResult(AgentDistributionOperationResult<bool>.Success(true));
+                },
+                cancellationSource.Token));
+
+        Assert.True(Directory.Exists(skillDirectory));
+        Assert.Equal("# Existing\n", File.ReadAllText(skillPath));
+        AssertSharedLockRootHasNoWorkspaces(targetRoot);
+    }
+
+    private static void AssertSharedLockRootHasNoWorkspaces (string targetRoot)
+    {
+        var transactionLockRoot = Path.Combine(targetRoot, ".agent-distribution-skill-transactions");
+
+        Assert.True(Directory.Exists(transactionLockRoot));
+        Assert.Empty(Directory.EnumerateDirectories(transactionLockRoot));
+    }
+
     private sealed class DeleteMovedDirectoryFailingOperations : ISkillPackageDirectoryOperations
     {
         public bool Exists (AbsolutePath path)
@@ -105,15 +178,10 @@ public sealed class SkillInstalledPackageRemoverTests
             AbsolutePath path,
             bool recursive)
         {
-            if (path.Value.Contains(".delete.", StringComparison.Ordinal))
+            if (path.Value.EndsWith("sample-skill", StringComparison.Ordinal))
             {
                 File.Delete(Path.Combine(path.Value, "SKILL.md"));
                 throw new IOException("Injected moved directory delete failure.");
-            }
-
-            if (path.Value.Contains(".agent-distribution-skill-transactions", StringComparison.Ordinal))
-            {
-                throw new IOException("Injected transaction cleanup failure.");
             }
 
             Directory.Delete(path.Value, recursive);

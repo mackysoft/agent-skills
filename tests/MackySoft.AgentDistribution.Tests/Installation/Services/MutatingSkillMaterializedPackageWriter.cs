@@ -1,5 +1,4 @@
 using MackySoft.AgentDistribution.Installation.Contracts;
-using MackySoft.AgentDistribution.Materialization;
 using MackySoft.AgentDistribution.Shared;
 
 namespace MackySoft.AgentDistribution.Tests.Installation.Services;
@@ -22,25 +21,16 @@ internal sealed class MutatingSkillMaterializedPackageWriter : ISkillMaterialize
 
     /// <inheritdoc />
     public ValueTask<AgentDistributionOperationResult<bool>> WriteAsync (
-        AbsolutePath targetRoot,
-        AbsolutePath skillDirectory,
-        SkillMaterializedPackage materializedPackage,
-        SkillMaterializedPackageWriteMode writeMode,
-        Func<AbsolutePath, CancellationToken, ValueTask<AgentDistributionOperationResult<bool>>>? precondition,
+        SkillMaterializedPackageWriteRequest request,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
         if (Interlocked.Exchange(ref mutationInvoked, 1) == 0)
         {
-            mutate(skillDirectory.Value);
+            mutate(request.SkillDirectory.Value);
         }
 
-        return inner.WriteAsync(
-            targetRoot,
-            skillDirectory,
-            materializedPackage,
-            writeMode,
-            precondition,
-            cancellationToken);
+        return inner.WriteAsync(request, cancellationToken);
     }
 }

@@ -6,7 +6,7 @@ using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Agents.Installation.Services;
 
-internal sealed class AgentManagedArtifactStore
+internal sealed class AgentManagedArtifactStore : IAgentManagedArtifactStore
 {
     private readonly AgentInstallationStatePathResolver statePathResolver;
     private readonly AgentInstallationStateStore stateStore;
@@ -60,9 +60,19 @@ internal sealed class AgentManagedArtifactStore
         AgentInstallationState state,
         AbsolutePath statePath,
         AgentResolvedTarget target,
+        Func<CancellationToken, ValueTask<AgentDistributionOperationResult<bool>>>? precondition,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (precondition is not null)
+        {
+            var preconditionResult = await precondition(cancellationToken).ConfigureAwait(false);
+            if (!preconditionResult.IsSuccess)
+            {
+                return preconditionResult;
+            }
+        }
+
         try
         {
             foreach (var artifact in state.ManagedArtifacts)

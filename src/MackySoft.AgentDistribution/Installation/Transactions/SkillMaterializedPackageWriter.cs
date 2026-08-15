@@ -1,5 +1,4 @@
 using MackySoft.AgentDistribution.Installation.Contracts;
-using MackySoft.AgentDistribution.Materialization;
 using MackySoft.AgentDistribution.Packaging.Paths;
 using MackySoft.AgentDistribution.Serialization;
 using MackySoft.AgentDistribution.Shared;
@@ -22,224 +21,428 @@ public sealed class SkillMaterializedPackageWriter : ISkillMaterializedPackageWr
 
     /// <inheritdoc />
     public async ValueTask<AgentDistributionOperationResult<bool>> WriteAsync (
-        AbsolutePath targetRoot,
-        AbsolutePath skillDirectory,
-        SkillMaterializedPackage materializedPackage,
-        SkillMaterializedPackageWriteMode writeMode,
-        Func<AbsolutePath, CancellationToken, ValueTask<AgentDistributionOperationResult<bool>>>? precondition,
+        SkillMaterializedPackageWriteRequest request,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(targetRoot);
-        ArgumentNullException.ThrowIfNull(skillDirectory);
-        ArgumentNullException.ThrowIfNull(materializedPackage);
+        ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var skillDirectoryResult = PackagePathResolver.ResolveUnderRoot(targetRoot, skillDirectory);
-        if (!skillDirectoryResult.IsSuccess)
+        var transactionResult = CreateTransaction(request);
+        if (!transactionResult.IsSuccess)
         {
-            return AgentDistributionOperationResult<bool>.FailureResult(skillDirectoryResult.Failure!.Code, skillDirectoryResult.Failure.Message);
+            return AgentDistributionOperationResult<bool>.FailureResult(transactionResult.Failure!.Code, transactionResult.Failure.Message);
         }
 
-        var resolvedSkillDirectory = skillDirectoryResult.Value!;
+        return await ExecuteTransactionAsync(
+            transactionResult.Value!,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private static AgentDistributionOperationResult<SkillPackageWriteTransaction> CreateTransaction (
+        SkillMaterializedPackageWriteRequest request)
+    {
+        var skillDirectoryResult = PackagePathResolver.ResolveUnderRoot(request.TargetRoot, request.SkillDirectory);
+        if (!skillDirectoryResult.IsSuccess)
+        {
+            return AgentDistributionOperationResult<SkillPackageWriteTransaction>.FailureResult(skillDirectoryResult.Failure!.Code, skillDirectoryResult.Failure.Message);
+        }
+
+        return CreateTransactionForSkillDirectory(request, skillDirectoryResult.Value!);
+    }
+
+    private static AgentDistributionOperationResult<SkillPackageWriteTransaction> CreateTransactionForSkillDirectory (
+        SkillMaterializedPackageWriteRequest request,
+        AbsolutePath resolvedSkillDirectory)
+    {
         if (!resolvedSkillDirectory.TryGetParent(out var parentDirectory))
         {
-            return AgentDistributionOperationResult<bool>.FailureResult(
+            return AgentDistributionOperationResult<SkillPackageWriteTransaction>.FailureResult(
                 AgentDistributionFailureCodes.InstallTargetWriteFailed,
                 $"Skill directory parent could not be resolved: {resolvedSkillDirectory}");
         }
 
         var transactionRootResult = PackagePathResolver.ResolveUnderRoot(
-            targetRoot,
+            request.TargetRoot,
             ContainedPath.Create(parentDirectory, RootRelativePath.Parse(".agent-distribution-skill-transactions")).Target);
         if (!transactionRootResult.IsSuccess)
         {
-            return AgentDistributionOperationResult<bool>.FailureResult(transactionRootResult.Failure!.Code, transactionRootResult.Failure.Message);
+            return AgentDistributionOperationResult<SkillPackageWriteTransaction>.FailureResult(transactionRootResult.Failure!.Code, transactionRootResult.Failure.Message);
         }
 
-        var transactionRoot = transactionRootResult.Value!;
-        var stagingDirectoryResult = PackagePathResolver.ResolveUnderRoot(
-            targetRoot,
-            ContainedPath.Create(
-                transactionRoot,
-                RootRelativePath.Parse($"{Path.GetFileName(resolvedSkillDirectory.Value)}.staging.{Guid.NewGuid():N}")).Target);
+        return CreateTransactionDirectories(request, resolvedSkillDirectory, transactionRootResult.Value!);
+    }
+
+    private static AgentDistributionOperationResult<SkillPackageWriteTransaction> CreateTransactionDirectories (
+        SkillMaterializedPackageWriteRequest request,
+        AbsolutePath resolvedSkillDirectory,
+        AbsolutePath transactionLockRoot)
+    {
+        var workspaceResult = ResolveTransactionDirectory(
+            request.TargetRoot,
+            transactionLockRoot,
+            Guid.NewGuid().ToString("N"));
+        if (!workspaceResult.IsSuccess)
+        {
+            return AgentDistributionOperationResult<SkillPackageWriteTransaction>.FailureResult(workspaceResult.Failure!.Code, workspaceResult.Failure.Message);
+        }
+
+        // NOTE: Dotted names are outside the SkillName contract, reserving these siblings for transaction data.
+        var stagingDirectoryResult = ResolveTransactionDirectory(
+            request.TargetRoot,
+            workspaceResult.Value!,
+            ".staging");
         if (!stagingDirectoryResult.IsSuccess)
         {
-            return AgentDistributionOperationResult<bool>.FailureResult(stagingDirectoryResult.Failure!.Code, stagingDirectoryResult.Failure.Message);
+            return AgentDistributionOperationResult<SkillPackageWriteTransaction>.FailureResult(stagingDirectoryResult.Failure!.Code, stagingDirectoryResult.Failure.Message);
         }
 
-        var backupContainerResult = PackagePathResolver.ResolveUnderRoot(
-            targetRoot,
-            ContainedPath.Create(
-                transactionRoot,
-                RootRelativePath.Parse($"{Path.GetFileName(resolvedSkillDirectory.Value)}.backup.{Guid.NewGuid():N}")).Target);
+        var backupContainerResult = ResolveTransactionDirectory(
+            request.TargetRoot,
+            workspaceResult.Value!,
+            ".backup");
         if (!backupContainerResult.IsSuccess)
         {
-            return AgentDistributionOperationResult<bool>.FailureResult(backupContainerResult.Failure!.Code, backupContainerResult.Failure.Message);
+            return AgentDistributionOperationResult<SkillPackageWriteTransaction>.FailureResult(backupContainerResult.Failure!.Code, backupContainerResult.Failure.Message);
         }
 
-        var backupDirectoryResult = PackagePathResolver.ResolveUnderRoot(
-            targetRoot,
-            ContainedPath.Create(
-                backupContainerResult.Value!,
-                RootRelativePath.Parse(Path.GetFileName(resolvedSkillDirectory.Value))).Target);
+        var backupDirectoryResult = ResolveTransactionDirectory(
+            request.TargetRoot,
+            backupContainerResult.Value!,
+            Path.GetFileName(resolvedSkillDirectory.Value));
         if (!backupDirectoryResult.IsSuccess)
         {
-            return AgentDistributionOperationResult<bool>.FailureResult(backupDirectoryResult.Failure!.Code, backupDirectoryResult.Failure.Message);
+            return AgentDistributionOperationResult<SkillPackageWriteTransaction>.FailureResult(backupDirectoryResult.Failure!.Code, backupDirectoryResult.Failure.Message);
         }
 
-        var stagingDirectory = stagingDirectoryResult.Value!;
-        var backupContainer = backupContainerResult.Value!;
-        var backupDirectory = backupDirectoryResult.Value!;
-        var movedExistingToBackup = false;
-        var committed = false;
+        return AgentDistributionOperationResult<SkillPackageWriteTransaction>.Success(new SkillPackageWriteTransaction(
+            request,
+            resolvedSkillDirectory,
+            transactionLockRoot,
+            workspaceResult.Value!,
+            stagingDirectoryResult.Value!,
+            backupContainerResult.Value!,
+            backupDirectoryResult.Value!));
+    }
 
+    private static AgentDistributionOperationResult<AbsolutePath> ResolveTransactionDirectory (
+        AbsolutePath targetRoot,
+        AbsolutePath parentDirectory,
+        string directoryName)
+    {
+        return PackagePathResolver.ResolveUnderRoot(
+            targetRoot,
+            ContainedPath.Create(parentDirectory, RootRelativePath.Parse(directoryName)).Target);
+    }
+
+    private async ValueTask<AgentDistributionOperationResult<bool>> ExecuteTransactionAsync (
+        SkillPackageWriteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
         try
         {
-            directoryOperations.Create(transactionRoot);
-            var transactionRootGuard = SkillPackageTransactionPathGuard.ValidateCreatedDirectory(targetRoot, transactionRoot);
-            if (!transactionRootGuard.IsSuccess)
-            {
-                return AgentDistributionOperationResult<bool>.FailureResult(transactionRootGuard.Failure!.Code, transactionRootGuard.Failure.Message);
-            }
-
-            var lockResult = SkillPackageTransactionLock.Acquire(targetRoot, transactionRoot);
-            if (!lockResult.IsSuccess)
-            {
-                return AgentDistributionOperationResult<bool>.FailureResult(lockResult.Failure!.Code, lockResult.Failure.Message);
-            }
-
-            using var transactionLock = lockResult.Value!;
-            directoryOperations.Create(stagingDirectory);
-            var stagingDirectoryGuard = SkillPackageTransactionPathGuard.ValidateCreatedDirectory(targetRoot, stagingDirectory);
-            if (!stagingDirectoryGuard.IsSuccess)
-            {
-                return AgentDistributionOperationResult<bool>.FailureResult(stagingDirectoryGuard.Failure!.Code, stagingDirectoryGuard.Failure.Message);
-            }
-
-            foreach (var file in materializedPackage.Files)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var finalPathResult = PackagePathResolver.ResolveUnderRoot(
-                    targetRoot,
-                    ContainedPath.Create(resolvedSkillDirectory, file.RelativePath.RootRelativePath).Target);
-                if (!finalPathResult.IsSuccess)
-                {
-                    return AgentDistributionOperationResult<bool>.FailureResult(finalPathResult.Failure!.Code, finalPathResult.Failure.Message);
-                }
-
-                var stagingPathResult = PackagePathResolver.ResolveUnderRoot(
-                    targetRoot,
-                    ContainedPath.Create(stagingDirectory, file.RelativePath.RootRelativePath).Target);
-                if (!stagingPathResult.IsSuccess)
-                {
-                    return AgentDistributionOperationResult<bool>.FailureResult(stagingPathResult.Failure!.Code, stagingPathResult.Failure.Message);
-                }
-
-                await CanonicalTextFilePublisher.PublishAsync(stagingPathResult.Value!, file.Content, cancellationToken).ConfigureAwait(false);
-            }
-
-            cancellationToken.ThrowIfCancellationRequested();
-            if (precondition is not null)
-            {
-                var preconditionResult = await precondition(resolvedSkillDirectory, cancellationToken).ConfigureAwait(false);
-                if (!preconditionResult.IsSuccess)
-                {
-                    return AgentDistributionOperationResult<bool>.FailureResult(preconditionResult.Failure!.Code, preconditionResult.Failure.Message);
-                }
-            }
-
-            var targetExists = directoryOperations.Exists(resolvedSkillDirectory);
-            if (writeMode == SkillMaterializedPackageWriteMode.CreateNew && targetExists)
-            {
-                return AgentDistributionOperationResult<bool>.FailureResult(
-                    AgentDistributionFailureCodes.InstallTargetDigestMismatch,
-                    $"Target skill directory changed after planning; refusing to write: {resolvedSkillDirectory}");
-            }
-
-            if (writeMode == SkillMaterializedPackageWriteMode.ReplaceExisting && !targetExists)
-            {
-                return AgentDistributionOperationResult<bool>.FailureResult(
-                    AgentDistributionFailureCodes.InstallTargetDigestMismatch,
-                    $"Target skill directory changed after planning; refusing to write: {resolvedSkillDirectory}");
-            }
-
-            if (targetExists)
-            {
-                directoryOperations.Create(backupContainer);
-                var backupContainerGuard = SkillPackageTransactionPathGuard.ValidateCreatedDirectory(targetRoot, backupContainer);
-                if (!backupContainerGuard.IsSuccess)
-                {
-                    return AgentDistributionOperationResult<bool>.FailureResult(backupContainerGuard.Failure!.Code, backupContainerGuard.Failure.Message);
-                }
-
-                directoryOperations.Move(resolvedSkillDirectory, backupDirectory);
-                movedExistingToBackup = true;
-                if (precondition is not null)
-                {
-                    var movedTargetResult = await precondition(backupDirectory, cancellationToken).ConfigureAwait(false);
-                    if (!movedTargetResult.IsSuccess)
-                    {
-                        try
-                        {
-                            directoryOperations.Move(backupDirectory, resolvedSkillDirectory);
-                            movedExistingToBackup = false;
-                        }
-                        catch (Exception restoreException) when (restoreException is IOException or UnauthorizedAccessException)
-                        {
-                            return AgentDistributionOperationResult<bool>.FailureResult(
-                                AgentDistributionFailureCodes.InstallTargetWriteFailed,
-                                $"Failed to write SKILL package atomically and restore backup: {resolvedSkillDirectory}. Backup remains at: {backupDirectory}. {restoreException.Message}");
-                        }
-
-                        return AgentDistributionOperationResult<bool>.FailureResult(movedTargetResult.Failure!.Code, movedTargetResult.Failure.Message);
-                    }
-                }
-            }
-
-            directoryOperations.Move(stagingDirectory, resolvedSkillDirectory);
-            committed = true;
-            DeleteDirectoryBestEffort(backupDirectory);
-
-            return AgentDistributionOperationResult<bool>.Success(true);
+            return await ExecuteWithinTransactionAsync(transaction, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (OperationCanceledException)
         {
-            if (!committed && movedExistingToBackup && !directoryOperations.Exists(resolvedSkillDirectory) && directoryOperations.Exists(backupDirectory))
+            var restoreResult = RestoreMovedTargetIfNeeded(transaction);
+            if (!restoreResult.IsSuccess)
             {
-                try
-                {
-                    directoryOperations.Move(backupDirectory, resolvedSkillDirectory);
-                }
-                catch (Exception restoreException) when (restoreException is IOException or UnauthorizedAccessException)
-                {
-                    return AgentDistributionOperationResult<bool>.FailureResult(
-                        AgentDistributionFailureCodes.InstallTargetWriteFailed,
-                        $"Failed to write SKILL package atomically and restore backup: {resolvedSkillDirectory}. Backup remains at: {backupDirectory}. {restoreException.Message}");
-                }
+                return restoreResult;
             }
 
-            var backupMessage = !committed && movedExistingToBackup && directoryOperations.Exists(backupDirectory)
-                ? $" Backup remains at: {backupDirectory}."
-                : string.Empty;
-            return AgentDistributionOperationResult<bool>.FailureResult(
-                AgentDistributionFailureCodes.InstallTargetWriteFailed,
-                $"Failed to write SKILL package atomically: {resolvedSkillDirectory}.{backupMessage} {ex.Message}");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            var restoreResult = RestoreMovedTargetIfNeeded(transaction);
+            if (!restoreResult.IsSuccess)
+            {
+                return restoreResult;
+            }
+
+            if (ex is IOException or UnauthorizedAccessException)
+            {
+                return CreateWriteFailureResult(transaction, ex);
+            }
+
+            throw;
         }
         finally
         {
-            var preserveBackup = !committed && movedExistingToBackup && directoryOperations.Exists(backupDirectory);
-            DeleteDirectoryBestEffort(stagingDirectory);
-            if (committed || !movedExistingToBackup)
-            {
-                DeleteDirectoryBestEffort(backupDirectory);
-            }
+            CleanupTransaction(transaction);
+        }
+    }
 
-            if (!preserveBackup)
+    private async ValueTask<AgentDistributionOperationResult<bool>> ExecuteWithinTransactionAsync (
+        SkillPackageWriteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        var lockResult = AcquireTransactionLock(transaction);
+        if (!lockResult.IsSuccess)
+        {
+            return AgentDistributionOperationResult<bool>.FailureResult(lockResult.Failure!.Code, lockResult.Failure.Message);
+        }
+
+        using var transactionLock = lockResult.Value!;
+        return await WriteLockedAsync(transaction, cancellationToken).ConfigureAwait(false);
+    }
+
+    private AgentDistributionOperationResult<IDisposable> AcquireTransactionLock (SkillPackageWriteTransaction transaction)
+    {
+        var transactionLockRootResult = CreateVerifiedDirectory(transaction.TargetRoot, transaction.TransactionLockRoot);
+        if (!transactionLockRootResult.IsSuccess)
+        {
+            return AgentDistributionOperationResult<IDisposable>.FailureResult(transactionLockRootResult.Failure!.Code, transactionLockRootResult.Failure.Message);
+        }
+
+        return SkillPackageTransactionLock.Acquire(transaction.TargetRoot, transaction.TransactionLockRoot);
+    }
+
+    private async ValueTask<AgentDistributionOperationResult<bool>> WriteLockedAsync (
+        SkillPackageWriteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        var stagedPackageResult = await CreateStagedPackageAsync(transaction, cancellationToken).ConfigureAwait(false);
+        if (!stagedPackageResult.IsSuccess)
+        {
+            return stagedPackageResult;
+        }
+
+        var preCommitResult = await VerifyPreCommitAsync(transaction, cancellationToken).ConfigureAwait(false);
+        if (!preCommitResult.IsSuccess)
+        {
+            return preCommitResult;
+        }
+
+        return await CommitStagedPackageAsync(transaction, preCommitResult.Value!, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask<AgentDistributionOperationResult<bool>> CreateStagedPackageAsync (
+        SkillPackageWriteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        var workspaceResult = CreateVerifiedDirectory(transaction.TargetRoot, transaction.WorkspaceDirectory);
+        if (!workspaceResult.IsSuccess)
+        {
+            return workspaceResult;
+        }
+
+        var stagingDirectoryResult = CreateVerifiedDirectory(transaction.TargetRoot, transaction.StagingDirectory);
+        if (!stagingDirectoryResult.IsSuccess)
+        {
+            return stagingDirectoryResult;
+        }
+
+        return await PublishPackageFilesAsync(transaction, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask<AgentDistributionOperationResult<bool>> PublishPackageFilesAsync (
+        SkillPackageWriteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        foreach (var file in transaction.Request.MaterializedPackage.Files)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var publishResult = await PublishPackageFileAsync(transaction, file, cancellationToken).ConfigureAwait(false);
+            if (!publishResult.IsSuccess)
             {
-                DeleteDirectoryBestEffort(transactionRoot);
+                return publishResult;
             }
         }
+
+        return AgentDistributionOperationResult<bool>.Success(true);
+    }
+
+    private static async ValueTask<AgentDistributionOperationResult<bool>> PublishPackageFileAsync (
+        SkillPackageWriteTransaction transaction,
+        PackageTextFile file,
+        CancellationToken cancellationToken)
+    {
+        var finalPathResult = ResolvePackageFilePath(transaction.TargetRoot, transaction.SkillDirectory, file.RelativePath.RootRelativePath);
+        if (!finalPathResult.IsSuccess)
+        {
+            return AgentDistributionOperationResult<bool>.FailureResult(finalPathResult.Failure!.Code, finalPathResult.Failure.Message);
+        }
+
+        var stagingPathResult = ResolvePackageFilePath(transaction.TargetRoot, transaction.StagingDirectory, file.RelativePath.RootRelativePath);
+        if (!stagingPathResult.IsSuccess)
+        {
+            return AgentDistributionOperationResult<bool>.FailureResult(stagingPathResult.Failure!.Code, stagingPathResult.Failure.Message);
+        }
+
+        await CanonicalTextFilePublisher.PublishAsync(stagingPathResult.Value!, file.Content, cancellationToken).ConfigureAwait(false);
+        return AgentDistributionOperationResult<bool>.Success(true);
+    }
+
+    private static AgentDistributionOperationResult<AbsolutePath> ResolvePackageFilePath (
+        AbsolutePath targetRoot,
+        AbsolutePath packageDirectory,
+        RootRelativePath relativePath)
+    {
+        return PackagePathResolver.ResolveUnderRoot(
+            targetRoot,
+            ContainedPath.Create(packageDirectory, relativePath).Target);
+    }
+
+    private async ValueTask<AgentDistributionOperationResult<bool>> VerifyPreCommitAsync (
+        SkillPackageWriteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var preconditionResult = await InvokePreconditionAsync(transaction, transaction.SkillDirectory, cancellationToken).ConfigureAwait(false);
+        if (!preconditionResult.IsSuccess)
+        {
+            return preconditionResult;
+        }
+
+        return VerifyWriteMode(transaction.SkillDirectory, transaction.Request.WriteMode);
+    }
+
+    private AgentDistributionOperationResult<bool> VerifyWriteMode (
+        AbsolutePath skillDirectory,
+        SkillMaterializedPackageWriteMode writeMode)
+    {
+        var targetExists = directoryOperations.Exists(skillDirectory);
+        if ((writeMode == SkillMaterializedPackageWriteMode.CreateNew && targetExists)
+            || (writeMode == SkillMaterializedPackageWriteMode.ReplaceExisting && !targetExists))
+        {
+            return AgentDistributionOperationResult<bool>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetDigestMismatch,
+                $"Target skill directory changed after planning; refusing to write: {skillDirectory}");
+        }
+
+        return AgentDistributionOperationResult<bool>.Success(targetExists);
+    }
+
+    private async ValueTask<AgentDistributionOperationResult<bool>> CommitStagedPackageAsync (
+        SkillPackageWriteTransaction transaction,
+        bool targetExists,
+        CancellationToken cancellationToken)
+    {
+        if (targetExists)
+        {
+            var moveExistingResult = await MoveExistingTargetToBackupAsync(transaction, cancellationToken).ConfigureAwait(false);
+            if (!moveExistingResult.IsSuccess)
+            {
+                return moveExistingResult;
+            }
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        directoryOperations.Move(transaction.StagingDirectory, transaction.SkillDirectory);
+        transaction.MarkCommitted();
+        return AgentDistributionOperationResult<bool>.Success(true);
+    }
+
+    private async ValueTask<AgentDistributionOperationResult<bool>> MoveExistingTargetToBackupAsync (
+        SkillPackageWriteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        var backupContainerResult = CreateVerifiedDirectory(transaction.TargetRoot, transaction.BackupContainerDirectory);
+        if (!backupContainerResult.IsSuccess)
+        {
+            return backupContainerResult;
+        }
+
+        directoryOperations.Move(transaction.SkillDirectory, transaction.BackupDirectory);
+        transaction.MarkExistingTargetMovedToBackup();
+        return await ValidateMovedTargetAsync(transaction, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask<AgentDistributionOperationResult<bool>> ValidateMovedTargetAsync (
+        SkillPackageWriteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        var preconditionResult = await InvokePreconditionAsync(transaction, transaction.BackupDirectory, cancellationToken).ConfigureAwait(false);
+        return preconditionResult.IsSuccess
+            ? preconditionResult
+            : RestoreTargetBeforeReturningFailure(transaction, preconditionResult);
+    }
+
+    private async ValueTask<AgentDistributionOperationResult<bool>> InvokePreconditionAsync (
+        SkillPackageWriteTransaction transaction,
+        AbsolutePath path,
+        CancellationToken cancellationToken)
+    {
+        return transaction.Request.Precondition is null
+            ? AgentDistributionOperationResult<bool>.Success(true)
+            : await transaction.Request.Precondition(path, cancellationToken).ConfigureAwait(false);
+    }
+
+    private AgentDistributionOperationResult<bool> RestoreTargetBeforeReturningFailure (
+        SkillPackageWriteTransaction transaction,
+        AgentDistributionOperationResult<bool> failureResult)
+    {
+        try
+        {
+            directoryOperations.Move(transaction.BackupDirectory, transaction.SkillDirectory);
+            transaction.MarkExistingTargetRestored();
+            return failureResult;
+        }
+        catch (Exception restoreException) when (restoreException is IOException or UnauthorizedAccessException)
+        {
+            return AgentDistributionOperationResult<bool>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetWriteFailed,
+                $"Failed to write SKILL package atomically and restore backup: {transaction.SkillDirectory}. Backup remains at: {transaction.BackupDirectory}. {restoreException.Message}");
+        }
+    }
+
+    private AgentDistributionOperationResult<bool> CreateWriteFailureResult (
+        SkillPackageWriteTransaction transaction,
+        Exception writeException)
+    {
+        return AgentDistributionOperationResult<bool>.FailureResult(
+            AgentDistributionFailureCodes.InstallTargetWriteFailed,
+            $"Failed to write SKILL package atomically: {transaction.SkillDirectory}. {writeException.Message}");
+    }
+
+    private AgentDistributionOperationResult<bool> RestoreMovedTargetIfNeeded (SkillPackageWriteTransaction transaction)
+    {
+        if (transaction.Committed
+            || !transaction.ExistingTargetMovedToBackup
+            || directoryOperations.Exists(transaction.SkillDirectory)
+            || !directoryOperations.Exists(transaction.BackupDirectory))
+        {
+            return AgentDistributionOperationResult<bool>.Success(true);
+        }
+
+        try
+        {
+            directoryOperations.Move(transaction.BackupDirectory, transaction.SkillDirectory);
+            transaction.MarkExistingTargetRestored();
+            return AgentDistributionOperationResult<bool>.Success(true);
+        }
+        catch (Exception restoreException) when (restoreException is IOException or UnauthorizedAccessException)
+        {
+            return AgentDistributionOperationResult<bool>.FailureResult(
+                AgentDistributionFailureCodes.InstallTargetWriteFailed,
+                $"Failed to write SKILL package atomically and restore backup: {transaction.SkillDirectory}. Backup remains at: {transaction.BackupDirectory}. {restoreException.Message}");
+        }
+    }
+
+    private void CleanupTransaction (SkillPackageWriteTransaction transaction)
+    {
+        var preserveBackup = !transaction.Committed
+            && transaction.ExistingTargetMovedToBackup
+            && directoryOperations.Exists(transaction.BackupDirectory);
+        DeleteDirectoryBestEffort(transaction.StagingDirectory);
+        if (transaction.Committed || !transaction.ExistingTargetMovedToBackup)
+        {
+            DeleteDirectoryBestEffort(transaction.BackupDirectory);
+        }
+
+        if (!preserveBackup)
+        {
+            DeleteDirectoryBestEffort(transaction.WorkspaceDirectory);
+        }
+    }
+
+    private AgentDistributionOperationResult<bool> CreateVerifiedDirectory (
+        AbsolutePath targetRoot,
+        AbsolutePath directory)
+    {
+        directoryOperations.Create(directory);
+        return SkillPackageTransactionPathGuard.ValidateCreatedDirectory(targetRoot, directory);
     }
 
     private void DeleteDirectoryBestEffort (AbsolutePath path)
@@ -258,6 +461,62 @@ public sealed class SkillMaterializedPackageWriter : ISkillMaterializedPackageWr
         }
         catch (UnauthorizedAccessException)
         {
+        }
+    }
+
+    private sealed class SkillPackageWriteTransaction
+    {
+        public SkillPackageWriteTransaction (
+            SkillMaterializedPackageWriteRequest request,
+            AbsolutePath skillDirectory,
+            AbsolutePath transactionLockRoot,
+            AbsolutePath workspaceDirectory,
+            AbsolutePath stagingDirectory,
+            AbsolutePath backupContainerDirectory,
+            AbsolutePath backupDirectory)
+        {
+            Request = request;
+            SkillDirectory = skillDirectory;
+            TransactionLockRoot = transactionLockRoot;
+            WorkspaceDirectory = workspaceDirectory;
+            StagingDirectory = stagingDirectory;
+            BackupContainerDirectory = backupContainerDirectory;
+            BackupDirectory = backupDirectory;
+        }
+
+        public SkillMaterializedPackageWriteRequest Request { get; }
+
+        public AbsolutePath TargetRoot => Request.TargetRoot;
+
+        public AbsolutePath SkillDirectory { get; }
+
+        public AbsolutePath TransactionLockRoot { get; }
+
+        public AbsolutePath WorkspaceDirectory { get; }
+
+        public AbsolutePath StagingDirectory { get; }
+
+        public AbsolutePath BackupContainerDirectory { get; }
+
+        public AbsolutePath BackupDirectory { get; }
+
+        public bool ExistingTargetMovedToBackup { get; private set; }
+
+        public bool Committed { get; private set; }
+
+        public void MarkExistingTargetMovedToBackup ()
+        {
+            ExistingTargetMovedToBackup = true;
+        }
+
+        public void MarkExistingTargetRestored ()
+        {
+            ExistingTargetMovedToBackup = false;
+        }
+
+        public void MarkCommitted ()
+        {
+            Committed = true;
         }
     }
 }

@@ -1,4 +1,3 @@
-using MackySoft.AgentDistribution.Installation.Validation;
 using MackySoft.AgentDistribution.Shared;
 
 namespace MackySoft.AgentDistribution.Installation.State;
@@ -15,9 +14,9 @@ public sealed class SkillInstalledTargetFileSet
         IReadOnlyList<PackageRelativePath> extraFiles,
         IReadOnlyList<PackageRelativePath> extraDirectories)
     {
-        MissingFiles = SkillInstalledFileSetPathSnapshot.Create(missingFiles, nameof(missingFiles));
-        ExtraFiles = SkillInstalledFileSetPathSnapshot.Create(extraFiles, nameof(extraFiles));
-        ExtraDirectories = SkillInstalledFileSetPathSnapshot.Create(extraDirectories, nameof(extraDirectories));
+        MissingFiles = PackageRelativePathSnapshot.Create(missingFiles, nameof(missingFiles));
+        ExtraFiles = PackageRelativePathSnapshot.Create(extraFiles, nameof(extraFiles));
+        ExtraDirectories = PackageRelativePathSnapshot.Create(extraDirectories, nameof(extraDirectories));
     }
 
     /// <summary> Gets expected package-relative files that are absent from the installed directory. </summary>
