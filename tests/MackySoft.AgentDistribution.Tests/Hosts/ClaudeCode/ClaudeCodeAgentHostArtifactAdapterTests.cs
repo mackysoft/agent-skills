@@ -1,4 +1,3 @@
-using MackySoft.AgentDistribution.Agents.Sources;
 using MackySoft.AgentDistribution.Hosts.ClaudeCode;
 using MackySoft.AgentDistribution.Shared;
 
@@ -11,9 +10,9 @@ public sealed class ClaudeCodeAgentHostArtifactAdapterTests
     public void BuildArtifacts_GeneratesClaudeCodeSubagent ()
     {
         var artifacts = new ClaudeCodeAgentHostArtifactAdapter().BuildArtifacts(
-            CreateMetadata(),
-            "Line 1\r\nLine 2",
-            """
+            CreateRequest(
+                "Line 1\nLine 2",
+                """
             {
               "schemaVersion": 1,
               "model": "sonnet",
@@ -22,7 +21,7 @@ public sealed class ClaudeCodeAgentHostArtifactAdapterTests
               "permissionMode": "plan",
               "maxTurns": 20
             }
-            """);
+            """));
 
         var artifact = Assert.Single(artifacts.Files);
         Assert.Equal("architect.md", artifact.RelativePath.Value);
@@ -60,9 +59,9 @@ public sealed class ClaudeCodeAgentHostArtifactAdapterTests
     public void BuildArtifacts_WhenPermissionModeIsManual_GeneratesManualPermissionMode ()
     {
         var artifacts = new ClaudeCodeAgentHostArtifactAdapter().BuildArtifacts(
-            CreateMetadata(),
-            "Review the change.\n",
-            """{"schemaVersion":1,"permissionMode":"manual"}""");
+            CreateRequest(
+                "Review the change.\n",
+                """{"schemaVersion":1,"permissionMode":"manual"}"""));
 
         var artifact = Assert.Single(artifacts.Files);
         Assert.Equal(
@@ -76,13 +75,12 @@ public sealed class ClaudeCodeAgentHostArtifactAdapterTests
             artifact.Content);
     }
 
-    private static AgentSourceMetadata CreateMetadata ()
+    private static AgentHostArtifactRequest CreateRequest (string instructions, string bindingJson)
     {
-        return new AgentSourceMetadata(
-            schemaVersion: 1,
+        return new AgentHostArtifactRequest(
             new AgentName("architect"),
-            "Architect",
             "Creates an implementation-ready design contract.",
-            Array.Empty<SkillName>());
+            instructions,
+            bindingJson);
     }
 }

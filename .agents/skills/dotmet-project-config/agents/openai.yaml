@@ -1,0 +1,7 @@
+interface:
+  display_name: "dotmet Project Config"
+  short_description: "dotmet の解析構成を作成、更新、レビューするときに、target set、`findings` の主語にしてよい改善対象、`rulesCoverage` の full 化、rules と設計契約の検出力を一体で整える。解析対象と rules をまとめて扱う作業で使う。rules 単体は $dotmet-rules、target set 単体は $dotmet-targets。"
+  default_prompt: "Use $dotmet-project-config to follow the dotmet Project Config workflow."
+
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,60 @@
+name: dotmet-diff
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      base_sha:
+        description: Full 40-character candidate base commit SHA. The wrapper compares from its merge base with the selected head.
+        required: true
+        type: string
+
+jobs:
+  verify:
+    name: verify dotmet diff
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout comparison head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore dotnet tools
+        run: dotnet tool restore
+
+      - name: Verify dotmet report gate fixtures
+        run: |
+          dotnet restore tools/DotmetReportGate/DotmetReportGate.csproj
+          bash scripts/test-dotmet-report-gate.sh --no-restore
+
+      - name: Verify dotmet diff
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || inputs.base_sha }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          # The base must contain the rules configuration. A rules-adoption PR intentionally stops with RULES_CONFIG_NOT_REPLAYABLE.
+          bash scripts/verify-dotmet-diff.sh \
+            --base-sha "$BASE_SHA" \
+            --head-sha "$HEAD_SHA" \
+            --output artifacts/dotmet-diff
+
+      - name: Upload dotmet reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotmet-diff-${{ github.sha }}
+          path: artifacts/dotmet-diff
+          if-no-files-found: warn

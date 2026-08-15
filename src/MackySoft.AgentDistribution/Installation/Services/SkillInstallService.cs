@@ -7,9 +7,9 @@ using MackySoft.AgentDistribution.Installation.Results;
 using MackySoft.AgentDistribution.Installation.State;
 using MackySoft.AgentDistribution.Installation.Targeting;
 using MackySoft.AgentDistribution.Materialization;
-using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Packaging.Paths;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Installation.Services;
@@ -186,18 +186,19 @@ public sealed class SkillInstallService
             }
 
             var writeResult = await packageWriter.WriteAsync(
-                    targetRoot,
-                    actionPlan.SkillDirectory,
-                    actionPlan.MaterializedPackage,
-                    ResolveWriteMode(actionPlan.Action.ActionKind),
-                    (directory, token) => ValidateWritePreconditionAsync(
-                        actionPlan.Package,
-                        target.Host,
-                        directory,
-                        actionPlan.Action.ActionKind,
-                        actionPlan.TargetSnapshot,
-                        input.Force,
-                        token),
+                    new SkillMaterializedPackageWriteRequest(
+                        targetRoot,
+                        actionPlan.SkillDirectory,
+                        actionPlan.MaterializedPackage,
+                        ResolveWriteMode(actionPlan.Action.ActionKind),
+                        (directory, token) => ValidateWritePreconditionAsync(
+                            actionPlan.Package,
+                            target.Host,
+                            directory,
+                            actionPlan.Action.ActionKind,
+                            actionPlan.TargetSnapshot,
+                            input.Force,
+                            token)),
                     cancellationToken)
                 .ConfigureAwait(false);
             if (!writeResult.IsSuccess)

@@ -1,0 +1,7 @@
+interface:
+  display_name: "dotmet Analysis"
+  short_description: "dotmet の解析レポートを読み、解析の成立状態、入力のずれ、rules が適用された範囲、`findings` の分類、現在の作業範囲への帰属、次の作業種別を整理する。`analyze`、`diff`、`doctor`、`rules validate` の失敗調査、解析確認、解析結果の整理で使う。修正と再解析まで進める作業は dotmet-repair-loop。"
+  default_prompt: "Use $dotmet-analysis to follow the dotmet Analysis workflow."
+
+policy:
+  allow_implicit_invocation: true

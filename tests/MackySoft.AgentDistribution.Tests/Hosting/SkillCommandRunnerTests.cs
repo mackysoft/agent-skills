@@ -1,11 +1,11 @@
-using MackySoft.AgentDistribution.Bundles;
 using MackySoft.AgentDistribution.Hosting.Commands;
 using MackySoft.AgentDistribution.Hosting.Composition;
 using MackySoft.AgentDistribution.Hosts.Registration;
-using MackySoft.AgentDistribution.Manifests;
 using MackySoft.AgentDistribution.OperationReports.Contracts;
-using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Bundles;
+using MackySoft.AgentDistribution.Skills.Manifests;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MackySoft.AgentDistribution.Tests.Hosting;
@@ -142,7 +142,7 @@ public sealed class SkillCommandRunnerTests
         var report = Assert.IsType<SkillDoctorReport>(result.Payload);
         FileSystemAssert.ForPath(report.RepositoryRoot!).EqualsNormalized(targetScope.FullPath);
         FileSystemAssert.ForPath(report.TargetRoot).EqualsNormalized(Path.Combine(targetScope.FullPath, ".agents", "skills", FixtureCatalogId));
-        var registration = HostRegistration.Get(report.Host);
+        var registration = BuiltInHostCatalog.Get(report.Host);
         Assert.True(registration.IsSuccess, registration.Failure?.Message);
         Assert.Equal(registration.Value!.Skill.ReloadGuidance, report.ReloadGuidance);
     }

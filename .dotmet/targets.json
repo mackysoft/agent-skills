@@ -1,0 +1,11 @@
+{
+  "contractVersion": "dotmet.targetSet@1",
+  "id": "agent-distribution",
+  "targets": [
+    {
+      "id": "agent-distribution",
+      "adapter": "dotnet",
+      "solutionPath": "AgentDistribution.slnx"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+interface:
+  display_name: "dotmet Rules"
+  short_description: "dotmet の rules ファイルを単体で作成、更新、レビューし、`findings` の主語にしてよい改善対象、分類軸、依存方向、`coverage`、しきい値、設計契約の検出力を判断する。rules の未分類、未適用、`rulesCoverage` の full 化、境界、依存許可、責務境界、しきい値の見直しで使う。解析対象と rules をまとめて整える作業は dotmet-project-config。"
+  default_prompt: "Use $dotmet-rules to follow the dotmet Rules workflow."
+
+policy:
+  allow_implicit_invocation: true

@@ -1,5 +1,5 @@
-using MackySoft.AgentDistribution.Bundles;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Manifests;
 
 namespace MackySoft.AgentDistribution.Installation.State;
 

@@ -2,7 +2,6 @@ using MackySoft.AgentDistribution.Installation.Contracts;
 using MackySoft.AgentDistribution.Installation.Requests;
 using MackySoft.AgentDistribution.Installation.Results;
 using MackySoft.AgentDistribution.Installation.Targeting;
-using MackySoft.AgentDistribution.Materialization;
 using MackySoft.AgentDistribution.Shared;
 
 namespace MackySoft.AgentDistribution.Tests.Installation.Services;
@@ -885,11 +884,7 @@ public sealed class SkillUpdateServiceTests
     private sealed class FailingPackageWriter : ISkillMaterializedPackageWriter
     {
         public ValueTask<AgentDistributionOperationResult<bool>> WriteAsync (
-            AbsolutePath targetRoot,
-            AbsolutePath skillDirectory,
-            SkillMaterializedPackage materializedPackage,
-            SkillMaterializedPackageWriteMode writeMode,
-            Func<AbsolutePath, CancellationToken, ValueTask<AgentDistributionOperationResult<bool>>>? precondition,
+            SkillMaterializedPackageWriteRequest request,
             CancellationToken cancellationToken = default)
         {
             return ValueTask.FromResult(AgentDistributionOperationResult<bool>.FailureResult(

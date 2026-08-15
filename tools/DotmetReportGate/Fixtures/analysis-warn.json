@@ -1,0 +1,69 @@
+{
+  "contractVersion": 1,
+  "reportKind": "analysis",
+  "engineVersion": "0.3.0",
+  "status": "ok",
+  "verdict": "warn",
+  "analysisCompleteness": "full",
+  "completeness": {
+    "overall": "full"
+  },
+  "partialFailures": [],
+  "errors": [],
+  "comparison": {
+    "requestedMode": "git",
+    "mode": "git",
+    "reasonCode": null,
+    "coverage": {
+      "subjectChanges": "full",
+      "publicSurface": "full",
+      "ruleAwareEvaluation": "full"
+    },
+    "source": {
+      "reference": "2222222222222222222222222222222222222222"
+    },
+    "current": {
+      "headReference": "3333333333333333333333333333333333333333"
+    },
+    "delta": {}
+  },
+  "execution": {
+    "assuranceConfig": {
+      "rules": {
+        "changeState": "unchanged",
+        "changed": false,
+        "beforeDigest": "fixture-rules-digest",
+        "currentDigest": "fixture-rules-digest",
+        "reviewRequired": false,
+        "reasonCode": null
+      }
+    },
+    "rulesCoverage": {
+      "state": "full",
+      "localInventory": {
+        "failures": []
+      },
+      "policyCoverage": {
+        "failures": []
+      }
+    },
+    "filters": {
+      "applied": false,
+      "unfiltered": {
+        "findingCount": 1,
+        "symbolResultCount": 1,
+        "topReviewTargetCount": 1,
+        "failFindingCount": 0
+      },
+      "visible": {
+        "findingCount": 1,
+        "symbolResultCount": 1,
+        "topReviewTargetCount": 1,
+        "omittedFindingCount": 0,
+        "omittedSymbolResultCount": 0,
+        "omittedTopReviewTargetCount": 0,
+        "omittedFailFindingCount": 0
+      }
+    }
+  }
+}

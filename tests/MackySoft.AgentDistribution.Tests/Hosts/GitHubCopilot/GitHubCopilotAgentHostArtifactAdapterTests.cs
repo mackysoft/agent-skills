@@ -1,4 +1,3 @@
-using MackySoft.AgentDistribution.Agents.Sources;
 using MackySoft.AgentDistribution.Hosts.GitHubCopilot;
 using MackySoft.AgentDistribution.Shared;
 
@@ -11,9 +10,9 @@ public sealed class GitHubCopilotAgentHostArtifactAdapterTests
     public void BuildArtifacts_WithEmptyTools_GeneratesToolDisabledAgentProfile ()
     {
         var artifacts = new GitHubCopilotAgentHostArtifactAdapter().BuildArtifacts(
-            CreateMetadata(),
-            "Plan the implementation.\n",
-            """
+            CreateRequest(
+                "Plan the implementation.\n",
+                """
             {
               "schemaVersion": 1,
               "target": "github-copilot",
@@ -22,7 +21,7 @@ public sealed class GitHubCopilotAgentHostArtifactAdapterTests
               "disableModelInvocation": true,
               "userInvocable": true
             }
-            """);
+            """));
 
         var artifact = Assert.Single(artifacts.Files);
         Assert.Equal("architect.agent.md", artifact.RelativePath.Value);
@@ -51,13 +50,12 @@ public sealed class GitHubCopilotAgentHostArtifactAdapterTests
         Assert.Equal(AgentDistributionFailureCodes.SourceInvalid, result.Failure!.Code);
     }
 
-    private static AgentSourceMetadata CreateMetadata ()
+    private static AgentHostArtifactRequest CreateRequest (string instructions, string bindingJson)
     {
-        return new AgentSourceMetadata(
-            schemaVersion: 1,
+        return new AgentHostArtifactRequest(
             new AgentName("architect"),
-            "Architect",
             "Creates an implementation-ready design contract.",
-            Array.Empty<SkillName>());
+            instructions,
+            bindingJson);
     }
 }

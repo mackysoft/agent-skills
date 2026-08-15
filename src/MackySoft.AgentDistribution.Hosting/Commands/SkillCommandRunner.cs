@@ -25,6 +25,7 @@ public sealed class SkillCommandRunner
     private readonly SkillPruneService pruneService;
     private readonly SkillDoctorService doctorService;
     private readonly SkillCatalogTargetRootSelector targetSelector;
+    private readonly SkillInstallTargetResolver targetResolver;
 
     /// <summary> Initializes a new instance of the <see cref="SkillCommandRunner" /> class. </summary>
     public SkillCommandRunner (
@@ -36,7 +37,8 @@ public sealed class SkillCommandRunner
         SkillUninstallService uninstallService,
         SkillPruneService pruneService,
         SkillDoctorService doctorService,
-        SkillCatalogTargetRootSelector targetSelector)
+        SkillCatalogTargetRootSelector targetSelector,
+        SkillInstallTargetResolver targetResolver)
     {
         this.configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         this.packageProvider = packageProvider ?? throw new ArgumentNullException(nameof(packageProvider));
@@ -47,6 +49,7 @@ public sealed class SkillCommandRunner
         this.pruneService = pruneService ?? throw new ArgumentNullException(nameof(pruneService));
         this.doctorService = doctorService ?? throw new ArgumentNullException(nameof(doctorService));
         this.targetSelector = targetSelector ?? throw new ArgumentNullException(nameof(targetSelector));
+        this.targetResolver = targetResolver ?? throw new ArgumentNullException(nameof(targetResolver));
     }
 
     /// <summary> Runs <c>skills list</c> and returns product-neutral list report data. </summary>
@@ -73,7 +76,7 @@ public sealed class SkillCommandRunner
             return Failure(commandName, catalogResult.Failure!);
         }
 
-        var report = SkillOperationReportBuilder.CreateListReport(catalogResult.Value!);
+        var report = SkillOperationReportBuilder.CreateListReport(catalogResult.Value!, targetResolver.GetSupportedHosts());
         return AgentDistributionCommandResult.Success(commandName, report);
     }
 
@@ -98,6 +101,12 @@ public sealed class SkillCommandRunner
             return Failure(commandName, hostResult.Failure!);
         }
 
+        var resolvedHostResult = targetResolver.ResolveHost(hostResult.Value);
+        if (!resolvedHostResult.IsSuccess)
+        {
+            return Failure(commandName, resolvedHostResult.Failure!);
+        }
+
         var outputResult = CommandPathResolver.ResolveRequired(request.Output, "Option '--output' is required.");
         if (!outputResult.IsSuccess)
         {
@@ -119,7 +128,7 @@ public sealed class SkillCommandRunner
         var packages = catalogResult.Value!.Packages;
         var exportResult = await exportService.ExportAsync(
                 packages,
-                hostResult.Value,
+                resolvedHostResult.Value!.Host,
                 outputResult.Value!,
                 formatResult.Value,
                 cancellationToken)
@@ -132,7 +141,7 @@ public sealed class SkillCommandRunner
         var report = SkillOperationReportBuilder.CreateExportReport(
             exportResult.Value!,
             packages,
-            hostResult.Value,
+            resolvedHostResult.Value!,
             formatResult.Value,
             catalogResult.Value.SelectedCategories,
             catalogResult.Value.SelectedSkillNames);
@@ -435,6 +444,12 @@ public sealed class SkillCommandRunner
             return AgentDistributionOperationResult<NormalizedTargetRequest>.FailureResult(hostResult.Failure!.Code, hostResult.Failure.Message);
         }
 
+        var resolvedHostResult = targetResolver.ResolveHost(hostResult.Value);
+        if (!resolvedHostResult.IsSuccess)
+        {
+            return AgentDistributionOperationResult<NormalizedTargetRequest>.FailureResult(resolvedHostResult.Failure!.Code, resolvedHostResult.Failure.Message);
+        }
+
         var scopeResult = SkillCommandValueParser.ParseScopeLiteral(scope);
         if (!scopeResult.IsSuccess)
         {
@@ -461,11 +476,11 @@ public sealed class SkillCommandRunner
         }
 
         var request = new SkillInstallRequest(
-            hostResult.Value,
+            resolvedHostResult.Value!.Host,
             repositoryContext.Scope,
             repositoryContext.RepositoryRoot,
             targetRoot);
-        return AgentDistributionOperationResult<NormalizedTargetRequest>.Success(new NormalizedTargetRequest(hostResult.Value, repositoryContext.Scope, request));
+        return AgentDistributionOperationResult<NormalizedTargetRequest>.Success(new NormalizedTargetRequest(resolvedHostResult.Value!, repositoryContext.Scope, request));
     }
 
     private AgentDistributionOperationResult<NormalizedPackageSelection> NormalizeOptionalPackageSelection (
@@ -578,7 +593,7 @@ public sealed class SkillCommandRunner
         IReadOnlyList<SkillName> selectedSkillNames)
     {
         return new SkillOperationReportContext(
-            target.Host,
+            target.ResolvedHost,
             target.Scope,
             target.Request.RepositoryRoot?.Value,
             selectedCategories,
@@ -645,22 +660,25 @@ public sealed class SkillCommandRunner
     private sealed class NormalizedTargetRequest
     {
         public NormalizedTargetRequest (
-            HostKind host,
+            SkillResolvedHost resolvedHost,
             SkillScopeKind scope,
             SkillInstallRequest request)
         {
+            ArgumentNullException.ThrowIfNull(resolvedHost);
             ArgumentNullException.ThrowIfNull(request);
-            if (host != request.Host || scope != request.Scope)
+            if (resolvedHost.Host != request.Host || scope != request.Scope)
             {
                 throw new ArgumentException("Normalized target values must identify the same host and scope.");
             }
 
-            Host = host;
+            ResolvedHost = resolvedHost;
             Scope = scope;
             Request = request;
         }
 
-        public HostKind Host { get; }
+        public SkillResolvedHost ResolvedHost { get; }
+
+        public HostKind Host => ResolvedHost.Host;
 
         public SkillScopeKind Scope { get; }
 

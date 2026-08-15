@@ -10,6 +10,28 @@ Use it when your product owns:
 
 Agent Distribution provides the build tool, package formats, dependency resolution, host materialization, command runtime, and report data needed to list, export, install, update, uninstall, prune, and diagnose skills and custom agents.
 
+## Verify dotmet Changes
+
+Repository contributors can run the same change-aware dotmet verification used by pull requests:
+
+```bash
+bash scripts/verify-dotmet-diff.sh
+```
+
+Without `--base-sha`, the script resolves the local `origin` default branch to a candidate commit and compares from `git merge-base <candidate> <HEAD>`. It never fetches or changes the checkout; fetch the missing history first when it reports an unresolved candidate or commit.
+
+For a pull request with a nonstandard base, or to compare against a specific local commit, pass its full 40-character SHA explicitly. The script still resolves `git merge-base <candidate> <HEAD>` before invoking dotmet:
+
+```bash
+bash scripts/verify-dotmet-diff.sh --base-sha <base-commit-sha>
+```
+
+`--head-sha` is also a full 40-character SHA and is accepted only when it resolves to the current checkout; the script does not check out that revision. dotmet `0.3.0` does not support Git comparison for target sets, so this wrapper intentionally selects `AgentDistribution.slnx` rather than `.dotmet/targets.json`.
+
+Reports, provenance, and the rules/doctor prerequisites are written to a newly created `run-*` directory below `artifacts/dotmet-diff` by default. Use `--output <directory>` to choose a different parent directory; existing output is never deleted. A valid `warn` report does not fail the command; a valid `fail` report exits `1`; incomplete comparisons or invalid reports exit `2`.
+
+The comparison base must contain the same rules configuration. Until rules have reached the pull request base, the gate intentionally stops with `RULES_CONFIG_NOT_REPLAYABLE` and exit `2`; it does not fall back to a current-only analysis or invent a synthetic base. For the rules-adoption pull request, compare from a commit that already contains the rules with `--base-sha`, or enable the pull-request diff gate after the rules land on the base branch.
+
 ## Packages
 
 | Package | Use it when |

@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
-using MackySoft.AgentDistribution.Bundles;
+using MackySoft.AgentDistribution.Agents.Manifests;
 using MackySoft.AgentDistribution.Catalogs;
 using MackySoft.AgentDistribution.Digests;
 using MackySoft.AgentDistribution.Shared;

@@ -1,7 +1,7 @@
 using MackySoft.AgentDistribution.Digests;
-using MackySoft.AgentDistribution.Manifests;
-using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Manifests;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 
 namespace MackySoft.AgentDistribution.Tests.Packaging.Canonical;
 
@@ -89,6 +89,31 @@ public sealed class CanonicalSkillPackageFactoryTests
             static file => string.Equals(file.RelativePath.Value, "scripts/bench/collect.sh", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("SKILL.md")]
+    [InlineData("agent-skill.json")]
+    [InlineData("references/request-workflow.md")]
+    [InlineData("scripts/collect.sh")]
+    [Trait("Size", "Small")]
+    public async Task Validate_RejectsHostArtifactPathOverlappingHostIndependentPackageFile (string overlappingPath)
+    {
+        var generated = (await SkillTestData.GenerateFixturePackagesAsync())[0];
+        var package = overlappingPath.StartsWith("scripts/", StringComparison.Ordinal)
+            ? SkillTestData.CreatePackageWithScripts(
+                generated,
+                [new PackageTextFile(PackageRelativePath.Parse(overlappingPath), "#!/bin/sh\necho collect\n")])
+            : generated;
+        var candidate = CreateCandidateWithDeclaredHostArtifactPath(package, PackageRelativePath.Parse(overlappingPath));
+        var factory = CreateFactory();
+
+        var result = factory.CreateCanonical(candidate);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Contains("overlaps host-independent", result.Failure.Message, StringComparison.Ordinal);
+        Assert.Contains(overlappingPath, result.Failure.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     [Trait("Size", "Small")]
     public async Task Validate_RejectsContentDigestDrift ()
@@ -132,6 +157,34 @@ public sealed class CanonicalSkillPackageFactoryTests
         return new CanonicalSkillPackage.Factory(
             new PackageContentDigestCalculator(),
             manifestSerializer);
+    }
+
+    private static CanonicalSkillPackageCandidate CreateCandidateWithDeclaredHostArtifactPath (
+        CanonicalSkillPackage package,
+        PackageRelativePath artifactPath)
+    {
+        var artifactFile = package.Files.Single(file => file.RelativePath == artifactPath);
+        var digestCalculator = new PackageContentDigestCalculator();
+        var artifactDigest = digestCalculator.ComputeSingleFileDigest(artifactPath, artifactFile.Content);
+        var manifestCandidate = SkillTestData.CopyManifest(
+            package.Manifest,
+            hostArtifacts: package.Manifest.HostArtifacts
+                .Select(artifact => artifact.Host == HostKind.ClaudeCode
+                    ? new SkillHostArtifactManifest(
+                        artifact.Host,
+                        artifactPath,
+                        artifactDigest,
+                        artifact.MaterializedFrontmatterDigest)
+                    : artifact)
+                .ToArray());
+        var manifest = SkillTestData.WithComputedManifestDigest(manifestCandidate);
+        var manifestText = new SkillManifestJsonSerializer().Serialize(manifest);
+        var files = package.Files
+            .Select(file => string.Equals(file.RelativePath.Value, "agent-skill.json", StringComparison.Ordinal)
+                ? new PackageTextFile(file.RelativePath, manifestText)
+                : file)
+            .ToArray();
+        return new CanonicalSkillPackageCandidate(manifest, files);
     }
 
     private static CanonicalSkillPackageCandidate ReplaceFile (

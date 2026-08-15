@@ -43,7 +43,7 @@ public sealed class AgentDoctorService
 
         var skillTargetResult = skillTargetResolver.ResolveTarget(
             input.SkillTargetRequest,
-            input.Catalog.BundleDescriptor.CatalogId);
+            input.Catalog.CatalogId);
         if (!skillTargetResult.IsSuccess)
         {
             return Failure(skillTargetResult.Failure!);

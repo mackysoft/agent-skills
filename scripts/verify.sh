@@ -73,6 +73,7 @@ fi
 bash scripts/verify-repository-bundle.sh --no-restore
 bash scripts/code-quality.sh --no-restore --solution "$solution" verify
 dotnet build "$solution" --configuration "$configuration" --no-restore
+bash scripts/test-dotmet-report-gate.sh --no-restore
 
 test_dotnet_args=(
   --no-restore

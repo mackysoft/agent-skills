@@ -1,7 +1,7 @@
 using MackySoft.AgentDistribution.Agents.Manifests;
 using MackySoft.AgentDistribution.Agents.Packaging;
 using MackySoft.AgentDistribution.Agents.Sources;
-using MackySoft.AgentDistribution.Bundles;
+using MackySoft.AgentDistribution.Catalogs;
 using MackySoft.AgentDistribution.Digests;
 using MackySoft.AgentDistribution.Hosts.Registration;
 using MackySoft.AgentDistribution.Shared;
@@ -24,9 +24,13 @@ internal sealed class AgentPackageGenerationService
     }
 
     /// <summary> Generates one canonical agent package. </summary>
-    public CanonicalAgentPackage Generate (AgentDistributionBundleDefinition bundle, AgentSourceDefinition definition)
+    public CanonicalAgentPackage Generate (
+        AgentDistributionCatalogId catalogId,
+        AgentDistributionBundleVersion bundleVersion,
+        AgentSourceDefinition definition)
     {
-        ArgumentNullException.ThrowIfNull(bundle);
+        ArgumentNullException.ThrowIfNull(catalogId);
+        ArgumentNullException.ThrowIfNull(bundleVersion);
         ArgumentNullException.ThrowIfNull(definition);
         var instructions = AgentDistributionTextNormalizer.NormalizeToLf(definition.InstructionsTemplate);
         var instructionsPath = PackageRelativePath.Parse("AGENT.md");
@@ -34,8 +38,13 @@ internal sealed class AgentPackageGenerationService
         var artifacts = new List<AgentHostArtifactManifest>();
         foreach (var binding in definition.HostBindings)
         {
-            var adapter = HostRegistration.Get(binding.HostId).Value!.AgentArtifactAdapter;
-            foreach (var file in adapter.BuildArtifacts(definition.Metadata, instructions, binding.Json).Files)
+            var adapter = BuiltInHostCatalog.Get(binding.HostId).Value!.AgentArtifactAdapter;
+            var request = new AgentHostArtifactRequest(
+                definition.Metadata.AgentName,
+                definition.Metadata.Description,
+                instructions,
+                binding.Json);
+            foreach (var file in adapter.BuildArtifacts(request).Files)
             {
                 var path = AgentHostArtifactPackagePath.Create(binding.HostId, file.RelativePath);
                 files.Add(new PackageTextFile(path, file.Content));
@@ -45,7 +54,7 @@ internal sealed class AgentPackageGenerationService
 
         var contentDigest = digestCalculator.ComputeSingleFileDigest(instructionsPath, instructions);
         var placeholder = Sha256Digest.Parse(new string('0', 64));
-        var provisional = new AgentManifest(AgentManifest.CurrentSchemaVersion, bundle.BundleVersion, bundle.CatalogId, definition.Metadata.AgentName, definition.Metadata.DisplayName, definition.Metadata.Description, definition.Metadata.SkillDependencies, contentDigest, placeholder, artifacts);
+        var provisional = new AgentManifest(AgentManifest.CurrentSchemaVersion, bundleVersion, catalogId, definition.Metadata.AgentName, definition.Metadata.DisplayName, definition.Metadata.Description, definition.Metadata.SkillDependencies, contentDigest, placeholder, artifacts);
         var manifest = new AgentManifest(provisional.SchemaVersion, provisional.BundleVersion, provisional.CatalogId, provisional.AgentName, provisional.DisplayName, provisional.Description, provisional.SkillDependencies, provisional.ContentDigest, manifestDigestCalculator.ComputeManifestDigest(provisional), provisional.HostArtifacts);
         files.Add(new PackageTextFile(PackageRelativePath.Parse("agent-manifest.json"), manifestSerializer.Serialize(manifest)));
         return new CanonicalAgentPackage(manifest, files, manifestSerializer, digestCalculator);

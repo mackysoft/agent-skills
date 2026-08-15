@@ -1,0 +1,13 @@
+{
+  "contractVersion": 1,
+  "reportKind": "rules-validation",
+  "engineVersion": "0.3.0",
+  "status": "ok",
+  "verdict": "pass",
+  "partialFailures": [],
+  "errors": [],
+  "issues": [],
+  "validationCoverage": {
+    "overall": "full"
+  }
+}

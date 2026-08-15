@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using MackySoft.AgentDistribution.Agents.Sources;
 using MackySoft.AgentDistribution.Hosts.Serialization;
 using MackySoft.AgentDistribution.Serialization.Yaml;
 using MackySoft.AgentDistribution.Shared;
@@ -23,25 +22,21 @@ internal sealed class ClaudeCodeAgentHostArtifactAdapter : IAgentHostArtifactAda
     }
 
     /// <inheritdoc />
-    public AgentHostArtifactSet BuildArtifacts (
-        AgentSourceMetadata metadata,
-        string agentInstructions,
-        string bindingJson)
+    public AgentHostArtifactSet BuildArtifacts (AgentHostArtifactRequest request)
     {
-        ArgumentNullException.ThrowIfNull(metadata);
-        ArgumentNullException.ThrowIfNull(agentInstructions);
+        ArgumentNullException.ThrowIfNull(request);
 
-        var bindingResult = ParseBinding(bindingJson);
+        var bindingResult = ParseBinding(request.BindingJson);
         if (!bindingResult.IsSuccess)
         {
-            throw new ArgumentException(bindingResult.Failure!.Message, nameof(bindingJson));
+            throw new ArgumentException(bindingResult.Failure!.Message, nameof(request));
         }
 
         var binding = bindingResult.Value!;
         var yaml = new DeterministicYamlBuilder()
             .DocumentMarker()
-            .Mapping("name", metadata.AgentName.Value)
-            .Mapping("description", metadata.Description);
+            .Mapping("name", request.AgentName.Value)
+            .Mapping("description", request.Description);
 
         if (binding.Tools is not null)
         {
@@ -72,10 +67,10 @@ internal sealed class ClaudeCodeAgentHostArtifactAdapter : IAgentHostArtifactAda
             .DocumentMarker()
             .BlankLine()
             .Build()
-            + EnsureTrailingLineFeed(agentInstructions);
+            + EnsureTrailingLineFeed(request.NormalizedInstructions);
 
         return new AgentHostArtifactSet(
-            [new AgentHostArtifactFile(PackageRelativePath.Parse($"{metadata.AgentName.Value}.md"), content)]);
+            [new AgentHostArtifactFile(PackageRelativePath.Parse($"{request.AgentName.Value}.md"), content)]);
     }
 
     private static AgentDistributionOperationResult<ClaudeCodeBinding> ParseBinding (string bindingJson)

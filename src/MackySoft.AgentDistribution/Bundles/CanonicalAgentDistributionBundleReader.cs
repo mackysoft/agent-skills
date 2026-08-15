@@ -2,10 +2,10 @@ using System.Text.Json;
 using MackySoft.AgentDistribution.Agents.Manifests;
 using MackySoft.AgentDistribution.Agents.Packaging;
 using MackySoft.AgentDistribution.Digests;
-using MackySoft.AgentDistribution.Manifests;
-using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Packaging.Paths;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Manifests;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Bundles;

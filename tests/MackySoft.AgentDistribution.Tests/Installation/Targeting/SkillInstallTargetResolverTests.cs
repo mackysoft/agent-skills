@@ -1,14 +1,39 @@
 using MackySoft.AgentDistribution.Catalogs;
 using MackySoft.AgentDistribution.Installation.Inventory;
 using MackySoft.AgentDistribution.Installation.Targeting;
-using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 
 namespace MackySoft.AgentDistribution.Tests.Installation.Targeting;
 
 public sealed class SkillCatalogTargetRootSelectorTests
 {
     private static readonly AgentDistributionCatalogId CatalogId = new("com.mackysoft.agent-distribution.tests");
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void ResolveHost_ReturnsTheSupportedHostDescriptionForReporting ()
+    {
+        var resolver = CreateTargetResolver(Path.GetFullPath("home"));
+
+        var result = resolver.ResolveHost(HostKind.Codex);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        Assert.Equal(HostKind.Codex, result.Value!.Host);
+        Assert.Equal("Restart the Codex session or app to reload installed or updated skills.", result.Value.ReloadGuidance);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void ResolveHost_ReturnsUnsupportedHostFailureForAnUnknownHost ()
+    {
+        var resolver = CreateTargetResolver(Path.GetFullPath("home"));
+
+        var result = resolver.ResolveHost((HostKind)42);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(AgentDistributionFailureCodes.HostUnsupported, result.Failure!.Code);
+    }
 
     [Theory]
     [Trait("Size", "Small")]
@@ -383,13 +408,20 @@ public sealed class SkillCatalogTargetRootSelectorTests
         string homeDirectory,
         string? codexHome = null)
     {
-        var targetResolver = new SkillInstallTargetResolver(
-            new SkillUserTargetRootResolver(
-                () => homeDirectory,
-                name => string.Equals(name, "CODEX_HOME", StringComparison.Ordinal) ? codexHome : null));
+        var targetResolver = CreateTargetResolver(homeDirectory, codexHome);
         return new SkillCatalogTargetRootSelector(
             targetResolver,
             SkillTestData.CreateInstalledManifestReader());
+    }
+
+    private static SkillInstallTargetResolver CreateTargetResolver (
+        string homeDirectory,
+        string? codexHome = null)
+    {
+        return new SkillInstallTargetResolver(
+            new SkillUserTargetRootResolver(
+                () => homeDirectory,
+                name => string.Equals(name, "CODEX_HOME", StringComparison.Ordinal) ? codexHome : null));
     }
 
     private static string ResolveExpectedPath (string path)

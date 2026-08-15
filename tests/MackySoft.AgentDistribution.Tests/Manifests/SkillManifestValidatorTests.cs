@@ -1,8 +1,7 @@
-using MackySoft.AgentDistribution.Bundles;
 using MackySoft.AgentDistribution.Catalogs;
 using MackySoft.AgentDistribution.Digests;
-using MackySoft.AgentDistribution.Manifests;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Manifests;
 
 namespace MackySoft.AgentDistribution.Tests.Manifests;
 
@@ -48,13 +47,17 @@ public sealed class SkillManifestFactoryTests
         Assert.Contains("manifestDigest", result.Failure.Message, StringComparison.Ordinal);
     }
 
-    [Theory]
-    [MemberData(nameof(InvalidManifestCases))]
+    [Fact]
     [Trait("Size", "Small")]
-    public void Validate_RejectsInvalidManifestShape (object value)
+    public void Validate_RejectsMissingSupportedHostArtifact ()
     {
         var factory = SkillTestData.CreateManifestFactory();
-        var manifest = Assert.IsType<SkillManifestCandidate>(value);
+        var valid = CreateManifest("sample-skill");
+        var manifest = SkillTestData.CopyManifest(
+            valid,
+            hostArtifacts: valid.HostArtifacts
+                .Where(static artifact => artifact.Host != HostKind.GitHubCopilot)
+                .ToArray());
 
         var result = factory.CreateCanonical(manifest);
 
@@ -62,15 +65,37 @@ public sealed class SkillManifestFactoryTests
         Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
     }
 
-    public static TheoryData<object> InvalidManifestCases ()
+    [Fact]
+    [Trait("Size", "Small")]
+    public void Validate_AcceptsHostArtifactFileShapeWithoutCurrentRegistrationPolicy ()
     {
-        var valid = CreateManifest("sample-skill");
-        return new TheoryData<object>
-        {
-            SkillTestData.CopyManifest(valid, hostArtifacts: valid.HostArtifacts.Where(static artifact => artifact.Host != HostKind.GitHubCopilot).ToArray()),
-            SkillTestData.CopyManifest(valid, hostArtifacts: valid.HostArtifacts.Select(static artifact => artifact.Host == HostKind.ClaudeCode ? new SkillHostArtifactManifest(artifact.Host, PackageRelativePath.Parse("claude.yaml"), Digest('6'), artifact.MaterializedFrontmatterDigest) : artifact).ToArray()),
-            SkillTestData.CopyManifest(valid, hostArtifacts: valid.HostArtifacts.Select(static artifact => artifact.Host == HostKind.Codex ? new SkillHostArtifactManifest(artifact.Host, PackageRelativePath.Parse("agents/other.yaml"), artifact.Digest, artifact.MaterializedFrontmatterDigest) : artifact).ToArray()),
-        };
+        var candidate = CreateCandidate("sample-skill");
+        var hostArtifacts = candidate.HostArtifacts
+            .Select(static artifact => artifact.Host == HostKind.ClaudeCode
+                ? new SkillHostArtifactManifest(
+                    artifact.Host,
+                    PackageRelativePath.Parse("claude.yaml"),
+                    Digest('6'),
+                    artifact.MaterializedFrontmatterDigest)
+                : artifact)
+            .ToArray();
+        var registrationIndependentCandidate = new SkillManifestCandidate(
+            candidate.SchemaVersion,
+            candidate.SkillBundleVersion,
+            candidate.CatalogId,
+            candidate.Category,
+            candidate.SkillName,
+            candidate.DisplayName,
+            candidate.Description,
+            candidate.Dependencies,
+            candidate.ContentDigest,
+            manifestDigest: null,
+            hostArtifacts);
+        var factory = SkillTestData.CreateManifestFactory();
+
+        var result = factory.CreateCanonical(registrationIndependentCandidate);
+
+        Assert.True(result.IsSuccess, result.Failure?.Message);
     }
 
     private static SkillManifest CreateManifest (string skillName)

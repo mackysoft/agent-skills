@@ -14,7 +14,7 @@ public sealed class SkillOperationReportContextTests
         var categories = new List<SkillCategory> { new("core") };
         var skillNames = new List<SkillName> { new("sample-skill") };
         var context = new SkillOperationReportContext(
-            HostKind.Codex,
+            CodexHost,
             SkillScopeKind.Project,
             RepositoryRoot,
             categories,
@@ -35,7 +35,7 @@ public sealed class SkillOperationReportContextTests
         Assert.Throws<ArgumentNullException>(() =>
         {
             _ = new SkillOperationReportContext(
-                HostKind.Codex,
+                CodexHost,
                 SkillScopeKind.Project,
                 RepositoryRoot,
                 null!,
@@ -48,7 +48,7 @@ public sealed class SkillOperationReportContextTests
     public void Constructor_RejectsNullCategoryItem ()
     {
         Assert.Throws<ArgumentException>(() => new SkillOperationReportContext(
-            HostKind.Codex,
+            CodexHost,
             SkillScopeKind.Project,
             RepositoryRoot,
             [null!],
@@ -60,7 +60,7 @@ public sealed class SkillOperationReportContextTests
     public void Constructor_RejectsNullSkillName ()
     {
         Assert.Throws<ArgumentException>(() => new SkillOperationReportContext(
-            HostKind.Codex,
+            CodexHost,
             SkillScopeKind.Project,
             RepositoryRoot,
             [new SkillCategory("core")],
@@ -72,7 +72,7 @@ public sealed class SkillOperationReportContextTests
     public void Constructor_RejectsUndefinedScope ()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => new SkillOperationReportContext(
-            HostKind.Codex,
+            CodexHost,
             (SkillScopeKind)42,
             RepositoryRoot,
             [new SkillCategory("core")],
@@ -84,20 +84,20 @@ public sealed class SkillOperationReportContextTests
     public void Constructor_RequiresRepositoryRootOnlyForProjectScope ()
     {
         Assert.Throws<ArgumentNullException>(() => new SkillOperationReportContext(
-            HostKind.Codex,
+            CodexHost,
             SkillScopeKind.Project,
             repositoryRoot: null,
             [],
             []));
         Assert.Throws<ArgumentException>(() => new SkillOperationReportContext(
-            HostKind.Codex,
+            CodexHost,
             SkillScopeKind.User,
             RepositoryRoot,
             [],
             []));
 
         var userContext = new SkillOperationReportContext(
-            HostKind.Codex,
+            CodexHost,
             SkillScopeKind.User,
             repositoryRoot: null,
             [],
@@ -106,4 +106,12 @@ public sealed class SkillOperationReportContextTests
         Assert.Null(userContext.RepositoryRoot);
     }
 
+    private static SkillResolvedHost CodexHost => ResolveHost(HostKind.Codex);
+
+    private static SkillResolvedHost ResolveHost (HostKind host)
+    {
+        var result = SkillTestData.CreateInstallTargetResolver().ResolveHost(host);
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        return result.Value!;
+    }
 }

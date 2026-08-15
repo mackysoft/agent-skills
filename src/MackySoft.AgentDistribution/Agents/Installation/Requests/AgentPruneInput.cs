@@ -1,5 +1,5 @@
+using MackySoft.AgentDistribution.Agents.Distribution;
 using MackySoft.AgentDistribution.Agents.Installation.Targeting;
-using MackySoft.AgentDistribution.Distribution;
 
 namespace MackySoft.AgentDistribution.Agents.Installation.Requests;
 

@@ -4,7 +4,19 @@ namespace MackySoft.AgentDistribution.Dependencies;
 
 internal static class SkillDependencyGraphValidator
 {
-    public static AgentDistributionOperationResult<bool> Validate (
+    /// <summary>
+    /// Validates the structural invariants of a closed directed SKILL dependency graph.
+    /// </summary>
+    /// <remarks>
+    /// Each dictionary key is a graph node and its value is that node's outgoing edges. This validator
+    /// does not resolve or select dependencies; callers provide the complete graph and choose the
+    /// boundary-specific failure code and label.
+    /// </remarks>
+    /// <param name="dependenciesBySkillName"> The complete graph as skill names and their declared dependencies. </param>
+    /// <param name="failureCode"> The failure code owned by the calling boundary. </param>
+    /// <param name="graphLabel"> The boundary-specific label used in deterministic failure messages. </param>
+    /// <returns> A success result when every edge targets a defined distinct node and the graph is acyclic. </returns>
+    public static AgentDistributionOperationResult<bool> ValidateClosedGraph (
         IReadOnlyDictionary<SkillName, IReadOnlyList<SkillName>> dependenciesBySkillName,
         AgentDistributionFailureCode failureCode,
         string graphLabel)

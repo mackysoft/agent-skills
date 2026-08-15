@@ -9,7 +9,7 @@ public sealed class CodexSkillHostAdapterTests
     [Trait("Size", "Small")]
     public void Registration_ExposesCodexSkillPolicy ()
     {
-        var registration = HostRegistration.Get(HostKind.Codex).Value!;
+        var registration = BuiltInHostCatalog.Get(HostKind.Codex).Value!;
         var descriptor = registration.Skill;
 
         Assert.IsType<CodexSkillHostAdapter>(registration.SkillAdapter);

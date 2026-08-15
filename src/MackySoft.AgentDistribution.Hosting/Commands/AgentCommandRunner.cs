@@ -1,3 +1,4 @@
+using MackySoft.AgentDistribution.Agents.Distribution;
 using MackySoft.AgentDistribution.Agents.Doctor;
 using MackySoft.AgentDistribution.Agents.Installation.Requests;
 using MackySoft.AgentDistribution.Agents.Installation.Services;
@@ -24,6 +25,7 @@ public sealed class AgentCommandRunner
     private readonly AgentUninstallService uninstallService;
     private readonly AgentPruneService pruneService;
     private readonly AgentDoctorService doctorService;
+    private readonly SkillInstallTargetResolver skillTargetResolver;
 
     /// <summary> Initializes a new instance of the <see cref="AgentCommandRunner" /> class. </summary>
     public AgentCommandRunner (
@@ -34,7 +36,8 @@ public sealed class AgentCommandRunner
         AgentUpdateService updateService,
         AgentUninstallService uninstallService,
         AgentPruneService pruneService,
-        AgentDoctorService doctorService)
+        AgentDoctorService doctorService,
+        SkillInstallTargetResolver skillTargetResolver)
     {
         this.configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         this.packageProvider = packageProvider ?? throw new ArgumentNullException(nameof(packageProvider));
@@ -44,6 +47,7 @@ public sealed class AgentCommandRunner
         this.uninstallService = uninstallService ?? throw new ArgumentNullException(nameof(uninstallService));
         this.pruneService = pruneService ?? throw new ArgumentNullException(nameof(pruneService));
         this.doctorService = doctorService ?? throw new ArgumentNullException(nameof(doctorService));
+        this.skillTargetResolver = skillTargetResolver ?? throw new ArgumentNullException(nameof(skillTargetResolver));
     }
 
     /// <summary> Runs <c>agents list</c>. </summary>
@@ -404,11 +408,16 @@ public sealed class AgentCommandRunner
             ? AgentInstallScopeKind.Project
             : AgentInstallScopeKind.User;
         var hostKind = hostResult.Value;
+        var resolvedHostResult = skillTargetResolver.ResolveHost(hostKind);
+        if (!resolvedHostResult.IsSuccess)
+        {
+            return Failure<AgentTargetPair>(resolvedHostResult.Failure!);
+        }
 
         return AgentDistributionOperationResult<AgentTargetPair>.Success(new AgentTargetPair(
             new AgentTargetRequest(hostKind, agentScope, repositoryContext.RepositoryRoot, agentTargetRoot),
             new SkillInstallRequest(hostKind, repositoryContext.Scope, repositoryContext.RepositoryRoot, skillTargetRoot),
-            hostKind));
+            resolvedHostResult.Value!));
     }
 
     private static IReadOnlyList<string> NormalizeOptionalAgentNames (IReadOnlyList<string>? agent)
@@ -460,7 +469,7 @@ public sealed class AgentCommandRunner
             agentRequest.RepositoryRoot?.Value,
             selectedAgentNames,
             new SkillOperationReportContext(
-                target.Host,
+                target.ResolvedHost,
                 skillRequest.Scope,
                 skillRequest.RepositoryRoot?.Value,
                 [],
@@ -472,18 +481,24 @@ public sealed class AgentCommandRunner
         public AgentTargetPair (
             AgentTargetRequest agentTargetRequest,
             SkillInstallRequest skillTargetRequest,
-            HostKind host)
+            SkillResolvedHost resolvedHost)
         {
             AgentTargetRequest = agentTargetRequest ?? throw new ArgumentNullException(nameof(agentTargetRequest));
             SkillTargetRequest = skillTargetRequest ?? throw new ArgumentNullException(nameof(skillTargetRequest));
-            Host = host;
+            ResolvedHost = resolvedHost ?? throw new ArgumentNullException(nameof(resolvedHost));
+            if (AgentTargetRequest.HostId != ResolvedHost.Host || SkillTargetRequest.Host != ResolvedHost.Host)
+            {
+                throw new ArgumentException("Agent and skill targets must identify the resolved host.");
+            }
         }
 
         public AgentTargetRequest AgentTargetRequest { get; }
 
         public SkillInstallRequest SkillTargetRequest { get; }
 
-        public HostKind Host { get; }
+        public SkillResolvedHost ResolvedHost { get; }
+
+        public HostKind Host => ResolvedHost.Host;
     }
 
     private sealed class PreparedAgentTargetOperation

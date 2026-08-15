@@ -1,7 +1,7 @@
 using MackySoft.AgentDistribution.Installation.Diffing;
 using MackySoft.AgentDistribution.Installation.Results;
 using MackySoft.AgentDistribution.Materialization;
-using MackySoft.AgentDistribution.Packaging.Canonical;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Installation.Services;

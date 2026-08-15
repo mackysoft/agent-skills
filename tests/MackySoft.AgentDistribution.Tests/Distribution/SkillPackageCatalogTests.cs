@@ -1,7 +1,7 @@
-using MackySoft.AgentDistribution.Bundles;
 using MackySoft.AgentDistribution.Catalogs;
 using MackySoft.AgentDistribution.Distribution;
-using MackySoft.AgentDistribution.Packaging.Canonical;
+using MackySoft.AgentDistribution.Skills.Bundles;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 
 namespace MackySoft.AgentDistribution.Tests.Distribution;
 

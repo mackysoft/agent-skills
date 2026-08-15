@@ -5,9 +5,9 @@ using MackySoft.AgentDistribution.Installation.Requests;
 using MackySoft.AgentDistribution.Installation.Results;
 using MackySoft.AgentDistribution.Installation.State;
 using MackySoft.AgentDistribution.Installation.Targeting;
-using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Packaging.Paths;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Installation.Services;

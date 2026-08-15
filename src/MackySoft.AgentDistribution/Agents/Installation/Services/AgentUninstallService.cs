@@ -14,7 +14,7 @@ public sealed class AgentUninstallService
     private readonly AgentInstalledTargetInspector targetInspector;
     private readonly AgentInstallationStatePathResolver statePathResolver;
     private readonly AgentInstallationStateStore stateStore;
-    private readonly AgentManagedArtifactStore artifactStore;
+    private readonly IAgentManagedArtifactStore artifactStore;
 
     /// <summary> Initializes a custom-agent uninstall service. </summary>
     public AgentUninstallService (
@@ -22,12 +22,29 @@ public sealed class AgentUninstallService
         AgentInstalledTargetInspector targetInspector,
         AgentInstallationStatePathResolver statePathResolver,
         AgentInstallationStateStore stateStore)
+        : this(
+            targetResolver,
+            targetInspector,
+            statePathResolver,
+            stateStore,
+            new AgentManagedArtifactStore(
+                statePathResolver ?? throw new ArgumentNullException(nameof(statePathResolver)),
+                stateStore ?? throw new ArgumentNullException(nameof(stateStore))))
+    {
+    }
+
+    internal AgentUninstallService (
+        AgentInstallTargetResolver targetResolver,
+        AgentInstalledTargetInspector targetInspector,
+        AgentInstallationStatePathResolver statePathResolver,
+        AgentInstallationStateStore stateStore,
+        IAgentManagedArtifactStore artifactStore)
     {
         this.targetResolver = targetResolver ?? throw new ArgumentNullException(nameof(targetResolver));
         this.targetInspector = targetInspector ?? throw new ArgumentNullException(nameof(targetInspector));
         this.statePathResolver = statePathResolver ?? throw new ArgumentNullException(nameof(statePathResolver));
         this.stateStore = stateStore ?? throw new ArgumentNullException(nameof(stateStore));
-        artifactStore = new AgentManagedArtifactStore(statePathResolver, stateStore);
+        this.artifactStore = artifactStore ?? throw new ArgumentNullException(nameof(artifactStore));
     }
 
     /// <summary> Removes the selected managed agents without invoking any SKILL removal service. </summary>
@@ -75,7 +92,13 @@ public sealed class AgentUninstallService
                     continue;
                 }
 
-                var deleteResult = await artifactStore.DeleteAsync(plan.State!, plan.StatePath!, target, cancellationToken).ConfigureAwait(false);
+                var deleteResult = await artifactStore.DeleteAsync(
+                        plan.State!,
+                        plan.StatePath!,
+                        target,
+                        precondition: null,
+                        cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
                 if (!deleteResult.IsSuccess)
                 {
                     return Failure(deleteResult.Failure!);

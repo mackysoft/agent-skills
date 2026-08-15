@@ -1,4 +1,5 @@
 using MackySoft.AgentDistribution.Bundles;
+using MackySoft.AgentDistribution.Bundles.Generation;
 using MackySoft.AgentDistribution.Shared;
 
 namespace MackySoft.AgentDistribution.Tests.Bundles;

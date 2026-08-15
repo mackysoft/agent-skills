@@ -1,10 +1,10 @@
 using System.Globalization;
-using MackySoft.AgentDistribution.Bundles;
 using MackySoft.AgentDistribution.Catalogs;
 using MackySoft.AgentDistribution.Digests;
-using MackySoft.AgentDistribution.Manifests;
-using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Bundles;
+using MackySoft.AgentDistribution.Skills.Manifests;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 using MackySoft.AgentDistribution.Sources;
 
 namespace MackySoft.AgentDistribution.Tests.Generation;

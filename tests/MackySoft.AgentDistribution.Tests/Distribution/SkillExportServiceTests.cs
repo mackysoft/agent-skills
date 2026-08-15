@@ -1,10 +1,11 @@
 using System.Globalization;
 using System.IO.Compression;
 using System.Text;
+using MackySoft.AgentDistribution.Digests;
 using MackySoft.AgentDistribution.Distribution;
 using MackySoft.AgentDistribution.Hosts.Registration;
-using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 
 namespace MackySoft.AgentDistribution.Tests.Distribution;
 
@@ -47,6 +48,34 @@ public sealed class SkillExportServiceTests
         Assert.True(result.Value!.IsSameAs(AbsolutePath.Parse(outputRoot)));
         Assert.True(Directory.Exists(outputRoot));
         Assert.Empty(Directory.EnumerateFileSystemEntries(outputRoot));
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task ExportAsync_DirectoryFormat_DoesNotPublishWhenLaterPackageFailsMaterialization ()
+    {
+        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "export-materialization-preflight");
+        var packages = (await SkillTestData.GenerateFixturePackagesAsync())
+            .OrderBy(static package => package.Manifest.SkillName.Value, StringComparer.Ordinal)
+            .ToArray();
+        Assert.True(packages.Length >= 2);
+        var incompatiblePackage = SkillTestData.CreatePackageWithDeclaredFrontmatterDigest(
+            packages[1],
+            HostKind.Codex,
+            Sha256Digest.Parse(new string('0', 64)));
+        var outputRoot = scope.GetPath("exported");
+        var service = SkillTestData.CreateExportService();
+
+        var result = await service.ExportAsync(
+            [packages[0], incompatiblePackage],
+            HostKind.Codex,
+            AbsolutePath.Parse(outputRoot),
+            PackageExportFormat.Directory,
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.False(Directory.Exists(outputRoot));
     }
 
     [Fact]
@@ -187,7 +216,7 @@ public sealed class SkillExportServiceTests
 
     private static IReadOnlyList<HostRegistration> GetSupportedHosts ()
     {
-        return HostRegistration.Registrations;
+        return BuiltInHostCatalog.Registrations;
     }
 
     private static IReadOnlyDictionary<string, string> CreateExpectedExportMap (

@@ -1,3 +1,4 @@
+using MackySoft.AgentDistribution.Agents.Distribution;
 using MackySoft.AgentDistribution.Agents.Doctor;
 using MackySoft.AgentDistribution.Agents.Installation.Services;
 using MackySoft.AgentDistribution.Agents.Installation.State;
@@ -6,9 +7,8 @@ using MackySoft.AgentDistribution.Agents.Manifests;
 using MackySoft.AgentDistribution.Agents.Packaging;
 using MackySoft.AgentDistribution.Bundles;
 using MackySoft.AgentDistribution.Digests;
-using MackySoft.AgentDistribution.Distribution;
-using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 
 namespace MackySoft.AgentDistribution.Tests.Agents;
 
@@ -74,7 +74,8 @@ internal static class AgentOperationTestData
             new AgentDistributionBundleVersion(skills[0].Manifest.SkillBundleVersion.Value),
             Sha256Digest.Parse(new string('1', 64)));
         return new AgentPackageCatalog(
-            descriptor,
+            descriptor.CatalogId,
+            descriptor.BundleVersion,
             selectedAgentNames ?? [],
             agents,
             resolvedSkills ?? []);
@@ -133,15 +134,17 @@ internal static class AgentOperationTestData
             stateStore);
     }
 
-    public static AgentPruneService CreatePruneService (string homeDirectory)
+    public static AgentPruneService CreatePruneService (
+        string homeDirectory,
+        IAgentManagedArtifactStore? artifactStore = null)
     {
         var statePathResolver = new AgentInstallationStatePathResolver();
         var stateStore = new AgentInstallationStateStore(new AgentInstallationStateJsonSerializer());
         return new AgentPruneService(
             CreateAgentTargetResolver(homeDirectory),
             CreateInspector(statePathResolver, stateStore, new PackageContentDigestCalculator()),
-            statePathResolver,
-            stateStore);
+            stateStore,
+            artifactStore ?? new AgentManagedArtifactStore(statePathResolver, stateStore));
     }
 
     public static AgentDoctorService CreateDoctorService (string homeDirectory)

@@ -1,6 +1,6 @@
-using MackySoft.AgentDistribution.Bundles;
 using MackySoft.AgentDistribution.Installation.State;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Manifests;
 
 namespace MackySoft.AgentDistribution.Tests.Installation.State;
 
@@ -22,6 +22,18 @@ public sealed class SkillInstalledTargetStateTests
         Assert.Equal(
             [PackageRelativePath.Parse("a.md"), PackageRelativePath.Parse("z.md")],
             fileSet.MissingFiles);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public void FileSet_RejectsDuplicatePaths ()
+    {
+        var duplicatePath = PackageRelativePath.Parse("references/duplicate.md");
+
+        Assert.Throws<ArgumentException>(() => new SkillInstalledTargetFileSet(
+            [duplicatePath, duplicatePath],
+            [],
+            []));
     }
 
     [Fact]

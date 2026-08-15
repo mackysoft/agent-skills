@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using MackySoft.AgentDistribution.Agents.Sources;
 using MackySoft.AgentDistribution.Hosts.Serialization;
 using MackySoft.AgentDistribution.Serialization.Yaml;
 using MackySoft.AgentDistribution.Shared;
@@ -23,24 +22,20 @@ internal sealed class GitHubCopilotAgentHostArtifactAdapter : IAgentHostArtifact
     }
 
     /// <inheritdoc />
-    public AgentHostArtifactSet BuildArtifacts (
-        AgentSourceMetadata metadata,
-        string agentInstructions,
-        string bindingJson)
+    public AgentHostArtifactSet BuildArtifacts (AgentHostArtifactRequest request)
     {
-        ArgumentNullException.ThrowIfNull(metadata);
-        ArgumentNullException.ThrowIfNull(agentInstructions);
+        ArgumentNullException.ThrowIfNull(request);
 
-        var bindingResult = ParseBinding(bindingJson);
+        var bindingResult = ParseBinding(request.BindingJson);
         if (!bindingResult.IsSuccess)
         {
-            throw new ArgumentException(bindingResult.Failure!.Message, nameof(bindingJson));
+            throw new ArgumentException(bindingResult.Failure!.Message, nameof(request));
         }
 
         var binding = bindingResult.Value!;
         var yaml = new DeterministicYamlBuilder()
             .DocumentMarker()
-            .Mapping("description", metadata.Description);
+            .Mapping("description", request.Description);
 
         if (binding.Target is not null)
         {
@@ -71,10 +66,10 @@ internal sealed class GitHubCopilotAgentHostArtifactAdapter : IAgentHostArtifact
             .DocumentMarker()
             .BlankLine()
             .Build()
-            + EnsureTrailingLineFeed(agentInstructions);
+            + EnsureTrailingLineFeed(request.NormalizedInstructions);
 
         return new AgentHostArtifactSet(
-            [new AgentHostArtifactFile(PackageRelativePath.Parse($"{metadata.AgentName.Value}.agent.md"), content)]);
+            [new AgentHostArtifactFile(PackageRelativePath.Parse($"{request.AgentName.Value}.agent.md"), content)]);
     }
 
     private static AgentDistributionOperationResult<GitHubCopilotBinding> ParseBinding (string bindingJson)

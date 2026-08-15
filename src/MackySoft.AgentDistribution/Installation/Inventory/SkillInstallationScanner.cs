@@ -1,9 +1,8 @@
-using MackySoft.AgentDistribution.Hosts.Registration;
 using MackySoft.AgentDistribution.Installation.Targeting;
 using MackySoft.AgentDistribution.Installation.Validation;
-using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Packaging.Paths;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Installation.Inventory;
@@ -27,39 +26,19 @@ public sealed class SkillInstallationScanner
 
     /// <summary> Scans installed SKILL manifests. </summary>
     /// <param name="packages"> The canonical packages used for digest verification. </param>
-    /// <param name="targetRoot"> The bundle target root. </param>
-    /// <param name="host"> The host used for install identity. </param>
-    /// <param name="scope"> The install scope used for install identity. </param>
+    /// <param name="target"> The resolved host, scope, and bundle target root. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
-    /// <returns> The installed skill list, or a structured failure for invalid input, unsupported host, unsafe path use, manifest problems, or installed target drift. </returns>
+    /// <returns> The installed skill list, or a structured failure for unsafe path use, manifest problems, or installed target drift. </returns>
     public async ValueTask<AgentDistributionOperationResult<IReadOnlyList<SkillInstalledSkill>>> ScanAsync (
         IReadOnlyList<CanonicalSkillPackage> packages,
-        string targetRoot,
-        HostKind host,
-        SkillScopeKind scope = SkillScopeKind.Project,
+        SkillResolvedInstallTarget target,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(packages);
-        ArgumentException.ThrowIfNullOrWhiteSpace(targetRoot);
+        ArgumentNullException.ThrowIfNull(target);
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (scope is not SkillScopeKind.Project and not SkillScopeKind.User)
-        {
-            return AgentDistributionOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
-                AgentDistributionFailureCodes.InputInvalid,
-                $"Unsupported SKILL install scope: {scope}");
-        }
-
-        var registrationResult = HostRegistration.Get(host);
-        if (!registrationResult.IsSuccess)
-        {
-            return AgentDistributionOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
-                registrationResult.Failure!.Code,
-                registrationResult.Failure.Message);
-        }
-
-        var registeredHost = registrationResult.Value!.Host;
-        var fullTargetRoot = AbsolutePath.Parse(Path.GetFullPath(targetRoot));
+        var fullTargetRoot = target.TargetRoot;
         if (!Directory.Exists(fullTargetRoot.Value))
         {
             return AgentDistributionOperationResult<IReadOnlyList<SkillInstalledSkill>>.Success(Array.Empty<SkillInstalledSkill>());
@@ -112,7 +91,7 @@ public sealed class SkillInstallationScanner
                     $"Installed SKILL is not part of the canonical package set: {manifest.SkillName}");
             }
 
-            var validationResult = await installedPackageValidator.ValidateAsync(package, resolvedSkillDirectory, registeredHost, cancellationToken).ConfigureAwait(false);
+            var validationResult = await installedPackageValidator.ValidateAsync(package, resolvedSkillDirectory, target.Host, cancellationToken).ConfigureAwait(false);
             if (!validationResult.IsSuccess)
             {
                 return AgentDistributionOperationResult<IReadOnlyList<SkillInstalledSkill>>.FailureResult(
@@ -121,7 +100,7 @@ public sealed class SkillInstallationScanner
             }
 
             installedSkills.Add(new SkillInstalledSkill(
-                new SkillInstallIdentity(registeredHost, scope, fullTargetRoot, manifest.SkillName),
+                new SkillInstallIdentity(target.Host, target.Scope, fullTargetRoot, manifest.SkillName),
                 resolvedSkillDirectory,
                 validationResult.Value!));
         }

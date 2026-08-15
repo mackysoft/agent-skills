@@ -1,9 +1,9 @@
 using MackySoft.AgentDistribution.Agents.Manifests;
 using MackySoft.AgentDistribution.Agents.Packaging;
 using MackySoft.AgentDistribution.Digests;
-using MackySoft.AgentDistribution.Manifests;
-using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Manifests;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 
 namespace MackySoft.AgentDistribution.Bundles;
 

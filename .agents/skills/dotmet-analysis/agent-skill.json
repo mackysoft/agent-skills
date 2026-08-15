@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "skillBundleVersion": 1,
+  "catalogId": "com.mackysoft.dotmet",
+  "category": "basic",
+  "skillName": "dotmet-analysis",
+  "displayName": "dotmet Analysis",
+  "description": "dotmet の解析レポートを読み、解析の成立状態、入力のずれ、rules が適用された範囲、`findings` の分類、現在の作業範囲への帰属、次の作業種別を整理する。`analyze`、`diff`、`doctor`、`rules validate` の失敗調査、解析確認、解析結果の整理で使う。修正と再解析まで進める作業は dotmet-repair-loop。",
+  "dependencies": [],
+  "contentDigest": "9039119cb3421ff5d8b2190c08af8311aef6a31dfa74d047d20a5548127126f0",
+  "manifestDigest": "83b7c37785fda6ff7e496288763a85d26764a11153cb5a2c7688468de68c7498",
+  "hostArtifacts": [
+    {
+      "host": "codex",
+      "path": "agents/openai.yaml",
+      "digest": "87aabca26489f6ff064803f52f81bb69e535d14c8a416e20acca0fb6cc965f4d",
+      "materializedFrontmatterDigest": "33bdb9a13912c3e7f9dd8e623f9a78eb9e7fd2426e54d438ee2472a9505bd646"
+    },
+    {
+      "host": "claude-code",
+      "materializedFrontmatterDigest": "7a66ac199dc8d24b85776e4cb99e0ebfa8cc5050cf13246759f1991a61494bff"
+    },
+    {
+      "host": "github-copilot",
+      "materializedFrontmatterDigest": "1aac2bccb431fd7c46b2f7c44f49259d02a5871d76af3570982948fd6479f14d"
+    }
+  ]
+}

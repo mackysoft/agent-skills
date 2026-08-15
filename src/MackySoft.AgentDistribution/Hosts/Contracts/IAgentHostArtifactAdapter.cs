@@ -1,4 +1,3 @@
-using MackySoft.AgentDistribution.Agents.Sources;
 using MackySoft.AgentDistribution.Shared;
 
 namespace MackySoft.AgentDistribution.Hosts.Contracts;
@@ -10,5 +9,5 @@ internal interface IAgentHostArtifactAdapter
     AgentDistributionOperationResult<bool> ValidateBinding (string bindingJson);
 
     /// <summary>Generates host-owned files from a validated binding.</summary>
-    AgentHostArtifactSet BuildArtifacts (AgentSourceMetadata metadata, string agentInstructions, string bindingJson);
+    AgentHostArtifactSet BuildArtifacts (AgentHostArtifactRequest request);
 }

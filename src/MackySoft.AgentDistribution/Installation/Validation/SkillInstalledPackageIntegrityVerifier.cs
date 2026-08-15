@@ -1,7 +1,8 @@
 using MackySoft.AgentDistribution.Digests;
-using MackySoft.AgentDistribution.Manifests;
+using MackySoft.AgentDistribution.Materialization;
 using MackySoft.AgentDistribution.Packaging.Paths;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Manifests;
 using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Installation.Validation;

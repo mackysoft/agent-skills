@@ -1,8 +1,9 @@
 using System.Globalization;
+using MackySoft.AgentDistribution.Digests;
 using MackySoft.AgentDistribution.Hosts.Registration;
-using MackySoft.AgentDistribution.Installation.Validation;
-using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Manifests;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 
 namespace MackySoft.AgentDistribution.Tests.Materialization;
 
@@ -43,7 +44,7 @@ public sealed class SkillMaterializationServiceTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task Materialize_HostIndependentContent_MatchesCanonicalAcrossHosts ()
+    public async Task Materialize_PreservesHostIndependentPackageFilesAcrossHosts ()
     {
         var packages = await SkillTestData.GenerateFixturePackagesAsync();
         var service = SkillTestData.CreateMaterializationService();
@@ -51,15 +52,12 @@ public sealed class SkillMaterializationServiceTests
 
         foreach (var package in packages)
         {
-            var canonicalContent = GetCanonicalHostIndependentContent(package);
-
             foreach (var registration in registrations)
             {
-                var adapter = registration.SkillAdapter;
                 var result = service.Materialize(package, registration.Host);
 
                 Assert.True(result.IsSuccess, result.Failure?.Message);
-                AssertFileMapEqual(canonicalContent, GetMaterializedHostIndependentContent(package, adapter, result.Value!.Files));
+                AssertHostIndependentPackageFilesPreserved(package, result.Value!.Files);
             }
         }
     }
@@ -162,9 +160,59 @@ public sealed class SkillMaterializationServiceTests
         Assert.Equal(AgentDistributionFailureCodes.HostUnsupported, result.Failure!.Code);
     }
 
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task Materialize_RejectsFrontmatterDigestThatDoesNotMatchCurrentAdapter ()
+    {
+        var package = (await SkillTestData.GenerateFixturePackagesAsync())[0];
+        var incompatiblePackage = SkillTestData.CreatePackageWithDeclaredFrontmatterDigest(
+            package,
+            HostKind.ClaudeCode,
+            Sha256Digest.Parse(new string('0', 64)));
+        var service = SkillTestData.CreateMaterializationService();
+
+        var result = service.Materialize(incompatiblePackage, HostKind.ClaudeCode);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task Materialize_RejectsMetadataContentThatDoesNotMatchCurrentAdapter ()
+    {
+        var package = (await SkillTestData.GenerateFixturePackagesAsync())[0];
+        var incompatiblePackage = CreatePackageWithDeclaredCodexMetadata(
+            package,
+            "interface:\n  display_name: Incompatible\n");
+        var service = SkillTestData.CreateMaterializationService();
+
+        var result = service.Materialize(incompatiblePackage, HostKind.Codex);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task Materialize_RejectsMetadataPathThatDoesNotMatchCurrentRegistration ()
+    {
+        var package = (await SkillTestData.GenerateFixturePackagesAsync())[0];
+        var incompatiblePackage = CreatePackageWithDeclaredClaudeMetadata(
+            package,
+            PackageRelativePath.Parse("claude.yaml"),
+            "declared metadata\n");
+        var service = SkillTestData.CreateMaterializationService();
+
+        var result = service.Materialize(incompatiblePackage, HostKind.ClaudeCode);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
+    }
+
     private static IReadOnlyList<HostRegistration> GetSupportedHosts ()
     {
-        return HostRegistration.Registrations;
+        return BuiltInHostCatalog.Registrations;
     }
 
     private static PackageRelativePath[] GetExpectedPaths (
@@ -181,38 +229,29 @@ public sealed class SkillMaterializationServiceTests
             .ToArray();
     }
 
-    private static IReadOnlyDictionary<PackageRelativePath, string> GetCanonicalHostIndependentContent (CanonicalSkillPackage package)
-    {
-        var hostArtifactPaths = GetHostArtifactPaths(package);
-
-        return package.Files
-            .Where(file => !hostArtifactPaths.Contains(file.RelativePath))
-            .ToDictionary(static file => file.RelativePath, static file => file.Content);
-    }
-
-    private static IReadOnlyDictionary<PackageRelativePath, string> GetMaterializedHostIndependentContent (
+    private static void AssertHostIndependentPackageFilesPreserved (
         CanonicalSkillPackage package,
-        ISkillHostAdapter adapter,
         IReadOnlyList<PackageTextFile> materializedFiles)
     {
-        var hostArtifactPaths = GetHostArtifactPaths(package);
-        var content = new Dictionary<PackageRelativePath, string>();
-        var expectedFrontmatter = adapter.BuildArtifacts(CreateHostMetadata(package)).Frontmatter;
-
-        foreach (var file in materializedFiles.Where(file => !hostArtifactPaths.Contains(file.RelativePath)))
+        foreach (var expectedFile in package.Files.Where(static file => IsHostIndependentPackageFile(file.RelativePath)))
         {
-            if (string.Equals(file.RelativePath.Value, "SKILL.md", StringComparison.Ordinal))
+            var actualFile = Assert.Single(materializedFiles, file => file.RelativePath == expectedFile.RelativePath);
+            if (string.Equals(expectedFile.RelativePath.Value, "SKILL.md", StringComparison.Ordinal))
             {
-                Assert.True(SkillHostMaterializationInspector.TryExtractFrontmatter(file.Content, out var frontmatter));
-                Assert.Equal(expectedFrontmatter, frontmatter);
-                content.Add(file.RelativePath, GetBodyWithoutFrontmatter(file.Content, frontmatter));
+                Assert.EndsWith("\n" + expectedFile.Content, actualFile.Content, StringComparison.Ordinal);
                 continue;
             }
 
-            content.Add(file.RelativePath, file.Content);
+            Assert.Equal(expectedFile.Content, actualFile.Content);
         }
+    }
 
-        return content;
+    private static bool IsHostIndependentPackageFile (PackageRelativePath path)
+    {
+        return string.Equals(path.Value, "SKILL.md", StringComparison.Ordinal)
+            || string.Equals(path.Value, "agent-skill.json", StringComparison.Ordinal)
+            || path.Value.StartsWith("references/", StringComparison.Ordinal)
+            || path.Value.StartsWith("scripts/", StringComparison.Ordinal);
     }
 
     private static HashSet<PackageRelativePath> GetHostArtifactPaths (CanonicalSkillPackage package)
@@ -232,25 +271,51 @@ public sealed class SkillMaterializationServiceTests
             package.Manifest.Description);
     }
 
-    private static void AssertFileMapEqual (
-        IReadOnlyDictionary<PackageRelativePath, string> expected,
-        IReadOnlyDictionary<PackageRelativePath, string> actual)
+    private static CanonicalSkillPackage CreatePackageWithDeclaredCodexMetadata (
+        CanonicalSkillPackage package,
+        string metadataContent)
     {
-        var expectedPaths = expected.Keys.OrderBy(static path => path.Value, StringComparer.Ordinal).ToArray();
-        var actualPaths = actual.Keys.OrderBy(static path => path.Value, StringComparer.Ordinal).ToArray();
-        Assert.Equal(expectedPaths, actualPaths);
-
-        foreach (var path in expectedPaths)
-        {
-            Assert.Equal(expected[path], actual[path]);
-        }
+        var metadataPath = PackageRelativePath.Parse("agents/openai.yaml");
+        return CreatePackageWithDeclaredMetadata(package, HostKind.Codex, metadataPath, metadataContent);
     }
 
-    private static string GetBodyWithoutFrontmatter (
-        string skillText,
-        string frontmatter)
+    private static CanonicalSkillPackage CreatePackageWithDeclaredClaudeMetadata (
+        CanonicalSkillPackage package,
+        PackageRelativePath metadataPath,
+        string metadataContent)
     {
-        var body = skillText[frontmatter.Length..];
-        return body.StartsWith('\n') ? body[1..] : body;
+        return CreatePackageWithDeclaredMetadata(package, HostKind.ClaudeCode, metadataPath, metadataContent);
     }
+
+    private static CanonicalSkillPackage CreatePackageWithDeclaredMetadata (
+        CanonicalSkillPackage package,
+        HostKind host,
+        PackageRelativePath metadataPath,
+        string metadataContent)
+    {
+        var digestCalculator = new PackageContentDigestCalculator();
+        var metadataDigest = digestCalculator.ComputeSingleFileDigest(metadataPath, metadataContent);
+        var manifestCandidate = SkillTestData.CopyManifest(
+            package.Manifest,
+            hostArtifacts: package.Manifest.HostArtifacts
+                .Select(artifact => artifact.Host == host
+                    ? new SkillHostArtifactManifest(
+                        artifact.Host,
+                        metadataPath,
+                        metadataDigest,
+                        artifact.MaterializedFrontmatterDigest)
+                    : artifact)
+                .ToArray());
+        var manifest = SkillTestData.WithComputedManifestDigest(manifestCandidate);
+        var manifestText = new SkillManifestJsonSerializer().Serialize(manifest);
+        var files = package.Files
+            .Where(file => file.RelativePath != package.Manifest.HostArtifacts.Single(artifact => artifact.Host == host).Path)
+            .Select(file => string.Equals(file.RelativePath.Value, "agent-skill.json", StringComparison.Ordinal)
+                ? new PackageTextFile(file.RelativePath, manifestText)
+                : file)
+            .Append(new PackageTextFile(metadataPath, metadataContent))
+            .ToArray();
+        return SkillTestData.CreateCanonicalPackage(manifest, files);
+    }
+
 }

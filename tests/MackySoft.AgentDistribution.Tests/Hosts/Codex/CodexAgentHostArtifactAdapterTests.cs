@@ -1,4 +1,3 @@
-using MackySoft.AgentDistribution.Agents.Sources;
 using MackySoft.AgentDistribution.Hosts.Codex;
 using MackySoft.AgentDistribution.Shared;
 
@@ -11,9 +10,7 @@ public sealed class CodexAgentHostArtifactAdapterTests
     public void BuildArtifacts_GeneratesDeterministicCodexToml ()
     {
         var artifacts = new CodexAgentHostArtifactAdapter().BuildArtifacts(
-            CreateMetadata("architect"),
-            "Line 1\nLine 2\n",
-            CreateBinding());
+            CreateRequest("architect", "Line 1\nLine 2\n", CreateBinding()));
 
         var artifact = Assert.Single(artifacts.Files);
         Assert.Equal("architect.toml", artifact.RelativePath.Value);
@@ -46,9 +43,7 @@ public sealed class CodexAgentHostArtifactAdapterTests
     {
         var exception = Assert.Throws<ArgumentException>(() =>
             new CodexAgentHostArtifactAdapter().BuildArtifacts(
-                CreateMetadata("worker"),
-                "Do the work.\n",
-                CreateBinding()));
+                CreateRequest("worker", "Do the work.\n", CreateBinding())));
 
         Assert.Contains("reserved", exception.Message, StringComparison.Ordinal);
     }
@@ -58,23 +53,20 @@ public sealed class CodexAgentHostArtifactAdapterTests
     public void BuildArtifacts_WhenInstructionsContainControlCharacter_EscapesItInToml ()
     {
         var artifacts = new CodexAgentHostArtifactAdapter().BuildArtifacts(
-            CreateMetadata("architect"),
-            "Review\u0001the change.\n",
-            CreateBinding());
+            CreateRequest("architect", "Review\u0001the change.\n", CreateBinding()));
 
         var artifact = Assert.Single(artifacts.Files);
         Assert.Contains("developer_instructions = \"Review\\u0001the change.\\n\"\n", artifact.Content, StringComparison.Ordinal);
         Assert.DoesNotContain('\u0001', artifact.Content);
     }
 
-    private static AgentSourceMetadata CreateMetadata (string agentName)
+    private static AgentHostArtifactRequest CreateRequest (string agentName, string instructions, string bindingJson)
     {
-        return new AgentSourceMetadata(
-            schemaVersion: 1,
+        return new AgentHostArtifactRequest(
             new AgentName(agentName),
-            "Architect",
             "Creates an implementation-ready design contract.",
-            Array.Empty<SkillName>());
+            instructions,
+            bindingJson);
     }
 
     private static string CreateBinding ()

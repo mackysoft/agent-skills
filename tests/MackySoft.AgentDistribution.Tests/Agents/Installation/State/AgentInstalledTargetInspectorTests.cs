@@ -1,7 +1,6 @@
 using MackySoft.AgentDistribution.Agents.Installation.State;
 using MackySoft.AgentDistribution.Agents.Installation.Targeting;
 using MackySoft.AgentDistribution.Agents.Manifests;
-using MackySoft.AgentDistribution.Bundles;
 using MackySoft.AgentDistribution.Catalogs;
 using MackySoft.AgentDistribution.Digests;
 using MackySoft.AgentDistribution.Shared;
