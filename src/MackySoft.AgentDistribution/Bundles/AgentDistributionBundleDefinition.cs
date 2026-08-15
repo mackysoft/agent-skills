@@ -1,3 +1,4 @@
+using MackySoft.AgentDistribution.Agents.Manifests;
 using MackySoft.AgentDistribution.Catalogs;
 
 namespace MackySoft.AgentDistribution.Bundles;

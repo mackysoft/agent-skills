@@ -1,4 +1,3 @@
-using MackySoft.AgentDistribution.Agents.Packaging;
 using MackySoft.AgentDistribution.Digests;
 using MackySoft.AgentDistribution.Shared;
 

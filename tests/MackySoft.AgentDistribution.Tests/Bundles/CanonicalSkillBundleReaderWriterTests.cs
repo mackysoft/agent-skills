@@ -1,7 +1,7 @@
-using MackySoft.AgentDistribution.Bundles;
 using MackySoft.AgentDistribution.Digests;
-using MackySoft.AgentDistribution.Manifests;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Bundles;
+using MackySoft.AgentDistribution.Skills.Manifests;
 
 namespace MackySoft.AgentDistribution.Tests.Bundles;
 

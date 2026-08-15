@@ -1,8 +1,9 @@
-using MackySoft.AgentDistribution.Bundles;
 using MackySoft.AgentDistribution.Catalogs;
 using MackySoft.AgentDistribution.Digests;
-using MackySoft.AgentDistribution.Manifests;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Bundles;
+using MackySoft.AgentDistribution.Skills.Manifests;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 
 namespace MackySoft.AgentDistribution.Tests.Bundles;
 
@@ -79,5 +80,64 @@ public sealed class SkillBundleContractTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task Factory_RejectsPackageDependencyThatIsNotInBundle ()
+    {
+        var generated = await SkillTestData.GenerateFixtureBundleAsync();
+        var package = generated.Packages[0];
+        var replacement = CreatePackageWithDependencies(package, [new SkillName("missing-skill")]);
+
+        var result = new CanonicalSkillBundle.Factory(new SkillBundleDigestCalculator(new SkillManifestJsonSerializer()))
+            .CreateCanonical(new CanonicalSkillBundleCandidate(
+                generated.Descriptor,
+                SkillTestData.ReplacePackage(generated.Packages, replacement)));
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(
+            $"Generated SKILL bundle dependency was not found: {package.Manifest.SkillName.Value} -> missing-skill.",
+            result.Failure.Message);
+    }
+
+    [Fact]
+    [Trait("Size", "Small")]
+    public async Task Factory_RejectsPackageDependencyCycleWithCanonicalPath ()
+    {
+        var generated = await SkillTestData.GenerateFixtureBundleAsync();
+        var first = generated.Packages[0];
+        var second = generated.Packages[1];
+        var firstReplacement = CreatePackageWithDependencies(first, [second.Manifest.SkillName]);
+        var secondReplacement = CreatePackageWithDependencies(second, [first.Manifest.SkillName]);
+        var packages = SkillTestData.ReplacePackage(
+            SkillTestData.ReplacePackage(generated.Packages, firstReplacement),
+            secondReplacement);
+
+        var result = new CanonicalSkillBundle.Factory(new SkillBundleDigestCalculator(new SkillManifestJsonSerializer()))
+            .CreateCanonical(new CanonicalSkillBundleCandidate(generated.Descriptor, packages));
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.Equal(
+            $"Generated SKILL bundle dependency cycle was found: {first.Manifest.SkillName.Value} -> {second.Manifest.SkillName.Value} -> {first.Manifest.SkillName.Value}.",
+            result.Failure.Message);
+    }
+
+    private static CanonicalSkillPackage CreatePackageWithDependencies (
+        CanonicalSkillPackage package,
+        IReadOnlyList<SkillName> dependencies)
+    {
+        var manifest = SkillTestData.WithComputedManifestDigest(
+            SkillTestData.CopyManifest(package.Manifest, dependencies: dependencies));
+        var manifestFile = new PackageTextFile(
+            PackageRelativePath.Parse("agent-skill.json"),
+            new SkillManifestJsonSerializer().Serialize(manifest));
+        return SkillTestData.CreateCanonicalPackage(
+            manifest,
+            package.Files
+                .Select(file => file.RelativePath.Value == "agent-skill.json" ? manifestFile : file)
+                .ToArray());
     }
 }

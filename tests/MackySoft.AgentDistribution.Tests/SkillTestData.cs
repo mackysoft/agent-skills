@@ -1,10 +1,8 @@
 using MackySoft.AgentDistribution.Agents.Installation.Targeting;
-using MackySoft.AgentDistribution.Bundles;
 using MackySoft.AgentDistribution.Catalogs;
 using MackySoft.AgentDistribution.Digests;
 using MackySoft.AgentDistribution.Distribution;
 using MackySoft.AgentDistribution.Doctor;
-using MackySoft.AgentDistribution.Generation;
 using MackySoft.AgentDistribution.Hosts.Registration;
 using MackySoft.AgentDistribution.Installation.Contracts;
 using MackySoft.AgentDistribution.Installation.Diffing;
@@ -14,10 +12,12 @@ using MackySoft.AgentDistribution.Installation.State;
 using MackySoft.AgentDistribution.Installation.Targeting;
 using MackySoft.AgentDistribution.Installation.Transactions;
 using MackySoft.AgentDistribution.Installation.Validation;
-using MackySoft.AgentDistribution.Manifests;
 using MackySoft.AgentDistribution.Materialization;
-using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Bundles;
+using MackySoft.AgentDistribution.Skills.Generation;
+using MackySoft.AgentDistribution.Skills.Manifests;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 using MackySoft.AgentDistribution.Sources;
 
 namespace MackySoft.AgentDistribution.Tests;
@@ -176,6 +176,35 @@ internal static class SkillTestData
             new CanonicalSkillPackageCandidate(manifest, files));
         Assert.True(result.IsSuccess, result.Failure?.Message);
         return result.Value!;
+    }
+
+    internal static CanonicalSkillPackage CreatePackageWithDeclaredFrontmatterDigest (
+        CanonicalSkillPackage package,
+        HostKind host,
+        Sha256Digest frontmatterDigest)
+    {
+        ArgumentNullException.ThrowIfNull(package);
+        ArgumentNullException.ThrowIfNull(frontmatterDigest);
+
+        var manifestCandidate = CopyManifest(
+            package.Manifest,
+            hostArtifacts: package.Manifest.HostArtifacts
+                .Select(artifact => artifact.Host == host
+                    ? new SkillHostArtifactManifest(
+                        artifact.Host,
+                        artifact.Path,
+                        artifact.Digest,
+                        frontmatterDigest)
+                    : artifact)
+                .ToArray());
+        var manifest = WithComputedManifestDigest(manifestCandidate);
+        var manifestText = new SkillManifestJsonSerializer().Serialize(manifest);
+        var files = package.Files
+            .Select(file => string.Equals(file.RelativePath.Value, "agent-skill.json", StringComparison.Ordinal)
+                ? new PackageTextFile(file.RelativePath, manifestText)
+                : file)
+            .ToArray();
+        return CreateCanonicalPackage(manifest, files);
     }
 
     internal static CanonicalSkillBundle CreateCanonicalBundle (
@@ -433,7 +462,7 @@ internal static class SkillTestData
         var hostArtifacts = new List<SkillHostArtifactManifest>();
         var hostArtifactFiles = new List<PackageTextFile>();
 
-        foreach (var registration in HostRegistration.Registrations)
+        foreach (var registration in BuiltInHostCatalog.Registrations)
         {
             var adapter = registration.SkillAdapter;
             var artifacts = adapter.BuildArtifacts(metadata);
@@ -492,7 +521,7 @@ internal static class SkillTestData
         var hostArtifacts = new List<SkillHostArtifactManifest>();
         foreach (var artifact in manifestCandidate.HostArtifacts.OrderBy(static artifact => artifact.Host))
         {
-            var registrationResult = HostRegistration.Get(artifact.Host);
+            var registrationResult = BuiltInHostCatalog.Get(artifact.Host);
             Assert.True(registrationResult.IsSuccess, registrationResult.Failure?.Message);
             var registration = registrationResult.Value!;
             var adapter = registration.SkillAdapter;

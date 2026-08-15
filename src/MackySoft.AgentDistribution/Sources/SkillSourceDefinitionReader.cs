@@ -498,7 +498,7 @@ public sealed class SkillSourceDefinitionReader
             static definition => definition.Metadata.SkillName,
             static definition => definition.Metadata.Dependencies);
 
-        return SkillDependencyGraphValidator.Validate(
+        return SkillDependencyGraphValidator.ValidateClosedGraph(
             dependenciesBySkillName,
             AgentDistributionFailureCodes.SourceInvalid,
             "skill.json");

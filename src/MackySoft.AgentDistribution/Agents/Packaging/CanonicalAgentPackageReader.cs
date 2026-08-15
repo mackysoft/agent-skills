@@ -1,8 +1,8 @@
 using MackySoft.AgentDistribution.Agents.Manifests;
 using MackySoft.AgentDistribution.Digests;
-using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Packaging.Paths;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Agents.Packaging;

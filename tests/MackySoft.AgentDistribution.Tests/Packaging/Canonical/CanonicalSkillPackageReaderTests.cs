@@ -1,7 +1,7 @@
 using System.Text;
 using MackySoft.AgentDistribution.Digests;
-using MackySoft.AgentDistribution.Manifests;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Manifests;
 
 namespace MackySoft.AgentDistribution.Tests.Packaging.Canonical;
 
@@ -141,7 +141,7 @@ public sealed class CanonicalSkillPackageReaderTests
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task ReadAllAsync_RejectsHostArtifactAdapterOutputDrift ()
+    public async Task ReadAllAsync_AcceptsHostArtifactContentMatchingDeclaredDigestWithoutAdapterValidation ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "generated-host-artifact-adapter-drift");
         var skillsRoot = CopyGeneratedSkills(scope);
@@ -167,13 +167,12 @@ public sealed class CanonicalSkillPackageReaderTests
 
         var result = await reader.ReadAllAsync(skillsRoot, CancellationToken.None);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.True(result.IsSuccess, result.Failure?.Message);
     }
 
     [Fact]
     [Trait("Size", "Small")]
-    public async Task ReadAllAsync_RejectsFrontmatterDigestDrift ()
+    public async Task ReadAllAsync_AcceptsDeclaredFrontmatterDigestWithoutAdapterValidation ()
     {
         using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "generated-frontmatter-drift");
         var skillsRoot = CopyGeneratedSkills(scope);
@@ -193,8 +192,7 @@ public sealed class CanonicalSkillPackageReaderTests
 
         var result = await reader.ReadAllAsync(skillsRoot, CancellationToken.None);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
+        Assert.True(result.IsSuccess, result.Failure?.Message);
     }
 
     [Fact]

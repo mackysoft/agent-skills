@@ -1,8 +1,9 @@
 using System.Reflection;
-using MackySoft.AgentDistribution.Bundles;
-using MackySoft.AgentDistribution.Generation;
-using MackySoft.AgentDistribution.Manifests;
-using MackySoft.AgentDistribution.Packaging.Canonical;
+using MackySoft.AgentDistribution.Bundles.Generation;
+using MackySoft.AgentDistribution.Skills.Bundles;
+using MackySoft.AgentDistribution.Skills.Generation;
+using MackySoft.AgentDistribution.Skills.Manifests;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 using MackySoft.AgentDistribution.Sources;
 
 namespace MackySoft.AgentDistribution.Tests.Bundles;

@@ -1,8 +1,9 @@
-using MackySoft.AgentDistribution.Bundles;
+using MackySoft.AgentDistribution.Agents.Distribution;
 using MackySoft.AgentDistribution.Materialization;
 using MackySoft.AgentDistribution.Packaging.Paths;
 using MackySoft.AgentDistribution.Serialization;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Bundles;
 using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Distribution;

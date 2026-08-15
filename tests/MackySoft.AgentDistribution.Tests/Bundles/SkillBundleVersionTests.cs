@@ -1,4 +1,4 @@
-using MackySoft.AgentDistribution.Bundles;
+using MackySoft.AgentDistribution.Skills.Manifests;
 
 namespace MackySoft.AgentDistribution.Tests.Bundles;
 

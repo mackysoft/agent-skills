@@ -201,7 +201,7 @@ internal sealed class AgentSourceDefinitionReader
                     $"Unsupported agent host binding: {hostName.Value}");
             }
 
-            var registrationResult = HostRegistration.Get(host);
+            var registrationResult = BuiltInHostCatalog.Get(host);
             if (!registrationResult.IsSuccess)
             {
                 return AgentDistributionOperationResult<IReadOnlyList<AgentHostBindingSource>>.FailureResult(

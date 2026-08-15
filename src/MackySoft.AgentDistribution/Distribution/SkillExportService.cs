@@ -1,13 +1,13 @@
 using MackySoft.AgentDistribution.Materialization;
-using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Packaging.Paths;
 using MackySoft.AgentDistribution.Serialization;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Distribution;
 
-/// <summary> Exports SKILL packages to a host-materialized output directory. </summary>
+/// <summary> Exports SKILL packages to a host-materialized directory or zip archive. </summary>
 public sealed class SkillExportService
 {
     private readonly SkillMaterializationService materializationService;
@@ -19,12 +19,12 @@ public sealed class SkillExportService
         this.materializationService = materializationService ?? throw new ArgumentNullException(nameof(materializationService));
     }
 
-    /// <summary> Exports all packages into an output root. </summary>
+    /// <summary> Validates and materializes all packages before exporting them into an output root. </summary>
     /// <param name="packages"> The canonical packages. </param>
     /// <param name="host"> The target host. </param>
     /// <param name="outputRoot"> The output root directory. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
-    /// <returns> The output root or failure. </returns>
+    /// <returns> The output root or failure. A materialization failure occurs before any output file is published. </returns>
     public ValueTask<AgentDistributionOperationResult<AbsolutePath>> ExportAsync (
         IReadOnlyList<CanonicalSkillPackage> packages,
         HostKind host,
@@ -34,13 +34,13 @@ public sealed class SkillExportService
         return ExportAsync(packages, host, outputRoot, PackageExportFormat.Directory, cancellationToken);
     }
 
-    /// <summary> Exports all packages into an output path. </summary>
+    /// <summary> Validates and materializes all packages before exporting them into an output path. </summary>
     /// <param name="packages"> The canonical packages. </param>
     /// <param name="host"> The target host. </param>
     /// <param name="outputRoot"> The output directory or zip file path. </param>
     /// <param name="format"> The output format. </param>
     /// <param name="cancellationToken"> The cancellation token propagated by command execution. </param>
-    /// <returns> The output path or failure. </returns>
+    /// <returns> The output path or failure. A materialization failure occurs before any output file is published. </returns>
     public async ValueTask<AgentDistributionOperationResult<AbsolutePath>> ExportAsync (
         IReadOnlyList<CanonicalSkillPackage> packages,
         HostKind host,
@@ -68,29 +68,32 @@ public sealed class SkillExportService
         AbsolutePath outputRoot,
         CancellationToken cancellationToken)
     {
-        if (packages.Count == 0)
+        var materializedResult = MaterializeAll(packages, host, cancellationToken);
+        if (!materializedResult.IsSuccess)
+        {
+            return AgentDistributionOperationResult<AbsolutePath>.FailureResult(
+                materializedResult.Failure!.Code,
+                materializedResult.Failure.Message);
+        }
+
+        var materializedPackages = materializedResult.Value!;
+        if (materializedPackages.Count == 0)
         {
             Directory.CreateDirectory(outputRoot.Value);
         }
 
-        foreach (var package in packages.OrderBy(static package => package.Manifest.SkillName.Value, StringComparer.Ordinal))
+        foreach (var package in materializedPackages)
         {
-            var materializedResult = materializationService.Materialize(package, host);
-            if (!materializedResult.IsSuccess)
-            {
-                return AgentDistributionOperationResult<AbsolutePath>.FailureResult(materializedResult.Failure!.Code, materializedResult.Failure.Message);
-            }
-
             var skillDirectoryResult = PackagePathResolver.ResolveUnderRoot(
                 outputRoot,
-                ContainedPath.Create(outputRoot, RootRelativePath.Parse(package.Manifest.SkillName.Value)).Target);
+                ContainedPath.Create(outputRoot, RootRelativePath.Parse(package.SkillName.Value)).Target);
             if (!skillDirectoryResult.IsSuccess)
             {
                 return AgentDistributionOperationResult<AbsolutePath>.FailureResult(skillDirectoryResult.Failure!.Code, skillDirectoryResult.Failure.Message);
             }
 
             var skillDirectory = skillDirectoryResult.Value!;
-            foreach (var file in materializedResult.Value!.Files)
+            foreach (var file in package.Files)
             {
                 var filePathResult = PackagePathResolver.ResolveUnderRoot(
                     outputRoot,
@@ -120,20 +123,20 @@ public sealed class SkillExportService
                 $"SKILL export zip output path is invalid: {outputPath}");
         }
 
-        var zipEntries = new List<PackageTextFile>();
-        foreach (var package in packages.OrderBy(static package => package.Manifest.SkillName.Value, StringComparer.Ordinal))
+        var materializedResult = MaterializeAll(packages, host, cancellationToken);
+        if (!materializedResult.IsSuccess)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            return AgentDistributionOperationResult<AbsolutePath>.FailureResult(
+                materializedResult.Failure!.Code,
+                materializedResult.Failure.Message);
+        }
 
-            var materializedResult = materializationService.Materialize(package, host);
-            if (!materializedResult.IsSuccess)
+        var zipEntries = new List<PackageTextFile>();
+        foreach (var package in materializedResult.Value!)
+        {
+            foreach (var file in package.Files)
             {
-                return AgentDistributionOperationResult<AbsolutePath>.FailureResult(materializedResult.Failure!.Code, materializedResult.Failure.Message);
-            }
-
-            foreach (var file in materializedResult.Value!.Files.OrderBy(static file => file.RelativePath.Value, StringComparer.Ordinal))
-            {
-                var entryPath = $"{package.Manifest.SkillName.Value}/{file.RelativePath.Value}";
+                var entryPath = $"{package.SkillName.Value}/{file.RelativePath.Value}";
                 if (!PackageRelativePath.TryParse(entryPath, out var relativeEntryPath))
                 {
                     return AgentDistributionOperationResult<AbsolutePath>.FailureResult(
@@ -160,5 +163,28 @@ public sealed class SkillExportService
                 AgentDistributionFailureCodes.InstallTargetWriteFailed,
                 $"Failed to export SKILL zip: {outputPath}. {ex.Message}");
         }
+    }
+
+    private AgentDistributionOperationResult<IReadOnlyList<SkillMaterializedPackage>> MaterializeAll (
+        IReadOnlyList<CanonicalSkillPackage> packages,
+        HostKind host,
+        CancellationToken cancellationToken)
+    {
+        var materializedPackages = new List<SkillMaterializedPackage>(packages.Count);
+        foreach (var package in packages.OrderBy(static package => package.Manifest.SkillName.Value, StringComparer.Ordinal))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var materializedResult = materializationService.Materialize(package, host);
+            if (!materializedResult.IsSuccess)
+            {
+                return AgentDistributionOperationResult<IReadOnlyList<SkillMaterializedPackage>>.FailureResult(
+                    materializedResult.Failure!.Code,
+                    materializedResult.Failure.Message);
+            }
+
+            materializedPackages.Add(materializedResult.Value!);
+        }
+
+        return AgentDistributionOperationResult<IReadOnlyList<SkillMaterializedPackage>>.Success(materializedPackages);
     }
 }

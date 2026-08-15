@@ -1,3 +1,4 @@
+using MackySoft.AgentDistribution.Agents.Distribution;
 using MackySoft.AgentDistribution.Agents.Selection;
 using MackySoft.AgentDistribution.Bundles;
 using MackySoft.AgentDistribution.Shared;
@@ -108,7 +109,8 @@ public sealed class AgentPackageProvider
         var resolvedSkills = SkillPackageDependencyResolver.Resolve(bundle.Skills, directSkillDependencies);
 
         return AgentDistributionOperationResult<AgentPackageCatalog>.Success(new AgentPackageCatalog(
-            bundle.Descriptor,
+            bundle.Descriptor.CatalogId,
+            bundle.Descriptor.BundleVersion,
             selectedAgentNames,
             selectedAgents,
             resolvedSkills));

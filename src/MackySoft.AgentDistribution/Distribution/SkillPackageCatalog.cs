@@ -1,5 +1,5 @@
-using MackySoft.AgentDistribution.Bundles;
-using MackySoft.AgentDistribution.Packaging.Canonical;
+using MackySoft.AgentDistribution.Skills.Bundles;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 
 namespace MackySoft.AgentDistribution.Distribution;
 

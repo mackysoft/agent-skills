@@ -3,9 +3,9 @@ using MackySoft.AgentDistribution.Agents.Packaging;
 using MackySoft.AgentDistribution.Bundles;
 using MackySoft.AgentDistribution.Digests;
 using MackySoft.AgentDistribution.Distribution;
-using MackySoft.AgentDistribution.Manifests;
-using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Manifests;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 
 namespace MackySoft.AgentDistribution.Tests.Distribution;
 
@@ -36,8 +36,8 @@ public sealed class AgentPackageProviderTests
             new[] { sameNameAgent.Manifest.AgentName.Value, reviewer.Manifest.AgentName.Value }.Order(StringComparer.Ordinal),
             result.Value.SelectedAgents.Select(static agent => agent.Manifest.AgentName.Value));
         Assert.Equal([skills[0].Manifest.SkillName.Value], result.Value.ResolvedSkills.Select(static skill => skill.Manifest.SkillName.Value));
-        Assert.Equal(result.Value.BundleDescriptor.CatalogId, result.Value.SelectedAgents[0].Manifest.CatalogId);
-        Assert.Equal(result.Value.BundleDescriptor.BundleVersion.Value, result.Value.ResolvedSkills[0].Manifest.SkillBundleVersion.Value);
+        Assert.Equal(result.Value.CatalogId, result.Value.SelectedAgents[0].Manifest.CatalogId);
+        Assert.Equal(result.Value.BundleVersion.Value, result.Value.ResolvedSkills[0].Manifest.SkillBundleVersion.Value);
     }
 
     [Fact]
