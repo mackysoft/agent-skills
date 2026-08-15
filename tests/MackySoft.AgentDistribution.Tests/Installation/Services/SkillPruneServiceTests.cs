@@ -2,8 +2,8 @@ using MackySoft.AgentDistribution.Catalogs;
 using MackySoft.AgentDistribution.Installation.Requests;
 using MackySoft.AgentDistribution.Installation.Results;
 using MackySoft.AgentDistribution.Installation.Targeting;
-using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 
 namespace MackySoft.AgentDistribution.Tests.Installation.Services;
 

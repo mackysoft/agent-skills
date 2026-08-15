@@ -160,148 +160,7 @@ public sealed class SkillCatalogTargetRootSelector
         IReadOnlySet<SkillName> selectedSkillNames,
         CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        var hostRoot = candidates.DefaultHostRoot;
-        if (!candidates.IncludesCatalogDirectoryLayout
-            || hostRoot is null
-            || selectedSkillNames.Count == 0
-            || !Directory.Exists(hostRoot.Value))
-        {
-            return AgentDistributionOperationResult<bool>.Success(false);
-        }
-
-        AbsolutePath[] siblingRoots;
-        try
-        {
-            siblingRoots = Directory.GetDirectories(hostRoot.Value)
-                .Select(AbsolutePath.Parse)
-                .ToArray();
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return AgentDistributionOperationResult<bool>.FailureResult(
-                AgentDistributionFailureCodes.InstallTargetReadFailed,
-                $"Could not inspect sibling SKILL catalog roots: {hostRoot}. {ex.Message}");
-        }
-
-        var candidateRoots = candidates.Targets
-            .Select(static target => target.TargetRoot)
-            .ToArray();
-        var physicalCandidateRoots = new List<AbsolutePath>(candidateRoots.Length);
-        foreach (var candidateRoot in candidateRoots)
-        {
-            if (!ContainedPath.TryCreate(hostRoot, candidateRoot, out var containedCandidateRoot, out var containmentFailure))
-            {
-                return AgentDistributionOperationResult<bool>.FailureResult(
-                    AgentDistributionFailureCodes.PathUnsafe,
-                    $"SKILL target candidate is outside its host root: {containmentFailure.Message}");
-            }
-
-            if (!PhysicalPathResolver.TryResolve(
-                    containedCandidateRoot,
-                    SymbolicLinkHandling.Follow,
-                    MissingPathHandling.AllowMissingTail,
-                    out var candidateResolution,
-                    out var candidateFailure))
-            {
-                return AgentDistributionOperationResult<bool>.FailureResult(
-                    AgentDistributionFailureCodes.PathUnsafe,
-                    $"SKILL target candidate could not be resolved: {candidateFailure.Message}");
-            }
-
-            physicalCandidateRoots.Add(candidateResolution.ResolvedPath.Target);
-        }
-
-        foreach (var siblingRoot in siblingRoots.OrderBy(static path => path.Value, StringComparer.Ordinal))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (candidateRoots.Any(candidateRoot => candidateRoot.IsSameAs(siblingRoot)))
-            {
-                continue;
-            }
-
-            var siblingRootResult = PackagePathResolver.ResolveUnderRoot(hostRoot, siblingRoot);
-            if (!siblingRootResult.IsSuccess)
-            {
-                foreach (var selectedSkillName in selectedSkillNames)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var selectedSkillPath = ContainedPath.Create(
-                        siblingRoot,
-                        RootRelativePath.Parse(selectedSkillName.Value)).Target;
-                    if (Directory.Exists(selectedSkillPath.Value))
-                    {
-                        return AgentDistributionOperationResult<bool>.FailureResult(
-                            siblingRootResult.Failure!.Code,
-                            siblingRootResult.Failure.Message);
-                    }
-                }
-
-                continue;
-            }
-
-            var resolvedSiblingRoot = siblingRootResult.Value!;
-            if (!ContainedPath.TryCreate(
-                    hostRoot,
-                    resolvedSiblingRoot,
-                    out var containedSiblingRoot,
-                    out var siblingContainmentFailure))
-            {
-                return AgentDistributionOperationResult<bool>.FailureResult(
-                    AgentDistributionFailureCodes.PathUnsafe,
-                    $"Sibling SKILL catalog root escaped its host root: {siblingContainmentFailure.Message}");
-            }
-
-            if (!PhysicalPathResolver.TryResolve(
-                    containedSiblingRoot,
-                    SymbolicLinkHandling.Follow,
-                    MissingPathHandling.Reject,
-                    out var siblingResolution,
-                    out var siblingFailure))
-            {
-                return AgentDistributionOperationResult<bool>.FailureResult(
-                    AgentDistributionFailureCodes.PathUnsafe,
-                    $"Sibling SKILL catalog root could not be resolved: {siblingFailure.Message}");
-            }
-
-            if (physicalCandidateRoots.Any(candidateRoot => candidateRoot.IsSameAs(siblingResolution.ResolvedPath.Target)))
-            {
-                continue;
-            }
-
-            if (ContainsSkillRootMarker(resolvedSiblingRoot))
-            {
-                continue;
-            }
-
-            foreach (var selectedSkillName in selectedSkillNames.OrderBy(static name => name.Value, StringComparer.Ordinal))
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var skillDirectoryPath = ContainedPath.Create(
-                    resolvedSiblingRoot,
-                    RootRelativePath.Parse(selectedSkillName.Value)).Target;
-                var skillDirectoryResult = PackagePathResolver.ResolveUnderRoot(
-                    resolvedSiblingRoot,
-                    skillDirectoryPath);
-                if (!skillDirectoryResult.IsSuccess)
-                {
-                    return AgentDistributionOperationResult<bool>.FailureResult(
-                        skillDirectoryResult.Failure!.Code,
-                        skillDirectoryResult.Failure.Message);
-                }
-
-                if (!Directory.Exists(skillDirectoryResult.Value!.Value))
-                {
-                    continue;
-                }
-
-                return AgentDistributionOperationResult<bool>.FailureResult(
-                    AgentDistributionFailureCodes.InstallTargetNameCollision,
-                    $"SKILL name '{selectedSkillName.Value}' is already present under another catalog directory while selecting catalog '{catalogId.Value}': {skillDirectoryResult.Value}");
-            }
-        }
-
-        return AgentDistributionOperationResult<bool>.Success(false);
+        return SiblingCatalogInspection.Validate(candidates, catalogId, selectedSkillNames, cancellationToken);
     }
 
     private static bool ContainsSkillRootMarker (AbsolutePath candidateRoot)
@@ -389,6 +248,271 @@ public sealed class SkillCatalogTargetRootSelector
         }
 
         return AgentDistributionOperationResult<bool>.Success(false);
+    }
+
+    private sealed class SiblingCatalogInspection
+    {
+        private AgentDistributionCatalogId CatalogId { get; init; } = null!;
+
+        private AbsolutePath HostRoot { get; init; } = null!;
+
+        private IReadOnlyList<AbsolutePath> CandidateRoots { get; init; } = null!;
+
+        private IReadOnlyList<AbsolutePath> PhysicalCandidateRoots { get; init; } = null!;
+
+        private IReadOnlySet<SkillName> SelectedSkillNames { get; init; } = null!;
+
+        private IReadOnlyList<AbsolutePath> SiblingRoots { get; init; } = null!;
+
+        public static AgentDistributionOperationResult<bool> Validate (
+            SkillInstallTargetCandidates candidates,
+            AgentDistributionCatalogId catalogId,
+            IReadOnlySet<SkillName> selectedSkillNames,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var hostRoot = candidates.DefaultHostRoot;
+            if (!candidates.IncludesCatalogDirectoryLayout
+                || hostRoot is null
+                || selectedSkillNames.Count == 0
+                || !Directory.Exists(hostRoot.Value))
+            {
+                return AgentDistributionOperationResult<bool>.Success(false);
+            }
+
+            var inspectionResult = Create(candidates, catalogId, selectedSkillNames, hostRoot);
+            return inspectionResult.IsSuccess
+                ? inspectionResult.Value!.Validate(cancellationToken)
+                : AgentDistributionOperationResult<bool>.FailureResult(
+                    inspectionResult.Failure!.Code,
+                    inspectionResult.Failure.Message);
+        }
+
+        private static AgentDistributionOperationResult<SiblingCatalogInspection> Create (
+            SkillInstallTargetCandidates candidates,
+            AgentDistributionCatalogId catalogId,
+            IReadOnlySet<SkillName> selectedSkillNames,
+            AbsolutePath hostRoot)
+        {
+            var siblingRootsResult = EnumerateSiblingCatalogRoots(hostRoot);
+            if (!siblingRootsResult.IsSuccess)
+            {
+                return AgentDistributionOperationResult<SiblingCatalogInspection>.FailureResult(
+                    siblingRootsResult.Failure!.Code,
+                    siblingRootsResult.Failure.Message);
+            }
+
+            var candidateRoots = candidates.Targets.Select(static target => target.TargetRoot).ToArray();
+            var physicalCandidateRootsResult = ResolvePhysicalCandidateRoots(hostRoot, candidateRoots);
+            if (!physicalCandidateRootsResult.IsSuccess)
+            {
+                return AgentDistributionOperationResult<SiblingCatalogInspection>.FailureResult(
+                    physicalCandidateRootsResult.Failure!.Code,
+                    physicalCandidateRootsResult.Failure.Message);
+            }
+
+            return AgentDistributionOperationResult<SiblingCatalogInspection>.Success(new SiblingCatalogInspection
+            {
+                CatalogId = catalogId,
+                CandidateRoots = candidateRoots,
+                HostRoot = hostRoot,
+                PhysicalCandidateRoots = physicalCandidateRootsResult.Value!,
+                SelectedSkillNames = selectedSkillNames,
+                SiblingRoots = siblingRootsResult.Value!,
+            });
+        }
+
+        public AgentDistributionOperationResult<bool> Validate (CancellationToken cancellationToken)
+        {
+            foreach (var siblingRoot in SiblingRoots.OrderBy(static path => path.Value, StringComparer.Ordinal))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (CandidateRoots.Any(candidateRoot => candidateRoot.IsSameAs(siblingRoot)))
+                {
+                    continue;
+                }
+
+                var collisionResult = ValidateSiblingCatalog(siblingRoot, cancellationToken);
+                if (!collisionResult.IsSuccess || collisionResult.Value)
+                {
+                    return collisionResult;
+                }
+            }
+
+            return AgentDistributionOperationResult<bool>.Success(false);
+        }
+
+        private AgentDistributionOperationResult<bool> ValidateSiblingCatalog (
+            AbsolutePath siblingRoot,
+            CancellationToken cancellationToken)
+        {
+            var siblingRootResult = PackagePathResolver.ResolveUnderRoot(HostRoot, siblingRoot);
+            if (!siblingRootResult.IsSuccess)
+            {
+                return HasSelectedSkillDirectory(siblingRoot, cancellationToken)
+                    ? AgentDistributionOperationResult<bool>.FailureResult(
+                        siblingRootResult.Failure!.Code,
+                        siblingRootResult.Failure.Message)
+                    : AgentDistributionOperationResult<bool>.Success(false);
+            }
+
+            var resolvedSiblingRoot = siblingRootResult.Value!;
+            var physicalSiblingRootResult = ResolvePhysicalSiblingRoot(resolvedSiblingRoot);
+            if (!physicalSiblingRootResult.IsSuccess)
+            {
+                return AgentDistributionOperationResult<bool>.FailureResult(
+                    physicalSiblingRootResult.Failure!.Code,
+                    physicalSiblingRootResult.Failure.Message);
+            }
+
+            if (PhysicalCandidateRoots.Any(candidateRoot => candidateRoot.IsSameAs(physicalSiblingRootResult.Value!))
+                || ContainsSkillRootMarker(resolvedSiblingRoot))
+            {
+                return AgentDistributionOperationResult<bool>.Success(false);
+            }
+
+            return FindSelectedSkillNameCollision(resolvedSiblingRoot, cancellationToken);
+        }
+
+        private bool HasSelectedSkillDirectory (AbsolutePath siblingRoot, CancellationToken cancellationToken)
+        {
+            foreach (var selectedSkillName in SelectedSkillNames)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var selectedSkillPath = ContainedPath.Create(
+                    siblingRoot,
+                    RootRelativePath.Parse(selectedSkillName.Value)).Target;
+                if (Directory.Exists(selectedSkillPath.Value))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private AgentDistributionOperationResult<AbsolutePath> ResolvePhysicalSiblingRoot (AbsolutePath resolvedSiblingRoot)
+        {
+            if (!ContainedPath.TryCreate(
+                    HostRoot,
+                    resolvedSiblingRoot,
+                    out var containedSiblingRoot,
+                    out var siblingContainmentFailure))
+            {
+                return AgentDistributionOperationResult<AbsolutePath>.FailureResult(
+                    AgentDistributionFailureCodes.PathUnsafe,
+                    $"Sibling SKILL catalog root escaped its host root: {siblingContainmentFailure.Message}");
+            }
+
+            if (!PhysicalPathResolver.TryResolve(
+                    containedSiblingRoot,
+                    SymbolicLinkHandling.Follow,
+                    MissingPathHandling.Reject,
+                    out var siblingResolution,
+                    out var siblingFailure))
+            {
+                return AgentDistributionOperationResult<AbsolutePath>.FailureResult(
+                    AgentDistributionFailureCodes.PathUnsafe,
+                    $"Sibling SKILL catalog root could not be resolved: {siblingFailure.Message}");
+            }
+
+            return AgentDistributionOperationResult<AbsolutePath>.Success(siblingResolution.ResolvedPath.Target);
+        }
+
+        private AgentDistributionOperationResult<bool> FindSelectedSkillNameCollision (
+            AbsolutePath resolvedSiblingRoot,
+            CancellationToken cancellationToken)
+        {
+            foreach (var selectedSkillName in SelectedSkillNames.OrderBy(static name => name.Value, StringComparer.Ordinal))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var skillDirectoryPath = ContainedPath.Create(
+                    resolvedSiblingRoot,
+                    RootRelativePath.Parse(selectedSkillName.Value)).Target;
+                var skillDirectoryResult = PackagePathResolver.ResolveUnderRoot(resolvedSiblingRoot, skillDirectoryPath);
+                if (!skillDirectoryResult.IsSuccess)
+                {
+                    return AgentDistributionOperationResult<bool>.FailureResult(
+                        skillDirectoryResult.Failure!.Code,
+                        skillDirectoryResult.Failure.Message);
+                }
+
+                if (Directory.Exists(skillDirectoryResult.Value!.Value))
+                {
+                    return AgentDistributionOperationResult<bool>.FailureResult(
+                        AgentDistributionFailureCodes.InstallTargetNameCollision,
+                        $"SKILL name '{selectedSkillName.Value}' is already present under another catalog directory while selecting catalog '{CatalogId.Value}': {skillDirectoryResult.Value}");
+                }
+            }
+
+            return AgentDistributionOperationResult<bool>.Success(false);
+        }
+
+        private static AgentDistributionOperationResult<AbsolutePath[]> EnumerateSiblingCatalogRoots (AbsolutePath hostRoot)
+        {
+            AbsolutePath[] siblingRoots;
+            try
+            {
+                siblingRoots = Directory.GetDirectories(hostRoot.Value)
+                    .Select(AbsolutePath.Parse)
+                    .ToArray();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return AgentDistributionOperationResult<AbsolutePath[]>.FailureResult(
+                    AgentDistributionFailureCodes.InstallTargetReadFailed,
+                    $"Could not inspect sibling SKILL catalog roots: {hostRoot}. {ex.Message}");
+            }
+
+            return AgentDistributionOperationResult<AbsolutePath[]>.Success(siblingRoots);
+        }
+
+        private static AgentDistributionOperationResult<IReadOnlyList<AbsolutePath>> ResolvePhysicalCandidateRoots (
+            AbsolutePath hostRoot,
+            IReadOnlyList<AbsolutePath> candidateRoots)
+        {
+            var physicalCandidateRoots = new List<AbsolutePath>(candidateRoots.Count);
+            foreach (var candidateRoot in candidateRoots)
+            {
+                var candidateRootResult = ResolvePhysicalCandidateRoot(hostRoot, candidateRoot);
+                if (!candidateRootResult.IsSuccess)
+                {
+                    return AgentDistributionOperationResult<IReadOnlyList<AbsolutePath>>.FailureResult(
+                        candidateRootResult.Failure!.Code,
+                        candidateRootResult.Failure.Message);
+                }
+
+                physicalCandidateRoots.Add(candidateRootResult.Value!);
+            }
+
+            return AgentDistributionOperationResult<IReadOnlyList<AbsolutePath>>.Success(physicalCandidateRoots);
+        }
+
+        private static AgentDistributionOperationResult<AbsolutePath> ResolvePhysicalCandidateRoot (
+            AbsolutePath hostRoot,
+            AbsolutePath candidateRoot)
+        {
+            if (!ContainedPath.TryCreate(hostRoot, candidateRoot, out var containedCandidateRoot, out var containmentFailure))
+            {
+                return AgentDistributionOperationResult<AbsolutePath>.FailureResult(
+                    AgentDistributionFailureCodes.PathUnsafe,
+                    $"SKILL target candidate is outside its host root: {containmentFailure.Message}");
+            }
+
+            if (!PhysicalPathResolver.TryResolve(
+                    containedCandidateRoot,
+                    SymbolicLinkHandling.Follow,
+                    MissingPathHandling.AllowMissingTail,
+                    out var candidateResolution,
+                    out var candidateFailure))
+            {
+                return AgentDistributionOperationResult<AbsolutePath>.FailureResult(
+                    AgentDistributionFailureCodes.PathUnsafe,
+                    $"SKILL target candidate could not be resolved: {candidateFailure.Message}");
+            }
+
+            return AgentDistributionOperationResult<AbsolutePath>.Success(candidateResolution.ResolvedPath.Target);
+        }
     }
 
 }
