@@ -1,9 +1,8 @@
 using System.Text.Json.Nodes;
 using MackySoft.AgentDistribution.Catalogs;
 using MackySoft.AgentDistribution.Installation.Targeting;
-using MackySoft.AgentDistribution.Manifests;
-using MackySoft.AgentDistribution.Packaging.Canonical;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Manifests;
 
 namespace MackySoft.AgentDistribution.Tests.Installation.Inventory;
 
@@ -24,7 +23,7 @@ public sealed class SkillInstallationScannerTests
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
         var scanner = SkillTestData.CreateInstallationScanner();
 
-        var scanResult = await scanner.ScanAsync(packages, installResult.Value!.TargetRoot.Value, HostKind.Codex, cancellationToken: CancellationToken.None);
+        var scanResult = await scanner.ScanAsync(packages, ResolveTarget(installResult.Value!.TargetRoot.Value), CancellationToken.None);
 
         Assert.True(scanResult.IsSuccess, scanResult.Failure?.Message);
         Assert.Equal(SkillTestData.ExpectedSkillNames, scanResult.Value!.Select(static skill => skill.Identity.SkillName.Value).Order(StringComparer.Ordinal).ToArray());
@@ -55,7 +54,7 @@ public sealed class SkillInstallationScannerTests
         File.WriteAllText(manifestPath, unsupportedSchemaVersionText);
         var scanner = SkillTestData.CreateInstallationScanner();
 
-        var scanResult = await scanner.ScanAsync(packages, installResult.Value.TargetRoot.Value, HostKind.Codex, cancellationToken: CancellationToken.None);
+        var scanResult = await scanner.ScanAsync(packages, ResolveTarget(installResult.Value.TargetRoot.Value), CancellationToken.None);
 
         Assert.False(scanResult.IsSuccess);
         Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, scanResult.Failure!.Code);
@@ -78,45 +77,11 @@ public sealed class SkillInstallationScannerTests
 
         var scanResult = await scanner.ScanAsync(
             packages,
-            installResult.Value!.TargetRoot.Value,
-            HostKind.Codex,
-            SkillScopeKind.User,
+            ResolveTarget(installResult.Value!.TargetRoot.Value, scope: SkillScopeKind.User),
             CancellationToken.None);
 
         Assert.True(scanResult.IsSuccess, scanResult.Failure?.Message);
         Assert.All(scanResult.Value!, static skill => Assert.Equal(SkillScopeKind.User, skill.Identity.Scope));
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task ScanAsync_ReturnsUnsupportedHostFailure_WhenHostIsUnknown ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "scan-unsupported-host");
-        var scanner = SkillTestData.CreateInstallationScanner();
-
-        var result = await scanner.ScanAsync(Array.Empty<CanonicalSkillPackage>(), scope.FullPath, (HostKind)42, cancellationToken: CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(AgentDistributionFailureCodes.HostUnsupported, result.Failure!.Code);
-    }
-
-    [Fact]
-    [Trait("Size", "Small")]
-    public async Task ScanAsync_ReturnsInputInvalid_WhenScopeIsUndefined ()
-    {
-        using var scope = TestDirectories.CreateTempScope("agent-distribution-skills", "scan-undefined-scope");
-        var scanner = SkillTestData.CreateInstallationScanner();
-
-        var result = await scanner.ScanAsync(
-            Array.Empty<CanonicalSkillPackage>(),
-            scope.FullPath,
-            HostKind.Codex,
-            (SkillScopeKind)42,
-            CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(AgentDistributionFailureCodes.InputInvalid, result.Failure!.Code);
-        Assert.Equal(AgentDistributionFailureCategory.InvalidInput, AgentDistributionFailureClassifier.Classify(result.Failure));
     }
 
     [Fact]
@@ -129,7 +94,7 @@ public sealed class SkillInstallationScannerTests
         scope.WriteFile(".agents/skills/sample-skill/agent-skill.json", "{}");
         var scanner = SkillTestData.CreateInstallationScanner();
 
-        var result = await scanner.ScanAsync(packages, targetRoot, HostKind.Codex, cancellationToken: CancellationToken.None);
+        var result = await scanner.ScanAsync(packages, ResolveTarget(targetRoot), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, result.Failure!.Code);
@@ -147,7 +112,7 @@ public sealed class SkillInstallationScannerTests
         scope.WriteFile(".agents/skills/not-the-skill/agent-skill.json", manifest);
         var scanner = SkillTestData.CreateInstallationScanner();
 
-        var result = await scanner.ScanAsync(packages, targetRoot, HostKind.Codex, cancellationToken: CancellationToken.None);
+        var result = await scanner.ScanAsync(packages, ResolveTarget(targetRoot), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(AgentDistributionFailureCodes.InstallTargetNameCollision, result.Failure!.Code);
@@ -168,7 +133,7 @@ public sealed class SkillInstallationScannerTests
         Assert.True(installResult.IsSuccess, installResult.Failure?.Message);
         var scanner = SkillTestData.CreateInstallationScanner();
 
-        var scanResult = await scanner.ScanAsync(packages, installResult.Value!.TargetRoot.Value, HostKind.Codex, cancellationToken: CancellationToken.None);
+        var scanResult = await scanner.ScanAsync(packages, ResolveTarget(installResult.Value!.TargetRoot.Value), CancellationToken.None);
 
         Assert.False(scanResult.IsSuccess);
         Assert.Equal(AgentDistributionFailureCodes.InstallTargetHostConflict, scanResult.Failure!.Code);
@@ -190,7 +155,7 @@ public sealed class SkillInstallationScannerTests
         File.AppendAllText(Path.Combine(installResult.Value!.TargetRoot.Value, packages[0].Manifest.SkillName.Value, "SKILL.md"), "\nInjected instruction.\n");
         var scanner = SkillTestData.CreateInstallationScanner();
 
-        var scanResult = await scanner.ScanAsync(packages, installResult.Value.TargetRoot.Value, HostKind.Codex, cancellationToken: CancellationToken.None);
+        var scanResult = await scanner.ScanAsync(packages, ResolveTarget(installResult.Value.TargetRoot.Value), CancellationToken.None);
 
         Assert.False(scanResult.IsSuccess);
         Assert.Equal(AgentDistributionFailureCodes.InstallTargetContentDigestMismatch, scanResult.Failure!.Code);
@@ -212,7 +177,7 @@ public sealed class SkillInstallationScannerTests
         File.WriteAllText(Path.Combine(installResult.Value!.TargetRoot.Value, packages[0].Manifest.SkillName.Value, "references", "extra.md"), "# Extra\n");
         var scanner = SkillTestData.CreateInstallationScanner();
 
-        var scanResult = await scanner.ScanAsync(packages, installResult.Value.TargetRoot.Value, HostKind.Codex, cancellationToken: CancellationToken.None);
+        var scanResult = await scanner.ScanAsync(packages, ResolveTarget(installResult.Value.TargetRoot.Value), CancellationToken.None);
 
         Assert.False(scanResult.IsSuccess);
         Assert.Equal(AgentDistributionFailureCodes.InstallTargetFileSetMismatch, scanResult.Failure!.Code);
@@ -233,7 +198,7 @@ public sealed class SkillInstallationScannerTests
         scope.WriteFile(".agents/skills/external-skill/agent-skill.json", serializer.Serialize(externalManifest));
         var scanner = SkillTestData.CreateInstallationScanner();
 
-        var scanResult = await scanner.ScanAsync(packages, targetRoot, HostKind.Codex, cancellationToken: CancellationToken.None);
+        var scanResult = await scanner.ScanAsync(packages, ResolveTarget(targetRoot), CancellationToken.None);
 
         Assert.False(scanResult.IsSuccess);
         Assert.Equal(AgentDistributionFailureCodes.InstallTargetUnmanaged, scanResult.Failure!.Code);
@@ -255,7 +220,7 @@ public sealed class SkillInstallationScannerTests
         scope.WriteFile(".agents/skills/external-skill/agent-skill.json", serializer.Serialize(externalManifest));
         var scanner = SkillTestData.CreateInstallationScanner();
 
-        var scanResult = await scanner.ScanAsync(packages, targetRoot, HostKind.Codex, cancellationToken: CancellationToken.None);
+        var scanResult = await scanner.ScanAsync(packages, ResolveTarget(targetRoot), CancellationToken.None);
 
         Assert.False(scanResult.IsSuccess);
         Assert.Equal(AgentDistributionFailureCodes.InstallTargetUnmanaged, scanResult.Failure!.Code);
@@ -278,7 +243,7 @@ public sealed class SkillInstallationScannerTests
         scope.WriteFile(".agents/skills/external-skill/agent-skill.json", manifestJson.ToJsonString());
         var scanner = SkillTestData.CreateInstallationScanner();
 
-        var scanResult = await scanner.ScanAsync(packages, targetRoot, HostKind.Codex, cancellationToken: CancellationToken.None);
+        var scanResult = await scanner.ScanAsync(packages, ResolveTarget(targetRoot), CancellationToken.None);
 
         Assert.False(scanResult.IsSuccess);
         Assert.Equal(AgentDistributionFailureCodes.ManifestInvalid, scanResult.Failure!.Code);
@@ -300,9 +265,26 @@ public sealed class SkillInstallationScannerTests
         scope.WriteFile(Path.Combine(".agents", "skills", "unmanaged", "nested", "agent-skill.json"), "{}");
         var scanner = SkillTestData.CreateInstallationScanner();
 
-        var scanResult = await scanner.ScanAsync(packages, installResult.Value!.TargetRoot.Value, HostKind.Codex, cancellationToken: CancellationToken.None);
+        var scanResult = await scanner.ScanAsync(packages, ResolveTarget(installResult.Value!.TargetRoot.Value), CancellationToken.None);
 
         Assert.True(scanResult.IsSuccess, scanResult.Failure?.Message);
         Assert.Equal(SkillTestData.ExpectedSkillNames.Length, scanResult.Value!.Count);
+    }
+    private static SkillResolvedInstallTarget ResolveTarget (
+        string targetRoot,
+        HostKind host = HostKind.Codex,
+        SkillScopeKind scope = SkillScopeKind.Project)
+    {
+        var absoluteTargetRoot = AbsolutePath.Parse(Path.GetFullPath(targetRoot));
+        var request = new SkillInstallRequest(
+            host,
+            scope,
+            scope == SkillScopeKind.Project ? absoluteTargetRoot : null,
+            absoluteTargetRoot);
+        var result = SkillTestData.CreateInstallTargetResolver().ResolveTarget(
+            request,
+            new AgentDistributionCatalogId("com.mackysoft.agent-distribution"));
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        return result.Value!;
     }
 }

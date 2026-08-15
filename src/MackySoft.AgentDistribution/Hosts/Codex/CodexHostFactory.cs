@@ -1,13 +1,11 @@
-using MackySoft.AgentDistribution.Agents.Installation.Targeting;
-using MackySoft.AgentDistribution.Hosts.Registration;
 using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Hosts.Codex;
 
-/// <summary>Composes the Codex host module.</summary>
-internal static class CodexHostRegistration
+/// <summary> Composes the Codex host contracts. </summary>
+internal static class CodexHostFactory
 {
-    /// <summary>Creates the complete Codex registration.</summary>
+    /// <summary> Creates the complete Codex host registration. </summary>
     public static HostRegistration Create ()
     {
         return new HostRegistration(

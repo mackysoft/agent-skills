@@ -1,5 +1,8 @@
 using ConsoleAppFramework;
 using MackySoft.AgentDistribution.Bundles;
+using MackySoft.AgentDistribution.Bundles.Generation;
+using MackySoft.AgentDistribution.Skills.Bundles;
+using MackySoft.AgentDistribution.Skills.Generation;
 using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Cli.Hosting.Cli.Build;

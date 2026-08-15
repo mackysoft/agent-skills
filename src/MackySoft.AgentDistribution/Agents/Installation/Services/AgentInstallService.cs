@@ -15,7 +15,7 @@ public sealed class AgentInstallService
     private readonly AgentInstallTargetResolver targetResolver;
     private readonly AgentReconciliationPlanner planner;
     private readonly AgentInstalledTargetInspector targetInspector;
-    private readonly AgentManagedArtifactStore artifactStore;
+    private readonly IAgentManagedArtifactStore artifactStore;
     private readonly SkillInstallService skillInstallService;
 
     /// <summary> Initializes a custom-agent install service. </summary>
@@ -26,13 +26,28 @@ public sealed class AgentInstallService
         AgentInstallationStatePathResolver statePathResolver,
         AgentInstallationStateStore stateStore,
         SkillInstallService skillInstallService)
+        : this(
+            targetResolver,
+            targetInspector,
+            digestCalculator,
+            new AgentManagedArtifactStore(
+                statePathResolver ?? throw new ArgumentNullException(nameof(statePathResolver)),
+                stateStore ?? throw new ArgumentNullException(nameof(stateStore))),
+            skillInstallService)
+    {
+    }
+
+    internal AgentInstallService (
+        AgentInstallTargetResolver targetResolver,
+        AgentInstalledTargetInspector targetInspector,
+        PackageContentDigestCalculator digestCalculator,
+        IAgentManagedArtifactStore artifactStore,
+        SkillInstallService skillInstallService)
     {
         this.targetResolver = targetResolver ?? throw new ArgumentNullException(nameof(targetResolver));
         this.targetInspector = targetInspector ?? throw new ArgumentNullException(nameof(targetInspector));
         planner = new AgentReconciliationPlanner(targetInspector, digestCalculator ?? throw new ArgumentNullException(nameof(digestCalculator)));
-        artifactStore = new AgentManagedArtifactStore(
-            statePathResolver ?? throw new ArgumentNullException(nameof(statePathResolver)),
-            stateStore ?? throw new ArgumentNullException(nameof(stateStore)));
+        this.artifactStore = artifactStore ?? throw new ArgumentNullException(nameof(artifactStore));
         this.skillInstallService = skillInstallService ?? throw new ArgumentNullException(nameof(skillInstallService));
     }
 
@@ -64,7 +79,7 @@ public sealed class AgentInstallService
 
         var skillPlanResult = await skillInstallService.PlanAsync(
             new SkillInstallInput(
-                input.Catalog.BundleDescriptor.CatalogId,
+                input.Catalog.CatalogId,
                 input.Catalog.ResolvedSkills,
                 input.SkillTargetRequest,
                 dryRun: true,

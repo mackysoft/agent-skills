@@ -1,13 +1,11 @@
-using MackySoft.AgentDistribution.Agents.Installation.Targeting;
-using MackySoft.AgentDistribution.Hosts.Registration;
 using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Hosts.ClaudeCode;
 
-/// <summary>Composes the Claude Code host module.</summary>
-internal static class ClaudeCodeHostRegistration
+/// <summary> Composes the Claude Code host contracts. </summary>
+internal static class ClaudeCodeHostFactory
 {
-    /// <summary>Creates the complete Claude Code registration.</summary>
+    /// <summary> Creates the complete Claude Code host registration. </summary>
     public static HostRegistration Create ()
     {
         return new HostRegistration(

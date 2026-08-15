@@ -18,6 +18,26 @@ public sealed class SkillInstallTargetResolver
         this.userTargetRootResolver = userTargetRootResolver ?? throw new ArgumentNullException(nameof(userTargetRootResolver));
     }
 
+    /// <summary> Resolves one supported SKILL host for targeting and reporting. </summary>
+    public AgentDistributionOperationResult<SkillResolvedHost> ResolveHost (HostKind host)
+    {
+        var registrationResult = BuiltInHostCatalog.Get(host);
+        return registrationResult.IsSuccess
+            ? AgentDistributionOperationResult<SkillResolvedHost>.Success(
+                new SkillResolvedHost(registrationResult.Value!.Host, registrationResult.Value.Skill))
+            : AgentDistributionOperationResult<SkillResolvedHost>.FailureResult(
+                registrationResult.Failure!.Code,
+                registrationResult.Failure.Message);
+    }
+
+    /// <summary> Gets all supported SKILL hosts in canonical host order. </summary>
+    public IReadOnlyList<SkillResolvedHost> GetSupportedHosts ()
+    {
+        return BuiltInHostCatalog.Registrations
+            .Select(static registration => new SkillResolvedHost(registration.Host, registration.Skill))
+            .ToArray();
+    }
+
     /// <summary> Resolves the preferred bundle target root without inspecting installed catalog state. </summary>
     /// <param name="request"> The install request. </param>
     /// <param name="catalogId"> The catalog that owns the resolved bundle target. </param>
@@ -41,21 +61,21 @@ public sealed class SkillInstallTargetResolver
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(catalogId);
 
-        var registrationResult = HostRegistration.Get(request.Host);
-        if (!registrationResult.IsSuccess)
+        var hostResult = ResolveHost(request.Host);
+        if (!hostResult.IsSuccess)
         {
             return AgentDistributionOperationResult<SkillInstallTargetCandidates>.FailureResult(
-                registrationResult.Failure!.Code,
-                registrationResult.Failure.Message);
+                hostResult.Failure!.Code,
+                hostResult.Failure.Message);
         }
 
-        var registration = registrationResult.Value!;
-        var descriptor = registration.Skill;
+        var resolvedHost = hostResult.Value!;
+        var descriptor = resolvedHost.Descriptor;
         if (request.TargetRoot is not null)
         {
             var explicitTargetResult = request.Scope == SkillScopeKind.Project
-                ? ResolveExplicitProjectTarget(request, registration.Host)
-                : ResolveExplicitUserTarget(request, registration.Host);
+                ? ResolveExplicitProjectTarget(request, resolvedHost)
+                : ResolveExplicitUserTarget(request, resolvedHost);
             return CreateCandidateSet(explicitTargetResult);
         }
 
@@ -76,7 +96,7 @@ public sealed class SkillInstallTargetResolver
         foreach (var layout in layouts)
         {
             var bundleTargetRootResult = ResolveDefaultBundleTargetRoot(hostRootResult.Value!, catalogId, layout);
-            var targetResult = CreateResolvedTarget(registration.Host, bundleTargetRootResult);
+            var targetResult = CreateResolvedTarget(resolvedHost, request.Scope, bundleTargetRootResult);
             if (!targetResult.IsSuccess)
             {
                 return AgentDistributionOperationResult<SkillInstallTargetCandidates>.FailureResult(
@@ -106,20 +126,20 @@ public sealed class SkillInstallTargetResolver
 
     private static AgentDistributionOperationResult<SkillResolvedInstallTarget> ResolveExplicitProjectTarget (
         SkillInstallRequest request,
-        HostKind host)
+        SkillResolvedHost host)
     {
         var repositoryRoot = request.RepositoryRoot!;
         var targetRootResult = PackagePathResolver.ResolveUnderRoot(repositoryRoot, request.TargetRoot!);
-        return CreateResolvedTarget(host, targetRootResult);
+        return CreateResolvedTarget(host, request.Scope, targetRootResult);
     }
 
     private static AgentDistributionOperationResult<SkillResolvedInstallTarget> ResolveExplicitUserTarget (
         SkillInstallRequest request,
-        HostKind host)
+        SkillResolvedHost host)
     {
         var targetRoot = request.TargetRoot!;
         var targetRootResult = PackagePathResolver.ResolveUnderRoot(targetRoot, targetRoot);
-        return CreateResolvedTarget(host, targetRootResult);
+        return CreateResolvedTarget(host, request.Scope, targetRootResult);
     }
 
     private static AgentDistributionOperationResult<AbsolutePath> ResolveDefaultBundleTargetRoot (
@@ -138,12 +158,13 @@ public sealed class SkillInstallTargetResolver
     }
 
     private static AgentDistributionOperationResult<SkillResolvedInstallTarget> CreateResolvedTarget (
-        HostKind host,
+        SkillResolvedHost host,
+        SkillScopeKind scope,
         AgentDistributionOperationResult<AbsolutePath> targetRootResult)
     {
         return targetRootResult.IsSuccess
             ? AgentDistributionOperationResult<SkillResolvedInstallTarget>.Success(
-                new SkillResolvedInstallTarget(host, targetRootResult.Value!))
+                new SkillResolvedInstallTarget(host, scope, targetRootResult.Value!))
             : AgentDistributionOperationResult<SkillResolvedInstallTarget>.FailureResult(
                 targetRootResult.Failure!.Code,
                 targetRootResult.Failure.Message);

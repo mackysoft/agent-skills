@@ -1,13 +1,13 @@
 using MackySoft.AgentDistribution.Digests;
 using MackySoft.AgentDistribution.Hosts.Registration;
-using MackySoft.AgentDistribution.Manifests;
 using MackySoft.AgentDistribution.Packaging.Paths;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Manifests;
 using MackySoft.FileSystem;
 
-namespace MackySoft.AgentDistribution.Installation.Validation;
+namespace MackySoft.AgentDistribution.Materialization;
 
-/// <summary> Inspects installed files to determine whether they belong to the requested host. </summary>
+/// <summary> Inspects installed files against the host-specific materialization declared by a SKILL manifest. </summary>
 public sealed class SkillHostMaterializationInspector
 {
     private readonly PackageContentDigestCalculator digestCalculator;
@@ -35,7 +35,7 @@ public sealed class SkillHostMaterializationInspector
         ArgumentNullException.ThrowIfNull(manifest);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var registrationResult = HostRegistration.Get(host);
+        var registrationResult = BuiltInHostCatalog.Get(host);
         if (!registrationResult.IsSuccess)
         {
             return AgentDistributionOperationResult<bool>.FailureResult(
@@ -130,7 +130,7 @@ public sealed class SkillHostMaterializationInspector
         ArgumentNullException.ThrowIfNull(manifest);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var requestedRegistrationResult = HostRegistration.Get(host);
+        var requestedRegistrationResult = BuiltInHostCatalog.Get(host);
         if (!requestedRegistrationResult.IsSuccess)
         {
             return AgentDistributionOperationResult<bool>.FailureResult(
@@ -139,7 +139,7 @@ public sealed class SkillHostMaterializationInspector
         }
 
         var requestedHost = requestedRegistrationResult.Value!.Host;
-        foreach (var registration in HostRegistration.Registrations)
+        foreach (var registration in BuiltInHostCatalog.Registrations)
         {
             cancellationToken.ThrowIfCancellationRequested();
 

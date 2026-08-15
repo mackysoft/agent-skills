@@ -101,7 +101,7 @@ public sealed class AgentOperationReportBuilderTests
             scope.FullPath,
             catalog.SelectedAgentNames,
             new SkillOperationReportContext(
-                HostKind.Codex,
+                ResolveHost(HostKind.Codex),
                 SkillScopeKind.Project,
                 scope.FullPath,
                 [],
@@ -119,5 +119,11 @@ public sealed class AgentOperationReportBuilderTests
         Assert.NotNull(report.SkillReport);
         Assert.True(report.SkillReport.DryRun);
         Assert.Equal([skills[0].Manifest.SkillName.Value], report.SkillReport.SkillNames);
+    }
+    private static SkillResolvedHost ResolveHost (HostKind host)
+    {
+        var result = SkillTestData.CreateInstallTargetResolver().ResolveHost(host);
+        Assert.True(result.IsSuccess, result.Failure?.Message);
+        return result.Value!;
     }
 }

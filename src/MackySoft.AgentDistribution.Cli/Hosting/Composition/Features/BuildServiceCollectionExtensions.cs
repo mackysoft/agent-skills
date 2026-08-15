@@ -1,6 +1,8 @@
 using MackySoft.AgentDistribution.Bundles;
-using MackySoft.AgentDistribution.Generation;
-using MackySoft.AgentDistribution.Packaging.Canonical;
+using MackySoft.AgentDistribution.Bundles.Generation;
+using MackySoft.AgentDistribution.Skills.Bundles;
+using MackySoft.AgentDistribution.Skills.Generation;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 using MackySoft.AgentDistribution.Sources;
 using Microsoft.Extensions.DependencyInjection;
 

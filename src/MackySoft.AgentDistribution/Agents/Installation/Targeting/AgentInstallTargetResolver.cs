@@ -19,7 +19,7 @@ public sealed class AgentInstallTargetResolver
     public AgentDistributionOperationResult<AgentResolvedTarget> ResolveTarget (AgentTargetRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var registrationResult = HostRegistration.Get(request.HostId);
+        var registrationResult = BuiltInHostCatalog.Get(request.HostId);
         if (!registrationResult.IsSuccess)
         {
             return AgentDistributionOperationResult<AgentResolvedTarget>.FailureResult(registrationResult.Failure!.Code, registrationResult.Failure.Message);

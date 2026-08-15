@@ -1,6 +1,5 @@
 using System.Text;
 using System.Text.Json.Serialization;
-using MackySoft.AgentDistribution.Agents.Sources;
 using MackySoft.AgentDistribution.Hosts.Serialization;
 using MackySoft.AgentDistribution.Shared;
 
@@ -26,32 +25,28 @@ internal sealed class CodexAgentHostArtifactAdapter : IAgentHostArtifactAdapter
     }
 
     /// <inheritdoc />
-    public AgentHostArtifactSet BuildArtifacts (
-        AgentSourceMetadata metadata,
-        string agentInstructions,
-        string bindingJson)
+    public AgentHostArtifactSet BuildArtifacts (AgentHostArtifactRequest request)
     {
-        ArgumentNullException.ThrowIfNull(metadata);
-        ArgumentNullException.ThrowIfNull(agentInstructions);
-        RejectBuiltInAgentName(metadata.AgentName);
+        ArgumentNullException.ThrowIfNull(request);
+        RejectBuiltInAgentName(request.AgentName);
 
-        var bindingResult = ParseBinding(bindingJson);
+        var bindingResult = ParseBinding(request.BindingJson);
         if (!bindingResult.IsSuccess)
         {
-            throw new ArgumentException(bindingResult.Failure!.Message, nameof(bindingJson));
+            throw new ArgumentException(bindingResult.Failure!.Message, nameof(request));
         }
 
         var binding = bindingResult.Value!;
         var builder = new StringBuilder();
-        AppendString(builder, "name", metadata.AgentName.Value);
-        AppendString(builder, "description", metadata.Description);
+        AppendString(builder, "name", request.AgentName.Value);
+        AppendString(builder, "description", request.Description);
         AppendOptionalString(builder, "model", binding.Model);
         AppendOptionalString(builder, "model_reasoning_effort", binding.ReasoningEffort);
         AppendOptionalString(builder, "sandbox_mode", binding.SandboxMode);
-        AppendString(builder, "developer_instructions", AgentDistributionTextNormalizer.NormalizeToLf(agentInstructions));
+        AppendString(builder, "developer_instructions", request.NormalizedInstructions);
 
         return new AgentHostArtifactSet(
-            [new AgentHostArtifactFile(PackageRelativePath.Parse($"{metadata.AgentName.Value}.toml"), builder.ToString())]);
+            [new AgentHostArtifactFile(PackageRelativePath.Parse($"{request.AgentName.Value}.toml"), builder.ToString())]);
     }
 
     private static AgentDistributionOperationResult<CodexBinding> ParseBinding (string bindingJson)

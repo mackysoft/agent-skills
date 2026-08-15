@@ -28,6 +28,12 @@ internal sealed class SkillInstallTargetCandidates
             throw new ArgumentException("Install target candidates must use one host.", nameof(targets));
         }
 
+        var scope = snapshot[0].Scope;
+        if (snapshot.Any(target => target.Scope != scope))
+        {
+            throw new ArgumentException("Install target candidates must use one install scope.", nameof(targets));
+        }
+
         if (snapshot.Select(static target => target.TargetRoot).Distinct().Count() != snapshot.Length)
         {
             throw new ArgumentException("Install target candidate roots must be unique.", nameof(targets));

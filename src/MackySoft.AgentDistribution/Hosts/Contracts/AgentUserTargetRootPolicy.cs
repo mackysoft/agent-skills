@@ -1,8 +1,8 @@
 using MackySoft.FileSystem;
 
-namespace MackySoft.AgentDistribution.Agents.Installation.Targeting;
+namespace MackySoft.AgentDistribution.Hosts.Contracts;
 
-/// <summary> Describes one host's user-scope artifact and installation-state roots. </summary>
+/// <summary> Describes one host's user-scope agent artifact and installation-state roots. </summary>
 public sealed class AgentUserTargetRootPolicy
 {
     /// <summary> Initializes an immutable user-scope target policy. </summary>

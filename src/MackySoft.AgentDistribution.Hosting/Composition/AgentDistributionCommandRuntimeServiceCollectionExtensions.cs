@@ -17,9 +17,10 @@ using MackySoft.AgentDistribution.Installation.State;
 using MackySoft.AgentDistribution.Installation.Targeting;
 using MackySoft.AgentDistribution.Installation.Transactions;
 using MackySoft.AgentDistribution.Installation.Validation;
-using MackySoft.AgentDistribution.Manifests;
 using MackySoft.AgentDistribution.Materialization;
-using MackySoft.AgentDistribution.Packaging.Canonical;
+using MackySoft.AgentDistribution.Skills.Bundles;
+using MackySoft.AgentDistribution.Skills.Manifests;
+using MackySoft.AgentDistribution.Skills.Packaging.Canonical;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MackySoft.AgentDistribution.Hosting.Composition;
@@ -118,10 +119,30 @@ public static class AgentDistributionCommandRuntimeServiceCollectionExtensions
         services.AddSingleton<AgentInstallationStateStore>();
         services.AddSingleton<AgentInstallationStatePathResolver>();
         services.AddSingleton<AgentInstalledTargetInspector>();
-        services.AddSingleton<AgentInstallService>();
-        services.AddSingleton<AgentUpdateService>();
-        services.AddSingleton<AgentUninstallService>();
-        services.AddSingleton<AgentPruneService>();
+        services.AddSingleton<IAgentManagedArtifactStore, AgentManagedArtifactStore>();
+        services.AddSingleton(static serviceProvider => new AgentInstallService(
+            serviceProvider.GetRequiredService<AgentInstallTargetResolver>(),
+            serviceProvider.GetRequiredService<AgentInstalledTargetInspector>(),
+            serviceProvider.GetRequiredService<PackageContentDigestCalculator>(),
+            serviceProvider.GetRequiredService<IAgentManagedArtifactStore>(),
+            serviceProvider.GetRequiredService<SkillInstallService>()));
+        services.AddSingleton(static serviceProvider => new AgentUpdateService(
+            serviceProvider.GetRequiredService<AgentInstallTargetResolver>(),
+            serviceProvider.GetRequiredService<AgentInstalledTargetInspector>(),
+            serviceProvider.GetRequiredService<PackageContentDigestCalculator>(),
+            serviceProvider.GetRequiredService<IAgentManagedArtifactStore>(),
+            serviceProvider.GetRequiredService<SkillUpdateService>()));
+        services.AddSingleton(static serviceProvider => new AgentUninstallService(
+            serviceProvider.GetRequiredService<AgentInstallTargetResolver>(),
+            serviceProvider.GetRequiredService<AgentInstalledTargetInspector>(),
+            serviceProvider.GetRequiredService<AgentInstallationStatePathResolver>(),
+            serviceProvider.GetRequiredService<AgentInstallationStateStore>(),
+            serviceProvider.GetRequiredService<IAgentManagedArtifactStore>()));
+        services.AddSingleton(static serviceProvider => new AgentPruneService(
+            serviceProvider.GetRequiredService<AgentInstallTargetResolver>(),
+            serviceProvider.GetRequiredService<AgentInstalledTargetInspector>(),
+            serviceProvider.GetRequiredService<AgentInstallationStateStore>(),
+            serviceProvider.GetRequiredService<IAgentManagedArtifactStore>()));
         services.AddSingleton<AgentDoctorService>();
 
         return services;

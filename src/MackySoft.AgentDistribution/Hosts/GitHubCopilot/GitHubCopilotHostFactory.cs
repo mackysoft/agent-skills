@@ -1,13 +1,11 @@
-using MackySoft.AgentDistribution.Agents.Installation.Targeting;
-using MackySoft.AgentDistribution.Hosts.Registration;
 using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Hosts.GitHubCopilot;
 
-/// <summary>Composes the GitHub Copilot host module.</summary>
-internal static class GitHubCopilotHostRegistration
+/// <summary> Composes the GitHub Copilot host contracts. </summary>
+internal static class GitHubCopilotHostFactory
 {
-    /// <summary>Creates the complete GitHub Copilot registration.</summary>
+    /// <summary> Creates the complete GitHub Copilot host registration. </summary>
     public static HostRegistration Create ()
     {
         return new HostRegistration(

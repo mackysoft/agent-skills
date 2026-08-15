@@ -1,3 +1,4 @@
+using MackySoft.AgentDistribution.Agents.Distribution;
 using MackySoft.AgentDistribution.Agents.Doctor;
 using MackySoft.AgentDistribution.Agents.Installation.Results;
 using MackySoft.AgentDistribution.Agents.Installation.State;

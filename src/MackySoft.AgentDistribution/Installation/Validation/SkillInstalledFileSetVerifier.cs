@@ -240,8 +240,8 @@ public sealed class SkillInstalledFileSetVerifier
             IReadOnlyList<PackageRelativePath> files,
             IReadOnlyList<PackageRelativePath> directories)
         {
-            Files = SkillInstalledFileSetPathSnapshot.Create(files, nameof(files));
-            Directories = SkillInstalledFileSetPathSnapshot.Create(directories, nameof(directories));
+            Files = PackageRelativePathSnapshot.Create(files, nameof(files));
+            Directories = PackageRelativePathSnapshot.Create(directories, nameof(directories));
         }
 
         public IReadOnlyList<PackageRelativePath> Files { get; }

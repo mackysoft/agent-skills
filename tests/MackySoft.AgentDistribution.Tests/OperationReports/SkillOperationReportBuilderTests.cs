@@ -1,14 +1,13 @@
 using MackySoft.AgentDistribution.Digests;
 using MackySoft.AgentDistribution.Distribution;
 using MackySoft.AgentDistribution.Doctor;
-using MackySoft.AgentDistribution.Hosts.Registration;
 using MackySoft.AgentDistribution.Installation.Results;
 using MackySoft.AgentDistribution.Installation.Targeting;
-using MackySoft.AgentDistribution.Manifests;
 using MackySoft.AgentDistribution.OperationReports.Contracts;
 using MackySoft.AgentDistribution.OperationReports.Literals;
 using MackySoft.AgentDistribution.OperationReports.Projection;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Manifests;
 
 namespace MackySoft.AgentDistribution.Tests.OperationReports;
 
@@ -84,7 +83,7 @@ public sealed class SkillOperationReportBuilderTests
         Assert.Equal(targetRoot, report.TargetRoot);
         Assert.True(report.DryRun);
         Assert.True(report.Force);
-        Assert.Equal(CodexRegistration.Skill.ReloadGuidance, report.ReloadGuidance);
+        Assert.Equal(CodexHost.ReloadGuidance, report.ReloadGuidance);
         Assert.Equal(["skill-a", "skill-b", "skill-c"], report.Actions.Select(static action => action.SkillName).ToArray());
 
         var updated = report.Actions[0];
@@ -381,7 +380,7 @@ public sealed class SkillOperationReportBuilderTests
             [new SkillCategoryPackageCount(new SkillCategory("core"), packages.Length)],
             packages);
 
-        var report = SkillOperationReportBuilder.CreateListReport(catalog);
+        var report = SkillOperationReportBuilder.CreateListReport(catalog, SupportedHosts);
 
         Assert.Equal(["core"], report.Categories);
         Assert.Equal([packages[0].Manifest.SkillName.Value], report.SkillNames);
@@ -431,7 +430,7 @@ public sealed class SkillOperationReportBuilderTests
             [new SkillCategoryPackageCount(new SkillCategory("core"), packages.Length)],
             packages);
 
-        var report = SkillOperationReportBuilder.CreateListReport(catalog);
+        var report = SkillOperationReportBuilder.CreateListReport(catalog, SupportedHosts);
 
         var skill = report.Skills.Single(skill => string.Equals(skill.SkillName, packages[0].Manifest.SkillName.Value, StringComparison.Ordinal));
         Assert.Equal([packages[1].Manifest.SkillName.Value], skill.Dependencies);
@@ -447,7 +446,7 @@ public sealed class SkillOperationReportBuilderTests
         var report = SkillOperationReportBuilder.CreateExportReport(
             AbsolutePath.Parse(Path.GetFullPath(outputPath)),
             packages,
-            HostKind.Codex,
+            CodexHost,
             PackageExportFormat.Zip,
             [new SkillCategory("basic"), new SkillCategory("advanced")],
             [packages[0].Manifest.SkillName]);
@@ -459,7 +458,7 @@ public sealed class SkillOperationReportBuilderTests
         Assert.Equal(Path.GetFullPath(outputPath), report.OutputPath);
         Assert.Equal(SkillTestData.ExpectedSkillNames, report.Skills);
         Assert.Equal(SkillTestData.ExpectedSkillNames.Length, report.SkillCount);
-        Assert.Equal(CodexRegistration.Skill.ReloadGuidance, report.ReloadGuidance);
+        Assert.Equal(CodexHost.ReloadGuidance, report.ReloadGuidance);
     }
 
     [Fact]
@@ -507,7 +506,7 @@ public sealed class SkillOperationReportBuilderTests
         var report = SkillOperationReportBuilder.CreateDoctorReport(
             result,
             new SkillOperationReportContext(
-                HostKind.Codex,
+                CodexHost,
                 SkillScopeKind.Project,
                 Path.GetFullPath("."),
                 [new SkillCategory("developer")],
@@ -518,7 +517,7 @@ public sealed class SkillOperationReportBuilderTests
         Assert.Equal(["skill-a"], report.SkillNames);
         Assert.Equal(OperationScopeKind.Project, report.Scope);
         Assert.Equal(Path.GetFullPath("."), report.RepositoryRoot);
-        Assert.Equal(CodexRegistration.Skill.ReloadGuidance, report.ReloadGuidance);
+        Assert.Equal(CodexHost.ReloadGuidance, report.ReloadGuidance);
         Assert.Equal(new string?[] { null, "skill-a", "skill-a", "skill-a", "skill-b", "skill-c", "skill-d", "skill-e" }, report.Diagnostics.Select(static diagnostic => diagnostic.SkillName).ToArray());
         Assert.Equal(SkillDoctorSeverity.Error, report.Diagnostics[0].Severity);
         Assert.Null(report.Diagnostics[0].TargetState);
@@ -583,7 +582,7 @@ public sealed class SkillOperationReportBuilderTests
         Assert.Throws<ArgumentException>(() => SkillOperationReportBuilder.CreateInstallReport(
             result,
             new SkillOperationReportContext(
-                HostKind.ClaudeCode,
+                ResolveHost(HostKind.ClaudeCode),
                 SkillScopeKind.Project,
                 Path.GetFullPath("."),
                 [new SkillCategory("basic")],
@@ -602,7 +601,7 @@ public sealed class SkillOperationReportBuilderTests
         Assert.Throws<ArgumentException>(() => SkillOperationReportBuilder.CreateDoctorReport(
             result,
             new SkillOperationReportContext(
-                HostKind.ClaudeCode,
+                ResolveHost(HostKind.ClaudeCode),
                 SkillScopeKind.Project,
                 Path.GetFullPath("."),
                 [new SkillCategory("basic")],
@@ -708,11 +707,13 @@ public sealed class SkillOperationReportBuilderTests
             new SkillName(skillName));
     }
 
-    private static HostRegistration CodexRegistration => GetHostRegistration(HostKind.Codex);
+    private static SkillResolvedHost CodexHost => ResolveHost(HostKind.Codex);
 
-    private static HostRegistration GetHostRegistration (HostKind host)
+    private static IReadOnlyList<SkillResolvedHost> SupportedHosts => SkillTestData.CreateInstallTargetResolver().GetSupportedHosts();
+
+    private static SkillResolvedHost ResolveHost (HostKind host)
     {
-        var result = HostRegistration.Get(host);
+        var result = SkillTestData.CreateInstallTargetResolver().ResolveHost(host);
         Assert.True(result.IsSuccess, result.Failure?.Message);
         return result.Value!;
     }
@@ -737,7 +738,7 @@ public sealed class SkillOperationReportBuilderTests
         IReadOnlyList<SkillName> skillNames)
     {
         return new SkillOperationReportContext(
-            HostKind.Codex,
+            CodexHost,
             SkillScopeKind.Project,
             Path.GetFullPath("."),
             categories,
@@ -749,7 +750,7 @@ public sealed class SkillOperationReportBuilderTests
         IReadOnlyList<SkillCategory> categories)
     {
         return new SkillOperationReportContext(
-            HostKind.Codex,
+            CodexHost,
             scope,
             scope == SkillScopeKind.Project ? Path.GetFullPath(".") : null,
             categories,

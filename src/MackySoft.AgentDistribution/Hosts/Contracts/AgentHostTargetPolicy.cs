@@ -1,11 +1,11 @@
 using MackySoft.FileSystem;
 
-namespace MackySoft.AgentDistribution.Agents.Installation.Targeting;
+namespace MackySoft.AgentDistribution.Hosts.Contracts;
 
-/// <summary>Describes one agent host's target and installation-state layout.</summary>
+/// <summary> Describes one agent host's target and installation-state layout. </summary>
 public sealed class AgentHostTargetPolicy
 {
-    /// <summary>Initializes an immutable agent host target policy.</summary>
+    /// <summary> Initializes an immutable agent host target policy. </summary>
     internal AgentHostTargetPolicy (
         RootRelativePath projectDefaultArtifactRootPath,
         RootRelativePath projectDefaultStateRootPath,
@@ -28,15 +28,15 @@ public sealed class AgentHostTargetPolicy
         ExplicitTargetStateDirectory = explicitTargetStateDirectory;
     }
 
-    /// <summary>Gets the project-relative directory where the host discovers agent artifacts.</summary>
+    /// <summary> Gets the project-relative directory where the host discovers agent artifacts. </summary>
     public RootRelativePath ProjectDefaultArtifactRootPath { get; }
 
-    /// <summary>Gets the project-relative directory reserved for Agent Distribution installation state.</summary>
+    /// <summary> Gets the project-relative directory reserved for Agent Distribution installation state. </summary>
     public RootRelativePath ProjectDefaultStateRootPath { get; }
 
-    /// <summary>Gets the user-scope target and state-root policy.</summary>
+    /// <summary> Gets the user-scope target and state-root policy. </summary>
     public AgentUserTargetRootPolicy UserTargetRootPolicy { get; }
 
-    /// <summary>Gets the hidden sibling directory used for state when an artifact target is explicit.</summary>
+    /// <summary> Gets the hidden sibling directory used for state when an artifact target is explicit. </summary>
     public RootRelativePath ExplicitTargetStateDirectory { get; }
 }

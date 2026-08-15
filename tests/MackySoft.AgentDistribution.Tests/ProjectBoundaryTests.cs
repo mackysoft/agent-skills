@@ -32,10 +32,8 @@ public sealed class ProjectBoundaryTests
     [InlineData("Names", "MackySoft.AgentDistribution.Digests")]
     [InlineData("Names", "MackySoft.AgentDistribution.Distribution")]
     [InlineData("Names", "MackySoft.AgentDistribution.Doctor")]
-    [InlineData("Names", "MackySoft.AgentDistribution.Generation")]
     [InlineData("Names", "MackySoft.AgentDistribution.Hosts")]
     [InlineData("Names", "MackySoft.AgentDistribution.Installation")]
-    [InlineData("Names", "MackySoft.AgentDistribution.Manifests")]
     [InlineData("Names", "MackySoft.AgentDistribution.Materialization")]
     [InlineData("Names", "MackySoft.AgentDistribution.OperationReports")]
     [InlineData("Names", "MackySoft.AgentDistribution.Packaging")]
@@ -49,19 +47,21 @@ public sealed class ProjectBoundaryTests
     [InlineData("Dependencies", "MackySoft.AgentDistribution.Digests")]
     [InlineData("Dependencies", "MackySoft.AgentDistribution.Distribution")]
     [InlineData("Dependencies", "MackySoft.AgentDistribution.Doctor")]
-    [InlineData("Dependencies", "MackySoft.AgentDistribution.Generation")]
     [InlineData("Dependencies", "MackySoft.AgentDistribution.Hosts")]
     [InlineData("Dependencies", "MackySoft.AgentDistribution.Installation")]
-    [InlineData("Dependencies", "MackySoft.AgentDistribution.Manifests")]
     [InlineData("Dependencies", "MackySoft.AgentDistribution.Materialization")]
     [InlineData("Dependencies", "MackySoft.AgentDistribution.OperationReports")]
     [InlineData("Dependencies", "MackySoft.AgentDistribution.Packaging")]
     [InlineData("Dependencies", "MackySoft.AgentDistribution.Selection")]
     [InlineData("Dependencies", "MackySoft.AgentDistribution.Serialization")]
     [InlineData("Dependencies", "MackySoft.AgentDistribution.Sources")]
-    [InlineData("Bundles", "MackySoft.AgentDistribution.Sources")]
+    [InlineData("Agents", "MackySoft.AgentDistribution.Bundles")]
+    [InlineData("Agents", "MackySoft.AgentDistribution.Distribution")]
+    [InlineData("Skills", "MackySoft.AgentDistribution.Bundles")]
+    [InlineData("Skills", "MackySoft.AgentDistribution.Distribution")]
     [InlineData("Distribution", "MackySoft.AgentDistribution.Installation")]
     [InlineData("Installation", "MackySoft.AgentDistribution.Doctor")]
+    [InlineData("Installation/Validation", "MackySoft.AgentDistribution.Hosts.Registration")]
     [InlineData("Materialization", "MackySoft.AgentDistribution.Installation")]
     [InlineData("Packaging", "MackySoft.AgentDistribution.Bundles")]
     [InlineData("Packaging", "MackySoft.AgentDistribution.Installation")]
@@ -69,7 +69,6 @@ public sealed class ProjectBoundaryTests
     [InlineData("Packaging", "MackySoft.AgentDistribution.Distribution")]
     [InlineData("Packaging", "MackySoft.AgentDistribution.Doctor")]
     [InlineData("Commands", "MackySoft.AgentDistribution.Doctor")]
-    [InlineData("Commands", "MackySoft.AgentDistribution.Generation")]
     [InlineData("Commands", "MackySoft.AgentDistribution.Installation.Contracts")]
     [InlineData("Commands", "MackySoft.AgentDistribution.Installation.Diffing")]
     [InlineData("Commands", "MackySoft.AgentDistribution.Installation.Inventory")]
@@ -207,6 +206,22 @@ public sealed class ProjectBoundaryTests
             ["MackySoft.AgentDistribution.Sources"]);
     }
 
+    [Fact]
+    [Trait("Size", "Small")]
+    public void HostDirectory_DoesNotReferenceAgentOrSkillSourceNamespaces ()
+    {
+        var sourceRoot = GetSourceRoot();
+        var directoryPath = Path.Combine(sourceRoot, "Hosts");
+
+        AssertDirectoryDoesNotContainAny(
+            sourceRoot,
+            directoryPath,
+            [
+                "MackySoft.AgentDistribution.Agents.Sources",
+                "MackySoft.AgentDistribution.Sources",
+            ]);
+    }
+
     [Theory]
     [Trait("Size", "Small")]
     [InlineData("ClaudeCode", "Codex")]
@@ -279,7 +294,7 @@ public sealed class ProjectBoundaryTests
             [
                 "MackySoft.AgentDistribution.Distribution",
                 "MackySoft.AgentDistribution.Doctor",
-                "MackySoft.AgentDistribution.Generation",
+                "MackySoft.AgentDistribution.Skills.Generation",
                 "MackySoft.AgentDistribution.Hosts",
                 "MackySoft.AgentDistribution.Installation",
                 "MackySoft.AgentDistribution.Materialization",
@@ -288,11 +303,11 @@ public sealed class ProjectBoundaryTests
 
         AddForbiddenNamespaceCases(
             data,
-            "Packaging/Canonical",
+            "Skills/Packaging/Canonical",
             [
                 "MackySoft.AgentDistribution.Distribution",
                 "MackySoft.AgentDistribution.Doctor",
-                "MackySoft.AgentDistribution.Generation",
+                "MackySoft.AgentDistribution.Skills.Generation",
                 "MackySoft.AgentDistribution.Installation",
                 "MackySoft.AgentDistribution.Materialization",
                 "MackySoft.AgentDistribution.Sources",
@@ -347,7 +362,7 @@ public sealed class ProjectBoundaryTests
             data,
             "OperationReports/Contracts",
             [
-                "MackySoft.AgentDistribution.Manifests",
+                "MackySoft.AgentDistribution.Skills.Manifests",
                 "MackySoft.AgentDistribution.Packaging",
             ]);
 
@@ -381,7 +396,7 @@ public sealed class ProjectBoundaryTests
 
     private static string[] GetConcreteHostImplementationReferences ()
     {
-        return HostRegistration.Registrations
+        return BuiltInHostCatalog.Registrations
             .SelectMany(static registration =>
             {
                 var types = new[] { registration.SkillAdapter.GetType(), registration.AgentArtifactAdapter.GetType() };
@@ -393,7 +408,7 @@ public sealed class ProjectBoundaryTests
 
     private static string[] GetConcreteHostArtifactReferences ()
     {
-        return HostRegistration.Registrations
+        return BuiltInHostCatalog.Registrations
             .SelectMany(static registration =>
             {
                 var descriptor = registration.Skill;

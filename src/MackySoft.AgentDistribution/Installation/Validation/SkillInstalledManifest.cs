@@ -1,4 +1,4 @@
-using MackySoft.AgentDistribution.Manifests;
+using MackySoft.AgentDistribution.Skills.Manifests;
 using MackySoft.FileSystem;
 
 namespace MackySoft.AgentDistribution.Installation.Validation;

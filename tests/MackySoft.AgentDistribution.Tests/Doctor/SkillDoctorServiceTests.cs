@@ -1,6 +1,6 @@
 using MackySoft.AgentDistribution.Installation.Targeting;
-using MackySoft.AgentDistribution.Manifests;
 using MackySoft.AgentDistribution.Shared;
+using MackySoft.AgentDistribution.Skills.Manifests;
 
 namespace MackySoft.AgentDistribution.Tests.Doctor;
 
@@ -462,7 +462,7 @@ public sealed class SkillDoctorServiceTests
 
     private static async Task<(string TargetRoot, string SkillDirectory)> PrepareSharedDriftCaseAsync (
         TestDirectoryScope scope,
-        IReadOnlyList<MackySoft.AgentDistribution.Packaging.Canonical.CanonicalSkillPackage> packages,
+        IReadOnlyList<MackySoft.AgentDistribution.Skills.Packaging.Canonical.CanonicalSkillPackage> packages,
         SharedDriftCase driftCase)
     {
         var package = packages[0];
